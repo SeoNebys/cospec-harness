@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks — Version B (title grabbed on paste)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    max-width: 720px; margin: 0 auto; padding: 32px 20px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .variant { font-size: 12px; color: #2563eb; margin: 0 0 24px; font-weight: 600; }
+  .save-box { background: #fff; border: 1px solid #e2e2e2; border-radius: 10px; padding: 16px; margin-bottom: 28px; }
+  .save-box label { display: block; font-size: 12px; color: #666; margin: 0 0 4px; }
+  .save-box .hint { font-size: 11px; color: #999; margin: -8px 0 12px; height: 14px; }
+  .save-box input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #d5d5d5; border-radius: 7px; margin-bottom: 12px; }
+  .save-box button { background: #2563eb; color: #fff; border: 0; border-radius: 7px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .save-box button:hover { background: #1d4ed8; }
+  .count { font-size: 12px; color: #888; margin: 0 0 10px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { background: #fff; border: 1px solid #e2e2e2; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  li .title { font-size: 15px; font-weight: 600; margin: 0 0 3px; }
+  li a { color: #2563eb; text-decoration: none; font-size: 13px; word-break: break-all; }
+  li a:hover { text-decoration: underline; }
+  .empty { color: #999; font-size: 14px; padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>📑 My Bookmarks</h1>
+  <p class="variant">Version B — the page title fills in the name field as soon as you paste, so you can edit it</p>
+
+  <div class="save-box">
+    <label for="url">Link</label>
+    <input id="url" type="text" placeholder="Paste a link here…" />
+    <label for="title">Name</label>
+    <input id="title" type="text" placeholder="Grabbed automatically — edit if you like" />
+    <div class="hint" id="hint"></div>
+    <button id="save">Save</button>
+  </div>
+
+  <p class="count" id="count"></p>
+  <ul id="list"></ul>
+
+  <script>
+    const KEY = 'bm_proto_b';
+    const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+    const store = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
+
+    function fakeFetchTitle(url) {
+      const known = {
+        'en.wikipedia.org': 'Bookmark - Wikipedia',
+        'nytimes.com': 'The New York Times - Breaking News',
+        'github.com': 'GitHub: Let’s build from here',
+        'youtube.com': 'YouTube',
+      };
+      let host = url;
+      try { host = new URL(url.match(/^https?:\/\//) ? url : 'https://' + url).hostname.replace(/^www\./, ''); } catch (e) {}
+      if (known[host]) return known[host];
+      const words = host.split('.')[0].replace(/[-_]/g, ' ');
+      return words.charAt(0).toUpperCase() + words.slice(1) + ' — page';
+    }
+
+    const urlInput = document.getElementById('url');
+    const titleInput = document.getElementById('title');
+    const hint = document.getElementById('hint');
+    let titleTouched = false;
+    titleInput.addEventListener('input', () => { titleTouched = true; });
+
+    let debounce;
+    urlInput.addEventListener('input', () => {
+      const url = urlInput.value.trim();
+      clearTimeout(debounce);
+      if (!url) { hint.textContent = ''; return; }
+      hint.textContent = 'Looking up the page title…';
+      debounce = setTimeout(() => {
+        // only autofill if the user hasn't typed their own name
+        if (!titleTouched || !titleInput.value.trim()) {
+          titleInput.value = fakeFetchTitle(url);
+          titleTouched = false;
+        }
+        hint.textContent = 'Filled in the page title — edit it if you like.';
+      }, 700);
+    });
+
+    function render() {
+      const items = load();
+      const list = document.getElementById('list');
+      const count = document.getElementById('count');
+      list.innerHTML = '';
+      if (items.length === 0) { count.textContent = ''; list.innerHTML = '<div class="empty">Nothing saved yet. Add your first link above.</div>'; return; }
+      count.textContent = items.length + (items.length === 1 ? ' bookmark' : ' bookmarks');
+      items.slice().reverse().forEach(it => {
+        const li = document.createElement('li');
+        const t = document.createElement('div');
+        t.className = 'title';
+        t.textContent = it.title || it.url;
+        const a = document.createElement('a');
+        a.href = it.url; a.target = '_blank'; a.textContent = it.url;
+        li.appendChild(t); li.appendChild(a);
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('save').addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      const title = titleInput.value.trim();
+      if (!url) return;
+      const items = load();
+      items.push({ url, title, savedAt: Date.now() });
+      store(items);
+      urlInput.value = ''; titleInput.value = ''; hint.textContent = ''; titleTouched = false;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 11 (combine: all / any / exclude)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:#1a1a1e; }
+  .top { background:#fff; border-bottom:1px solid var(--line); padding:16px 22px; }
+  .top h1 { font-size:19px; margin:0 0 12px; }
+  .searchbar { position:relative; max-width:520px; }
+  #search { width:100%; padding:10px 14px 10px 36px; border:1px solid var(--line); border-radius:20px; font-size:14px; }
+  .searchbar .icon { position:absolute; left:12px; top:9px; color:var(--muted); }
+
+  .active { margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; min-height:30px; }
+  .active .grp { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .fchip { border-radius:14px; padding:3px 10px; display:inline-flex; gap:6px; align-items:center; }
+  .fchip.inc { background:#eaefff; color:var(--accent); }
+  .fchip.exc { background:#fdecea; color:var(--danger); }
+  .fchip button { border:0; background:transparent; cursor:pointer; font-size:14px; line-height:1; padding:0; color:inherit; }
+  .modeSwitch { display:inline-flex; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .modeSwitch button { border:0; background:#fff; color:#555; font-size:12px; padding:4px 10px; cursor:pointer; }
+  .modeSwitch button.on { background:var(--accent); color:#fff; }
+  .active .clear { border:0; background:transparent; color:var(--accent); cursor:pointer; text-decoration:underline; font-size:13px; }
+  .muted { color:var(--muted); }
+
+  .layout { display:flex; max-width:1040px; margin:0 auto; gap:24px; padding:22px; align-items:flex-start; }
+  .side { width:230px; flex:none; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; position:sticky; top:22px; }
+  .side h2 { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:4px 6px 6px; }
+  .side .tip { font-size:11px; color:#a0a0a8; margin:0 6px 10px; line-height:1.4; }
+  .side .lbl { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:8px; font-size:14px; }
+  .side .lbl:hover { background:#f2f3f7; }
+  .side .lbl .name { cursor:pointer; flex:1; }
+  .side .lbl.inc { background:var(--accent); color:#fff; }
+  .side .lbl.exc { background:#fdecea; color:var(--danger); }
+  .side .lbl .n { font-size:12px; color:var(--muted); margin:0 6px; }
+  .side .lbl.inc .n { color:#dfe6ff; }
+  /* Exclude marker: always visible but quiet (standing hint), louder on hover. */
+  .side .lbl .ex { border:1px solid var(--line); background:#fff; color:#bcbcc4; border-radius:6px;
+        font-size:11px; padding:1px 7px; cursor:pointer; opacity:.55; transition:opacity .12s,color .12s; }
+  .side .lbl .ex::before { content:"–"; }
+  .side .lbl:hover .ex { opacity:1; color:var(--danger); border-color:#f1c4bd; }
+  .side .lbl .ex:hover { background:var(--danger); color:#fff; border-color:var(--danger); }
+  .side .lbl.inc .ex { color:#c9d4ff; border-color:#5b78e0; }
+  .side .lbl.exc .ex { opacity:1; background:var(--danger); color:#fff; border-color:var(--danger); }
+
+  .main { flex:1; min-width:0; }
+  .count { font-size:13px; color:var(--muted); margin:2px 2px 14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .card .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .card .desc { font-size:13px; color:#3a3a42; margin:8px 0 0; }
+  .card .lbls { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .card .lbls span { background:#eef0f4; color:#444; border-radius:12px; padding:2px 9px; font-size:12px; }
+  .card .lbls span.inc { background:#eaefff; color:var(--accent); }
+  .empty { background:#fff; border:1px dashed var(--line); border-radius:10px; padding:30px; text-align:center; color:var(--muted); }
+</style>
+</head>
+<body>
+  <div class="top">
+    <h1>My Bookmarks</h1>
+    <div class="searchbar"><span class="icon">⌕</span><input id="search" type="text" placeholder="Search…" autocomplete="off"></div>
+    <div class="active" id="activeRow"></div>
+  </div>
+  <div class="layout">
+    <div class="side">
+      <h2>Labels</h2>
+      <div class="tip">Click a name to include it. Use the “–” on the right of any label to exclude it.</div>
+      <div id="labels"></div>
+    </div>
+    <div class="main">
+      <div class="count" id="count"></div>
+      <div id="cards"></div>
+    </div>
+  </div>
+
+<script>
+  const DATA=[
+    {t:"Simplest Brothy Beans and Rice",u:"smittenkitchen.com/beans",d:"A weeknight one-pot dinner over rice.",l:["recipes","dinner"]},
+    {t:"Sheet-Pan Chicken with Lemon",u:"cooking.nytimes.com/sheet-pan",d:"Everything roasts on one tray for an easy dinner.",l:["recipes","dinner"]},
+    {t:"The Best Banana Bread",u:"kingarthurbaking.com/banana-bread",d:"A moist, deeply banana-flavored loaf.",l:["recipes","baking"]},
+    {t:"Overnight Oats, Five Ways",u:"minimalistbaker.com/oats",d:"Make-ahead breakfast, no cooking.",l:["recipes","breakfast"]},
+    {t:"Homemade Pizza Dough",u:"kingarthurbaking.com/pizza",d:"A slow-rise dough for a weekend dinner.",l:["recipes","baking","dinner"]},
+    {t:"How to Read More Books",u:"nytimes.com/read-more",d:"Habits for fitting more reading into a busy schedule.",l:["reading","articles"]},
+    {t:"The Case for Slow Reading",u:"theatlantic.com/slow-reading",d:"Why rereading can matter more than volume.",l:["reading","articles"]},
+    {t:"ripgrep — regex search",u:"github.com/ripgrep",d:"Recursively searches your directory for a regex pattern.",l:["tools","coding"]},
+    {t:"A Perfect Day in Kyoto",u:"natgeo.com/kyoto",d:"A walking itinerary through temples and gardens.",l:["travel"]}
+  ];
+  const counts={}; DATA.forEach(b=>b.l.forEach(l=>counts[l]=(counts[l]||0)+1));
+  const allLabels=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));
+
+  let include=new Set(), exclude=new Set(), mode="all", query="";
+  const el=id=>document.getElementById(id);
+  const labelsEl=el("labels"),cardsEl=el("cards"),countEl=el("count"),activeRow=el("activeRow"),searchEl=el("search");
+
+  function toggleInclude(l){ if(include.has(l)){include.delete(l);} else {include.add(l); exclude.delete(l);} render(); }
+  function toggleExclude(l){ if(exclude.has(l)){exclude.delete(l);} else {exclude.add(l); include.delete(l);} render(); }
+
+  function renderLabels(){
+    labelsEl.innerHTML="";
+    allLabels.forEach(l=>{
+      const d=document.createElement("div");
+      d.className="lbl"+(include.has(l)?" inc":"")+(exclude.has(l)?" exc":"");
+      d.innerHTML='<span class="name">'+l+'</span><span class="n">'+counts[l]+'</span><button class="ex" title="Exclude — hide bookmarks with this label"></button>';
+      d.querySelector(".name").addEventListener("click",()=>toggleInclude(l));
+      d.querySelector(".ex").addEventListener("click",e=>{e.stopPropagation(); toggleExclude(l);});
+      labelsEl.appendChild(d);
+    });
+  }
+
+  function pass(b,q){
+    if(q && !q.split(/\s+/).filter(Boolean).every(t=>[b.t,b.d,b.u,...b.l].join(" ").toLowerCase().includes(t))) return false;
+    for(const l of exclude) if(b.l.includes(l)) return false;
+    if(include.size){
+      if(mode==="all"){ for(const l of include) if(!b.l.includes(l)) return false; }
+      else { if(![...include].some(l=>b.l.includes(l))) return false; }
+    }
+    return true;
+  }
+
+  function renderActive(){
+    activeRow.innerHTML="";
+    if(!include.size && !exclude.size && !query.trim()){ activeRow.innerHTML='<span class="muted">Showing everything.</span>'; return; }
+    if(include.size){
+      const grp=document.createElement("span"); grp.className="grp";
+      [...include].forEach(l=>{ const c=document.createElement("span"); c.className="fchip inc";
+        c.innerHTML=l+' <button>×</button>'; c.querySelector("button").addEventListener("click",()=>toggleInclude(l)); grp.appendChild(c); });
+      if(include.size>=2){
+        const ms=document.createElement("span"); ms.className="modeSwitch";
+        ms.innerHTML='<button data-m="all" class="'+(mode==="all"?"on":"")+'">all of these</button>'+
+                     '<button data-m="any" class="'+(mode==="any"?"on":"")+'">any of these</button>';
+        ms.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.m; render();}));
+        grp.appendChild(ms);
+      }
+      activeRow.appendChild(grp);
+    }
+    exclude.forEach(l=>{ const c=document.createElement("span"); c.className="fchip exc";
+      c.innerHTML='not '+l+' <button>×</button>'; c.querySelector("button").addEventListener("click",()=>toggleExclude(l)); activeRow.appendChild(c); });
+    const clr=document.createElement("button"); clr.className="clear"; clr.textContent="clear all";
+    clr.addEventListener("click",()=>{include.clear();exclude.clear();query="";searchEl.value="";render();});
+    activeRow.appendChild(clr);
+  }
+
+  function render(){
+    const q=query.trim().toLowerCase();
+    const res=DATA.filter(b=>pass(b,q));
+    renderActive();
+    countEl.textContent=res.length+(res.length===1?" bookmark":" bookmarks")+((include.size||exclude.size||q)?" match":"");
+    if(!res.length){ cardsEl.innerHTML='<div class="empty">Nothing matches that combination.</div>'; renderLabels(); return; }
+    cardsEl.innerHTML="";
+    res.forEach(b=>{ const c=document.createElement("div"); c.className="card";
+      c.innerHTML='<p class="title"></p><div class="url"></div><p class="desc"></p>'+
+        '<div class="lbls">'+b.l.map(l=>'<span class="'+(include.has(l)?"inc":"")+'">'+l+'</span>').join('')+'</div>';
+      c.querySelector(".title").textContent=b.t; c.querySelector(".url").textContent=b.u; c.querySelector(".desc").textContent=b.d;
+      cardsEl.appendChild(c); });
+    renderLabels();
+  }
+  searchEl.addEventListener("input",e=>{query=e.target.value; render();});
+  render();
+</script>
+</body>
+</html>

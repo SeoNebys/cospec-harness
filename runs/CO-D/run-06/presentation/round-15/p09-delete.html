@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 09 (deliberate delete)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; --note:#8a6d00; --notebg:#fff8e1; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+         margin:0; background:var(--bg); color:#1a1a1e; }
+  .wrap { max-width:720px; margin:0 auto; padding:24px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 16px; }
+  .switch { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .switch button { border:1px solid var(--line); background:#fff; color:#333;
+      border-radius:20px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  .switch button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .styleName { font-size:13px; color:var(--muted); margin-bottom:16px; }
+  .styleName b { color:#1a1a1e; }
+
+  input[type=text], textarea { width:100%; padding:10px 12px; border:1px solid var(--line);
+      border-radius:8px; font-size:14px; font-family:inherit; background:#fff; }
+  textarea { resize:vertical; min-height:48px; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+  button.ghost { background:#eee; color:#333; border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+
+  .count { font-size:13px; color:var(--muted); margin:6px 2px 12px; }
+  .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 46px 14px 16px; margin-bottom:10px; cursor:pointer; }
+  .card:hover { box-shadow:0 3px 14px rgba(0,0,0,.08); border-color:#cfd6ef; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .card .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .card .note { font-size:13px; color:var(--note); background:var(--notebg);
+          border-left:3px solid #f0cf5a; border-radius:0 6px 6px 0; padding:7px 10px; margin:9px 0 0; }
+  .card .lbls { margin-top:9px; display:flex; gap:6px; flex-wrap:wrap; }
+  .card .lbls span { background:#eef0f4; color:#444; border-radius:12px; padding:2px 9px; font-size:12px; }
+  .card .edit { position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:8px;
+          border:1px solid var(--line); background:#fff; cursor:pointer; color:#666; }
+  .card .edit:hover { background:#f2f3f7; color:var(--accent); }
+
+  .toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+      background:#1a1a1e; color:#fff; padding:11px 16px; border-radius:10px; font-size:13px;
+      box-shadow:0 8px 24px rgba(0,0,0,.28); display:none; align-items:center; gap:14px; z-index:80; }
+  .toast.show { display:flex; }
+  .toast button { background:transparent; border:0; color:#8ab4ff; font-weight:600; cursor:pointer; font-size:13px; }
+
+  .backdrop { position:fixed; inset:0; background:rgba(20,20,28,.4); display:none;
+      align-items:flex-start; justify-content:center; padding:40px 16px; z-index:50; overflow:auto; }
+  .backdrop.show { display:flex; }
+  .modal { background:#fff; border-radius:14px; width:100%; max-width:560px; padding:20px 22px 22px;
+      box-shadow:0 20px 60px rgba(0,0,0,.25); }
+  .modal h3 { margin:0 0 10px; font-size:16px; }
+  label.fld { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; }
+  .noteField { background:var(--notebg); border-color:#f0e2a8; }
+  .modal-actions { margin-top:18px; display:flex; gap:8px; align-items:center; }
+  .modal-actions .spacer { flex:1; }
+  .del-link { background:transparent; border:0; color:var(--danger); font-size:13px;
+      cursor:pointer; text-decoration:underline; padding:6px 2px; }
+  .danger-zone { margin-top:18px; padding-top:14px; border-top:1px dashed var(--line); }
+  .confirm { background:#fdecea; border:1px solid #f5c6c0; border-radius:8px; padding:12px;
+      margin-top:10px; display:none; }
+  .confirm.show { display:block; }
+  .confirm p { margin:0 0 10px; font-size:13px; color:#7a2018; }
+  .confirm .btns { display:flex; gap:8px; }
+  button.danger { background:var(--danger); color:#fff; border:0; border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 09 — deleting a bookmark, deliberately</p>
+  <div class="switch">
+    <button data-style="A" class="on">Style A — confirm first</button>
+    <button data-style="B">Style B — delete, with Undo</button>
+  </div>
+  <div class="styleName" id="styleName"></div>
+
+  <div class="count" id="count"></div>
+  <div id="cards"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="backdrop" id="backdrop">
+  <div class="modal">
+    <h3>Edit bookmark</h3>
+    <label class="fld">Title</label>
+    <input id="mTitle" type="text" />
+    <label class="fld">My notes</label>
+    <textarea id="mNote" class="noteField"></textarea>
+    <div class="modal-actions">
+      <button id="mSave" class="primary">Save changes</button>
+      <button id="mCancel" class="ghost">Cancel</button>
+      <span class="spacer"></span>
+    </div>
+    <div class="danger-zone">
+      <button id="delLink" class="del-link">Delete this bookmark</button>
+      <div class="confirm" id="confirm">
+        <p>Delete “<span id="delName"></span>”? This removes it from your bookmarks.</p>
+        <div class="btns">
+          <button id="delConfirm" class="danger">Yes, delete it</button>
+          <button id="delCancel" class="ghost">Keep it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let style="A";
+  const STYLE_DESC = {
+    A:"<b>Style A — confirm first.</b> In the editor, “Delete this bookmark” asks you to confirm. Nothing is removed until you confirm — two deliberate clicks.",
+    B:"<b>Style B — delete, with Undo.</b> “Delete this bookmark” removes it right away and closes the editor, but an <b>Undo</b> stays for a few seconds in case it was a slip."
+  };
+
+  let saved=[
+    {id:1,t:"Simplest Brothy Beans and Rice",u:"smittenkitchen.com/beans",note:"Needs double the garlic.",l:["recipes","dinner"]},
+    {id:2,t:"How to Read More Books This Year",u:"nytimes.com/read-more-books",note:"",l:["reading","articles"]},
+    {id:3,t:"An Old Tool I Never Use",u:"example.com/dead-link",note:"Turned out useless.",l:["tools"]}
+  ];
+  let editing=null, lastDeleted=null, toastT=null;
+
+  const el=id=>document.getElementById(id);
+  const cards=el("cards"),countEl=el("count"),backdrop=el("backdrop"),mTitle=el("mTitle"),
+        mNote=el("mNote"),mSave=el("mSave"),mCancel=el("mCancel"),delLink=el("delLink"),
+        confirm=el("confirm"),delName=el("delName"),delConfirm=el("delConfirm"),
+        delCancel=el("delCancel"),toast=el("toast"),styleName=el("styleName");
+
+  document.querySelectorAll(".switch button").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll(".switch button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); style=b.dataset.style; styleName.innerHTML=STYLE_DESC[style];
+  }));
+  styleName.innerHTML=STYLE_DESC["A"];
+
+  function render(){
+    countEl.textContent=saved.length+" bookmarks";
+    cards.innerHTML="";
+    saved.forEach(b=>{
+      const c=document.createElement("div"); c.className="card";
+      c.innerHTML='<p class="title"></p><div class="url"></div>'+
+        (b.note?'<div class="note"><b>My note:</b> <span class="nt"></span></div>':'')+
+        (b.l.length?'<div class="lbls"></div>':'')+'<button class="edit" title="Edit">✎</button>';
+      c.querySelector(".title").textContent=b.t;
+      c.querySelector(".url").textContent=b.u;
+      if(b.note) c.querySelector(".nt").textContent=b.note;
+      if(b.l.length){const w=c.querySelector(".lbls"); b.l.forEach(l=>{const s=document.createElement("span");s.textContent=l;w.appendChild(s);});}
+      c.addEventListener("click",()=>{});
+      c.querySelector(".edit").addEventListener("click",e=>{e.stopPropagation();openEditor(b);});
+      cards.appendChild(c);
+    });
+  }
+
+  function openEditor(b){ editing=b; mTitle.value=b.t; mNote.value=b.note;
+    confirm.classList.remove("show"); backdrop.classList.add("show"); }
+  function closeEditor(){ backdrop.classList.remove("show"); editing=null; confirm.classList.remove("show"); }
+
+  mSave.addEventListener("click",()=>{ editing.t=mTitle.value.trim(); editing.note=mNote.value.trim();
+    closeEditor(); render(); });
+  mCancel.addEventListener("click",closeEditor);
+  backdrop.addEventListener("click",e=>{if(e.target===backdrop) closeEditor();});
+
+  delLink.addEventListener("click",()=>{
+    if(style==="A"){ delName.textContent=editing.t; confirm.classList.add("show"); }
+    else { doDelete(editing); }        // Style B: immediate + undo
+  });
+  delConfirm.addEventListener("click",()=>{ doDelete(editing); });  // Style A confirmed
+  delCancel.addEventListener("click",()=>confirm.classList.remove("show"));
+
+  function doDelete(b){
+    const idx=saved.findIndex(x=>x.id===b.id);
+    lastDeleted={item:b, idx};
+    saved=saved.filter(x=>x.id!==b.id);
+    closeEditor(); render();
+    if(style==="B"){ showUndo(b.t); }
+  }
+  function showUndo(name){
+    toast.innerHTML='';
+    const span=document.createElement("span"); span.textContent='Deleted “'+name+'”.';
+    const btn=document.createElement("button"); btn.textContent="Undo";
+    btn.addEventListener("click",()=>{ if(lastDeleted){ saved.splice(lastDeleted.idx,0,lastDeleted.item);
+      lastDeleted=null; render(); } hideToast(); });
+    toast.appendChild(span); toast.appendChild(btn); toast.classList.add("show");
+    clearTimeout(toastT); toastT=setTimeout(hideToast,5000);
+  }
+  function hideToast(){ toast.classList.remove("show"); }
+
+  render();
+</script>
+</body>
+</html>

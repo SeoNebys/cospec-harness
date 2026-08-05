@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin:0;
+         background:var(--bg); color:#111; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:18px 28px; }
+  header h1 { font-size:18px; margin:0; }
+  .wrap { max-width:720px; margin:0 auto; padding:28px; }
+  .saver { background:#fff; border:1px solid var(--line); border-radius:12px;
+           padding:18px; display:flex; gap:10px; }
+  .saver input { flex:1; padding:11px 13px; border:1px solid var(--line);
+                 border-radius:8px; font-size:15px; }
+  .saver button { padding:11px 18px; border:none; background:var(--accent);
+                  color:#fff; font-size:15px; border-radius:8px; cursor:pointer; }
+  .saver button:hover { background:#1d4ed8; }
+  .count { color:var(--muted); font-size:13px; margin:22px 2px 10px; }
+  ul.list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:12px;
+            padding:14px 16px; }
+  li.card .title { font-size:15px; font-weight:600; color:#111; text-decoration:none; }
+  li.card .title:hover { color:var(--accent); text-decoration:underline; }
+  li.card .url { display:block; color:var(--muted); font-size:13px; margin-top:3px;
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .empty { color:var(--muted); text-align:center; padding:48px 0; font-size:15px; }
+</style>
+</head>
+<body>
+<header><h1>🔖 My Bookmarks</h1></header>
+<div class="wrap">
+  <form class="saver" id="saver">
+    <input id="url" type="text" placeholder="Paste a link here…" autocomplete="off">
+    <button type="submit">Save</button>
+  </form>
+  <div class="count" id="count"></div>
+  <ul class="list" id="list"></ul>
+</div>
+
+<script>
+  // Prototype-only: simulated data + a fake "title fetch" so the behaviour feels real.
+  const items = [];
+
+  function fakeTitleFor(url) {
+    try {
+      const host = new URL(url.match(/^https?:\/\//) ? url : 'https://' + url).hostname
+                    .replace(/^www\./,'');
+      const name = host.split('.')[0];
+      return name.charAt(0).toUpperCase() + name.slice(1) + " — page title";
+    } catch { return "Saved link"; }
+  }
+
+  function render() {
+    const list = document.getElementById('list');
+    const count = document.getElementById('count');
+    list.innerHTML = '';
+    if (items.length === 0) {
+      count.textContent = '';
+      list.innerHTML = '<li class="empty">Nothing saved yet. Paste a link above to get started.</li>';
+      return;
+    }
+    count.textContent = items.length + (items.length === 1 ? ' bookmark' : ' bookmarks');
+    for (const it of items) {
+      const li = document.createElement('li');
+      li.className = 'card';
+      const a = document.createElement('a');
+      a.className = 'title'; a.href = it.url; a.target = '_blank'; a.textContent = it.title;
+      const u = document.createElement('span');
+      u.className = 'url'; u.textContent = it.url;
+      li.appendChild(a); li.appendChild(u);
+      list.appendChild(li);
+    }
+  }
+
+  document.getElementById('saver').addEventListener('submit', function(e){
+    e.preventDefault();
+    const input = document.getElementById('url');
+    let url = input.value.trim();
+    if (!url) return;
+    if (!url.match(/^https?:\/\//)) url = 'https://' + url;
+    items.unshift({ url: url, title: fakeTitleFor(url) });
+    input.value = '';
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

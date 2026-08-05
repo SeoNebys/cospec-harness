@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Bookmarks — logic tests</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#1a1a1e}
+  h1{font-size:18px} .sum{font-size:15px;margin:12px 0;padding:10px 12px;border-radius:8px}
+  .sum.ok{background:#eaf7ee;color:#1a7f37} .sum.bad{background:#fdecea;color:#c0392b}
+  .row{font-size:13px;padding:6px 8px;border-bottom:1px solid #eee;display:flex;gap:8px}
+  .row .m{width:18px} .pass .m{color:#2f9e44} .fail .m{color:#c0392b}
+  .fail{background:#fff6f5} pre{margin:2px 0 0;color:#a33;font-size:12px}
+</style>
+</head>
+<body>
+  <h1>Bookmarks — core logic tests</h1>
+  <div id="summary"></div>
+  <div id="rows"></div>
+  <script type="module">
+    import { runTests } from './logic.test.js';
+    const r = runTests();
+    const sum = document.getElementById('summary');
+    sum.className = 'sum ' + (r.failed === 0 ? 'ok' : 'bad');
+    sum.textContent = r.failed === 0 ? `All ${r.total} checks passed ✓` : `${r.passed}/${r.total} passed — ${r.failed} failed`;
+    document.getElementById('rows').innerHTML = r.results.map(x =>
+      `<div class="row ${x.pass ? 'pass' : 'fail'}"><span class="m">${x.pass ? '✓' : '✗'}</span><span>${x.name}${
+        x.pass ? '' : `<pre>got ${JSON.stringify(x.got)} · want ${JSON.stringify(x.want)}</pre>`}</span></div>`).join('');
+  </script>
+</body>
+</html>

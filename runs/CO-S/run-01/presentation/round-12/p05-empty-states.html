@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge cases — empty states</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin:0; background:#f4f5f7; color:#1a1a1a; }
+  .bar { background:#111827; color:#fff; font-size:13px; padding:8px 16px; text-align:center; }
+  .bar button { background:#374151; color:#fff; border:0; border-radius:6px; padding:4px 10px; margin:0 4px; cursor:pointer; font-size:12px; }
+  .bar button.on { background:#2563eb; }
+  .wrap { max-width:640px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 16px; }
+  .searchbar { position:relative; margin-bottom:20px; }
+  .searchbar input { width:100%; border:1px solid #d1d5db; border-radius:10px; padding:11px 14px 11px 38px; font-size:14px; background:#fff; }
+  .searchbar .icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#9ca3af; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:13px 15px; margin-bottom:10px; }
+  .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .url { font-size:12.5px; color:#6b7280; margin:0; }
+  .empty { text-align:center; padding:56px 20px; color:#6b7280; }
+  .empty .big { font-size:44px; margin-bottom:12px; }
+  .empty h2 { font-size:17px; color:#374151; margin:0 0 6px; }
+  .empty p { font-size:14px; margin:0 0 4px; }
+  .empty .cta { font-size:13px; color:#2563eb; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  Showing:
+  <button id="b1" class="on" onclick="setMode('new')">Brand-new user (nothing saved yet)</button>
+  <button id="b2" onclick="setMode('noresult')">Search finds nothing</button>
+</div>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <div class="searchbar"><span class="icon">&#128269;</span>
+    <input id="search" placeholder="Search your saved links…" /></div>
+  <div id="area"></div>
+</div>
+<script>
+  const seed = [
+    { title:'A 3-Day Guide to Kyoto in Autumn', host:'nytimes.com' },
+    { title:'The state of AI agents in 2026', host:'arstechnica.com' },
+    { title:'How to make Neapolitan pizza dough', host:'seriouseats.com' }
+  ];
+  let mode='new';
+  const area=document.getElementById('area');
+  const search=document.getElementById('search');
+
+  function setMode(m){
+    mode=m;
+    document.getElementById('b1').className = m==='new'?'on':'';
+    document.getElementById('b2').className = m==='noresult'?'on':'';
+    search.value = m==='noresult' ? 'kyoto pizza recipe 2019' : '';
+    search.disabled = m==='new';
+    render();
+  }
+  function render(){
+    if(mode==='new'){
+      area.innerHTML =
+        '<div class="empty"><div class="big">&#128278;</div>'+
+        '<h2>No bookmarks yet</h2>'+
+        '<p>Paste a link at the top to save your first one.</p>'+
+        '<p class="cta">Tip: the app grabs each page&#39;s title for you, so it&#39;s easy to find later.</p></div>';
+      return;
+    }
+    // noresult mode
+    const q=search.value.trim().toLowerCase();
+    const items=seed.filter(d=>!q||d.title.toLowerCase().includes(q)||d.host.toLowerCase().includes(q));
+    if(!items.length){
+      area.innerHTML =
+        '<div class="empty"><div class="big">&#128269;</div>'+
+        '<h2>No matches for &ldquo;'+search.value+'&rdquo;</h2>'+
+        '<p>Nothing you&#39;ve saved matches that.</p>'+
+        '<p class="cta">Try fewer or different words, or clear the search to see everything.</p></div>';
+      return;
+    }
+    area.innerHTML='<ul>'+items.map(d=>'<li><p class="title">'+d.title+'</p><p class="url">'+d.host+'</p></li>').join('')+'</ul>';
+  }
+  search.addEventListener('input',()=>{ if(mode==='noresult') render(); });
+  setMode('new');
+</script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 10 (set aside / drawer)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; --note:#8a6d00; --notebg:#fff8e1; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:#1a1a1e; }
+  .wrap { max-width:720px; margin:0 auto; padding:24px 20px 90px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 16px; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { border:1px solid var(--line); background:#fff; color:#333; border-radius:20px;
+      padding:7px 14px; font-size:13px; cursor:pointer; display:inline-flex; gap:7px; align-items:center; }
+  .tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tabs .pill { background:#eef0f4; color:#555; border-radius:10px; padding:0 7px; font-size:11px; }
+  .tabs button.on .pill { background:#dfe6ff; color:var(--accent); }
+
+  .searchbar { position:relative; margin-bottom:6px; }
+  #search { width:100%; padding:10px 14px 10px 36px; border:1px solid var(--line); border-radius:20px; font-size:14px; }
+  .searchbar .icon { position:absolute; left:12px; top:9px; color:var(--muted); }
+  .incl { font-size:12px; color:var(--muted); margin:8px 2px 4px; display:flex; gap:6px; align-items:center; }
+
+  .count { font-size:13px; color:var(--muted); margin:12px 2px; }
+  .drawer-note { background:#f0f2f8; border:1px solid #e0e4ef; border-radius:8px; padding:10px 12px;
+      font-size:13px; color:#4a4a55; margin:8px 0 14px; }
+
+  .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 46px 14px 16px; margin-bottom:10px; cursor:pointer; }
+  .card.aside { background:#fafafb; border-style:dashed; }
+  .card:hover { box-shadow:0 3px 14px rgba(0,0,0,.08); border-color:#cfd6ef; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .card .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .card .note { font-size:13px; color:var(--note); background:var(--notebg);
+          border-left:3px solid #f0cf5a; border-radius:0 6px 6px 0; padding:7px 10px; margin:9px 0 0; }
+  .card .lbls { margin-top:9px; display:flex; gap:6px; flex-wrap:wrap; }
+  .card .lbls span { background:#eef0f4; color:#444; border-radius:12px; padding:2px 9px; font-size:12px; }
+  .card .asideFlag { display:inline-block; font-size:11px; color:#8a6d00; background:#fff3cf;
+          border-radius:8px; padding:1px 8px; margin-left:8px; vertical-align:middle; }
+  .card .edit { position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:8px;
+          border:1px solid var(--line); background:#fff; cursor:pointer; color:#666; }
+  .card .edit:hover { background:#f2f3f7; color:var(--accent); }
+  .card .putback { position:absolute; top:10px; right:10px; border:1px solid #cfd6ef; background:#fff;
+          color:var(--accent); border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; }
+
+  .toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#1a1a1e; color:#fff;
+      padding:11px 16px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.28);
+      display:none; align-items:center; gap:14px; z-index:80; }
+  .toast.show { display:flex; }
+  .toast button { background:transparent; border:0; color:#8ab4ff; font-weight:600; cursor:pointer; font-size:13px; }
+
+  .backdrop { position:fixed; inset:0; background:rgba(20,20,28,.4); display:none; align-items:flex-start;
+      justify-content:center; padding:40px 16px; z-index:50; overflow:auto; }
+  .backdrop.show { display:flex; }
+  .modal { background:#fff; border-radius:14px; width:100%; max-width:560px; padding:20px 22px 22px;
+      box-shadow:0 20px 60px rgba(0,0,0,.25); }
+  .modal h3 { margin:0 0 10px; font-size:16px; }
+  label.fld { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; }
+  input[type=text],textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  .noteField { background:var(--notebg); border-color:#f0e2a8; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+  button.ghost { background:#eee; color:#333; border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+  .modal-actions { margin-top:18px; display:flex; gap:8px; align-items:center; }
+  .modal-actions .spacer { flex:1; }
+  .zone { margin-top:18px; padding-top:14px; border-top:1px dashed var(--line); display:flex; gap:16px; align-items:center; }
+  .aside-btn { background:#fff3cf; border:1px solid #f0dd9a; color:#7a5c00; border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer; }
+  .del-link { background:transparent; border:0; color:var(--danger); font-size:13px; cursor:pointer; text-decoration:underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 10 — “Set aside”: get it out of the main list without losing it</p>
+
+  <div class="tabs">
+    <button id="tabMain" class="on">My list <span class="pill" id="mainN"></span></button>
+    <button id="tabAside">Set aside <span class="pill" id="asideN"></span></button>
+  </div>
+
+  <div class="searchbar">
+    <span class="icon">⌕</span>
+    <input id="search" type="text" placeholder="Search…" autocomplete="off" />
+  </div>
+  <label class="incl"><input type="checkbox" id="inclAside"> also search things I've set aside</label>
+
+  <div class="drawer-note" id="drawerNote" style="display:none">
+    These are tucked away — hidden from your main list, but kept. Put any of them back whenever you like.
+  </div>
+  <div class="count" id="count"></div>
+  <div id="cards"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="backdrop" id="backdrop">
+  <div class="modal">
+    <h3>Edit bookmark</h3>
+    <label class="fld">Title</label>
+    <input id="mTitle" type="text" />
+    <label class="fld">My notes</label>
+    <textarea id="mNote" class="noteField"></textarea>
+    <div class="modal-actions">
+      <button id="mSave" class="primary">Save changes</button>
+      <button id="mCancel" class="ghost">Cancel</button>
+      <span class="spacer"></span>
+    </div>
+    <div class="zone">
+      <button id="asideBtn" class="aside-btn">Set aside</button>
+      <button id="delLink" class="del-link">Delete forever</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let saved=[
+    {id:1,t:"Simplest Brothy Beans and Rice",u:"smittenkitchen.com/beans",note:"Needs double the garlic.",l:["recipes","dinner"],aside:false},
+    {id:2,t:"How to Read More Books This Year",u:"nytimes.com/read-more-books",note:"",l:["reading","articles"],aside:false},
+    {id:3,t:"Conference Talk I Watched Once",u:"youtube.com/watch?v=OLD1",note:"Was useful during the launch.",l:["work","videos"],aside:true},
+    {id:4,t:"Tax Deadlines 2025",u:"irs.gov/deadlines-2025",note:"Last year's — probably outdated now.",l:["finance"],aside:true},
+    {id:5,t:"ripgrep — recursive regex search",u:"github.com/BurntSushi/ripgrep",note:"",l:["tools","coding"],aside:false}
+  ];
+  let view="main", editing=null, lastAction=null, toastT=null;
+
+  const el=id=>document.getElementById(id);
+  const cards=el("cards"),countEl=el("count"),mainN=el("mainN"),asideN=el("asideN"),
+        tabMain=el("tabMain"),tabAside=el("tabAside"),search=el("search"),inclAside=el("inclAside"),
+        drawerNote=el("drawerNote"),backdrop=el("backdrop"),mTitle=el("mTitle"),mNote=el("mNote"),
+        mSave=el("mSave"),mCancel=el("mCancel"),asideBtn=el("asideBtn"),delLink=el("delLink"),toast=el("toast");
+
+  function counts(){ mainN.textContent=saved.filter(b=>!b.aside).length;
+    asideN.textContent=saved.filter(b=>b.aside).length; }
+
+  function matches(b,q){ if(!q) return true;
+    const hay=[b.t,b.u,b.note,...b.l].join(" ").toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(t=>hay.includes(t)); }
+
+  function render(){
+    counts();
+    tabMain.classList.toggle("on",view==="main"); tabAside.classList.toggle("on",view==="aside");
+    drawerNote.style.display = view==="aside" ? "block":"none";
+    const q=search.value.trim().toLowerCase();
+
+    let list;
+    if(view==="aside"){ list=saved.filter(b=>b.aside && matches(b,q)); }
+    else { list=saved.filter(b=>(!b.aside || (q && inclAside.checked && b.aside)) && matches(b,q)); }
+
+    countEl.textContent = list.length+(list.length===1?" bookmark":" bookmarks")+(q?" match":"");
+    cards.innerHTML="";
+    if(!list.length){ cards.innerHTML='<div class="count">Nothing here'+(q?' matches that':'')+'.</div>'; return; }
+    list.forEach(b=>{
+      const c=document.createElement("div"); c.className="card"+(b.aside?" aside":"");
+      c.innerHTML='<p class="title"></p><div class="url"></div>'+
+        (b.note?'<div class="note"><b>My note:</b> <span class="nt"></span></div>':'')+
+        (b.l.length?'<div class="lbls"></div>':'');
+      const titleEl=c.querySelector(".title"); titleEl.textContent=b.t;
+      if(b.aside && view==="main"){ const f=document.createElement("span"); f.className="asideFlag";
+        f.textContent="set aside"; titleEl.appendChild(f); }
+      c.querySelector(".url").textContent=b.u;
+      if(b.note) c.querySelector(".nt").textContent=b.note;
+      if(b.l.length){const w=c.querySelector(".lbls"); b.l.forEach(l=>{const s=document.createElement("span");s.textContent=l;w.appendChild(s);});}
+
+      if(view==="aside"){
+        const pb=document.createElement("button"); pb.className="putback"; pb.textContent="Put back";
+        pb.addEventListener("click",e=>{e.stopPropagation(); putBack(b);}); c.appendChild(pb);
+      } else {
+        const ed=document.createElement("button"); ed.className="edit"; ed.title="Edit"; ed.textContent="✎";
+        ed.addEventListener("click",e=>{e.stopPropagation(); openEditor(b);}); c.appendChild(ed);
+      }
+      c.addEventListener("click",()=>{ /* real app: visit page */ });
+      cards.appendChild(c);
+    });
+  }
+
+  function openEditor(b){ editing=b; mTitle.value=b.t; mNote.value=b.note; backdrop.classList.add("show"); }
+  function closeEditor(){ backdrop.classList.remove("show"); editing=null; }
+  mSave.addEventListener("click",()=>{ editing.t=mTitle.value.trim(); editing.note=mNote.value.trim(); closeEditor(); render(); });
+  mCancel.addEventListener("click",closeEditor);
+  backdrop.addEventListener("click",e=>{if(e.target===backdrop) closeEditor();});
+
+  asideBtn.addEventListener("click",()=>{ editing.aside=true; const b=editing; closeEditor(); render();
+    showToast('Set aside “'+b.t+'”.','Undo',()=>{ b.aside=false; render(); }); });
+  delLink.addEventListener("click",()=>{ const b=editing; const idx=saved.findIndex(x=>x.id===b.id);
+    saved=saved.filter(x=>x.id!==b.id); closeEditor(); render();
+    showToast('Deleted “'+b.t+'” forever.','Undo',()=>{ saved.splice(idx,0,b); render(); }); });
+
+  function putBack(b){ b.aside=false; render();
+    showToast('Put “'+b.t+'” back in your list.','Undo',()=>{ b.aside=true; render(); }); }
+
+  function showToast(msg,btnLabel,onClick){
+    toast.innerHTML=""; const s=document.createElement("span"); s.textContent=msg; toast.appendChild(s);
+    if(btnLabel){ const btn=document.createElement("button"); btn.textContent=btnLabel;
+      btn.addEventListener("click",()=>{ onClick(); hideToast(); }); toast.appendChild(btn); }
+    toast.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(hideToast,5000);
+  }
+  function hideToast(){ toast.classList.remove("show"); }
+
+  tabMain.addEventListener("click",()=>{view="main"; render();});
+  tabAside.addEventListener("click",()=>{view="aside"; render();});
+  search.addEventListener("input",render);
+  inclAside.addEventListener("change",render);
+
+  render();
+</script>
+</body>
+</html>

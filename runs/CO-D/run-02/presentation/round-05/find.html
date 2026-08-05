@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks</title>
+<style>
+  :root {
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --bg: #f7f8fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  .search {
+    position: sticky; top: 0; background: var(--bg); padding: 12px 0 16px; z-index: 2;
+  }
+  .search input {
+    width: 100%; font-size: 17px; padding: 14px 16px; border: 1px solid var(--line);
+    border-radius: 10px; outline: none; background: #fff;
+  }
+  .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  .count { color: var(--muted); font-size: 13px; margin: 4px 2px 14px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .title { font-size: 16px; font-weight: 600; margin: 0 0 3px; }
+  .title a { color: var(--ink); text-decoration: none; }
+  .title a:hover { text-decoration: underline; }
+  .site { color: var(--accent); font-size: 12px; margin: 0 0 6px; }
+  .desc { color: #374151; font-size: 14px; margin: 0 0 8px; line-height: 1.45; }
+  .date { color: var(--muted); font-size: 12px; }
+  mark { background: #fde68a; color: inherit; padding: 0 1px; border-radius: 2px; }
+  .empty { color: var(--muted); text-align: center; padding: 48px 12px; }
+  .empty strong { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Everything you've saved, all in one place.</p>
+
+    <div class="search">
+      <input id="q" type="text" placeholder="Search your bookmarks…" autocomplete="off" autofocus />
+    </div>
+    <div class="count" id="count"></div>
+
+    <ul id="list"></ul>
+    <div class="empty" id="empty" style="display:none;"></div>
+  </div>
+
+<script>
+  // Seeded so the "finding" experience can be shown.
+  const bookmarks = [
+    {
+      title: "The best way to cook pasta, according to science",
+      site: "seriouseats.com",
+      desc: "Why you don't need a huge pot of water, and how much salt actually matters when boiling pasta.",
+      date: "Saved 3 weeks ago"
+    },
+    {
+      title: "A slow-roasted tomato sauce worth the wait",
+      site: "smittenkitchen.com",
+      desc: "A weekend recipe: roast the tomatoes low and slow for a deep, sweet sauce. Great over any pasta.",
+      date: "Saved 2 months ago"
+    },
+    {
+      title: "How to structure a large React application",
+      site: "martinfowler.com",
+      desc: "Folder structure, state management, and where to draw module boundaries as a front-end project grows.",
+      date: "Saved 5 days ago"
+    },
+    {
+      title: "CSS Grid: a complete visual guide",
+      site: "css-tricks.com",
+      desc: "A reference for the grid layout properties with diagrams. Good to keep open while building layouts.",
+      date: "Saved 1 month ago"
+    },
+    {
+      title: "The psychology of why we procrastinate",
+      site: "theatlantic.com",
+      desc: "A long read on why we put things off, and what actually helps. Been meaning to finish this one.",
+      date: "Saved 6 weeks ago"
+    },
+    {
+      title: "Understanding database indexes for beginners",
+      site: "planetscale.com",
+      desc: "Reference material for a side project: what an index is, when it helps, and the cost of adding one.",
+      date: "Saved 2 weeks ago"
+    },
+    {
+      title: "A no-knead bread recipe anyone can make",
+      site: "nytimes.com",
+      desc: "Four ingredients, no kneading, overnight rise. The crustiest loaf from a home oven.",
+      date: "Saved 4 months ago"
+    }
+  ];
+
+  const list = document.getElementById('list');
+  const empty = document.getElementById('empty');
+  const count = document.getElementById('count');
+  const q = document.getElementById('q');
+
+  function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function highlight(text, term){
+    const safe = escapeHtml(text);
+    if(!term) return safe;
+    const re = new RegExp('('+term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+    return safe.replace(re,'<mark>$1</mark>');
+  }
+
+  function render(term){
+    const t = term.trim().toLowerCase();
+    const matches = bookmarks.filter(b =>
+      !t ||
+      b.title.toLowerCase().includes(t) ||
+      b.desc.toLowerCase().includes(t) ||
+      b.site.toLowerCase().includes(t)
+    );
+
+    if(matches.length === 0){
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      empty.innerHTML = 'Nothing matched <strong>"'+escapeHtml(term.trim())+'"</strong>.';
+      count.textContent = '';
+      return;
+    }
+    empty.style.display = 'none';
+    count.textContent = t
+      ? matches.length + (matches.length===1?' match':' matches')
+      : matches.length + ' bookmarks';
+
+    list.innerHTML = matches.map(b => `
+      <li>
+        <p class="title"><a href="#" onclick="return false;">${highlight(b.title, t)}</a></p>
+        <p class="site">${highlight(b.site, t)}</p>
+        <p class="desc">${highlight(b.desc, t)}</p>
+        <p class="date">${escapeHtml(b.date)}</p>
+      </li>
+    `).join('');
+  }
+
+  q.addEventListener('input', e => render(e.target.value));
+  render('');
+</script>
+</body>
+</html>

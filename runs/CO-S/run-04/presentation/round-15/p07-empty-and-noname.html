@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype 07 (empty state & no-name fallback)</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #f4f5f7; color: #1c1e21; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 36px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #65676b; margin: 0 0 24px; font-size: 14px; }
+  .adder { display: flex; gap: 8px; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .adder input { flex: 1; border: 1px solid #d0d3d8; border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  .adder button { border: 0; background: #2d6cdf; color: #fff; font-size: 15px; padding: 0 18px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .count { margin: 22px 0 12px; font-size: 13px; color: #65676b; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .titlerow { display: flex; align-items: center; gap: 6px; }
+  .title { font-size: 15px; font-weight: 600; color: #2d6cdf; cursor: pointer; }
+  .title.fallback { color: #1c1e21; }
+  .title:hover { text-decoration: underline; }
+  .badge { font-size: 11px; color: #9a6a00; background: #fff3d6; border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+  .fetching .title { color: #90949c; font-style: italic; }
+  .link-url { font-size: 12px; color: #90949c; word-break: break-all; margin-top: 3px; }
+  .pencil { opacity: 0; border: 0; background: transparent; cursor: pointer; font-size: 13px; padding: 2px 5px; border-radius: 5px; color: #65676b; transition: opacity .12s; }
+  li:hover .pencil { opacity: 1; }
+  .pencil:hover { background: #eef1f6; }
+  input.edit { font-size: 15px; font-weight: 600; border: 1px solid #2d6cdf; border-radius: 6px; padding: 4px 6px; width: 100%; font-family: inherit; }
+
+  .empty { background: #fff; border: 1px dashed #d0d3d8; border-radius: 12px; padding: 40px 24px; text-align: center; color: #65676b; }
+  .empty .big { font-size: 34px; margin-bottom: 10px; }
+  .empty .head { font-size: 16px; font-weight: 600; color: #1c1e21; margin-bottom: 4px; }
+  .empty .small { font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Your one spot for links.</p>
+    <form class="adder" id="adder">
+      <input id="url" type="text" placeholder="Paste a link here…" autocomplete="off" autofocus>
+      <button type="submit">Save</button>
+    </form>
+    <div class="count" id="count"></div>
+    <ul id="list"></ul>
+  </div>
+
+<script>
+  const items = [];  // start empty
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+  const form = document.getElementById('adder');
+  const urlEl = document.getElementById('url');
+
+  function looksLikeUrl(s) { return /\./.test(s) && !/\s/.test(s); }
+  function prettify(seg) { return seg.replace(/[-_]+/g,' ').replace(/\.[a-z]+$/,'').replace(/\b\w/g,c=>c.toUpperCase()).trim(); }
+  // Simulate name lookup. Returns null when a name "cannot be found"
+  // (here: any host under no-title.example.com), so you can see the fallback.
+  function lookupName(url) {
+    try {
+      const u = new URL(url.match(/^https?:\/\//) ? url : 'https://' + url);
+      if (u.hostname.indexOf('no-title') !== -1) return null;
+      const host = u.hostname.replace(/^www\./,'');
+      const seg = u.pathname.split('/').filter(Boolean).pop();
+      return seg && seg.length > 2 ? prettify(seg) + ' — ' + prettify(host.split('.')[0]) : prettify(host.split('.')[0]);
+    } catch (e) { return null; }
+  }
+
+  function render() {
+    if (items.length === 0) {
+      countEl.textContent = '';
+      listEl.innerHTML = '<div class="empty"><div class="big">🔖</div><div class="head">No links saved yet</div><div class="small">Paste a link in the box above and it\'ll show up here — your one spot to find it again.</div></div>';
+      return;
+    }
+    countEl.textContent = items.length + (items.length === 1 ? ' link saved' : ' links saved');
+    listEl.innerHTML = '';
+    items.forEach((it, idx) => {
+      const li = document.createElement('li');
+      if (it.fetching) li.className = 'fetching';
+      const row = document.createElement('div'); row.className = 'titlerow';
+      const t = document.createElement('span'); t.className = 'title' + (it.fallback ? ' fallback' : '');
+      t.textContent = it.fetching ? 'Getting the page name…' : it.title;
+      if (!it.fetching) t.addEventListener('click', () => alert('Opening: ' + it.title));
+      row.appendChild(t);
+      if (it.fallback && !it.fetching) {
+        const b = document.createElement('span'); b.className = 'badge'; b.textContent = 'name not found — rename?';
+        row.appendChild(b);
+      }
+      if (!it.fetching) {
+        const pencil = document.createElement('button'); pencil.className = 'pencil'; pencil.textContent = '✎'; pencil.title = 'Rename';
+        pencil.addEventListener('click', () => {
+          const input = document.createElement('input'); input.className='edit'; input.value = it.title;
+          row.replaceChild(input, t); setTimeout(()=>{input.focus();input.select();},0);
+          function commit(){ const v=input.value.trim(); if(v){items[idx].title=v; items[idx].fallback=false;} render(); }
+          input.addEventListener('keydown',e=>{if(e.key==='Enter')commit(); if(e.key==='Escape')render();});
+          input.addEventListener('blur', commit);
+        });
+        row.appendChild(pencil);
+      }
+      const u = document.createElement('div'); u.className='link-url'; u.textContent = it.url;
+      li.appendChild(row); li.appendChild(u);
+      listEl.appendChild(li);
+    });
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const url = urlEl.value.trim(); if (!url) return;
+    const it = { url, title: '', fetching: true, fallback: false };
+    items.unshift(it); urlEl.value=''; urlEl.focus(); render();
+    setTimeout(() => {
+      const name = lookupName(url);
+      if (name) { it.title = name; }
+      else { it.title = url; it.fallback = true; }  // fallback: show the address as the name
+      it.fetching = false; render();
+    }, 700);
+  });
+
+  render();
+</script>
+</body>
+</html>

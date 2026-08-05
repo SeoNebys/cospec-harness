@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groups — Option C (type a group name)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; margin:0; background:var(--bg); color:#111; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:16px 28px; }
+  header h1 { font-size:18px; margin:0; }
+  .banner { background:#eef2ff; color:#3730a3; font-size:13px; padding:8px 28px; border-bottom:1px solid #dfe3ff; }
+  .layout { max-width:900px; margin:0 auto; padding:24px; display:grid; grid-template-columns:180px 1fr; gap:24px; }
+  .side { display:flex; flex-direction:column; gap:4px; }
+  .side button { text-align:left; background:none; border:none; padding:9px 12px; border-radius:8px; font-size:14px; cursor:pointer; color:#374151; }
+  .side button.active { background:#fff; border:1px solid var(--line); font-weight:600; }
+  .side button:hover { background:#eee; }
+  .saver { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:10px; }
+  .saver input.url { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .saver input.grp { width:150px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .saver button { padding:10px 18px; border:none; background:var(--accent); color:#fff; font-size:15px; border-radius:8px; cursor:pointer; }
+  .hint { color:var(--muted); font-size:12px; margin:6px 2px 0; }
+  .count { color:var(--muted); font-size:13px; margin:14px 2px 10px; }
+  ul.list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 15px; }
+  li.card .title { font-size:15px; font-weight:600; color:#111; text-decoration:none; }
+  li.card .url { display:block; color:var(--muted); font-size:13px; margin-top:3px; }
+  li.card .tag { display:inline-block; margin-top:8px; font-size:12px; color:#3730a3; background:#eef2ff; padding:2px 9px; border-radius:20px; }
+</style>
+</head>
+<body>
+<header><h1>🔖 My Bookmarks</h1></header>
+<div class="banner">Option C — as you save, you <b>type a group name</b>. Typing a new name creates that group on the spot.</div>
+<div class="layout">
+  <nav class="side" id="side"></nav>
+  <main>
+    <form class="saver" id="saver">
+      <input class="url" id="url" type="text" placeholder="Paste a link here…" autocomplete="off">
+      <input class="grp" id="group" list="grouplist" placeholder="Group (optional)" autocomplete="off">
+      <datalist id="grouplist"></datalist>
+      <button type="submit">Save</button>
+    </form>
+    <div class="hint">Start typing to reuse a group like “Work”, or type a brand-new name to create one.</div>
+    <div class="count" id="count"></div>
+    <ul class="list" id="list"></ul>
+  </main>
+</div>
+<script>
+  let groups = ["Work","Recipes","Read later"];
+  const items = [
+    {url:"https://example.com/quarterly-plan", title:"Quarterly plan — page title", group:"Work"},
+    {url:"https://example.com/pasta", title:"Best weeknight pasta — page title", group:"Recipes"},
+    {url:"https://example.com/long-read", title:"A long essay to read — page title", group:"Read later"},
+  ];
+  let filter = "All";
+  function fakeTitle(url){ try{ const h=new URL(url.match(/^https?:/)?url:'https://'+url).hostname.replace(/^www\./,''); const n=h.split('.')[0]; return n.charAt(0).toUpperCase()+n.slice(1)+" — page title";}catch{return "Saved link";} }
+  function renderDatalist(){ const dl=document.getElementById('grouplist'); dl.innerHTML=''; groups.forEach(g=>{ const o=document.createElement('option'); o.value=g; dl.appendChild(o); }); }
+  function renderSide(){ const s=document.getElementById('side'); s.innerHTML='';
+    ["All",...groups].forEach(g=>{ const b=document.createElement('button'); b.textContent=g==="All"?"All bookmarks":g;
+      if(g===filter)b.className='active'; b.onclick=()=>{filter=g;render();}; s.appendChild(b); }); }
+  function render(){ renderSide(); renderDatalist(); const list=document.getElementById('list'); const count=document.getElementById('count');
+    const shown = items.filter(it=> filter==="All" || it.group===filter);
+    count.textContent = shown.length + (shown.length===1?' bookmark':' bookmarks') + (filter==="All"?'':' in '+filter);
+    list.innerHTML='';
+    shown.forEach(it=>{ const li=document.createElement('li'); li.className='card';
+      const a=document.createElement('a'); a.className='title'; a.href=it.url; a.target='_blank'; a.textContent=it.title;
+      const u=document.createElement('span'); u.className='url'; u.textContent=it.url;
+      li.appendChild(a); li.appendChild(u);
+      if(it.group){ const t=document.createElement('span'); t.className='tag'; t.textContent=it.group; li.appendChild(t); }
+      list.appendChild(li); });
+  }
+  document.getElementById('saver').addEventListener('submit',e=>{ e.preventDefault();
+    const i=document.getElementById('url'); let url=i.value.trim(); if(!url)return;
+    if(!url.match(/^https?:/))url='https://'+url;
+    const g=document.getElementById('group').value.trim();
+    if(g && !groups.includes(g)) groups.push(g);
+    items.unshift({url, title:fakeTitle(url), group:g});
+    i.value=''; document.getElementById('group').value=''; render(); });
+  render();
+</script>
+</body>
+</html>

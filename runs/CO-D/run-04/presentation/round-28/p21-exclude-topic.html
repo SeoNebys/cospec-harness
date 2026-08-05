@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Links — prototype 21 (exclude a topic)</title>
+<style>
+  :root { --line:#e3e3e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; --red:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#111827; background:var(--bg); }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); background:#fff; }
+  h1 { font-size:19px; margin:0; } .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+  main { max-width:760px; margin:0 auto; padding:18px 20px 60px; }
+
+  .protoctl { background:#111827; color:#fff; border-radius:10px; padding:10px 13px; margin-bottom:18px; font-size:12px; }
+  .protoctl .lbl { text-transform:uppercase; letter-spacing:.06em; opacity:.7; margin-right:8px; }
+  .protoctl button { background:#374151; color:#d1d5db; border:0; border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer; margin-right:6px; }
+  .protoctl button.on { background:var(--accent); color:#fff; font-weight:600; }
+  .protoctl .d { opacity:.85; margin-top:8px; }
+
+  .lens { display:inline-flex; background:#eceef1; border-radius:10px; padding:4px; margin-bottom:16px; }
+  .lens button { border:0; background:none; padding:8px 15px; border-radius:8px; font-size:14px; cursor:pointer; color:#4b5563; }
+  .lens button.on { background:#fff; color:#111827; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+
+  .barlabel { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 2px 8px; }
+  .topicsbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .t { display:inline-flex; align-items:center; gap:7px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:6px 13px; font-size:13px; cursor:pointer; }
+  .t .c { color:var(--muted); font-size:11px; }
+  .t.inc { background:var(--accent); color:#fff; border-color:var(--accent); } .t.inc .c{ color:#dbe3ff; }
+  .t.exc { background:#fef2f2; color:var(--red); border-color:#fecaca; text-decoration:line-through; }
+  .t.exc .c{ color:#f7a3a3; }
+  .t .minus { border:0; background:#f3f4f6; color:#6b7280; border-radius:50%; width:18px; height:18px; cursor:pointer; font-size:12px; line-height:1; }
+  .t.exc .minus { background:#fee2e2; color:var(--red); }
+
+  .active { display:none; background:#f8faff; border:1px solid #c7d2fe; border-radius:8px; padding:9px 13px; font-size:13px; margin-bottom:14px; }
+  .active.show { display:block; } .active .inb { color:var(--accent); font-weight:600; } .active .exb { color:var(--red); font-weight:600; }
+  .active .clr { margin-left:8px; border:1px solid #c7d2fe; background:#fff; border-radius:7px; padding:3px 9px; font-size:12px; cursor:pointer; }
+
+  .count { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; margin:0 2px 10px; }
+  ul { list-style:none; margin:0; padding:0; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:13px 16px; margin-bottom:10px; }
+  li.card.unread { border-left:3px solid var(--accent); }
+  .title { font-size:15px; font-weight:600; margin:0; }
+  .url { color:var(--muted); font-size:12px; margin-top:6px; }
+  .tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { background:#eef2ff; color:#3730a3; font-size:11px; border-radius:20px; padding:3px 10px; }
+  .tag.exd { background:#fef2f2; color:var(--red); text-decoration:line-through; }
+  .empty { color:var(--muted); text-align:center; padding:40px 14px; font-size:14px; }
+  .hint { font-size:12px; color:var(--muted); margin:0 2px 12px; }
+</style>
+</head>
+<body>
+<header><h1>My Links</h1><div class="sub">Your personal library of saved links</div></header>
+<main>
+  <div class="protoctl">
+    <span class="lbl">Prototype control · two ways to knock a topic out</span>
+    <button data-m="cycle" class="on">A · Click again to exclude</button>
+    <button data-m="minus">B · A “−” on each topic</button>
+    <div class="d" id="mdesc"></div>
+  </div>
+
+  <div class="lens" id="lens">
+    <button data-v="all" class="on">📚 Everything</button>
+    <button data-v="toread">📖 To read</button>
+  </div>
+  <p class="hint" id="hint"></p>
+  <div class="barlabel">Topics</div>
+  <div class="topicsbar" id="bar"></div>
+  <div class="active" id="active"></div>
+  <div class="count" id="count"></div>
+  <ul id="list"></ul>
+</main>
+
+<script>
+let mode='cycle', view='all';
+let state={}; // tag -> 'inc' | 'exc'
+const MDESC={
+  cycle:"Click a topic once to focus it (blue), again to knock it out (red, struck through), again to clear. One control, three states.",
+  minus:"Click a topic to focus it (blue). Click the little “−” on it to knock it out (red). Two explicit controls, nothing to memorise."
+};
+let items=[
+  { title:"Sourdough — Wikipedia", url:"wikipedia.org/wiki/Sourdough", tags:["recipes","baking"], status:'none' },
+  { title:"The Best Pizza Dough", url:"seriouseats.com/pizza-dough", tags:["recipes","baking"], status:'none' },
+  { title:"Weeknight Ramen", url:"cooking.com/weeknight-ramen", tags:["recipes"], status:'none' },
+  { title:"Designing the Stripe Payments API", url:"stripe.com/blog/payment-api", tags:["work","dev"], status:'unread' },
+  { title:"The Linear Method", url:"linear.app/method", tags:["work"], status:'unread' },
+  { title:"Thinking in Hooks", url:"reactjs.org/hooks", tags:["dev"], status:'unread' },
+  { title:"36 Hours in Kyoto", url:"nytimes.com/2026/travel/kyoto", tags:["travel"], status:'unread' },
+];
+function allTags(){ const s=new Set(); items.forEach(i=>i.tags.forEach(t=>s.add(t))); return [...s].sort(); }
+function counts(){ const m={}; items.forEach(i=>i.tags.forEach(t=>m[t]=(m[t]||0)+1)); return m; }
+function incs(){ return Object.keys(state).filter(t=>state[t]==='inc'); }
+function excs(){ return Object.keys(state).filter(t=>state[t]==='exc'); }
+function pass(it){
+  if(view==='toread' && it.status!=='unread') return false;
+  if(!incs().every(t=>it.tags.includes(t))) return false;
+  if(excs().some(t=>it.tags.includes(t))) return false;
+  return true;
+}
+const bar=document.getElementById('bar'), active=document.getElementById('active'), count=document.getElementById('count'),
+      list=document.getElementById('list'), mdesc=document.getElementById('mdesc'), hint=document.getElementById('hint');
+
+function cycle(t){ state[t] = state[t]==='inc' ? 'exc' : state[t]==='exc' ? undefined : 'inc';
+  if(!state[t]) delete state[t]; render(); }
+function setInc(t){ state[t] = state[t]==='inc' ? undefined : 'inc'; if(!state[t]) delete state[t]; render(); }
+function setExc(t){ state[t] = state[t]==='exc' ? undefined : 'exc'; if(!state[t]) delete state[t]; render(); }
+
+function renderBar(){
+  const c=counts();
+  bar.innerHTML=allTags().map(t=>{
+    const st=state[t]||'';
+    if(mode==='minus'){
+      return `<span class="t ${st}" data-inc="${t}">${t}<span class="c">${c[t]}</span>
+        <button class="minus" data-exc="${t}" title="Knock “${t}” out">−</button></span>`;
+    }
+    return `<span class="t ${st}" data-cyc="${t}">${t}<span class="c">${c[t]}</span></span>`;
+  }).join('');
+  bar.querySelectorAll('[data-cyc]').forEach(el=>el.addEventListener('click',()=>cycle(el.dataset.cyc)));
+  bar.querySelectorAll('[data-inc]').forEach(el=>el.addEventListener('click',e=>{ if(e.target.closest('[data-exc]')) return; setInc(el.dataset.inc); }));
+  bar.querySelectorAll('[data-exc]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); setExc(b.dataset.exc); }));
+}
+function renderActive(){
+  const I=incs(), E=excs();
+  if(!I.length && !E.length){ active.className='active'; return; }
+  active.className='active show';
+  const parts=[];
+  if(I.length) parts.push(`showing <span class="inb">${I.join(' + ')}</span>`);
+  if(E.length) parts.push(`but <span class="exb">not ${E.join(', ')}</span>`);
+  active.innerHTML=`${parts.join(' ')} <button class="clr" id="clr">Clear</button>`;
+  document.getElementById('clr').addEventListener('click',()=>{ state={}; render(); });
+}
+function render(){
+  mdesc.textContent=MDESC[mode];
+  hint.textContent = mode==='cycle'
+    ? "Try: click “recipes” (focus), then click “baking” twice (focus → knock out). You'll get recipes that aren't baking."
+    : "Try: click “recipes” to focus, then click the “−” on “baking”. Or switch to “To read” and “−” out “work”.";
+  renderBar(); renderActive();
+  const shown=items.filter(pass);
+  count.textContent = `${shown.length} shown`;
+  if(!shown.length){ list.innerHTML=`<div class="empty">Nothing matches — try clearing a topic.</div>`; return; }
+  list.innerHTML=shown.map(it=>`<li class="card ${view==='toread'&&it.status==='unread'?'unread':''}">
+    <p class="title">${it.title}</p><div class="url">${it.url}</div>
+    <div class="tags">${it.tags.map(t=>`<span class="tag ${state[t]==='exc'?'exd':''}">${t}</span>`).join('')}</div></li>`).join('');
+}
+document.querySelector('.protoctl').addEventListener('click',e=>{ const b=e.target.closest('button[data-m]'); if(!b) return;
+  mode=b.dataset.m; state={}; document.querySelectorAll('.protoctl button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+document.getElementById('lens').addEventListener('click',e=>{ const b=e.target.closest('button[data-v]'); if(!b) return;
+  view=b.dataset.v; document.querySelectorAll('#lens button').forEach(x=>x.classList.toggle('on',x===b)); render(); });
+render();
+</script>
+</body>
+</html>

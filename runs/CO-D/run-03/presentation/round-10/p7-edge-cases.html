@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookmarks — prototype 7 (edge cases)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f4f5f7; color: #1a1a2e; }
+  header { background: #fff; border-bottom: 1px solid #e3e5e8; padding: 18px 28px; position: sticky; top: 0; z-index: 5; }
+  h1 { font-size: 20px; margin: 0 0 14px; }
+  .savebar { display: flex; gap: 8px; align-items: center; }
+  .savebar input.url { flex: 1; padding: 11px 14px; font-size: 15px; border: 1px solid #cfd3d8; border-radius: 8px; }
+  .savebar input.url.err { border-color: #d9534f; background: #fdf3f2; }
+  .savebar .toread-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: #6b6455; background: #fdf7e3; border: 1px solid #ecd98f; border-radius: 8px; padding: 10px 12px; cursor: pointer; user-select: none; white-space: nowrap; }
+  .savebar .toread-toggle input { accent-color: #b8860b; width: 15px; height: 15px; }
+  .savebar button.save { padding: 11px 20px; font-size: 15px; font-weight: 600; background: #2f6fed; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+  .saveerr { color: #c0392b; font-size: 13px; margin: 8px 2px 0; min-height: 0; }
+  main { max-width: 900px; margin: 0 auto; padding: 22px 28px 60px; }
+  .searchrow { position: relative; margin-bottom: 16px; }
+  .searchrow input { width: 100%; padding: 12px 14px 12px 40px; font-size: 15px; border: 1px solid #cfd3d8; border-radius: 10px; background: #fff; }
+  .searchrow .mag { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9aa1ab; font-size: 16px; }
+  .views { display: flex; gap: 8px; margin-bottom: 14px; }
+  .view { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; padding: 8px 15px; border-radius: 9px; border: 1px solid #cfd3d8; background: #fff; color: #3f4b5b; cursor: pointer; }
+  .view.active { background: #1a1a2e; border-color: #1a1a2e; color: #fff; }
+  .view.toread.active { background: #b8860b; border-color: #b8860b; }
+  .view.archived.active { background: #566072; border-color: #566072; }
+  .view .n { font-size: 12px; background: rgba(0,0,0,.09); border-radius: 999px; padding: 1px 8px; }
+  .view.active .n { background: rgba(255,255,255,.22); }
+  .labelbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+  .labelbar .lead { font-size: 12.5px; color: #6b7280; margin-right: 2px; }
+  .pill { font-size: 12.5px; padding: 5px 12px; border-radius: 999px; border: 1px solid #cfd3d8; background: #fff; color: #4b5563; cursor: pointer; }
+  .pill.active { background: #2f6fed; border-color: #2f6fed; color: #fff; }
+  .count { color: #6b7280; font-size: 13px; margin: 0 0 14px 2px; }
+  .card { display: flex; gap: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 12px; padding: 14px; margin-bottom: 12px; animation: pop .25s ease; position: relative; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px);} to {opacity:1;transform:none;} }
+  .card.new { border-color: #2f6fed; box-shadow: 0 0 0 3px rgba(47,111,237,.12); }
+  .card.toread { border-left: 4px solid #d4a017; }
+  .card.needsinfo { border-left: 4px solid #d9534f; }
+  .clickable { cursor: pointer; } .clickable:hover .title { text-decoration: underline; }
+  .thumb { width: 108px; height: 76px; flex: none; border-radius: 8px; object-fit: cover; background: #e9ebef; }
+  .thumb.placeholder { display: flex; align-items: center; justify-content: center; color: #b3b8c0; font-size: 28px; background: #eef0f3; border: 1px dashed #cfd3d8; }
+  .body { min-width: 0; flex: 1; }
+  .titlerow { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+  .badge.tr { color: #8a6d0b; background: #fdf3d3; border: 1px solid #ecd98f; }
+  .badge.ni { color: #b13b36; background: #fdecea; border: 1px solid #f2c4c0; }
+  .body .title { font-size: 16px; font-weight: 600; }
+  .body .title.untitled { color: #9aa1ab; font-style: italic; font-weight: 500; }
+  .body .url { font-size: 12.5px; color: #2f6fed; margin: 0 0 6px; word-break: break-all; }
+  .body .desc { font-size: 13.5px; color: #4b5563; margin: 0 0 8px; line-height: 1.45; }
+  .body .desc.missing { color: #b13b36; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: #eef1f5; color: #3f4b5b; cursor: pointer; }
+  .cardtools { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+  .tbtn { font-size: 12.5px; color: #6b7280; background: #f4f5f7; border: 1px solid #e3e5e8; border-radius: 7px; padding: 5px 10px; cursor: pointer; }
+  .tbtn.toread { color: #8a6d0b; border-color: #ecd98f; background: #fdf7e3; }
+  .edit-form input, .edit-form textarea { width: 100%; font-size: 14px; padding: 8px 10px; margin-bottom: 8px; border: 1px solid #cfd3d8; border-radius: 7px; font-family: inherit; }
+  .edit-form .lbl { font-size: 11.5px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
+  .edit-form textarea { min-height: 62px; resize: vertical; }
+  .refetch { font-size: 12.5px; color: #2f6fed; background: #eef4ff; border: 1px solid #cfe0ff; border-radius: 7px; padding: 6px 11px; cursor: pointer; margin: -3px 0 10px; }
+  .refetch:hover { background: #e0ecff; }
+  .refetchhint { font-size: 11.5px; color: #9aa1ab; margin: -4px 0 8px; }
+  .chipbox { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid #cfd3d8; border-radius: 7px; padding: 6px 8px; margin-bottom: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 4px 3px 10px; border-radius: 999px; background: #d9e5ff; color: #1c4fbf; }
+  .chip button { border: none; background: transparent; color: #1c4fbf; cursor: pointer; }
+  .chipbox input { border: none; margin: 0; padding: 4px; flex: 1; min-width: 120px; font-size: 13px; } .chipbox input:focus { outline: none; }
+  .savenote { font-size: 12.5px; margin: 0 0 8px; }
+  .savenote.ok { color: #2f6fed; } .savenote.warn { color: #b13b36; }
+  .edit-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .edit-actions .save { background: #2f6fed; color: #fff; border: none; border-radius: 7px; padding: 7px 16px; font-weight: 600; cursor: pointer; }
+  .edit-actions .cancel { background: #fff; color: #4b5563; border: 1px solid #cfd3d8; border-radius: 7px; padding: 7px 16px; cursor: pointer; }
+  .edit-actions .delete { margin-left: auto; background: #fff; color: #c0392b; border: 1px solid #e6c3bd; border-radius: 7px; padding: 7px 16px; cursor: pointer; }
+  /* empty first-run */
+  .welcome { text-align: center; padding: 64px 20px; }
+  .welcome .big { font-size: 40px; margin-bottom: 10px; }
+  .welcome h2 { margin: 0 0 8px; font-size: 20px; }
+  .welcome p { color: #6b7280; max-width: 440px; margin: 0 auto 6px; line-height: 1.5; }
+  .welcome .arrow { color: #2f6fed; font-weight: 600; margin-top: 12px; }
+  .empty { text-align: center; color: #9aa1ab; padding: 50px 0; font-size: 15px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 50; display: flex; gap: 14px; align-items: center; }
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast button { background: transparent; color: #ffd54a; border: none; font-weight: 700; cursor: pointer; }
+  .browser { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; }
+  .browser.show { display: flex; }
+  .win { background: #fff; width: 100%; max-width: 760px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  .chrome { display: flex; align-items: center; gap: 10px; background: #ececf0; padding: 10px 14px; border-bottom: 1px solid #dcdee3; }
+  .dots { display: flex; gap: 6px; } .dots span { width: 11px; height: 11px; border-radius: 50%; background: #c9ccd2; }
+  .addr { flex: 1; background: #fff; border-radius: 7px; padding: 6px 12px; font-size: 12.5px; color: #4b5563; border: 1px solid #dcdee3; }
+  .closex { cursor: pointer; color: #6b7280; font-size: 18px; }
+  .page { padding: 34px 40px 46px; } .page p { color: #4b5563; line-height: 1.6; }
+  .page.gone { text-align: center; color: #9aa1ab; padding: 60px 40px; }
+  .page.gone .big { font-size: 40px; }
+  .snapshot { background: #f4f5f7; border: 1px solid #e3e5e8; border-radius: 10px; padding: 16px; margin-top: 20px; text-align: left; }
+  .snapshot .k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #9aa1ab; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <div class="savebar">
+    <input class="url" id="urlInput" type="text" placeholder="Paste a link to save…" autocomplete="off">
+    <label class="toread-toggle"><input type="checkbox" id="saveToRead"> 📖 To read</label>
+    <button class="save" id="saveBtn">Save</button>
+  </div>
+  <div class="saveerr" id="saveerr"></div>
+</header>
+
+<main>
+  <div class="searchrow"><span class="mag">⌕</span><input id="searchInput" type="text" placeholder="Search everything you saved…" autocomplete="off"></div>
+  <div class="views" id="views"></div>
+  <div class="labelbar" id="labelbar"></div>
+  <p class="count" id="count"></p>
+  <div id="list"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+<div class="browser" id="browser">
+  <div class="win">
+    <div class="chrome"><div class="dots"><span></span><span></span><span></span></div>
+      <div class="addr" id="addr"></div><div class="closex" id="closeBrowser">✕</div></div>
+    <div id="pagearea"></div>
+  </div>
+</div>
+
+<script>
+// starts EMPTY to show the first-run experience
+let bookmarks = [];
+
+// simulated capture: some links can't be read; one is a "gone" page for link-rot
+const canned = {
+  "https://kitchenlab.example/no-knead-bread": { title:"No-Knead Bread in a Dutch Oven", desc:"A four-ingredient loaf with a crackly crust and open crumb. Long overnight rise, no kneading, baked in a covered pot.", img:"https://picsum.photos/seed/dutchoven/216/152" },
+  "https://blog.example/great-article": { title:"The Article You Meant to Keep", desc:"A long read on focus and attention in a distracted world.", img:"https://picsum.photos/seed/focus/216/152", gone:true },
+};
+const unreadable = new Set(["https://broken.example/unreadable","https://intranet.local/report"]);
+
+function looksLikeUrl(raw){
+  let s=raw.trim(); if(!s || /\s/.test(s)) return null;
+  if(!/^https?:\/\//i.test(s)) s='https://'+s;
+  try{ const u=new URL(s); if(!u.hostname.includes('.')) return null; return s; }catch(e){ return null; }
+}
+function autoCapture(url){
+  if(canned[url]) return { ...canned[url], failed:false };
+  if(unreadable.has(url)) return { failed:true };
+  let host="the page"; try{host=new URL(url).hostname.replace(/^www\./,'');}catch(e){}
+  const seed=encodeURIComponent(url).slice(-12)||"link";
+  return { failed:false, title:"Saved page from "+host, desc:"We grabbed this automatically from "+host+".", img:"https://picsum.photos/seed/"+seed+"/216/152" };
+}
+function normUrl(u){ let s=u.trim().toLowerCase(); s=s.replace(/\/+$/,''); s=s.replace(/^https?:\/\//,''); s=s.replace(/^www\./,''); return s; }
+
+const listEl=document.getElementById('list'), countEl=document.getElementById('count'),
+      searchEl=document.getElementById('searchInput'), labelbarEl=document.getElementById('labelbar'),
+      viewsEl=document.getElementById('views'), errEl=document.getElementById('saveerr');
+let lastNewId=null, editingId=null, flashId=null, activeLabel=null, view='all', draftTags=[];
+
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function highlight(text,q){ const safe=esc(text); if(!q) return safe; const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'); return safe.replace(re,'<mark>$1</mark>'); }
+const active=()=>bookmarks.filter(b=>!b.archived);
+function allLabels(){ const s=new Set(); active().forEach(b=>b.tags.forEach(t=>s.add(t))); return [...s].sort(); }
+
+function renderViews(){
+  viewsEl.innerHTML =
+    `<span class="view ${view==='all'?'active':''}" data-view="all">All bookmarks <span class="n">${active().length}</span></span>`+
+    `<span class="view toread ${view==='toread'?'active':''}" data-view="toread">📖 To read <span class="n">${active().filter(b=>b.unread).length}</span></span>`+
+    `<span class="view archived ${view==='archived'?'active':''}" data-view="archived">🗄 Archived <span class="n">${bookmarks.filter(b=>b.archived).length}</span></span>`;
+}
+function renderLabelbar(){
+  if(view==='archived' || active().length===0){ labelbarEl.innerHTML=''; return; }
+  const labels=allLabels(); let html=`<span class="lead">Labels:</span><span class="pill ${activeLabel===null?'active':''}" data-label="__all">All</span>`;
+  html+=labels.map(l=>`<span class="pill ${activeLabel===l?'active':''}" data-label="${esc(l)}">${esc(l)}</span>`).join('');
+  labelbarEl.innerHTML=html;
+}
+
+function thumbHtml(b, cls){
+  if(b.img) return `<img class="thumb ${cls}" src="${b.img}" alt="" data-act="open">`;
+  return `<div class="thumb placeholder ${cls}" data-act="open" title="No image">🔗</div>`;
+}
+
+function cardHtml(b,q,isNew){
+  if(b.id===editingId){
+    const chips=draftTags.map((t,i)=>`<span class="chip">${esc(t)}<button data-act="untag" data-i="${i}">×</button></span>`).join('');
+    let note='';
+    if(isNew && b.captureFailed) note='<p class="savenote warn">Saved, but we couldn\'t read this page automatically. Add a title and summary so you can find it later.</p>';
+    else if(isNew) note='<p class="savenote ok">Saved — details filled in for you. Fix anything you like, and add your own labels.</p>';
+    return `
+    <div class="card ${isNew?'new':''}" data-id="${b.id}">
+      ${thumbHtml(b,'')}
+      <div class="body"><div class="edit-form">${note}
+        <div class="lbl">Title</div><input class="e-title" type="text" value="${esc(b.title)}" placeholder="Give it a title you'll recognise">
+        <div class="lbl">Web address</div><input class="e-url" type="text" value="${esc(b.url)}">
+        <button class="refetch" data-act="refetch">↻ Re-fetch info from this link</button>
+        <div class="refetchhint">Use this if you changed the address to a different page and want fresh title/summary/image.</div>
+        <div class="lbl">Summary</div><textarea class="e-desc" placeholder="A few words about what this is">${esc(b.desc)}</textarea>
+        <div class="lbl">Labels</div>
+        <div class="chipbox" data-act="focustag">${chips}<input class="e-tag" type="text" placeholder="Type a label, press Enter…" list="labelsuggest"></div>
+        <div class="edit-actions">
+          <button class="save" data-act="commit">Save changes</button>
+          <button class="cancel" data-act="cancel">Cancel</button>
+          <button class="delete" data-act="delete">Delete forever</button>
+        </div></div></div>
+    </div>`;
+  }
+  const tags=b.tags.map(t=>`<span class="tag" data-act="filter" data-label="${esc(t)}">${esc(t)}</span>`).join('');
+  const statusBtn = b.unread ? `<button class="tbtn markread" data-act="markread">✓ Mark as read</button>` : `<button class="tbtn toread" data-act="toread">📖 To read</button>`;
+  const tools = b.archived ? `<button class="tbtn" data-act="restore">⤺ Restore</button><button class="tbtn" data-act="edit">Edit</button>`
+    : `${statusBtn}<button class="tbtn" data-act="archive">🗄 Archive</button><button class="tbtn" data-act="edit">Edit</button>`;
+  const needsInfo = b.captureFailed && !b.title;
+  const badges = (b.unread?'<span class="badge tr">📖 To read</span>':'') + (needsInfo?'<span class="badge ni">needs a title</span>':'');
+  const titleHtml = b.title ? highlight(b.title,q) : 'Untitled — add a title';
+  const descHtml = b.desc ? highlight(b.desc,q) : (b.captureFailed ? 'No summary yet — add one so you can find this later.' : '');
+  return `
+    <div class="card ${isNew?'new':''} ${b.unread?'toread':''} ${needsInfo?'needsinfo':''} ${b.id===flashId?'flash':''}" data-id="${b.id}">
+      ${thumbHtml(b,'clickable')}
+      <div class="cardtools">${tools}</div>
+      <div class="body">
+        <div class="clickable" data-act="open">
+          <div class="titlerow">${badges}<div class="title ${b.title?'':'untitled'}">${titleHtml}</div></div>
+          <div class="url">${highlight(b.url,q)}</div>
+          <div class="desc ${b.desc?'':'missing'}">${descHtml}</div>
+        </div>
+        <div class="tags">${tags}</div>
+      </div>
+    </div>`;
+}
+
+function render(){
+  renderViews(); renderLabelbar();
+  const q=searchEl.value.trim(), ql=q.toLowerCase();
+  // first-run welcome
+  if(view==='all' && !q && active().length===0){
+    countEl.textContent='';
+    listEl.innerHTML=`<div class="welcome"><div class="big">🔖</div><h2>Your bookmarks live here</h2>
+      <p>Nothing saved yet. When you find something worth keeping, paste its link up top and Save — the title, a picture, and a summary get grabbed for you.</p>
+      <p>Later, search by anything you remember, or group things with your own labels.</p>
+      <p class="arrow">↑ Paste your first link to begin.</p></div>`;
+    return;
+  }
+  let pool = (view==='archived') ? bookmarks.filter(b=>b.archived) : active();
+  let matches=pool.filter(b=> !ql || b.title.toLowerCase().includes(ql)||b.url.toLowerCase().includes(ql)||b.desc.toLowerCase().includes(ql)||b.tags.some(t=>t.toLowerCase().includes(ql)));
+  if(view==='toread') matches=matches.filter(b=>b.unread);
+  if(view!=='archived' && activeLabel!==null) matches=matches.filter(b=>b.tags.includes(activeLabel));
+  if(matches.length===0){
+    countEl.textContent='';
+    const where = q ? 'Nothing matched “'+esc(q)+'”.' : view==='toread' ? 'Your to-read pile is empty. 🎉' : view==='archived' ? 'Nothing archived.' : 'Nothing here.';
+    listEl.innerHTML='<div class="empty">'+where+'</div>'; return;
+  }
+  countEl.textContent = q ? matches.length+' of '+active().length+' match' : (view==='all'? active().length+' saved':'');
+  listEl.innerHTML=matches.slice().reverse().map(b=>cardHtml(b,q,b.id===lastNewId)).join('');
+  flashId=null;
+}
+
+function toast(msg,undo){ const t=document.getElementById('toast'); t.innerHTML=esc(msg)+(undo?' <button id="undoBtn">Undo</button>':''); t.classList.add('show'); clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'), undo?5000:2600); if(undo) document.getElementById('undoBtn').addEventListener('click',undo); }
+
+function openPage(b){
+  document.getElementById('addr').textContent=b.url;
+  const area=document.getElementById('pagearea');
+  if(b.gone){
+    area.innerHTML=`<div class="page gone"><div class="big">🚫</div><h2>This page is no longer available</h2>
+      <p>The original page has gone (moved or taken down). But here's the snapshot you saved, so you still know what it was:</p>
+      <div class="snapshot"><div class="k">Title</div><div>${esc(b.title||'—')}</div>
+        <div class="k" style="margin-top:10px">Summary</div><div>${esc(b.desc||'—')}</div></div></div>`;
+  } else {
+    area.innerHTML=`<div class="page"><h2>${esc(b.title||'(untitled)')}</h2><p>${esc(b.desc||'')}</p>
+      <p class="refetchhint">(Simulated destination page. Close this to go back.)</p></div>`;
+  }
+  document.getElementById('browser').classList.add('show');
+}
+document.getElementById('closeBrowser').addEventListener('click',()=>document.getElementById('browser').classList.remove('show'));
+
+function clearErr(){ errEl.textContent=''; document.getElementById('urlInput').classList.remove('err'); }
+document.getElementById('urlInput').addEventListener('input', clearErr);
+
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const raw=document.getElementById('urlInput').value; const url=looksLikeUrl(raw);
+  if(!raw.trim()) return;
+  if(!url){ errEl.textContent="That doesn't look like a web address — check it and try again."; document.getElementById('urlInput').classList.add('err'); return; }
+  clearErr();
+  const wantToRead=document.getElementById('saveToRead').checked;
+  const existing=bookmarks.find(b=>normUrl(b.url)===normUrl(url));
+  if(existing){ document.getElementById('urlInput').value=''; document.getElementById('saveToRead').checked=false; searchEl.value=''; activeLabel=null; view=existing.archived?'archived':'all'; lastNewId=null; editingId=null; flashId=existing.id; render(); const c=listEl.querySelector('[data-id="'+existing.id+'"]'); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); toast('You already saved this — here it is.'); return; }
+  const cap=autoCapture(url); const id=Date.now();
+  bookmarks.push({ id, url, title:cap.failed?'':cap.title, desc:cap.failed?'':cap.desc, img:cap.failed?null:cap.img, gone:!!cap.gone, tags:[], unread:wantToRead, archived:false, captureFailed:cap.failed });
+  lastNewId=id; editingId=id; draftTags=[]; activeLabel=null; view='all';
+  document.getElementById('urlInput').value=''; document.getElementById('saveToRead').checked=false; searchEl.value=''; render();
+  toast(cap.failed ? "Saved — but we couldn't read this page. Add a title so you can find it." : (wantToRead?'Saved to your to-read pile':'Saved — details grabbed automatically'));
+});
+document.getElementById('urlInput').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('saveBtn').click(); });
+searchEl.addEventListener('input',()=>{ lastNewId=null; editingId=null; render(); });
+viewsEl.addEventListener('click',e=>{ const v=e.target.closest('[data-view]'); if(!v) return; view=v.dataset.view; activeLabel=null; editingId=null; render(); });
+labelbarEl.addEventListener('click',e=>{ const p=e.target.closest('[data-label]'); if(!p) return; const l=p.dataset.label; activeLabel=(l==='__all')?null:(activeLabel===l?null:l); editingId=null; render(); });
+
+function addDraftTag(raw){ const t=raw.trim().replace(/,$/,'').trim(); if(t && !draftTags.includes(t)) draftTags.push(t); }
+listEl.addEventListener('keydown',e=>{ if(e.target.classList.contains('e-tag') && (e.key==='Enter'||e.key===',')){ e.preventDefault(); addDraftTag(e.target.value); e.target.value=''; render(); const inp=listEl.querySelector('.e-tag'); if(inp) inp.focus(); } });
+
+listEl.addEventListener('click',e=>{
+  const card=e.target.closest('.card'); if(!card) return;
+  const id=Number(card.dataset.id); const idx=bookmarks.findIndex(x=>x.id===id); const b=bookmarks[idx];
+  const act=e.target.closest('[data-act]')?.dataset.act;
+  if(act==='open'){ openPage(b); }
+  else if(act==='filter'){ const l=e.target.dataset.label; activeLabel=(activeLabel===l?null:l); editingId=null; render(); }
+  else if(act==='edit'){ editingId=id; draftTags=[...b.tags]; lastNewId=null; render(); }
+  else if(act==='cancel'){ editingId=null; lastNewId=null; render(); }
+  else if(act==='untag'){ draftTags.splice(Number(e.target.dataset.i),1); render(); const inp=listEl.querySelector('.e-tag'); if(inp) inp.focus(); }
+  else if(act==='focustag'){ const inp=card.querySelector('.e-tag'); if(inp && e.target.classList.contains('chipbox')) inp.focus(); }
+  else if(act==='toread'){ b.unread=true; flashId=id; render(); toast('Added to your to-read pile'); }
+  else if(act==='markread'){ b.unread=false; flashId=id; render(); toast('Checked off as read', ()=>{ b.unread=true; render(); }); }
+  else if(act==='archive'){ b.archived=true; render(); toast('Tucked away in your archive', ()=>{ b.archived=false; render(); }); }
+  else if(act==='restore'){ b.archived=false; render(); toast('Back in your bookmarks', ()=>{ b.archived=true; render(); }); }
+  else if(act==='refetch'){
+    const newUrl=looksLikeUrl(card.querySelector('.e-url').value)||b.url;
+    const cap=autoCapture(newUrl);
+    if(cap.failed){ toast("Still couldn't read that page — you can type the details yourself."); return; }
+    card.querySelector('.e-title').value=cap.title;
+    card.querySelector('.e-desc').value=cap.desc;
+    b.img=cap.img; b.gone=!!cap.gone; b.captureFailed=false;
+    toast('Pulled fresh info from the new link');
+  }
+  else if(act==='commit'){
+    const pend=card.querySelector('.e-tag').value; addDraftTag(pend);
+    b.title=card.querySelector('.e-title').value.trim();
+    b.url=card.querySelector('.e-url').value.trim()||b.url;
+    b.desc=card.querySelector('.e-desc').value.trim();
+    b.tags=[...draftTags]; if(b.title) b.captureFailed=false;
+    editingId=null; lastNewId=null; flashId=id; render(); toast('Updated');
+  }
+  else if(act==='delete'){ const removed=bookmarks.splice(idx,1)[0]; editingId=null; lastNewId=null; render(); toast('Deleted for good', ()=>{ bookmarks.splice(Math.min(idx,bookmarks.length),0,removed); flashId=removed.id; render(); }); }
+});
+
+render();
+</script>
+<datalist id="labelsuggest"></datalist>
+<script>
+  const dl=document.getElementById('labelsuggest');
+  const refresh=()=>{ const s=new Set(); bookmarks.forEach(b=>b.tags.forEach(t=>s.add(t))); dl.innerHTML=[...s].sort().map(t=>`<option value="${t.replace(/"/g,'&quot;')}">`).join(''); };
+  const obs=new MutationObserver(refresh); obs.observe(document.getElementById('list'),{childList:true,subtree:true}); refresh();
+</script>
+</body>
+</html>

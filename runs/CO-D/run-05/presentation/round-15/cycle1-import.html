@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Bookmarks — bring them in</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2330; --muted:#6b7480; --line:#e6e9ee;
+    --accent:#2f6df6; --chip:#eef1f6; --chipink:#3a4658; --ok:#2a9d55; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:40px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 22px; }
+
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; margin-bottom:22px; }
+  .drop { border:2px dashed #cdd6e2; border-radius:12px; padding:26px; text-align:center; color:var(--muted); }
+  .drop .big { font-size:16px; color:var(--ink); margin-bottom:4px; }
+  .row { display:flex; gap:10px; justify-content:center; margin-top:16px; flex-wrap:wrap; }
+  .b { border:none; border-radius:10px; padding:11px 18px; font:inherit; font-weight:600; cursor:pointer; }
+  .b.primary { background:var(--accent); color:#fff; } .b.ghost { background:#eef1f6; color:var(--ink); }
+  .b.line { background:#fff; border:1px solid var(--line); color:var(--ink); font-weight:500; }
+
+  .preview h3 { margin:0 0 4px; font-size:17px; } .preview .lead { color:var(--muted); margin:0 0 16px; }
+  .promises { list-style:none; margin:0 0 18px; padding:0; }
+  .promises li { padding:9px 0; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:flex-start; }
+  .promises li:last-child { border-bottom:none; }
+  .promises .tick { color:var(--ok); font-weight:700; flex:none; }
+  .promises b { color:var(--ink); }
+  .labelmap { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .lchip { background:var(--chip); color:var(--chipink); border-radius:999px; padding:3px 10px; font-size:12.5px; }
+
+  .progress { height:12px; background:#eef1f6; border-radius:999px; overflow:hidden; margin:8px 0 6px; }
+  .progress > div { height:100%; width:0; background:var(--accent); transition:width .12s linear; }
+
+  .toolrow { display:flex; align-items:center; justify-content:space-between; margin:0 0 10px; }
+  .count { color:var(--muted); font-size:13px; }
+  .sortwrap select { font:inherit; font-size:13px; border:1px solid var(--line); border-radius:8px; padding:6px 8px; background:#fff; }
+  ul.list { list-style:none; margin:0; padding:0; }
+  li.item { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; margin-bottom:9px; display:flex; gap:12px; align-items:flex-start; }
+  .favicon { width:30px; height:30px; border-radius:7px; flex:none; background:#eef1f6; display:grid; place-items:center; font-size:15px; }
+  .title { font-weight:600; font-size:15px; margin:0 0 2px; } .title a { color:var(--ink); text-decoration:none; }
+  .meta { color:var(--muted); font-size:12.5px; }
+  .badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+  .imported { display:inline-block; font-size:11px; color:var(--ok); background:#e6f4ea; border-radius:999px; padding:1px 8px; margin-left:6px; }
+  .more { text-align:center; color:var(--muted); font-size:13px; padding:8px; }
+  .note { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">You already have 3 links saved here. Let's bring your browser pile in to join them.</p>
+
+    <div class="panel" id="importpanel">
+      <div class="drop">
+        <div class="big">Bring in your existing bookmarks</div>
+        <div>Hand me the file your browser gives you when you “export bookmarks”.</div>
+        <div class="row">
+          <button class="b primary" id="pick">Choose my bookmarks file…</button>
+          <button class="b ghost" id="sample">Try it with a big sample (600 links)</button>
+        </div>
+        <input type="file" id="file" accept=".html,.htm" style="display:none">
+        <p class="note" id="parsemsg" style="margin-top:12px"></p>
+      </div>
+    </div>
+
+    <div class="panel preview" id="previewpanel" style="display:none"></div>
+
+    <div id="libraryhead" style="display:none">
+      <div class="toolrow">
+        <span class="count" id="count"></span>
+        <span class="sortwrap">Sort
+          <select id="sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">By name (A–Z)</option></select>
+          &nbsp; <button class="b line" id="export">⬇ Export my collection</button>
+        </span>
+      </div>
+    </div>
+    <ul class="list" id="list"></ul>
+    <div class="more" id="more"></div>
+  </div>
+
+<script>
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function normalize(raw){ try { const u=new URL(raw); const host=u.hostname.replace(/^www\./,"").toLowerCase();
+  return host+u.pathname.replace(/\/+$/,"")+(u.search||""); } catch { return raw; } }
+function emojiFor(host){ const m={"cooking.nytimes.com":"🍝","nytimes.com":"🗞️","github.com":"🐙","youtube.com":"▶️",
+  "bbc.com":"📰","wikipedia.org":"📚","medium.com":"✍️"}; const h=host.replace(/^www\./,"");
+  return m[Object.keys(m).find(k=>h===k||h.endsWith("."+k))]||"🔖"; }
+function fmtDate(ms){ const d=new Date(ms); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+// existing library (already saved here)
+const library=[
+  { url:"https://cooking.nytimes.com/recipes/lemon-pasta", host:"cooking.nytimes.com", title:"Lemon pasta", labels:["recipes"], savedAt:1749000000000, imported:false },
+  { url:"https://www.bbc.com/news/future-of-work", host:"bbc.com", title:"The future of work", labels:["work"], savedAt:1748000000000, imported:false },
+  { url:"https://github.com/acme/dashboard", host:"github.com", title:"Acme Dashboard", labels:["work"], savedAt:1747000000000, imported:false },
+];
+const libIds=new Set(library.map(x=>normalize(x.url)));
+
+// ---- build an "incoming" list from a real file OR the sample ----
+function parseNetscape(html){
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  const out=[];
+  function walk(dl,folder){
+    [...dl.children].forEach(dt=>{
+      const h3=dt.querySelector(":scope > h3");
+      const sub=dt.querySelector(":scope > dl");
+      const a=dt.querySelector(":scope > a");
+      if(a){ const href=a.getAttribute("href")||""; if(/^https?:/i.test(href)){
+        const ad=a.getAttribute("add_date"); out.push({ url:href, title:(a.textContent||href).trim(),
+          savedAt: ad?parseInt(ad,10)*1000 : 0, folder }); } }
+      if(h3 && sub) walk(sub, h3.textContent.trim());
+    });
+  }
+  const top=doc.querySelector("dl"); if(top) walk(top, "");
+  // fallback: nearest previous <h3>
+  if(!out.length){ const nodes=[...doc.querySelectorAll("h3,a")]; let f="";
+    nodes.forEach(n=>{ if(n.tagName==="H3") f=n.textContent.trim();
+      else { const href=n.getAttribute("href")||""; if(/^https?:/i.test(href)){ const ad=n.getAttribute("add_date");
+        out.push({ url:href, title:(n.textContent||href).trim(), savedAt:ad?parseInt(ad,10)*1000:0, folder:f }); } } }); }
+  return out;
+}
+function buildSample(n){
+  const folders=[["Recipes","🍝",["Weeknight ","Slow ","Best ","Quick ","One-pot "],["pasta","curry","risotto","tacos","soup","roast chicken","stir fry"]],
+    ["Work","🐙",["","Team ","Q3 ","Internal ","Draft "],["dashboard","spec doc","roadmap","postmortem","metrics review","design system"]],
+    ["Reading","✍️",["On ","Notes on ","The case for ","Why ","Rethinking "],["deep work","focus","habits","attention","systems","writing well"]],
+    ["Travel","🗺️",["","A guide to ","48 hours in ","Where to eat in "],["Lisbon","Tokyo","Rome","Oslo","Seoul","Mexico City"]],
+    ["Misc","🔖",["",""],["reference","cheatsheet","tool","gadget","idea"]]];
+  const out=[]; let t=1750000000000;
+  for(let i=0;i<n;i++){ const f=folders[i%folders.length]; const pre=f[2][i%f[2].length]; const w=f[3][(i*7)%f[3].length];
+    const slug=(pre+w).trim().toLowerCase().replace(/\s+/g,"-");
+    out.push({ url:"https://example-"+(f[0].toLowerCase())+".com/"+slug+"-"+i, host:"example-"+f[0].toLowerCase()+".com",
+      title:(pre+w).trim().replace(/\b\w/,c=>c.toUpperCase()), savedAt:t, folder:f[0] });
+    t-=172800000; // ~2 days apart → spans ~3 years across 600
+  }
+  // sprinkle a couple that duplicate the existing library, to prove de-dup
+  out.splice(3,0,{ url:"https://cooking.nytimes.com/recipes/lemon-pasta/", host:"cooking.nytimes.com", title:"Lemon Pasta (from browser)", savedAt:1740000000000, folder:"Recipes" });
+  out.splice(20,0,{ url:"https://www.bbc.com/news/future-of-work?utm_source=old", host:"bbc.com", title:"Future of work", savedAt:1739000000000, folder:"Reading" });
+  return out;
+}
+
+let incoming=[];
+function toPreview(list){
+  const dupes=list.filter(x=>libIds.has(normalize(x.url)));
+  const fresh=list.filter(x=>!libIds.has(normalize(x.url)));
+  const labels=[...new Set(fresh.map(x=>x.folder).filter(Boolean))];
+  const dated=fresh.filter(x=>x.savedAt>0).map(x=>x.savedAt);
+  const withTitles=fresh.filter(x=>x.title && !/^https?:/i.test(x.title)).length;
+  return { total:list.length, fresh, dupes:dupes.length, labels,
+    dateFrom:dated.length?fmtDate(Math.min(...dated)):null, dateTo:dated.length?fmtDate(Math.max(...dated)):null,
+    keptTitles:withTitles };
+}
+
+const importpanel=document.getElementById("importpanel"), previewpanel=document.getElementById("previewpanel"),
+  parsemsg=document.getElementById("parsemsg");
+
+function showPreview(list){
+  incoming=list;
+  const p=toPreview(list);
+  const labelChips=p.labels.slice(0,8).map(l=>`<span class="lchip">${esc(l)}</span>`).join("")+(p.labels.length>8?` <span class="note">+${p.labels.length-8} more</span>`:"");
+  previewpanel.innerHTML=`
+    <h3>Found ${p.total.toLocaleString()} bookmarks. Here's what I'll do:</h3>
+    <p class="lead">Nothing happens until you press the button — take a look first.</p>
+    <ul class="promises">
+      <li><span class="tick">✓</span><div><b>Keep the names you gave them.</b> ${p.keptTitles.toLocaleString()} already have your own titles — I'll leave those exactly as they are.</div></li>
+      <li><span class="tick">✓</span><div><b>Turn your folders into labels.</b> ${p.labels.length} folders become labels:<div class="labelmap">${labelChips||'<span class="note">none found</span>'}</div></div></li>
+      <li><span class="tick">✓</span><div><b>Keep when you saved each one.</b> ${p.dateFrom?`Your saves span <b>${p.dateFrom}</b> to <b>${p.dateTo}</b> — that order is preserved, so “newest first” still means something.`:"Save dates kept where your browser recorded them."}</div></li>
+      <li><span class="tick">✓</span><div><b>No duplicates.</b> ${p.dupes>0?`<b>${p.dupes}</b> of these are already saved here — I'll skip them, not make a second copy.`:"None of these clash with what you already have."}</div></li>
+      <li><span class="tick">✓</span><div><b>All at once.</b> ${p.fresh.length.toLocaleString()} new links will come in — no babysitting.</div></li>
+    </ul>
+    <div class="progress" id="prog" style="display:none"><div></div></div>
+    <div class="row" style="justify-content:flex-start">
+      <button class="b primary" id="go">Bring in ${p.fresh.length.toLocaleString()} links</button>
+      <button class="b ghost" id="cancel">Cancel</button>
+    </div>`;
+  previewpanel.style.display="block";
+  document.getElementById("cancel").onclick=()=>{ previewpanel.style.display="none"; parsemsg.textContent=""; };
+  document.getElementById("go").onclick=()=>runImport(p.fresh);
+}
+
+function runImport(fresh){
+  const prog=document.getElementById("prog"); const bar=prog.firstElementChild; prog.style.display="block";
+  document.getElementById("go").disabled=true;
+  let i=0; const step=Math.max(1,Math.floor(fresh.length/60));
+  const tick=setInterval(()=>{
+    i=Math.min(fresh.length,i+step); bar.style.width=Math.round(i/fresh.length*100)+"%";
+    if(i>=fresh.length){ clearInterval(tick);
+      fresh.forEach(x=>{ library.push({ url:x.url, host:x.host||(new URL(x.url)).hostname.replace(/^www\./,""),
+        title:x.title||x.url, labels:x.folder?[x.folder]:[], savedAt:x.savedAt||0, imported:true });
+        libIds.add(normalize(x.url)); });
+      importpanel.style.display="none"; previewpanel.style.display="none";
+      document.getElementById("libraryhead").style.display="block";
+      renderLibrary();
+    }
+  },70);
+}
+
+// ---- library list with sort + export ----
+let sort="new";
+function renderLibrary(){
+  const arr=[...library];
+  if(sort==="new") arr.sort((a,b)=>b.savedAt-a.savedAt);
+  else if(sort==="old") arr.sort((a,b)=>a.savedAt-b.savedAt);
+  else arr.sort((a,b)=>a.title.toLowerCase()<b.title.toLowerCase()?-1:1);
+  document.getElementById("count").textContent=library.length.toLocaleString()+" links";
+  const list=document.getElementById("list"), more=document.getElementById("more");
+  list.innerHTML=""; const cap=200;
+  arr.slice(0,cap).forEach(it=>{
+    const li=document.createElement("li"); li.className="item";
+    li.innerHTML=`<div class="favicon">${emojiFor(it.host)}</div>
+      <div style="min-width:0;flex:1">
+        <p class="title"><a href="${it.url}" target="_blank" rel="noopener">${esc(it.title)}</a>${it.imported?'<span class="imported">imported</span>':''}</p>
+        <p class="meta">${esc(it.host)}${it.savedAt?" · saved "+fmtDate(it.savedAt):""}</p>
+        <div class="badges">${it.labels.map(l=>`<span class="lchip">${esc(l)}</span>`).join("")}</div>
+      </div>`;
+    list.appendChild(li);
+  });
+  more.textContent = arr.length>cap ? `…and ${(arr.length-cap).toLocaleString()} more (showing the first ${cap})` : "";
+}
+
+document.getElementById("pick").onclick=()=>document.getElementById("file").click();
+document.getElementById("file").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
+  parsemsg.textContent="Reading “"+f.name+"”…"; const r=new FileReader();
+  r.onload=()=>{ const list=parseNetscape(r.result);
+    if(!list.length){ parsemsg.textContent="Hmm — I couldn't find bookmarks in that file. Is it the file from your browser's “export bookmarks”?"; return; }
+    parsemsg.textContent=""; showPreview(list); };
+  r.readAsText(f); };
+document.getElementById("sample").onclick=()=>{ parsemsg.textContent=""; showPreview(buildSample(600)); };
+document.getElementById("sort").onchange=e=>{ sort=e.target.value; renderLibrary(); };
+
+// export → a normal browser bookmarks file
+document.getElementById("export").onclick=()=>{
+  let html=`<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n`;
+  library.forEach(it=>{ const ad=it.savedAt?Math.floor(it.savedAt/1000):"";
+    html+=`  <DT><A HREF="${esc(it.url)}"${ad?` ADD_DATE="${ad}"`:""}>${esc(it.title)}</A>\n`; });
+  html+=`</DL><p>\n`;
+  const blob=new Blob([html],{type:"text/html"}); const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="my-bookmarks.html"; a.click(); URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>

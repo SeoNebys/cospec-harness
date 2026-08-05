@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e4e7eb; --ink:#1c2330; --muted:#6b7280; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); background:var(--card); }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  header .hbar { max-width:720px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .hbtns { display:flex; gap:8px; }
+  .hbtn { padding:8px 14px; font-size:13px; font-weight:600; border:1px solid var(--line); background:#fff; border-radius:9px; cursor:pointer; color:var(--ink); }
+  .hbtn:hover { border-color:#c3ccd8; }
+  .wrap { max-width:720px; margin:0 auto; padding:24px 16px 96px; }
+
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .saver .row { display:flex; gap:8px; }
+  .saver input[type=url] { flex:1; padding:12px 14px; font-size:15px; border:1px solid var(--line); border-radius:10px; outline:none; }
+  .saver input[type=url]:focus { border-color:var(--accent); }
+  .saver button.primary { padding:12px 18px; font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .saver .hint { color:var(--muted); font-size:12px; margin:8px 2px 0; }
+  .savererr { color:#b23b3b; font-size:13px; margin:8px 2px 0; }
+
+  .searchbar { position:relative; margin-bottom:14px; }
+  .searchbar input { width:100%; padding:12px 40px 12px 40px; font-size:15px; border:1px solid var(--line); border-radius:10px; outline:none; background:var(--card); }
+  .searchbar input:focus { border-color:var(--accent); }
+  .searchbar .mag { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .searchbar .clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); border:none; background:none; color:var(--muted); font-size:18px; cursor:pointer; display:none; }
+
+  .banner { background:#eaf6ee; border:1px solid #bfe3cb; color:#1f6b3a; border-radius:10px; padding:10px 14px; font-size:14px; margin-bottom:14px; }
+
+  .tabs { display:flex; gap:6px; margin:0 2px 12px; }
+  .tab { padding:6px 13px; font-size:13px; border:1px solid var(--line); background:#fff; border-radius:999px; cursor:pointer; color:var(--muted); }
+  .tab.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  .labelbar { display:flex; flex-wrap:wrap; align-items:center; margin:0 2px 14px; }
+  .labelbar .lead { font-size:12px; color:var(--muted); margin-right:8px; text-transform:uppercase; letter-spacing:.04em; }
+
+  .listhead { display:flex; align-items:baseline; justify-content:space-between; margin:0 2px 10px; }
+  .listhead h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0; }
+  .listhead .count { color:var(--muted); font-size:13px; }
+  #sortSel { padding:5px 8px; border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--ink); background:#fff; cursor:pointer; }
+  .selbtn { padding:5px 11px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff; cursor:pointer; color:var(--ink); }
+  .selbtn.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+  .empty { text-align:center; color:var(--muted); padding:44px 20px; border:1px dashed var(--line); border-radius:14px; background:var(--card); }
+  .empty strong { display:block; color:var(--ink); font-size:15px; margin-bottom:4px; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:flex; gap:12px; align-items:flex-start; animation:pop .18s ease; }
+  @keyframes pop { from { transform:translateY(-4px); opacity:0; } to { transform:none; opacity:1; } }
+  .card.clickable { cursor:pointer; }
+  .card.clickable:hover { border-color:#cbd5e1; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .card.selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(47,109,246,.18); }
+  .favicon { width:30px; height:30px; border-radius:7px; flex:none; object-fit:cover; background:#eef1f6; }
+  .favicon.fallback { display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; }
+  .card .body { flex:1; min-width:0; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .url { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .desc { font-size:13px; color:#374151; margin:6px 0 0; line-height:1.4; }
+  .card .note { font-size:13px; color:#5b4a1f; background:#fffbeb; border-left:3px solid #f2d98b; padding:5px 9px; border-radius:0 6px 6px 0; margin:8px 0 0; line-height:1.45; }
+  .card .when { font-size:11px; color:#9aa2af; margin-top:6px; }
+  .card .fetching { color:var(--muted); font-style:italic; }
+  .card .actions { flex:none; display:flex; gap:6px; flex-wrap:wrap; max-width:210px; justify-content:flex-end; }
+  .iconbtn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 8px; font-size:12px; color:var(--muted); cursor:pointer; }
+  .iconbtn:hover { border-color:#cbd5e1; color:var(--ink); }
+  .iconbtn.on { background:#fff3e0; color:#a15c00; border-color:#f2d19b; }
+  .renamebox { display:flex; gap:6px; }
+  .renamebox input { flex:1; padding:6px 8px; font-size:15px; border:1px solid var(--accent); border-radius:8px; outline:none; }
+  mark { background:#fff1a8; color:inherit; border-radius:3px; padding:0 1px; }
+
+  .chip { display:inline-block; padding:2px 10px; margin:0 6px 0 0; font-size:12px; border-radius:999px; background:#eef1f6; color:#3b4657; border:1px solid #e0e4ea; cursor:pointer; }
+  .chip:hover { border-color:#c3ccd8; }
+  .chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .card .chips { margin-top:8px; }
+  .flagchip { display:inline-block; padding:2px 9px; margin:0 6px 0 0; font-size:12px; border-radius:999px; background:#fff3e0; color:#a15c00; border:1px solid #f2d19b; }
+  .deadchip { display:inline-block; padding:2px 9px; margin:0 6px 0 0; font-size:12px; border-radius:999px; background:#fdecec; color:#b23b3b; border:1px solid #f2c4c4; }
+  .warnchip { display:inline-block; padding:2px 9px; margin:0 6px 0 0; font-size:12px; border-radius:999px; background:#fff3e0; color:#a15c00; border:1px solid #f2d19b; }
+
+  .checkwrap { flex:none; display:flex; align-items:center; padding-top:3px; }
+  .checkwrap input { width:20px; height:20px; cursor:pointer; }
+
+  .leditor { margin-top:10px; padding:10px 12px; border:1px dashed #c9dbff; border-radius:10px; background:#f7faff; }
+  .leditor .sec { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; }
+  .leditor .cur { margin-bottom:10px; }
+  .leditor .empty-cur { font-size:13px; color:var(--muted); }
+  .chip .x { cursor:pointer; margin-left:5px; font-weight:700; color:#9aa4b2; }
+  .chip .x:hover { color:#e0663f; }
+  .addchip { display:inline-block; padding:2px 10px; margin:0 6px 6px 0; font-size:12px; border-radius:999px; background:#fff; color:#2f6df6; border:1px dashed #9dbcff; cursor:pointer; }
+  .addchip:hover { background:#eef4ff; }
+  .createchip { display:inline-block; padding:2px 10px; margin:0 6px 6px 0; font-size:12px; border-radius:999px; background:#2f6df6; color:#fff; border:1px solid #2f6df6; cursor:pointer; }
+  .leditor input { padding:8px 10px; border:1px solid var(--accent); border-radius:8px; font-size:14px; width:100%; margin-top:2px; }
+  .leditor .suggests, .leditor .palette { margin-top:8px; display:flex; flex-wrap:wrap; }
+  .leditor .hintline { font-size:12px; color:var(--muted); margin-top:8px; }
+  .leditor .done { margin-top:10px; padding:6px 12px; font-size:13px; border:1px solid var(--line); background:#fff; border-radius:8px; cursor:pointer; }
+
+  .overlay { position:fixed; inset:0; background:rgba(15,20,30,.5); display:flex; align-items:flex-start; justify-content:center; padding:32px 16px; z-index:50; overflow:auto; }
+  .reader { background:#fff; max-width:640px; width:100%; border-radius:14px; padding:22px 24px 26px; box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  .reader h2 { margin:0 0 4px; font-size:19px; }
+  .reader .meta { font-size:12px; color:var(--muted); margin-bottom:12px; word-break:break-all; }
+  .reader .arch { background:#eef4ff; border:1px solid #c9dbff; border-radius:8px; padding:8px 12px; font-size:13px; color:#1e3a8a; margin-bottom:16px; }
+  .reader .arch.gone { background:#fdecec; border-color:#f2c4c4; color:#b23b3b; }
+  .reader .content p { line-height:1.65; color:#26303f; margin:0 0 12px; }
+  .reader .rowbtns { display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; }
+  .reader .btn { padding:9px 14px; font-size:14px; border-radius:9px; cursor:pointer; border:1px solid var(--line); background:#fff; }
+  .reader .btn.orig { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .reader .btn.orig[disabled] { opacity:.45; cursor:not-allowed; }
+  .reader .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .reader .btn.danger { background:#fff; color:#b23b3b; border-color:#f2c4c4; }
+  .reader .btn.danger:hover { background:#fdecec; }
+  .reader label.f { display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 4px; }
+  .reader .field { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
+  .reader textarea.field { min-height:64px; resize:vertical; line-height:1.5; }
+  .reader .spacer { flex:1; }
+  .reader .confirm { background:#fdecec; border:1px solid #f2c4c4; color:#b23b3b; border-radius:9px; padding:10px 12px; font-size:13px; margin-top:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .pdfbox { border:1px solid var(--line); border-radius:10px; padding:30px 20px; text-align:center; background:#f7f8fa; }
+  .pdfbox .doc { font-size:42px; }
+  .pdfbox .fn { margin-top:8px; font-size:13px; color:#3b4657; word-break:break-all; }
+  .pdfbox .openpdf { margin-top:16px; padding:10px 18px; font-size:14px; font-weight:600; color:#fff; background:#b23b3b; border:none; border-radius:9px; cursor:pointer; }
+
+  .bulkbar { position:fixed; left:0; right:0; bottom:0; background:#1c2330; color:#fff; padding:12px 16px; z-index:40; box-shadow:0 -4px 20px rgba(0,0,0,.2); }
+  .bulkbar .inner { max-width:720px; margin:0 auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .bulkbar b { margin-right:6px; }
+  .bulkbar .spacer { flex:1; }
+  .bulkbar button { padding:7px 12px; border-radius:8px; border:1px solid #3a4457; background:#2a3446; color:#fff; cursor:pointer; font-size:13px; }
+  .bulkbar button:hover { border-color:#556; }
+  .bulkbar button:disabled { opacity:.45; cursor:default; }
+  .bulkbar button.danger { background:#7a2626; border-color:#7a2626; }
+  .bulkbar button.ghost { background:transparent; }
+  .bulkbar .sub { flex-basis:100%; background:#141a24; border-radius:10px; margin-top:10px; padding:12px; }
+  .bulkbar .sub input { padding:7px 10px; border-radius:8px; border:1px solid #3a4457; background:#fff; color:#1c2330; font-size:14px; }
+  .bulkbar .sub .palette { display:flex; flex-wrap:wrap; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="hbar">
+    <div>
+      <h1>My Bookmarks</h1>
+      <p>One place for every link worth keeping.</p>
+    </div>
+    <div class="hbtns">
+      <button class="hbtn" id="importBtn">Import</button>
+      <button class="hbtn" id="exportBtn">Export</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="saver">
+    <div class="row">
+      <input id="urlInput" type="url" placeholder="Paste a link and press Save…" autocomplete="off" />
+      <button class="primary" id="saveBtn">Save</button>
+    </div>
+    <div class="hint">Tip: paste a link, hit Save, and the app fills in the title and a short summary for you.</div>
+    <div class="savererr" id="saverErr" hidden></div>
+  </div>
+
+  <div class="searchbar">
+    <span class="mag">🔎</span>
+    <input id="searchInput" type="search" placeholder="Search your links — title, summary, notes, anything…" autocomplete="off" />
+    <button class="clear" id="clearBtn" title="Clear">×</button>
+  </div>
+
+  <div id="banner"></div>
+
+  <div class="tabs" id="tabs">
+    <span class="tab active" data-view="all">All links</span>
+    <span class="tab" data-view="toread">To read</span>
+  </div>
+
+  <div class="labelbar" id="labelBar"></div>
+
+  <div class="listhead">
+    <h2 id="listLabel">Saved</h2>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="selbtn" id="selBtn">Select</button>
+      <select id="sortSel">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="title">Title A–Z</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+  <div id="list"></div>
+</div>
+
+<div id="bulkbar"></div>
+<div id="modal"></div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

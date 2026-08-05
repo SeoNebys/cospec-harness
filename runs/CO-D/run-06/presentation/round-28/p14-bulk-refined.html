@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 14 (bulk actions, refined)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; --unread:#e8590c; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:#1a1a1e; }
+  .wrap { max-width:720px; margin:0 auto; padding:22px 20px 120px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 16px; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { border:1px solid var(--line); background:#fff; color:#333; border-radius:20px; padding:6px 13px; font-size:13px; cursor:pointer; display:inline-flex; gap:7px; align-items:center; }
+  .tabs button.on { background:#1a1a1e; color:#fff; border-color:#1a1a1e; }
+  .tabs .pill { background:#eef0f4; color:#555; border-radius:10px; padding:0 7px; font-size:11px; }
+  .tabs button.on .pill { background:#3a3a42; color:#fff; }
+
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; min-height:34px; flex-wrap:wrap; }
+  .selectBtn { border:1px solid var(--line); background:#fff; color:#333; border-radius:8px; padding:7px 13px; font-size:13px; cursor:pointer; }
+  .selectBtn.on { background:#1a1a1e; color:#fff; border-color:#1a1a1e; }
+  .selectAll { border:1px solid var(--line); background:#fff; color:var(--accent); border-radius:8px; padding:7px 12px; font-size:13px; cursor:pointer; display:none; }
+  .selectAll.show { display:inline-block; }
+  .count { font-size:13px; color:var(--muted); }
+
+  .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px; margin-bottom:10px; cursor:pointer; display:flex; gap:12px; align-items:flex-start; }
+  .card:hover { box-shadow:0 3px 14px rgba(0,0,0,.08); border-color:#cfd6ef; }
+  .card.unread { border-left:3px solid var(--unread); }
+  .card.sel { background:#eef3ff; border-color:#9db2f0; }
+  .chk { width:20px; height:20px; border:2px solid #c4c4cc; border-radius:5px; flex:none; margin-top:2px;
+         display:none; align-items:center; justify-content:center; color:#fff; font-size:13px; }
+  .chk.show { display:flex; }
+  .card.sel .chk { background:var(--accent); border-color:var(--accent); }
+  .body { flex:1; min-width:0; }
+  .title { font-size:15px; margin:0 0 2px; font-weight:500; }
+  .card.unread .title { font-weight:700; }
+  .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .lbls { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .lbls span.l { background:#eef0f4; color:#444; border-radius:12px; padding:2px 9px; font-size:12px; }
+  .toread-tag { font-size:11px; color:var(--unread); background:#ffe8d9; border-radius:10px; padding:2px 9px; }
+
+  .actionbar { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1a1a1e; color:#fff;
+      border-radius:12px; padding:10px 12px; display:none; gap:6px; align-items:center; box-shadow:0 10px 30px rgba(0,0,0,.3); z-index:60; flex-wrap:wrap; max-width:calc(100% - 24px); }
+  .actionbar.show { display:flex; }
+  .actionbar .n { font-size:13px; margin:0 4px; font-weight:600; }
+  .actionbar button { border:0; border-radius:8px; padding:8px 12px; font-size:13px; cursor:pointer; background:#33333c; color:#fff; }
+  .actionbar button:hover { background:#44444e; }
+  .actionbar .divider { width:1px; height:24px; background:#4a4a54; margin:0 4px; }
+  .actionbar .del { background:transparent; color:#ff9b90; border:1px solid #6a3530; }
+  .actionbar .del:hover { background:#5a2420; color:#fff; }
+  .actionbar .x { background:transparent; color:#aaa; }
+
+  .toast { position:fixed; left:50%; bottom:84px; transform:translateX(-50%); background:#334; color:#fff;
+      padding:10px 14px; border-radius:9px; font-size:13px; display:none; align-items:center; gap:14px; z-index:70; box-shadow:0 6px 20px rgba(0,0,0,.3); }
+  .toast.show { display:flex; }
+  .toast button { background:transparent; border:0; color:#8ab4ff; font-weight:600; cursor:pointer; font-size:13px; }
+
+  .backdrop { position:fixed; inset:0; background:rgba(20,20,28,.45); display:none; align-items:center; justify-content:center; z-index:90; padding:16px; }
+  .backdrop.show { display:flex; }
+  .confirm { background:#fff; border-radius:14px; max-width:400px; padding:22px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .confirm h3 { margin:0 0 8px; font-size:16px; }
+  .confirm p { margin:0 0 16px; font-size:14px; color:#555; }
+  .confirm .btns { display:flex; gap:8px; justify-content:flex-end; }
+  .confirm .keep { background:#eee; color:#333; border:0; border-radius:8px; padding:9px 14px; font-size:14px; cursor:pointer; }
+  .confirm .del { background:var(--danger); color:#fff; border:0; border-radius:8px; padding:9px 14px; font-size:14px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 14 — “Select” mode with select-all, reversible bulk actions, and a guarded bulk delete</p>
+
+  <div class="tabs">
+    <button id="tabAll" class="on">All <span class="pill" id="allN"></span></button>
+    <button id="tabToRead">To read <span class="pill" id="trN"></span></button>
+  </div>
+
+  <div class="bar">
+    <button class="selectBtn" id="selectBtn">Select</button>
+    <button class="selectAll" id="selectAll">Select all</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="cards"></div>
+</div>
+
+<div class="actionbar" id="actionbar">
+  <span class="n" id="abN"></span>
+  <button data-act="read">Mark read</button>
+  <button data-act="toread">Mark to-read</button>
+  <button data-act="addlabel">Add label…</button>
+  <button data-act="rmlabel">Remove label…</button>
+  <button data-act="aside">Set aside</button>
+  <span class="divider"></span>
+  <button data-act="delete" class="del">Delete…</button>
+  <button class="x" id="abClear">Cancel</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="backdrop" id="backdrop">
+  <div class="confirm">
+    <h3 id="cfTitle">Delete forever?</h3>
+    <p id="cfText"></p>
+    <div class="btns">
+      <button class="keep" id="cfCancel">Keep them</button>
+      <button class="del" id="cfConfirm">Delete forever</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let items=[
+    {id:1,t:"The Case for Slow Reading",u:"theatlantic.com/slow-reading",l:["reading","articles"],unread:true,aside:false},
+    {id:2,t:"A Deep Dive into Database Indexes",u:"use-the-index-luke.com",l:["coding"],unread:true,aside:false},
+    {id:3,t:"How to Find Cheap Flights",u:"nomadicmatt.com/flights",l:["travel"],unread:true,aside:false},
+    {id:4,t:"Why We Sleep, summarized",u:"blas.com/why-we-sleep",l:["health","articles"],unread:true,aside:false},
+    {id:5,t:"An Interactive Intro to CSS Grid",u:"css-tricks.com/grid",l:["coding","articles"],unread:true,aside:false},
+    {id:6,t:"Simplest Brothy Beans and Rice",u:"smittenkitchen.com/beans",l:["recipes"],unread:false,aside:false}
+  ];
+  let view="all", selectMode=false, toastT=null;
+  const selected=new Set();
+
+  const el=id=>document.getElementById(id);
+  const cards=el("cards"),countEl=el("count"),allN=el("allN"),trN=el("trN"),tabAll=el("tabAll"),
+        tabToRead=el("tabToRead"),selectBtn=el("selectBtn"),selectAll=el("selectAll"),
+        actionbar=el("actionbar"),abN=el("abN"),abClear=el("abClear"),toast=el("toast"),
+        backdrop=el("backdrop"),cfText=el("cfText"),cfCancel=el("cfCancel"),cfConfirm=el("cfConfirm");
+
+  function shown(){ return items.filter(b=>!b.aside && (view==="all" || b.unread)); }
+  function showToast(msg,undoLabel,onUndo){
+    toast.innerHTML=""; const s=document.createElement("span"); s.textContent=msg; toast.appendChild(s);
+    if(undoLabel){ const btn=document.createElement("button"); btn.textContent=undoLabel;
+      btn.addEventListener("click",()=>{ onUndo(); hideToast(); }); toast.appendChild(btn); }
+    toast.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(hideToast,5000);
+  }
+  function hideToast(){ toast.classList.remove("show"); }
+
+  function render(){
+    const list=shown();
+    allN.textContent=items.filter(b=>!b.aside).length;
+    trN.textContent=items.filter(b=>!b.aside && b.unread).length;
+    tabAll.classList.toggle("on",view==="all"); tabToRead.classList.toggle("on",view==="toread");
+    selectBtn.classList.toggle("on",selectMode); selectBtn.textContent=selectMode?"Done":"Select";
+    selectAll.classList.toggle("show",selectMode);
+    const allSelected = list.length && list.every(b=>selected.has(b.id));
+    selectAll.textContent = allSelected ? "Clear all" : ("Select all ("+list.length+")");
+    countEl.textContent=list.length+" bookmarks"+(selectMode?" · tap to pick":"");
+
+    cards.innerHTML="";
+    list.forEach(b=>{
+      const c=document.createElement("div"); c.className="card"+(b.unread?" unread":"")+(selected.has(b.id)?" sel":"");
+      const chk=document.createElement("div"); chk.className="chk"+(selectMode?" show":""); chk.textContent=selected.has(b.id)?"✓":"";
+      const body=document.createElement("div"); body.className="body";
+      body.innerHTML='<p class="title"></p><div class="url"></div><div class="lbls"></div>';
+      body.querySelector(".title").textContent=b.t; body.querySelector(".url").textContent=b.u;
+      const lb=body.querySelector(".lbls");
+      if(b.unread){ const t=document.createElement("span"); t.className="toread-tag"; t.textContent="to read"; lb.appendChild(t); }
+      b.l.forEach(l=>{const s=document.createElement("span"); s.className="l"; s.textContent=l; lb.appendChild(s);});
+      c.appendChild(chk); c.appendChild(body);
+      c.addEventListener("click",()=>{ if(selectMode) toggleSel(b.id); else showToast("↗ Opening the page: "+b.u); });
+      cards.appendChild(c);
+    });
+    actionbar.classList.toggle("show", selectMode && selected.size>0);
+    abN.textContent=selected.size+" selected";
+  }
+  function toggleSel(id){ selected.has(id)?selected.delete(id):selected.add(id); render(); }
+
+  selectBtn.addEventListener("click",()=>{ selectMode=!selectMode; if(!selectMode) selected.clear(); render(); });
+  selectAll.addEventListener("click",()=>{ const list=shown();
+    const allSel=list.every(b=>selected.has(b.id));
+    if(allSel) list.forEach(b=>selected.delete(b.id)); else list.forEach(b=>selected.add(b.id)); render(); });
+  abClear.addEventListener("click",()=>{ selected.clear(); render(); });
+  tabAll.addEventListener("click",()=>{view="all"; render();});
+  tabToRead.addEventListener("click",()=>{view="toread"; render();});
+
+  function selectedItems(){ return items.filter(b=>selected.has(b.id)); }
+
+  actionbar.querySelectorAll("button[data-act]").forEach(btn=>btn.addEventListener("click",()=>{
+    const act=btn.dataset.act; const sel=selectedItems(); const n=sel.length; if(!n) return;
+    if(act==="read"){ const prev=sel.map(b=>[b,b.unread]); sel.forEach(b=>b.unread=false);
+      finish("Marked "+n+" read","Undo",()=>prev.forEach(([b,v])=>b.unread=v)); }
+    else if(act==="toread"){ const prev=sel.map(b=>[b,b.unread]); sel.forEach(b=>b.unread=true);
+      finish("Moved "+n+" to To-read","Undo",()=>prev.forEach(([b,v])=>b.unread=v)); }
+    else if(act==="aside"){ sel.forEach(b=>b.aside=true);
+      finish("Set "+n+" aside","Undo",()=>sel.forEach(b=>b.aside=false)); }
+    else if(act==="addlabel"){ const name=prompt("Add which label to the "+n+" selected?"); if(!name||!name.trim()) return;
+      const nm=name.trim(); const added=[]; sel.forEach(b=>{ if(!b.l.some(x=>x.toLowerCase()===nm.toLowerCase())){ b.l.push(nm); added.push(b);} });
+      finish('Added “'+nm+'” to '+added.length,"Undo",()=>added.forEach(b=>b.l=b.l.filter(x=>x!==nm))); }
+    else if(act==="rmlabel"){ const present=[...new Set(sel.flatMap(b=>b.l))];
+      const name=prompt("Remove which label from the "+n+" selected?\nLabels present: "+present.join(", ")); if(!name||!name.trim()) return;
+      const nm=name.trim(); const removed=[]; sel.forEach(b=>{ if(b.l.some(x=>x.toLowerCase()===nm.toLowerCase())){ b.l=b.l.filter(x=>x.toLowerCase()!==nm.toLowerCase()); removed.push(b);} });
+      finish('Removed “'+nm+'” from '+removed.length,"Undo",()=>removed.forEach(b=>{ if(!b.l.includes(nm)) b.l.push(nm); })); }
+    else if(act==="delete"){ askDelete(sel,n); return; }
+  }));
+
+  function finish(msg,undoLabel,onUndo){ selected.clear(); selectMode=false; render(); showToast(msg,undoLabel,onUndo); }
+
+  // Guarded bulk delete: a deliberate pause (confirm), then still an undo net.
+  let pendingDelete=null;
+  function askDelete(sel,n){ pendingDelete=[...sel]; cfText.textContent="You're about to permanently delete "+n+" bookmark"+(n===1?"":"s")+". This can't be undone from here.";
+    backdrop.classList.add("show"); }
+  cfCancel.addEventListener("click",()=>{ backdrop.classList.remove("show"); pendingDelete=null; });
+  cfConfirm.addEventListener("click",()=>{ const del=pendingDelete; const snapshot=del.map(b=>[b, items.indexOf(b)]);
+    items=items.filter(b=>!del.includes(b)); backdrop.classList.remove("show"); pendingDelete=null;
+    finish("Deleted "+del.length,"Undo",()=>{ snapshot.sort((a,b)=>a[1]-b[1]).forEach(([b,i])=>items.splice(i,0,b)); }); });
+
+  render();
+</script>
+</body>
+</html>

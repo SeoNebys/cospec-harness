@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e4e7eb; --ink:#1c2330; --muted:#6b7280; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { padding:20px 24px; border-bottom:1px solid var(--line); background:var(--card); }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  header .hbar { max-width:720px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .hbtns { display:flex; gap:8px; }
+  .hbtn { padding:8px 14px; font-size:13px; font-weight:600; border:1px solid var(--line); background:#fff;
+          border-radius:9px; cursor:pointer; color:var(--ink); }
+  .hbtn:hover { border-color:#c3ccd8; }
+  .wrap { max-width:720px; margin:0 auto; padding:24px 16px 80px; }
+
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:16px;
+           box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .saver .row { display:flex; gap:8px; }
+  .saver input[type=url] { flex:1; padding:12px 14px; font-size:15px; border:1px solid var(--line);
+                           border-radius:10px; outline:none; }
+  .saver input[type=url]:focus { border-color:var(--accent); }
+  .saver button.primary { padding:12px 18px; font-size:15px; font-weight:600; color:#fff; background:var(--accent);
+                  border:none; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .saver .hint { color:var(--muted); font-size:12px; margin:8px 2px 0; }
+
+  .modes { background:#fff7e6; border:1px solid #f4d98b; border-radius:12px; padding:12px 14px; margin-bottom:14px;
+           font-size:13px; color:#7a5b12; }
+  .modes .lead { font-weight:700; margin-bottom:8px; }
+  .modes label { display:block; margin:5px 0; cursor:pointer; color:#5c471a; }
+  .modes input { margin-right:8px; }
+  .searchbar { position:relative; margin-bottom:18px; }
+  .searchbar input { width:100%; padding:12px 40px 12px 40px; font-size:15px; border:1px solid var(--line);
+                     border-radius:10px; outline:none; background:var(--card); }
+  .searchbar input:focus { border-color:var(--accent); }
+  .searchbar .mag { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .searchbar .clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); border:none; background:none;
+                      color:var(--muted); font-size:18px; cursor:pointer; display:none; }
+
+  .banner { background:#eaf6ee; border:1px solid #bfe3cb; color:#1f6b3a; border-radius:10px; padding:10px 14px;
+            font-size:14px; margin-bottom:14px; }
+
+  .listhead { display:flex; align-items:baseline; justify-content:space-between; margin:0 2px 10px; }
+  .listhead h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0; }
+  .listhead .count { color:var(--muted); font-size:13px; }
+  #sortSel { padding:5px 8px; border:1px solid var(--line); border-radius:8px; font-size:13px; color:var(--ink); background:#fff; cursor:pointer; }
+  .selbtn { padding:5px 11px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff; cursor:pointer; color:var(--ink); }
+  .selbtn.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .card.selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(47,109,246,.18); }
+  .bulkbar { position:fixed; left:0; right:0; bottom:0; background:#1c2330; color:#fff; padding:12px 16px; z-index:40;
+             box-shadow:0 -4px 20px rgba(0,0,0,.2); }
+  .bulkbar .inner { max-width:720px; margin:0 auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .bulkbar b { margin-right:6px; }
+  .bulkbar .spacer { flex:1; }
+  .bulkbar button { padding:7px 12px; border-radius:8px; border:1px solid #3a4457; background:#2a3446; color:#fff;
+                    cursor:pointer; font-size:13px; }
+  .bulkbar button:hover { border-color:#556; }
+  .bulkbar button.danger { background:#7a2626; border-color:#7a2626; }
+  .bulkbar button.ghost { background:transparent; }
+  .bulkbar .sub { flex-basis:100%; background:#141a24; border-radius:10px; margin-top:10px; padding:12px; }
+  .bulkbar .sub input { padding:7px 10px; border-radius:8px; border:1px solid #3a4457; background:#fff; color:#1c2330; font-size:14px; }
+  .bulkbar .sub .palette { display:flex; flex-wrap:wrap; margin-top:8px; }
+
+  .empty { text-align:center; color:var(--muted); padding:44px 20px; border:1px dashed var(--line);
+           border-radius:14px; background:var(--card); }
+  .empty strong { display:block; color:var(--ink); font-size:15px; margin-bottom:4px; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px;
+          display:flex; gap:12px; align-items:flex-start; animation:pop .18s ease; }
+  @keyframes pop { from { transform:translateY(-4px); opacity:0; } to { transform:none; opacity:1; } }
+  .card.clickable { cursor:pointer; }
+  .card.clickable:hover { border-color:#cbd5e1; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .favicon { width:30px; height:30px; border-radius:7px; flex:none; object-fit:cover; background:#eef1f6; }
+  .favicon.fallback { display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:#fff; }
+  .card .body { flex:1; min-width:0; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .url { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .desc { font-size:13px; color:#374151; margin:6px 0 0; line-height:1.4; }
+  .card .note { font-size:13px; color:#5b4a1f; background:#fffbeb; border-left:3px solid #f2d98b; padding:5px 9px;
+                border-radius:0 6px 6px 0; margin:8px 0 0; line-height:1.45; }
+  .card .when { font-size:11px; color:#9aa2af; margin-top:6px; }
+  .card .fetching { color:var(--muted); font-style:italic; }
+  .card .actions { flex:none; display:flex; gap:6px; }
+  .iconbtn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 8px; font-size:12px;
+             color:var(--muted); cursor:pointer; }
+  .iconbtn:hover { border-color:#cbd5e1; color:var(--ink); }
+  .renamebox { display:flex; gap:6px; }
+  .renamebox input { flex:1; padding:6px 8px; font-size:15px; border:1px solid var(--accent); border-radius:8px; outline:none; }
+  mark { background:#fff1a8; color:inherit; border-radius:3px; padding:0 1px; }
+  .chip { display:inline-block; padding:2px 10px; margin:0 6px 0 0; font-size:12px; border-radius:999px;
+          background:#eef1f6; color:#3b4657; border:1px solid #e0e4ea; cursor:pointer; }
+  .chip:hover { border-color:#c3ccd8; }
+  .chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .card .chips { margin-top:8px; }
+  .flagchip { display:inline-block; padding:2px 9px; margin:0 6px 0 0; font-size:12px; border-radius:999px;
+              background:#fff3e0; color:#a15c00; border:1px solid #f2d19b; }
+  .tabs { display:flex; gap:6px; margin:0 2px 12px; }
+  .tab { padding:6px 13px; font-size:13px; border:1px solid var(--line); background:#fff; border-radius:999px;
+         cursor:pointer; color:var(--muted); }
+  .tab.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .checkwrap { flex:none; display:flex; align-items:center; padding-top:3px; }
+  .checkwrap input { width:20px; height:20px; cursor:pointer; }
+  .iconbtn.on { background:#fff3e0; color:#a15c00; border-color:#f2d19b; }
+  .deadchip { display:inline-block; padding:2px 9px; margin:0 6px 0 0; font-size:12px; border-radius:999px;
+              background:#fdecec; color:#b23b3b; border:1px solid #f2c4c4; }
+  .warnchip { display:inline-block; padding:2px 9px; margin:0 6px 0 0; font-size:12px; border-radius:999px;
+              background:#fff3e0; color:#a15c00; border:1px solid #f2d19b; }
+  .savererr { color:#b23b3b; font-size:13px; margin:8px 2px 0; }
+  .overlay { position:fixed; inset:0; background:rgba(15,20,30,.5); display:flex; align-items:flex-start;
+             justify-content:center; padding:32px 16px; z-index:50; overflow:auto; }
+  .reader { background:#fff; max-width:640px; width:100%; border-radius:14px; padding:22px 24px 26px;
+            box-shadow:0 10px 40px rgba(0,0,0,.25); }
+  .reader h2 { margin:0 0 4px; font-size:19px; }
+  .reader .meta { font-size:12px; color:var(--muted); margin-bottom:12px; word-break:break-all; }
+  .reader .arch { background:#eef4ff; border:1px solid #c9dbff; border-radius:8px; padding:8px 12px; font-size:13px;
+                  color:#1e3a8a; margin-bottom:16px; }
+  .reader .arch.gone { background:#fdecec; border-color:#f2c4c4; color:#b23b3b; }
+  .reader .content p { line-height:1.65; color:#26303f; margin:0 0 12px; }
+  .reader .rowbtns { display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; }
+  .reader .btn { padding:9px 14px; font-size:14px; border-radius:9px; cursor:pointer; border:1px solid var(--line); background:#fff; }
+  .reader .btn.orig { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .reader .btn.orig[disabled] { opacity:.45; cursor:not-allowed; }
+  .reader .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .reader .btn.danger { background:#fff; color:#b23b3b; border-color:#f2c4c4; }
+  .reader .btn.danger:hover { background:#fdecec; }
+  .reader label.f { display:block; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:14px 0 4px; }
+  .reader .field { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
+  .reader textarea.field { min-height:64px; resize:vertical; line-height:1.5; }
+  .reader .spacer { flex:1; }
+  .reader .confirm { background:#fdecec; border:1px solid #f2c4c4; color:#b23b3b; border-radius:9px; padding:10px 12px;
+                     font-size:13px; margin-top:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .reader .confirm .spacer { flex:1; }
+  .pdfbox { border:1px solid var(--line); border-radius:10px; padding:30px 20px; text-align:center; background:#f7f8fa; }
+  .pdfbox .doc { font-size:42px; }
+  .pdfbox .fn { margin-top:8px; font-size:13px; color:#3b4657; word-break:break-all; }
+  .pdfbox .openpdf { margin-top:16px; padding:10px 18px; font-size:14px; font-weight:600; color:#fff;
+                     background:#b23b3b; border:none; border-radius:9px; cursor:pointer; }
+  .labelbar { display:flex; flex-wrap:wrap; align-items:center; margin:0 2px 14px; }
+  .labelbar .lead { font-size:12px; color:var(--muted); margin-right:8px; text-transform:uppercase; letter-spacing:.04em; }
+  .modes { background:#fff7e6; border:1px solid #f4d98b; border-radius:12px; padding:12px 14px; margin-bottom:14px;
+           font-size:13px; color:#7a5b12; }
+  .modes .lead { font-weight:700; margin-bottom:8px; }
+  .modes label { display:block; margin:5px 0; cursor:pointer; color:#5c471a; }
+  .modes input { margin-right:8px; }
+  .leditor { margin-top:10px; padding:10px 12px; border:1px dashed #c9dbff; border-radius:10px; background:#f7faff; }
+  .leditor .sec { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:0 0 6px; }
+  .leditor .cur { margin-bottom:10px; }
+  .leditor .empty-cur { font-size:13px; color:var(--muted); }
+  .chip .x { cursor:pointer; margin-left:5px; font-weight:700; color:#9aa4b2; }
+  .chip .x:hover { color:#e0663f; }
+  .addchip { display:inline-block; padding:2px 10px; margin:0 6px 6px 0; font-size:12px; border-radius:999px;
+             background:#fff; color:#2f6df6; border:1px dashed #9dbcff; cursor:pointer; }
+  .addchip:hover { background:#eef4ff; }
+  .createchip { display:inline-block; padding:2px 10px; margin:0 6px 6px 0; font-size:12px; border-radius:999px;
+                background:#2f6df6; color:#fff; border:1px solid #2f6df6; cursor:pointer; }
+  .leditor input { padding:8px 10px; border:1px solid var(--accent); border-radius:8px; font-size:14px; width:100%; margin-top:2px; }
+  .leditor .suggests, .leditor .palette { margin-top:8px; display:flex; flex-wrap:wrap; }
+  .leditor .hintline { font-size:12px; color:var(--muted); margin-top:8px; }
+  .leditor .done { margin-top:10px; padding:6px 12px; font-size:13px; border:1px solid var(--line); background:#fff;
+                   border-radius:8px; cursor:pointer; }
+  .justsaved { border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,109,246,.12); }
+  .dupflash { animation:flash 1.6s ease; }
+  @keyframes flash { 0%{ box-shadow:0 0 0 0 rgba(47,109,246,0);} 15%{ box-shadow:0 0 0 4px rgba(47,109,246,.35); border-color:var(--accent);} 100%{ box-shadow:0 0 0 0 rgba(47,109,246,0);} }
+</style>
+</head>
+<body>
+<header>
+  <div class="hbar">
+    <div>
+      <h1>My Bookmarks</h1>
+      <p>One place for every link worth keeping.</p>
+    </div>
+    <div class="hbtns">
+      <button class="hbtn" onclick="openImport()">Import</button>
+      <button class="hbtn" onclick="openExport()">Export</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="saver">
+    <div class="row">
+      <input id="urlInput" type="url" placeholder="Paste a link and press Save…" autocomplete="off" />
+      <button class="primary" id="saveBtn">Save</button>
+    </div>
+    <div class="hint">Tip: paste a link, hit Save, and the app fills in the title and a short summary for you.</div>
+    <div class="savererr" id="saverErr" hidden></div>
+  </div>
+
+  <div class="searchbar">
+    <span class="mag">🔎</span>
+    <input id="searchInput" type="search" placeholder="Search your links — title, summary, anything…" autocomplete="off" />
+    <button class="clear" id="clearBtn" title="Clear">×</button>
+  </div>
+
+  <div id="banner"></div>
+
+  <div class="tabs" id="tabs">
+    <span class="tab active" data-view="all" onclick="setView('all')">All links</span>
+    <span class="tab" data-view="toread" onclick="setView('toread')">To read</span>
+  </div>
+
+  <div class="labelbar" id="labelBar"></div>
+
+  <div class="listhead">
+    <h2 id="listLabel">Saved</h2>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="selbtn" id="selBtn" onclick="toggleSelectMode()">Select</button>
+      <select id="sortSel" onchange="setSort(this.value)">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="title">Title A–Z</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+  </div>
+  <div id="list"></div>
+</div>
+
+<div id="bulkbar"></div>
+<div id="modal"></div>
+
+<script>
+  let justSavedId = null, renamingId = null, flashId = null, bannerTimer = null;
+  let nextId = 1, query = '', labelFilter = null, view = 'all', sortMode = 'newest';
+  let editingLabelsId = null, labelDraft = '';
+  let selectMode = false, bulkLabelOpen = false, bulkDeleteConfirm = false, lastShown = [];
+  const selected = new Set();
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtDate(s){ if(!s) return ''; const p=s.split('-').map(Number); if(!p[0]) return s; return p[2]+' '+MONTHS[(p[1]||1)-1]+' '+p[0]; }
+  function todayStr(){ const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+  const listLabel = document.getElementById('listLabel');
+  const input = document.getElementById('urlInput');
+  const btn = document.getElementById('saveBtn');
+  const bannerEl = document.getElementById('banner');
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearBtn');
+
+  const KNOWN = {
+    'en.wikipedia.org/wiki/ancient_rome': { title:'Ancient Rome - Wikipedia',
+      desc:'The Roman civilization that grew from a city-state on the Italian Peninsula into an empire ruling the Mediterranean world for centuries.' },
+    'en.wikipedia.org/wiki/roman_empire': { title:'Roman Empire - Wikipedia',
+      desc:'The post-Republican period of ancient Rome, ruled by emperors from 27 BC across Europe, North Africa and the Near East.' }
+  };
+
+  // Pre-loaded sample links so search feels real.
+  const bookmarks = [
+    { id:1, url:'https://en.wikipedia.org/wiki/Ancient_Rome', title:'Ancient Rome - Wikipedia',
+      desc:'The Roman civilization that grew from a city-state on the Italian Peninsula into an empire ruling the Mediterranean world for centuries.',
+      labels:['history'], toRead:true,
+      snapshot:['Ancient Rome began as an Italic settlement on the Italian Peninsula, traditionally dated to 753 BC, and grew through the Roman Kingdom, the Roman Republic and finally the Roman Empire.',
+                'At its height the empire encompassed the lands around the Mediterranean and much of Europe, leaving a lasting legacy in law, language, engineering and government that shaped Western civilization.'] },
+    { id:2, url:'https://en.wikipedia.org/wiki/Roman_Empire', title:'Roman Empire - Wikipedia',
+      desc:'The post-Republican period of ancient Rome, ruled by emperors from 27 BC across Europe, North Africa and the Near East.',
+      labels:['history'] },
+    { id:3, url:'https://cooking.example.com/spaghetti-carbonara', title:'Classic Spaghetti Carbonara',
+      desc:'A traditional Roman pasta dish made with eggs, pecorino cheese, guanciale and plenty of black pepper.',
+      labels:['cooking','italian'], note:'Mum loved this one — remember to use guanciale, never bacon.' },
+    { id:4, url:'https://history.example.com/colosseum', title:'How the Colosseum Was Built',
+      desc:'The largest amphitheatre ever built, standing in the heart of Rome and completed around 80 AD.',
+      labels:['history','travel'], dead:true,
+      snapshot:['The Colosseum, or Flavian Amphitheatre, was commissioned around 70–72 AD under Emperor Vespasian and completed in 80 AD under his successor Titus.',
+                'Built of travertine limestone, tuff and brick-faced concrete, it could hold an estimated 50,000 to 80,000 spectators who came to watch gladiatorial contests and public spectacles.'] },
+    { id:5, url:'https://devblog.example.com/js-promises', title:'Understanding JavaScript Promises',
+      desc:'A practical guide to asynchronous programming in JavaScript using promises and async/await.',
+      labels:['coding'], toRead:true },
+    { id:6, url:'https://travel.example.com/romania-guide', title:'Romania Travel Guide',
+      desc:'Castles, mountains and the Black Sea coast — planning a trip through Romania.',
+      labels:['travel'] },
+    { id:7, url:'https://arxiv.example.com/papers/transformers.pdf', title:'Attention Is All You Need (PDF)',
+      desc:'A research paper introducing the Transformer architecture for sequence modeling.',
+      labels:['coding'], toRead:true, isPdf:true },
+    { id:8, url:'https://portal.example.com/members/quarterly-report', title:'portal.example.com',
+      desc:'', labels:[], captureFailed:true }
+  ];
+  nextId = 9;
+  const SEED_DATES = {1:'2026-06-20',2:'2026-05-02',3:'2025-11-15',4:'2024-03-08',5:'2026-07-01',6:'2026-02-11',7:'2026-06-28',8:'2026-07-10'};
+  bookmarks.forEach(b=>{ if(!b.savedAt) b.savedAt = SEED_DATES[b.id]; });
+
+  function keyFor(url){
+    try { const u=new URL(url); return (u.hostname.replace(/^www\./,'')+u.pathname.replace(/\/$/,'')).toLowerCase(); }
+    catch(e){ return url.toLowerCase(); }
+  }
+  function hostOf(url){ try { return new URL(url).hostname.replace(/^www\./,''); } catch(e){ return url; } }
+
+  function fetchMeta(url){
+    const k=keyFor(url); if (KNOWN[k]) return KNOWN[k];
+    const host=hostOf(url);
+    return { title:'Page on '+host, desc:'(In the finished app, this line shows the page’s own summary so you can find it later by what it’s about.)' };
+  }
+
+  function faviconMarkup(url){
+    const host=hostOf(url), letter=(host[0]||'?').toUpperCase();
+    const colors=['#2f6df6','#e0663f','#3f9f56','#8b5cf6','#d9a441','#d6457f'];
+    const color=colors[host.length % colors.length];
+    return `<img class="favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64"
+             onerror="favFail(this,'${letter}','${color}')" alt="" />`;
+  }
+  window.favFail=function(img,letter,color){ const d=document.createElement('div'); d.className='favicon fallback';
+    d.style.background=color; d.textContent=letter; img.replaceWith(d); };
+  function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // Search across title + summary + address. Every typed word must appear somewhere.
+  function terms(){ return query.toLowerCase().split(/\s+/).filter(Boolean); }
+  // Approved default: "word variations" matching.
+  function currentLevel(){ return 'forms'; }
+
+  // Demo-tuned stemmer: folds common word forms to a shared root so "Rome"↔"Roman",
+  // "cook"↔"cooking", "recipe"↔"recipes". Simulated; the real app would use proper stemming.
+  function stem(w){
+    w = w.toLowerCase();
+    const roots = { rome:'rom', roman:'rom', romans:'rom' };
+    if (roots[w]) return roots[w];
+    w = w.replace(/(ings|ing|ed|es|s)$/,'');
+    w = w.replace(/e$/,'');
+    return w;
+  }
+  function wordHit(word, t, level){
+    word = word.toLowerCase();
+    if (word.includes(t)) return true;              // substring — covers exact typing
+    if (level === 'exact') return false;
+    if (level === 'forms') return stem(word) === stem(t);
+    if (level === 'loose') return word.startsWith(t.slice(0,3)) || stem(word) === stem(t);
+    return false;
+  }
+  function searchText(b){ return (b.title+' '+b.desc+' '+(b.note||'')+' '+b.url+' '+(b.labels||[]).join(' ')).toLowerCase(); }
+  function wordsOf(b){ return searchText(b).split(/[^a-z0-9]+/).filter(Boolean); }
+  function matches(b){
+    const level = currentLevel();
+    const hay = searchText(b);
+    const words = wordsOf(b);
+    return terms().every(t => hay.includes(t) || words.some(w => wordHit(w, t, level)));
+  }
+  function highlight(text){
+    const level = currentLevel();
+    const ts = terms();
+    return escapeHtml(text).replace(/[A-Za-z0-9]+/g, w =>
+      ts.some(t => wordHit(w, t, level)) ? '<mark>'+w+'</mark>' : w);
+  }
+
+  function showBanner(text){
+    bannerEl.innerHTML='<div class="banner">'+escapeHtml(text)+'</div>';
+    if (bannerTimer) clearTimeout(bannerTimer);
+    bannerTimer=setTimeout(()=>{ bannerEl.innerHTML=''; },4000);
+  }
+
+  function allLabels(){
+    const set = [];
+    bookmarks.forEach(b => (b.labels||[]).forEach(l => { if(!set.includes(l)) set.push(l); }));
+    return set.sort();
+  }
+  function renderLabelBar(){
+    const labels = allLabels();
+    if (!labels.length){ document.getElementById('labelBar').innerHTML=''; return; }
+    const chips = labels.map(l =>
+      `<span class="chip ${l===labelFilter?'active':''}" onclick="toggleLabel('${escapeHtml(l)}')">${escapeHtml(l)}</span>`
+    ).join('');
+    document.getElementById('labelBar').innerHTML = '<span class="lead">Labels</span>' + chips;
+  }
+  window.toggleLabel = function(l){ labelFilter = (labelFilter===l ? null : l); render(); };
+
+  function renderTabs(){
+    const pile = bookmarks.filter(b=>b.toRead).length;
+    document.querySelectorAll('#tabs .tab').forEach(t=>{
+      const v=t.dataset.view; t.classList.toggle('active', v===view);
+      t.textContent = v==='toread' ? ('To read'+(pile?' ('+pile+')':'')) : 'All links';
+    });
+  }
+
+  function render(){
+    renderLabelBar();
+    renderTabs();
+    renderBulk();
+    const q = query.trim();
+    let shown = q ? bookmarks.filter(matches) : bookmarks.slice();
+    if (labelFilter) shown = shown.filter(b => (b.labels||[]).includes(labelFilter));
+    if (view === 'toread') shown = shown.filter(b => b.toRead);
+
+    shown.sort((a,b)=>{
+      if (sortMode==='title') return a.title.localeCompare(b.title);
+      const c = (a.savedAt||'').localeCompare(b.savedAt||'');
+      if (c!==0) return sortMode==='oldest' ? c : -c;
+      return sortMode==='oldest' ? (a.id-b.id) : (b.id-a.id);
+    });
+    lastShown = shown.map(b=>b.id);
+
+    const filtering = q || labelFilter;
+    listLabel.textContent = view==='toread' ? 'To read' : (filtering ? 'Results' : 'Saved');
+    countEl.textContent = view==='toread'
+      ? shown.length + (shown.length===1?' to read':' to read')
+      : (filtering ? shown.length + (shown.length===1?' match':' matches')
+                   : (bookmarks.length ? bookmarks.length+(bookmarks.length===1?' link':' links') : ''));
+    clearBtn.style.display = q ? 'block' : 'none';
+
+    if (!bookmarks.length){
+      listEl.innerHTML='<div class="empty"><strong>Nothing saved yet</strong>Paste your first link above to get started.</div>';
+      return;
+    }
+    if (!shown.length){
+      if (view==='toread' && !q && !labelFilter){
+        listEl.innerHTML='<div class="empty"><strong>Nothing left to read — nice!</strong>Flag a link with “Read later” and it lands here.</div>';
+      } else {
+        const what = q ? '“'+escapeHtml(q)+'”' : 'label “'+escapeHtml(labelFilter)+'”';
+        listEl.innerHTML='<div class="empty"><strong>No matches for '+what+'</strong>Try a different word or label.</div>';
+      }
+      return;
+    }
+    listEl.innerHTML = shown.map(b => {
+      if (b.loading){
+        return `<div class="card" id="card-${b.id}">${faviconMarkup(b.url)}
+          <div class="body"><div class="title fetching">Fetching page details…</div>
+          <div class="url">${escapeHtml(b.url)}</div></div></div>`;
+      }
+      const renaming=(b.id===renamingId);
+      const titleBlock = renaming
+        ? `<div class="renamebox"><input id="rename-${b.id}" value="${escapeHtml(b.title)}" />
+             <button class="iconbtn" onclick="commitRename(${b.id})">Save</button></div>`
+        : `<div class="title">${q?highlight(b.title):escapeHtml(b.title)}</div>`;
+      const cls=['card', b.id===justSavedId?'justsaved':'', b.id===flashId?'dupflash':'', (selectMode&&selected.has(b.id))?'selected':'', renaming?'':'clickable'].join(' ').trim();
+      const labelChips = (b.labels||[]).map(l=>`<span class="chip ${l===labelFilter?'active':''}" onclick="chipClick(event,'${escapeHtml(l)}')">${escapeHtml(l)}</span>`).join('');
+      const flag = (view==='all' && b.toRead) ? '<span class="flagchip">🕮 To read</span>' : '';
+      const dead = b.dead ? '<span class="deadchip">⚠ Original unavailable</span>' : '';
+      const nocopy = b.captureFailed ? '<span class="warnchip">⚠ No saved copy</span>' : '';
+      const chips = (flag||dead||nocopy||labelChips) ? `<div class="chips">${dead}${nocopy}${flag}${labelChips}</div>` : '';
+      const warnNote = b.captureFailed
+        ? '<div class="note" style="background:#fff3e0;border-left-color:#f2d19b;color:#8a5a00;">⚠ Couldn’t read this page, so there’s no summary or saved copy — it may need a login. The link itself is saved.</div>'
+        : '';
+      const check = selectMode
+        ? `<label class="checkwrap" onclick="event.stopPropagation()"><input type="checkbox" ${selected.has(b.id)?'checked':''} onchange="toggleSelect(${b.id})" /></label>`
+        : (view==='toread'
+            ? `<label class="checkwrap" title="Mark as read" onclick="event.stopPropagation()"><input type="checkbox" onchange="markRead(${b.id})" /></label>`
+            : '');
+      const clickAttr = renaming ? '' : (selectMode ? `onclick="toggleSelect(${b.id})"` : `onclick="openBookmark(${b.id})"`);
+      return `<div class="${cls}" id="card-${b.id}" ${clickAttr}>
+        ${check}
+        ${faviconMarkup(b.url)}
+        <div class="body">
+          ${titleBlock}
+          <div class="url">${escapeHtml(b.url)}</div>
+          ${b.desc ? `<div class="desc">${q?highlight(b.desc):escapeHtml(b.desc)}</div>` : ''}
+          ${b.note ? `<div class="note">📝 ${q?highlight(b.note):escapeHtml(b.note)}</div>` : ''}
+          ${warnNote}
+          ${chips}
+          <div class="when">${b.sessionNew ? 'Saved just now' : 'Saved '+fmtDate(b.savedAt)}</div>
+          ${b.id===editingLabelsId ? labelEditorMarkup(b) : ''}
+        </div>
+        <div class="actions">${(renaming||selectMode)?'':`
+          <button class="iconbtn" onclick="openEdit(${b.id}, event)">Edit</button>
+          <button class="iconbtn" onclick="openSnapshot(${b.id}, event)">Saved copy</button>
+          <button class="iconbtn ${b.toRead?'on':''}" onclick="toggleToRead(${b.id}, event)">${b.toRead?'✓ Reading list':'Read later'}</button>
+          <button class="iconbtn" onclick="startRename(${b.id}, event)">Rename</button>
+          <button class="iconbtn" onclick="startEditLabels(${b.id}, event)">Labels</button>`}</div>
+      </div>`;
+    }).join('');
+    if (renamingId){ const el=document.getElementById('rename-'+renamingId); if(el){ el.focus(); el.select(); } }
+    if (editingLabelsId){ const el=document.getElementById('labelInput'); if(el){ const v=el.value; el.focus(); el.setSelectionRange(v.length,v.length); } }
+  }
+
+  window.openBookmark=function(id){
+    const b=bookmarks.find(x=>x.id===id); if(!b) return;
+    if (b.dead){ openSnapshot(id); return; }   // original is gone → fall back to the saved copy
+    window.open(b.url,'_blank','noopener');
+  };
+  function snapshotOf(b){
+    if (b.snapshot && b.snapshot.length) return b.snapshot;
+    return [ b.desc || '', '(In the finished app, the full saved copy of the page text is stored here, captured when you bookmarked it — so even if the original disappears, your copy remains.)' ];
+  }
+  window.openSnapshot=function(id, ev){
+    if(ev) ev.stopPropagation();
+    const b=bookmarks.find(x=>x.id===id); if(!b) return;
+    const archLine = b.dead
+      ? '<div class="arch gone">⚠ The original page appears to be gone — this is your saved copy, kept from when you bookmarked it.</div>'
+      : '<div class="arch">📄 Your saved copy, kept from when you bookmarked it — available even if the original disappears.</div>';
+    let bodyHtml;
+    if (b.captureFailed){
+      document.getElementById('modal').innerHTML =
+        `<div class="overlay" onclick="if(event.target===this) closeReader()">
+          <div class="reader">
+            <h2>${escapeHtml(b.title)}</h2>
+            <div class="meta">${escapeHtml(b.url)}</div>
+            <div class="arch gone">⚠ We couldn’t capture a copy of this page — it may need a login. Your link is saved, but there’s no offline copy to fall back on.</div>
+            <div class="rowbtns">
+              <button class="btn orig" onclick="window.open('${escapeHtml(b.url)}','_blank','noopener')">Open the original</button>
+              <button class="btn" onclick="closeReader()">Close</button>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+    if (b.isPdf){
+      const fn = b.url.split('/').pop();
+      bodyHtml = `<div class="pdfbox">
+        <div class="doc">📕</div>
+        <div class="fn">${escapeHtml(fn)}</div>
+        <div style="font-size:13px;color:#6b7280;margin-top:6px;">Kept as the original PDF file — not converted to text.</div>
+        <button class="openpdf" onclick="window.open('${escapeHtml(b.url)}','_blank','noopener')">Open PDF</button>
+      </div>`;
+    } else {
+      bodyHtml = '<div class="content">'+snapshotOf(b).map(p=>'<p>'+escapeHtml(p)+'</p>').join('')+'</div>';
+    }
+    document.getElementById('modal').innerHTML =
+      `<div class="overlay" onclick="if(event.target===this) closeReader()">
+        <div class="reader">
+          <h2>${escapeHtml(b.title)}</h2>
+          <div class="meta">${escapeHtml(b.url)}</div>
+          ${archLine}
+          ${bodyHtml}
+          <div class="rowbtns">
+            <button class="btn orig" ${b.dead?'disabled title="The original is no longer reachable"':`onclick="window.open('${escapeHtml(b.url)}','_blank','noopener')"`}>Open the original</button>
+            <button class="btn" onclick="closeReader()">Close</button>
+          </div>
+        </div>
+      </div>`;
+  };
+  window.closeReader=function(){ document.getElementById('modal').innerHTML=''; };
+
+  // ---- Import / Export ----
+  const SAMPLE_IMPORT = [
+    'Ancient Rome - Wikipedia | https://en.wikipedia.org/wiki/Ancient_Rome | History | 2020-01-14',
+    'Best Neapolitan Pizza Dough | https://cooking.example.com/pizza-dough | Recipes/Italian | 2019-08-03',
+    'Tax Filing Guide 2026 | https://gov.example.com/tax-guide | Work/Reference | 2023-04-11',
+    'Kyoto 5-Day Itinerary | https://travel.example.com/kyoto | Travel/Japan | 2018-05-22',
+    'Rust Ownership Explained | https://devblog.example.com/rust-ownership | Coding | 2022-09-30',
+    'Sourdough Starter Basics | https://cooking.example.com/sourdough | Recipes/Bread | 2021-03-17',
+    'Team Offsite Notes | https://portal.example.com/members/offsite | Work/Reference | 2024-11-02'
+  ].join('\n');
+
+  function folderToLabels(folder){ return (folder||'').split('/').map(s=>s.trim().toLowerCase()).filter(Boolean); }
+
+  window.openImport=function(){
+    document.getElementById('modal').innerHTML =
+      `<div class="overlay" onclick="if(event.target===this) closeReader()">
+        <div class="reader">
+          <h2>Bring in your bookmarks</h2>
+          <div class="arch">Paste your browser's exported bookmarks (or load a sample to see how it works).
+          We'll <b>skip any you already have</b>, and turn each bookmark's <b>folder into labels</b> so your old
+          filing isn't lost — just freed from single-folder prison.</div>
+          <label class="f">Bookmarks — one per line: <code>Title | https://… | Folder/Subfolder</code></label>
+          <textarea class="field" id="importText" style="min-height:120px;" placeholder="Ancient Rome | https://en.wikipedia.org/wiki/Ancient_Rome | History"></textarea>
+          <div class="rowbtns">
+            <button class="btn" onclick="loadSampleImport()">Load a sample browser export</button>
+          </div>
+          <div class="rowbtns">
+            <button class="btn primary" onclick="doImport()">Import</button>
+            <button class="btn" onclick="closeReader()">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  };
+  window.loadSampleImport=function(){ const t=document.getElementById('importText'); if(t) t.value=SAMPLE_IMPORT; };
+  window.doImport=function(){
+    const raw=(document.getElementById('importText')||{}).value||'';
+    const lines=raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    let added=0, skippedDup=0, skippedBad=0;
+    lines.forEach(line=>{
+      const parts=line.split('|').map(s=>s.trim());
+      const title=parts[0]||''; let url=parts[1]||''; const folder=parts[2]||''; const date=parts[3]||'';
+      if(url && !/^https?:\/\//i.test(url)) url='https://'+url;
+      if(!isUrlLike(url)){ skippedBad++; return; }
+      if(bookmarks.find(b=>keyFor(b.url)===keyFor(url))){ skippedDup++; return; }
+      const savedAt = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayStr();
+      bookmarks.unshift({ id:nextId++, url, title:title||hostOf(url), desc:'', labels:folderToLabels(folder), imported:true, savedAt });
+      added++;
+    });
+    closeReader();
+    let msg='Imported '+added+' link'+(added===1?'':'s');
+    if(skippedDup) msg+=', skipped '+skippedDup+' you already had';
+    if(skippedBad) msg+=', ignored '+skippedBad+" that weren't links";
+    msg+='. Folders became labels.';
+    showBanner(msg);
+    render();
+  };
+
+  window.openExport=function(){
+    const text = bookmarks.map(b=>{
+      const labels=(b.labels||[]).join(', ');
+      return b.title+' | '+b.url+(labels?(' | '+labels):'');
+    }).join('\n');
+    document.getElementById('modal').innerHTML =
+      `<div class="overlay" onclick="if(event.target===this) closeReader()">
+        <div class="reader">
+          <h2>Export your links</h2>
+          <div class="arch">Your links, yours to take anywhere — nothing locked in. Copy this, or download it as a file.</div>
+          <textarea class="field" style="min-height:200px;" readonly>${escapeHtml(text)}</textarea>
+          <div class="rowbtns">
+            <button class="btn primary" onclick="downloadExport()">Download file</button>
+            <button class="btn" onclick="closeReader()">Done</button>
+          </div>
+        </div>
+      </div>`;
+  };
+  window.downloadExport=function(){
+    const text = bookmarks.map(b=>{ const l=(b.labels||[]).join(', '); return b.title+' | '+b.url+(l?(' | '+l):''); }).join('\n');
+    const blob=new Blob([text],{type:'text/plain'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='my-bookmarks.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    showBanner('Exported your links to a file.');
+  };
+
+  let editConfirmDelete = false;
+  window.openEdit=function(id, ev){ if(ev) ev.stopPropagation(); editConfirmDelete=false; renderEdit(id); };
+  function renderEdit(id){
+    const b=bookmarks.find(x=>x.id===id); if(!b) return;
+    const confirmBlock = editConfirmDelete
+      ? `<div class="confirm">
+           <span>Delete this link for good? Your saved copy goes too.</span>
+           <span class="spacer"></span>
+           <button class="btn danger" onclick="confirmDelete(${b.id})">Yes, delete</button>
+           <button class="btn" onclick="cancelDelete(${b.id})">Keep it</button>
+         </div>` : '';
+    document.getElementById('modal').innerHTML =
+      `<div class="overlay" onclick="if(event.target===this) closeReader()">
+        <div class="reader">
+          <h2>Edit link</h2>
+          <label class="f">Title</label>
+          <input class="field" id="eTitle" value="${escapeHtml(b.title)}" />
+          <label class="f">Your note (searchable)</label>
+          <textarea class="field" id="eNote" placeholder="Jot anything — why you saved it, what to remember…">${escapeHtml(b.note||'')}</textarea>
+          <label class="f">Summary (auto-filled — edit if it's off)</label>
+          <textarea class="field" id="eDesc">${escapeHtml(b.desc||'')}</textarea>
+          <label class="f">Address</label>
+          <input class="field" id="eUrl" value="${escapeHtml(b.url)}" />
+          <div class="rowbtns">
+            <button class="btn primary" onclick="saveEdit(${b.id})">Save</button>
+            <button class="btn" onclick="closeReader()">Cancel</button>
+            <span class="spacer"></span>
+            <button class="btn danger" onclick="askDelete(${b.id})">Delete link</button>
+          </div>
+          ${confirmBlock}
+        </div>
+      </div>`;
+  }
+  window.saveEdit=function(id){
+    const b=bookmarks.find(x=>x.id===id); if(!b) return;
+    const t=document.getElementById('eTitle').value.trim();
+    const u=document.getElementById('eUrl').value.trim();
+    if(t) b.title=t;
+    b.note=document.getElementById('eNote').value.trim();
+    b.desc=document.getElementById('eDesc').value.trim();
+    if(u) b.url = /^https?:\/\//i.test(u) ? u : 'https://'+u;
+    closeReader(); render();
+  };
+  window.askDelete=function(id){ editConfirmDelete=true; renderEdit(id); };
+  window.cancelDelete=function(id){ editConfirmDelete=false; renderEdit(id); };
+  window.confirmDelete=function(id){
+    const i=bookmarks.findIndex(x=>x.id===id);
+    if(i>=0){ const t=bookmarks[i].title; bookmarks.splice(i,1); closeReader(); showBanner('Deleted “'+t+'”.'); render(); }
+  };
+  window.chipClick=function(ev,l){ if(ev) ev.stopPropagation(); toggleLabel(l); };
+  window.setView=function(v){ view=v; render(); };
+  window.toggleToRead=function(id, ev){ if(ev) ev.stopPropagation(); const b=bookmarks.find(x=>x.id===id); if(b){ b.toRead=!b.toRead; render(); } };
+  window.markRead=function(id){ const b=bookmarks.find(x=>x.id===id); if(b){ b.toRead=false; showBanner('Ticked off — one less thing to read.'); render(); } };
+
+  // Approved default: "Both" — tap existing labels or type to filter/create.
+  function addMode(){ return 'C'; }
+
+  // Case-insensitive: reuse an existing label with matching spelling rather than making a near-duplicate.
+  function canonicalLabel(raw){
+    const v = raw.trim(); if(!v) return '';
+    const hit = allLabels().find(l => l.toLowerCase() === v.toLowerCase());
+    return hit || v;
+  }
+  function hasLabel(b, l){ return (b.labels||[]).some(x => x.toLowerCase() === l.toLowerCase()); }
+
+  window.startEditLabels = function(id, ev){ if(ev) ev.stopPropagation(); editingLabelsId=id; renamingId=null; labelDraft=''; render(); };
+  window.closeLabels = function(){ editingLabelsId=null; labelDraft=''; render(); };
+  window.onLabelInput = function(v){ labelDraft=v; render(); };
+  window.addLabel = function(id, raw){
+    const b = bookmarks.find(x=>x.id===id); if(!b) return;
+    const label = canonicalLabel(raw); if(!label) return;
+    b.labels = b.labels || [];
+    if(!hasLabel(b, label)) b.labels.push(label);
+    labelDraft=''; render();
+  };
+  window.labelKey = function(ev, id){
+    if(ev.key==='Enter'){ ev.preventDefault(); if(labelDraft.trim()) addLabel(id, labelDraft); }
+    else if(ev.key==='Escape'){ closeLabels(); }
+  };
+  window.removeLabel = function(ev, id, l){
+    if(ev) ev.stopPropagation();
+    const b = bookmarks.find(x=>x.id===id); if(!b) return;
+    b.labels = (b.labels||[]).filter(x => x !== l);
+    render();
+  };
+
+  function labelEditorMarkup(b){
+    const mode = addMode();
+    const cur = b.labels||[];
+    const curBlock = cur.length
+      ? '<div class="cur">'+cur.map(l=>`<span class="chip">${escapeHtml(l)}<span class="x" onclick="removeLabel(event,${b.id},'${escapeHtml(l)}')">×</span></span>`).join('')+'</div>'
+      : '<div class="cur empty-cur">No labels on this link yet.</div>';
+
+    const draft = labelDraft.trim();
+    const notOnLink = l => !hasLabel(b, l);
+    const matching = l => l.toLowerCase().includes(draft.toLowerCase());
+    const exactExists = allLabels().some(l => l.toLowerCase() === draft.toLowerCase());
+
+    let addArea = '';
+    if (mode === 'A'){
+      const sugg = allLabels().filter(notOnLink).filter(l => draft && matching(l))
+        .map(l=>`<span class="addchip" onclick="addLabel(${b.id},'${escapeHtml(l)}')">${escapeHtml(l)}</span>`).join('');
+      const create = (draft && !exactExists)
+        ? `<span class="createchip" onclick="addLabel(${b.id},'${escapeHtml(draft)}')">＋ Create “${escapeHtml(draft)}”</span>` : '';
+      addArea = `
+        <div class="sec">Add a label</div>
+        <input id="labelInput" placeholder="Type a label…" value="${escapeHtml(labelDraft)}"
+               oninput="onLabelInput(this.value)" onkeydown="labelKey(event,${b.id})" onclick="event.stopPropagation()" autocomplete="off" />
+        <div class="suggests">${sugg}${create}</div>
+        ${draft && sugg ? '<div class="hintline">↑ You already have these — tap one to reuse it.</div>' : ''}`;
+    } else if (mode === 'B'){
+      const palette = allLabels().filter(notOnLink)
+        .map(l=>`<span class="addchip" onclick="addLabel(${b.id},'${escapeHtml(l)}')">${escapeHtml(l)}</span>`).join('') || '<span class="empty-cur">No other labels yet.</span>';
+      addArea = `
+        <div class="sec">Tap one of your labels to add it</div>
+        <div class="palette">${palette}</div>
+        <div class="sec" style="margin-top:10px;">…or add a new one</div>
+        <input id="labelInput" placeholder="New label…" value="${escapeHtml(labelDraft)}"
+               oninput="onLabelInput(this.value)" onkeydown="labelKey(event,${b.id})" onclick="event.stopPropagation()" autocomplete="off" />`;
+    } else {
+      const palette = allLabels().filter(notOnLink).filter(l => !draft || matching(l))
+        .map(l=>`<span class="addchip" onclick="addLabel(${b.id},'${escapeHtml(l)}')">${escapeHtml(l)}</span>`).join('');
+      const create = (draft && !exactExists)
+        ? `<span class="createchip" onclick="addLabel(${b.id},'${escapeHtml(draft)}')">＋ Create “${escapeHtml(draft)}”</span>` : '';
+      addArea = `
+        <div class="sec">Add a label — your labels are below; type to filter</div>
+        <input id="labelInput" placeholder="Filter or create…" value="${escapeHtml(labelDraft)}"
+               oninput="onLabelInput(this.value)" onkeydown="labelKey(event,${b.id})" onclick="event.stopPropagation()" autocomplete="off" />
+        <div class="palette">${palette||'<span class="empty-cur">No matches.</span>'}${create}</div>`;
+    }
+
+    return `<div class="leditor" onclick="event.stopPropagation()">
+      <div class="sec">Labels on this link</div>
+      ${curBlock}
+      ${addArea}
+      <button class="done" onclick="closeLabels()">Done</button>
+    </div>`;
+  }
+  window.startRename=function(id,ev){ if(ev) ev.stopPropagation(); renamingId=id; render(); };
+  window.commitRename=function(id){ const el=document.getElementById('rename-'+id), b=bookmarks.find(x=>x.id===id);
+    if(el&&b){ const v=el.value.trim(); if(v) b.title=v; } renamingId=null; render(); };
+
+  function goToExisting(id, openForEdit){
+    justSavedId=null; flashId=id; if(openForEdit) renamingId=id;
+    query=''; searchInput.value='';
+    render();
+    const card=document.getElementById('card-'+id); if(card) card.scrollIntoView({behavior:'smooth',block:'center'});
+    showBanner(openForEdit?'You already saved this one — opened it so you can tweak it.':'You already saved this one — here it is.');
+    setTimeout(()=>{ flashId=null; },1700);
+  }
+  function isUrlLike(u){ try{ const x=new URL(u); return x.hostname.includes('.') && !/\s/.test(x.hostname); }catch(e){ return false; } }
+  function unreadable(url){ return /portal\.|\/members\/|login|account/i.test(url); }
+  function showSaverError(msg){ const e=document.getElementById('saverErr'); e.textContent=msg; e.hidden=false; }
+  function clearSaverError(){ const e=document.getElementById('saverErr'); e.hidden=true; }
+
+  window.setSort=function(v){ sortMode=v; render(); };
+
+  // ---- Bulk actions ----
+  window.toggleSelectMode=function(){ selectMode=!selectMode; selected.clear(); bulkLabelOpen=false; bulkDeleteConfirm=false; render(); };
+  window.toggleSelect=function(id){ if(selected.has(id)) selected.delete(id); else selected.add(id); bulkDeleteConfirm=false; render(); };
+  window.bulkSelectAll=function(){ lastShown.forEach(id=>selected.add(id)); render(); };
+  window.bulkClear=function(){ selected.clear(); bulkLabelOpen=false; bulkDeleteConfirm=false; render(); };
+  window.bulkReadLater=function(){ selected.forEach(id=>{ const b=bookmarks.find(x=>x.id===id); if(b) b.toRead=true; }); showBanner('Flagged '+selected.size+' to read.'); render(); };
+  window.bulkLabelToggle=function(){ bulkLabelOpen=!bulkLabelOpen; bulkDeleteConfirm=false; render(); };
+  window.bulkApplyLabel=function(raw){
+    const label=canonicalLabel(raw); if(!label) return;
+    let n=0; selected.forEach(id=>{ const b=bookmarks.find(x=>x.id===id); if(b){ b.labels=b.labels||[]; if(!hasLabel(b,label)){ b.labels.push(label); n++; } } });
+    bulkLabelOpen=false; showBanner('Added “'+label+'” to '+n+' link'+(n===1?'':'s')+'.'); render();
+  };
+  window.bulkApplyLabelInput=function(){ const el=document.getElementById('bulkLabelInput'); if(el && el.value.trim()) bulkApplyLabel(el.value); };
+  window.bulkDeleteAsk=function(){ bulkDeleteConfirm=true; bulkLabelOpen=false; render(); };
+  window.bulkDeleteDo=function(){
+    const n=selected.size;
+    for(let i=bookmarks.length-1;i>=0;i--){ if(selected.has(bookmarks[i].id)) bookmarks.splice(i,1); }
+    selected.clear(); bulkDeleteConfirm=false; showBanner('Deleted '+n+' link'+(n===1?'':'s')+'.'); render();
+  };
+
+  function renderBulk(){
+    const btn=document.getElementById('selBtn');
+    if(btn){ btn.textContent = selectMode ? 'Cancel' : 'Select'; btn.classList.toggle('on', selectMode); }
+    const bar=document.getElementById('bulkbar');
+    if(!selectMode){ bar.innerHTML=''; return; }
+    const n=selected.size;
+    const labels=allLabels();
+    const sub = bulkLabelOpen
+      ? `<div class="sub">
+           <div style="margin-bottom:6px;">Add a label to ${n} selected — tap an existing one or type a new one:</div>
+           <input id="bulkLabelInput" placeholder="Label…" onkeydown="if(event.key==='Enter') bulkApplyLabelInput()" />
+           <button onclick="bulkApplyLabelInput()" style="margin-left:6px;">Add</button>
+           <div class="palette">${labels.map(l=>`<span class="addchip" onclick="bulkApplyLabel('${escapeHtml(l)}')">${escapeHtml(l)}</span>`).join('')||'<span style="color:#8a94a3;">No labels yet — type one above.</span>'}</div>
+         </div>`
+      : '';
+    const confirm = bulkDeleteConfirm
+      ? `<div class="sub">Delete ${n} link${n===1?'':'s'} for good, saved copies and all?
+           <button class="danger" style="margin-left:8px;" onclick="bulkDeleteDo()">Yes, delete ${n}</button>
+           <button onclick="bulkClear()">Cancel</button></div>`
+      : '';
+    bar.innerHTML =
+      `<div class="inner">
+        <b>${n} selected</b>
+        <button class="ghost" onclick="bulkSelectAll()">Select all shown</button>
+        <span class="spacer"></span>
+        <button ${n?'':'disabled'} onclick="bulkLabelToggle()">Label…</button>
+        <button ${n?'':'disabled'} onclick="bulkReadLater()">Read later</button>
+        <button class="danger" ${n?'':'disabled'} onclick="bulkDeleteAsk()">Delete</button>
+        <button class="ghost" onclick="toggleSelectMode()">Done</button>
+        ${sub}${confirm}
+      </div>`;
+  }
+
+  function addNew(url){
+    const bm={ id:nextId++, url, title:'', desc:'', loading:true, savedAt:todayStr(), sessionNew:true };
+    bookmarks.unshift(bm); justSavedId=bm.id; flashId=null;
+    query=''; searchInput.value='';
+    render();
+    setTimeout(()=>{
+      if (unreadable(bm.url)){
+        bm.title=hostOf(bm.url); bm.desc=''; bm.captureFailed=true; bm.loading=false;
+      } else {
+        const m=fetchMeta(bm.url); bm.title=m.title; bm.desc=m.desc; bm.loading=false;
+      }
+      render();
+    },650);
+  }
+  function save(){
+    let raw=input.value.trim(); if(!raw) return;
+    const url = /^https?:\/\//i.test(raw) ? raw : 'https://'+raw;
+    if(!isUrlLike(url)){ showSaverError('That doesn’t look like a web link — check the address and try again.'); return; }
+    clearSaverError();
+    input.value='';
+    const dup=bookmarks.find(b=>keyFor(b.url)===keyFor(url));
+    if(dup){ goToExisting(dup.id,true); input.focus(); return; }
+    addNew(url); input.focus();
+  }
+
+  btn.addEventListener('click', save);
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter') save(); });
+  searchInput.addEventListener('input', ()=>{ query=searchInput.value; render(); });
+  clearBtn.addEventListener('click', ()=>{ query=''; searchInput.value=''; render(); searchInput.focus(); });
+
+  render();
+</script>
+</body>
+</html>

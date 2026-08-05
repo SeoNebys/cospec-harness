@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 13 (act on several at once)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; --unread:#e8590c; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:#1a1a1e; }
+  .wrap { max-width:720px; margin:0 auto; padding:22px 20px 110px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  .switch { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .switch button { border:1px solid var(--line); background:#fff; color:#333; border-radius:20px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  .switch button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .styleName { font-size:13px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
+  .styleName b { color:#1a1a1e; }
+
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; min-height:34px; }
+  .selectBtn { border:1px solid var(--line); background:#fff; color:#333; border-radius:8px; padding:7px 13px; font-size:13px; cursor:pointer; }
+  .selectBtn.on { background:#1a1a1e; color:#fff; border-color:#1a1a1e; }
+  .count { font-size:13px; color:var(--muted); }
+
+  .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px 14px 16px; margin-bottom:10px; cursor:pointer; display:flex; gap:12px; align-items:flex-start; }
+  .card:hover { box-shadow:0 3px 14px rgba(0,0,0,.08); border-color:#cfd6ef; }
+  .card.unread { border-left:3px solid var(--unread); }
+  .card.sel { background:#eef3ff; border-color:#9db2f0; }
+  .chk { width:20px; height:20px; border:2px solid #c4c4cc; border-radius:5px; flex:none; margin-top:2px;
+         display:none; align-items:center; justify-content:center; color:#fff; font-size:13px; cursor:pointer; }
+  .chk.show { display:flex; }
+  .card.sel .chk { background:var(--accent); border-color:var(--accent); }
+  .body { flex:1; min-width:0; }
+  .title { font-size:15px; margin:0 0 2px; font-weight:500; }
+  .card.unread .title { font-weight:700; }
+  .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .lbls { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .lbls span.l { background:#eef0f4; color:#444; border-radius:12px; padding:2px 9px; font-size:12px; }
+  .toread-tag { font-size:11px; color:var(--unread); background:#ffe8d9; border-radius:10px; padding:2px 9px; }
+
+  .actionbar { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1a1a1e; color:#fff;
+      border-radius:12px; padding:10px 14px; display:none; gap:8px; align-items:center; box-shadow:0 10px 30px rgba(0,0,0,.3); z-index:60; flex-wrap:wrap; max-width:calc(100% - 32px); }
+  .actionbar.show { display:flex; }
+  .actionbar .n { font-size:13px; margin-right:4px; }
+  .actionbar button { border:0; border-radius:8px; padding:8px 12px; font-size:13px; cursor:pointer; background:#33333c; color:#fff; }
+  .actionbar button:hover { background:#44444e; }
+  .actionbar button.danger { background:#5a2420; } .actionbar button.danger:hover { background:#7a2f29; }
+  .actionbar .x { background:transparent; color:#aaa; }
+  .actionbar input { border:0; border-radius:8px; padding:8px 10px; font-size:13px; width:130px; }
+  .toast { position:fixed; left:50%; bottom:82px; transform:translateX(-50%); background:#334; color:#fff;
+      padding:9px 14px; border-radius:9px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:70; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 13 — picking several and acting on them together</p>
+
+  <div class="switch">
+    <button data-style="A" class="on">Style A — a “Select” mode</button>
+    <button data-style="B">Style B — hover checkboxes</button>
+  </div>
+  <div class="styleName" id="styleName"></div>
+
+  <div class="bar">
+    <button class="selectBtn" id="selectBtn">Select</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="cards"></div>
+</div>
+
+<div class="actionbar" id="actionbar">
+  <span class="n" id="abN"></span>
+  <button data-act="read">Mark read</button>
+  <button data-act="label">Add label…</button>
+  <button data-act="aside">Set aside</button>
+  <button data-act="delete" class="danger">Delete</button>
+  <button class="x" id="abClear">Clear</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  let style="A";
+  const STYLE_DESC={
+    A:"<b>Style A — a “Select” mode.</b> Hit <b>Select</b> to switch on multi-pick. Checkboxes appear and tapping a card ticks it instead of opening it. Choose your actions, then leave the mode. Clean everyday view; one deliberate step to start picking.",
+    B:"<b>Style B — hover checkboxes.</b> No mode. Hover a card and a checkbox appears on the left; tick any and an action bar slides up. Card text still opens the page. Always one hover away — but a checkbox is always lurking."
+  };
+
+  let items=[
+    {id:1,t:"The Case for Slow Reading",u:"theatlantic.com/slow-reading",l:["reading"],unread:true,aside:false},
+    {id:2,t:"A Deep Dive into Database Indexes",u:"use-the-index-luke.com",l:["coding"],unread:true,aside:false},
+    {id:3,t:"How to Find Cheap Flights",u:"nomadicmatt.com/flights",l:["travel"],unread:true,aside:false},
+    {id:4,t:"Why We Sleep, summarized",u:"blas.com/why-we-sleep",l:["health"],unread:true,aside:false},
+    {id:5,t:"An Interactive Intro to CSS Grid",u:"css-tricks.com/grid",l:["coding"],unread:true,aside:false},
+    {id:6,t:"Simplest Brothy Beans and Rice",u:"smittenkitchen.com/beans",l:["recipes"],unread:false,aside:false}
+  ];
+  let selectMode=false;
+  const selected=new Set();
+  let toastT=null;
+
+  const el=id=>document.getElementById(id);
+  const cards=el("cards"),countEl=el("count"),selectBtn=el("selectBtn"),styleName=el("styleName"),
+        actionbar=el("actionbar"),abN=el("abN"),abClear=el("abClear"),toast=el("toast");
+
+  document.querySelectorAll(".switch button").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll(".switch button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); style=b.dataset.style; styleName.innerHTML=STYLE_DESC[style];
+    selectMode=false; selected.clear(); render();
+  }));
+  styleName.innerHTML=STYLE_DESC["A"];
+
+  // In Style A, the "Select" button toggles mode. In Style B there's no mode (button hidden).
+  function checksVisible(){ return style==="A" ? selectMode : true; }
+
+  function showToast(m){ toast.textContent=m; toast.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove("show"),1800); }
+
+  function render(){
+    // Style A shows the Select button; Style B hides it (checkboxes are hover-based).
+    selectBtn.style.display = style==="A" ? "inline-block" : "none";
+    selectBtn.classList.toggle("on", selectMode);
+    selectBtn.textContent = selectMode ? "Done" : "Select";
+
+    const visible=items.filter(b=>!b.aside);
+    countEl.textContent=visible.length+" bookmarks"+(style==="B"?" · hover a card to tick it":"");
+    cards.innerHTML="";
+    visible.forEach(b=>{
+      const c=document.createElement("div"); c.className="card"+(b.unread?" unread":"")+(selected.has(b.id)?" sel":"");
+      if(style==="B") c.classList.add("hoverchk");
+      const chk=document.createElement("div"); chk.className="chk"+(checksVisible()?" show":"");
+      chk.textContent = selected.has(b.id) ? "✓" : "";
+      const body=document.createElement("div"); body.className="body";
+      body.innerHTML='<p class="title"></p><div class="url"></div><div class="lbls"></div>';
+      body.querySelector(".title").textContent=b.t;
+      body.querySelector(".url").textContent=b.u;
+      const lb=body.querySelector(".lbls");
+      if(b.unread){ const t=document.createElement("span"); t.className="toread-tag"; t.textContent="to read"; lb.appendChild(t); }
+      b.l.forEach(l=>{const s=document.createElement("span"); s.className="l"; s.textContent=l; lb.appendChild(s);});
+      c.appendChild(chk); c.appendChild(body);
+
+      chk.addEventListener("click",e=>{ e.stopPropagation(); toggleSel(b.id); });
+      c.addEventListener("click",()=>{
+        if(style==="A" && selectMode){ toggleSel(b.id); }
+        else { showToast("↗ Opening the page: "+b.u); }   // Style B: card body always visits
+      });
+      cards.appendChild(c);
+    });
+    updateActionBar();
+  }
+  // Style B: reveal checkbox on hover via CSS-less approach — show all checks faintly; simplest: always show in B.
+  // (For the prototype, Style B shows checkboxes persistently on the left so selection is always one tap away.)
+
+  function toggleSel(id){ selected.has(id)?selected.delete(id):selected.add(id); render(); }
+  function updateActionBar(){
+    if(selected.size && (style==="B" || selectMode)){ actionbar.classList.add("show");
+      abN.textContent=selected.size+" selected"; }
+    else actionbar.classList.remove("show");
+  }
+
+  selectBtn.addEventListener("click",()=>{ selectMode=!selectMode; if(!selectMode) selected.clear(); render(); });
+  abClear.addEventListener("click",()=>{ selected.clear(); if(style==="A") selectMode=selectMode; render(); });
+
+  actionbar.querySelectorAll("button[data-act]").forEach(btn=>btn.addEventListener("click",()=>{
+    const act=btn.dataset.act; const ids=[...selected]; const n=ids.length;
+    if(act==="read"){ items.forEach(b=>{if(selected.has(b.id)) b.unread=false;}); showToast("Marked "+n+" read"); }
+    else if(act==="aside"){ items.forEach(b=>{if(selected.has(b.id)) b.aside=true;}); showToast("Set "+n+" aside"); }
+    else if(act==="delete"){ items=items.filter(b=>!selected.has(b.id)); showToast("Deleted "+n); }
+    else if(act==="label"){ const name=prompt("Label to add to "+n+" bookmarks:"); if(name&&name.trim()){
+      items.forEach(b=>{ if(selected.has(b.id) && !b.l.some(x=>x.toLowerCase()===name.trim().toLowerCase())) b.l.push(name.trim()); });
+      showToast("Labeled "+n+' “'+name.trim()+'”'); } else return; }
+    selected.clear(); render();
+  }));
+
+  render();
+</script>
+</body>
+</html>

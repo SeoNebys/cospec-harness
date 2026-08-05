@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Links — prototype 6 (stacking topics)</title>
+<style>
+  :root { --line:#e3e3e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#111827; background:var(--bg); }
+  header { padding:22px 28px; border-bottom:1px solid var(--line); background:#fff; }
+  h1 { font-size:19px; margin:0; } .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+  main { max-width:760px; margin:0 auto; padding:22px 20px 60px; }
+
+  .barlabel { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 2px 8px; }
+  .topicsbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; align-items:center; }
+  .topicsbar .t { background:#fff; border:1px solid var(--line); border-radius:20px; padding:6px 13px; font-size:13px; cursor:pointer; }
+  .topicsbar .t .c { color:var(--muted); font-size:11px; margin-left:5px; }
+  .topicsbar .t.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .topicsbar .t.on .c { color:#dbe3ff; }
+  .topicsbar .t.dead { opacity:.4; }
+
+  .active { display:none; align-items:center; gap:10px; background:#eef2ff; border:1px solid #c7d2fe; color:#3730a3; border-radius:8px; padding:10px 13px; margin-bottom:14px; font-size:13px; flex-wrap:wrap; }
+  .active.show { display:flex; }
+  .active .txt b { background:#fff; border-radius:5px; padding:1px 7px; margin:0 3px; }
+  .seg { display:inline-flex; border:1px solid #c7d2fe; border-radius:7px; overflow:hidden; }
+  .seg button { border:0; background:#fff; color:#3730a3; padding:5px 10px; font-size:12px; cursor:pointer; }
+  .seg button.on { background:var(--accent); color:#fff; }
+  .active .clr { margin-left:auto; background:#fff; border:1px solid #c7d2fe; color:#3730a3; border-radius:7px; padding:5px 11px; cursor:pointer; font-size:12px; }
+
+  .count { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; margin:0 2px 10px; }
+  ul { list-style:none; margin:0; padding:0; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; position:relative; cursor:pointer; }
+  .title { font-size:15px; font-weight:600; margin:0; } .title .ext { color:var(--muted); font-size:12px; font-weight:400; margin-left:6px; }
+  .desc { color:#374151; font-size:13px; margin:5px 0 0; line-height:1.45; }
+  .url { color:var(--muted); font-size:12px; margin-top:7px; display:flex; align-items:center; gap:6px; }
+  .fav { width:14px; height:14px; border-radius:3px; background:#dbe3ff; display:inline-block; font-size:9px; text-align:center; line-height:14px; color:#3552b5; font-weight:700; }
+  .tags { margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { background:#eef2ff; color:#3730a3; font-size:11px; border-radius:20px; padding:3px 10px; }
+  .tag.act { background:var(--accent); color:#fff; }
+  .empty { color:var(--muted); text-align:center; padding:38px 14px; font-size:14px; }
+</style>
+</head>
+<body>
+<header><h1>My Links</h1><div class="sub">Your personal library of saved links</div></header>
+<main>
+  <div class="barlabel">Topics</div>
+  <div class="topicsbar" id="bar"></div>
+  <div class="active" id="active"></div>
+  <div class="count" id="count"></div>
+  <ul id="list"></ul>
+</main>
+
+<script>
+let selected=[]; let match='all'; // 'all' = AND, 'any' = OR
+let items=[
+  { url:"https://wikipedia.org/wiki/Sourdough", title:"Sourdough — Wikipedia", desc:"Bread by fermentation of dough.", tags:["recipes","baking"] },
+  { url:"https://seriouseats.com/pizza-dough", title:"The Best Pizza Dough", desc:"A cold-ferment dough for blistered crust.", tags:["recipes","baking"] },
+  { url:"https://cooking.com/weeknight-ramen", title:"Weeknight Ramen", desc:"A fast broth for busy evenings.", tags:["recipes"] },
+  { url:"https://nytimes.com/2026/travel/kyoto", title:"36 Hours in Kyoto", desc:"Temples at dawn and quiet streets.", tags:["travel"] },
+  { url:"https://atlasobscura.com/lisbon", title:"Hidden Lisbon", desc:"Miradouros, trams, and pastel de nata.", tags:["travel"] },
+  { url:"https://stripe.com/blog/payment-api", title:"Designing the Stripe Payments API", desc:"Idempotency and versioning at scale.", tags:["work","dev"] },
+  { url:"https://linear.app/method", title:"The Linear Method", desc:"How a focused team ships software.", tags:["work"] },
+  { url:"https://reactjs.org/hooks", title:"Thinking in Hooks", desc:"State and effects without classes.", tags:["dev"] },
+];
+function tagCounts(){ const m={}; items.forEach(i=>i.tags.forEach(t=>m[t]=(m[t]||0)+1)); return m; }
+function matches(it){ if(!selected.length) return true;
+  return match==='all' ? selected.every(t=>it.tags.includes(t)) : selected.some(t=>it.tags.includes(t)); }
+
+const bar=document.getElementById('bar'), active=document.getElementById('active'),
+      count=document.getElementById('count'), list=document.getElementById('list');
+function host(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch{ return u; } }
+function full(u){ return /^https?:\/\//.test(u)?u:"https://"+u; }
+
+function toggle(t){ selected.includes(t) ? selected=selected.filter(x=>x!==t) : selected.push(t);
+  if(selected.length<2) match='all'; renderAll(); }
+
+function renderBar(){
+  const c=tagCounts();
+  bar.innerHTML=Object.keys(c).sort().map(t=>{
+    // would selecting this leave anything? (only meaningful in AND mode with an existing selection)
+    let dead=false;
+    if(match==='all' && selected.length && !selected.includes(t)){
+      dead = !items.some(it=> [...selected,t].every(x=>it.tags.includes(x)) );
+    }
+    return `<span class="t ${selected.includes(t)?'on':''} ${dead?'dead':''}" data-topic="${t}">${t}<span class="c">${c[t]}</span></span>`;
+  }).join('');
+  bar.querySelectorAll('[data-topic]').forEach(el=>el.addEventListener('click',()=>toggle(el.dataset.topic)));
+}
+function renderActive(){
+  if(!selected.length){ active.className='active'; return; }
+  active.className='active show';
+  const joiner = match==='all' ? ' + ' : ' or ';
+  const chips = selected.map(t=>`<b>${t}</b>`).join(match==='all'?'<span style="opacity:.6">and</span>':'<span style="opacity:.6">or</span>');
+  const seg = selected.length>=2
+    ? `<span class="seg"><button data-match="all" class="${match==='all'?'on':''}">all of these</button><button data-match="any" class="${match==='any'?'on':''}">any of these</button></span>`
+    : '';
+  active.innerHTML=`<span class="txt">Showing ${match==='all'?'links in':'links in'} ${chips}</span> ${seg}
+    <button class="clr">Show all again</button>`;
+  active.querySelectorAll('[data-match]').forEach(b=>b.addEventListener('click',()=>{ match=b.dataset.match; renderAll(); }));
+  active.querySelector('.clr').addEventListener('click',()=>{ selected=[]; match='all'; renderAll(); });
+}
+function renderList(){
+  const shown=items.filter(matches);
+  count.textContent = selected.length ? `${shown.length} shown` : `${items.length} links`;
+  if(!shown.length){
+    list.innerHTML=`<div class="empty">No links are in <b>all</b> of: ${selected.join(' + ')}.<br>
+      Try “any of these”, or drop a topic.</div>`; return;
+  }
+  list.innerHTML=shown.map(it=>{ const i=items.indexOf(it);
+    return `<li class="card" data-open="${i}">
+      <p class="title">${it.title}<span class="ext">↗ open</span></p>
+      <p class="desc">${it.desc}</p>
+      <div class="url"><span class="fav">${(host(it.url)[0]||'•').toUpperCase()}</span>${host(it.url)}</div>
+      <div class="tags">${it.tags.map(t=>`<span class="tag ${selected.includes(t)?'act':''}">${t}</span>`).join('')}</div>
+    </li>`; }).join('');
+  list.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>window.open(full(items[+el.dataset.open].url),'_blank')));
+}
+function renderAll(){ renderBar(); renderActive(); renderList(); }
+renderAll();
+</script>
+</body>
+</html>

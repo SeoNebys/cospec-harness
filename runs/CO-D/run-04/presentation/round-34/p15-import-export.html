@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Links — prototype 15 (import & export)</title>
+<style>
+  :root { --line:#e3e3e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; --green:#059669; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#111827; background:var(--bg); }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); background:#fff; display:flex; align-items:center; gap:14px; }
+  h1 { font-size:19px; margin:0; } .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+  .htools { margin-left:auto; display:flex; gap:8px; }
+  .hbtn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:9px 14px; font-size:13px; cursor:pointer; color:#374151; font-weight:600; }
+  .hbtn:hover { border-color:#c7d2fe; }
+  main { max-width:760px; margin:0 auto; padding:22px 20px 60px; }
+  .count { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; margin:0 2px 10px; }
+  ul { list-style:none; margin:0; padding:0; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:13px 16px; margin-bottom:10px; }
+  li.card.fresh { animation:pop .5s ease; border-color:#a7f3d0; }
+  @keyframes pop { from{ opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
+  .title { font-size:15px; font-weight:600; margin:0; }
+  .url { color:var(--muted); font-size:12px; margin-top:6px; display:flex; align-items:center; gap:6px; }
+  .fav { width:14px; height:14px; border-radius:3px; background:#dbe3ff; display:inline-block; font-size:9px; text-align:center; line-height:14px; color:#3552b5; font-weight:700; }
+  .tags { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { background:#eef2ff; color:#3730a3; font-size:11px; border-radius:20px; padding:3px 10px; }
+
+  .backdrop { position:fixed; inset:0; background:rgba(17,24,39,.45); display:none; align-items:center; justify-content:center; padding:20px; }
+  .backdrop.show { display:flex; }
+  .dialog { background:#fff; border-radius:14px; padding:24px; width:520px; max-width:95vw; max-height:90vh; overflow:auto; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .dialog h3 { margin:0 0 6px; font-size:17px; }
+  .dialog p.lead { color:#4b5563; font-size:13px; margin:0 0 16px; line-height:1.5; }
+
+  .drop { border:2px dashed #c7d2fe; border-radius:12px; padding:26px; text-align:center; background:#f8faff; cursor:pointer; }
+  .drop .big { font-size:15px; font-weight:600; } .drop .small { color:var(--muted); font-size:12px; margin-top:5px; }
+  .divider { text-align:center; color:var(--muted); font-size:12px; margin:14px 0; }
+  .paste { width:100%; min-height:70px; border:1px solid var(--line); border-radius:9px; padding:10px; font-family:inherit; font-size:13px; resize:vertical; }
+  .try { display:inline-block; margin-top:10px; color:var(--accent); font-size:13px; cursor:pointer; text-decoration:underline; }
+
+  .summary { background:#f7f7f8; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:4px 0 14px; }
+  .summary .n { font-size:15px; font-weight:600; }
+  .summary ul { margin:10px 0 0; } .summary li { font-size:13px; color:#374151; padding:2px 0; }
+  .opt { display:flex; align-items:center; gap:9px; font-size:13px; margin:12px 0; padding:11px 13px; border:1px solid var(--line); border-radius:9px; }
+  .opt input { width:18px; height:18px; accent-color:var(--accent); }
+  .skipnote { color:var(--muted); font-size:12px; margin:6px 2px; }
+
+  .choice { display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:11px; padding:14px; margin-bottom:10px; cursor:pointer; }
+  .choice:hover { border-color:#c7d2fe; background:#f8faff; }
+  .choice .em { font-size:22px; }
+  .choice .t { font-weight:600; font-size:14px; } .choice .d { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.45; }
+
+  .row { display:flex; gap:8px; margin-top:18px; justify-content:flex-end; }
+  .row button { border:0; border-radius:8px; padding:10px 17px; font-size:14px; font-weight:600; cursor:pointer; }
+  .primary { background:var(--accent); color:#fff; } .ghost { background:#f3f4f6; color:#374151; }
+  .done { text-align:center; padding:14px 0; } .done .big { font-size:16px; font-weight:600; color:var(--green); }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>My Links</h1><div class="sub">Your personal library of saved links</div></div>
+  <div class="htools">
+    <button class="hbtn" id="importBtn">⬇ Import</button>
+    <button class="hbtn" id="exportBtn">⬆ Export</button>
+  </div>
+</header>
+<main>
+  <div class="count" id="count"></div>
+  <ul id="list"></ul>
+</main>
+<div class="backdrop" id="backdrop"><div class="dialog" id="dialog"></div></div>
+
+<script>
+let items=[
+  { url:"https://wikipedia.org/wiki/Sourdough", title:"Sourdough — Wikipedia", tags:["recipes","baking"] },
+  { url:"https://nytimes.com/2026/travel/kyoto", title:"36 Hours in Kyoto", tags:["travel"] },
+  { url:"https://stripe.com/blog/payment-api", title:"Designing the Stripe Payments API", tags:["work","dev"] },
+];
+// a pretend browser export: folders -> bookmarks (some overlap the library, to show de-duping)
+const SAMPLE={
+  count:143, folders:6,
+  byFolder:{ "Cooking":38, "Travel":21, "Work":44, "Reading":19, "Toolbox":15, "Misc":6 },
+  alreadyHave:5,
+  preview:[
+    {t:"36 Hours in Kyoto", u:"nytimes.com/2026/travel/kyoto", folder:"Travel", dup:true},
+    {t:"How to Temper Chocolate", u:"seriouseats.com/tempering", folder:"Cooking"},
+    {t:"The Twelve-Factor App", u:"12factor.net", folder:"Work"},
+    {t:"Marginalia Search", u:"search.marginalia.nu", folder:"Toolbox"},
+  ]
+};
+const list=document.getElementById('list'), count=document.getElementById('count'),
+      backdrop=document.getElementById('backdrop'), dialog=document.getElementById('dialog');
+function host(u){ try{ return new URL(/^https?:/.test(u)?u:'https://'+u).hostname.replace(/^www\./,''); }catch{ return u; } }
+function render(freshN=0){
+  count.textContent=items.length+' links';
+  list.innerHTML=items.map((it,i)=>`<li class="card ${i<freshN?'fresh':''}">
+    <p class="title">${it.title}</p>
+    <div class="url"><span class="fav">${(host(it.url)[0]||'•').toUpperCase()}</span>${host(it.url)}</div>
+    ${it.tags&&it.tags.length?`<div class="tags">${it.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>`:''}
+  </li>`).join('');
+}
+function close(){ backdrop.classList.remove('show'); }
+backdrop.addEventListener('click',e=>{ if(e.target===backdrop) close(); });
+
+/* ---------------- IMPORT ---------------- */
+let foldersAsLabels=true;
+function importStep1(){
+  dialog.innerHTML=`<h3>Bring in your existing bookmarks</h3>
+    <p class="lead">Most browsers can save all your bookmarks to a file in one go
+      (Chrome, Firefox, Edge, Safari → <b>Bookmarks → Export</b> → an <b>.html</b> file).
+      Drop that file here and I'll pull them all in — no re-typing.</p>
+    <div class="drop" id="drop">
+      <div class="big">Drop your bookmarks file here</div>
+      <div class="small">or click to choose it · .html from any browser</div>
+    </div>
+    <div class="divider">— or —</div>
+    <textarea class="paste" id="paste" placeholder="…paste a bunch of links, one per line"></textarea>
+    <div class="try" id="try">▶ I don't have a file handy — try it with a sample export</div>
+    <div class="row"><button class="ghost" id="cancel">Cancel</button>
+      <button class="primary" id="next">Continue</button></div>`;
+  dialog.querySelector('#drop').addEventListener('click',importStep2);
+  dialog.querySelector('#try').addEventListener('click',importStep2);
+  dialog.querySelector('#next').addEventListener('click',importStep2);
+  dialog.querySelector('#cancel').addEventListener('click',close);
+}
+function importStep2(){
+  const willImport=SAMPLE.count-SAMPLE.alreadyHave;
+  dialog.innerHTML=`<h3>Found ${SAMPLE.count} bookmarks</h3>
+    <p class="lead">Here's what's in your file. Nothing's added until you say so.</p>
+    <div class="summary">
+      <div class="n">${SAMPLE.count} bookmarks across ${SAMPLE.folders} folders</div>
+      <ul>${Object.entries(SAMPLE.byFolder).map(([f,n])=>`<li>📁 ${f} — ${n}</li>`).join('')}</ul>
+    </div>
+    <label class="opt"><input type="checkbox" id="fal" ${foldersAsLabels?'checked':''}>
+      <span>Turn folders into labels — so “Cooking” becomes a <b>cooking</b> label, and your topics work from day one.</span></label>
+    <div class="skipnote">🔁 ${SAMPLE.alreadyHave} of these are already in your library — I'll skip them, so no duplicates.</div>
+    <div class="row"><button class="ghost" id="back">Back</button>
+      <button class="primary" id="go">Import ${willImport} links</button></div>`;
+  dialog.querySelector('#fal').addEventListener('change',e=>foldersAsLabels=e.target.checked);
+  dialog.querySelector('#back').addEventListener('click',importStep1);
+  dialog.querySelector('#go').addEventListener('click',()=>{
+    const added=SAMPLE.preview.filter(p=>!p.dup).map(p=>({ url:p.u, title:p.t, tags: foldersAsLabels?[p.folder.toLowerCase()]:[] }));
+    items=[...added, ...items];
+    importDone(SAMPLE.count-SAMPLE.alreadyHave, added.length);
+  });
+}
+function importDone(total, shownAdded){
+  dialog.innerHTML=`<div class="done"><div class="big">✓ Added ${total} links to your library</div>
+    <p class="lead" style="margin-top:8px">They're all searchable and labelled right away.
+      (This demo shows ${shownAdded} of them below; the rest would be there too.)</p></div>
+    <div class="row"><button class="primary" id="ok">See my library</button></div>`;
+  dialog.querySelector('#ok').addEventListener('click',()=>{ close(); render(SAMPLE.preview.filter(p=>!p.dup).length); });
+}
+
+/* ---------------- EXPORT ---------------- */
+function exportMenu(){
+  dialog.innerHTML=`<h3>Export your links</h3>
+    <p class="lead">Your links are yours. Take them whenever you like — this is your way out,
+      so you're never locked in.</p>
+    <div class="choice" id="exp-html">
+      <div class="em">🌐</div><div><div class="t">Bookmarks file (.html)</div>
+        <div class="d">Opens in any browser — Chrome, Firefox, Safari, Edge. The universal format,
+          so your links live on even without this app.</div></div></div>
+    <div class="choice" id="exp-json">
+      <div class="em">🗄️</div><div><div class="t">Full backup (.json)</div>
+        <div class="d">Everything, exactly as it is here — titles, descriptions, your notes, labels,
+          read-later and set-aside — so you could restore it all later.</div></div></div>
+    <div class="row"><button class="ghost" id="cancel">Close</button></div>`;
+  dialog.querySelector('#cancel').addEventListener('click',close);
+  dialog.querySelector('#exp-html').addEventListener('click',()=>doDownload('html'));
+  dialog.querySelector('#exp-json').addEventListener('click',()=>doDownload('json'));
+}
+function doDownload(kind){
+  let blob, name;
+  if(kind==='html'){
+    const rows=items.map(it=>`    <DT><A HREF="${/^https?:/.test(it.url)?it.url:'https://'+it.url}">${it.title}</A>`).join('\n');
+    const html=`<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<TITLE>Bookmarks</TITLE>\n<H1>My Links</H1>\n<DL><p>\n${rows}\n</DL><p>\n`;
+    blob=new Blob([html],{type:'text/html'}); name='my-links.html';
+  } else {
+    blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'}); name='my-links-backup.json';
+  }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  dialog.innerHTML=`<div class="done"><div class="big">✓ Downloading ${name}</div>
+    <p class="lead" style="margin-top:8px">Saved to your computer. Open it, keep it as a backup,
+      or load it into any other app — no strings.</p></div>
+    <div class="row"><button class="primary" id="ok">Done</button></div>`;
+  dialog.querySelector('#ok').addEventListener('click',close);
+}
+
+document.getElementById('importBtn').addEventListener('click',()=>{ importStep1(); backdrop.classList.add('show'); });
+document.getElementById('exportBtn').addEventListener('click',()=>{ exportMenu(); backdrop.classList.add('show'); });
+render();
+</script>
+</body>
+</html>

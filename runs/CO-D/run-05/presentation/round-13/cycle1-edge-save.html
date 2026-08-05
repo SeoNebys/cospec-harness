@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Bookmarks — rough weather (saving)</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2330; --muted:#6b7480; --line:#e6e9ee;
+    --accent:#2f6df6; --warn:#c9791f; --warnbg:#fdf2e3; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:40px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 22px; }
+  .saver { display:flex; gap:10px; margin-bottom:6px; }
+  .saver input { flex:1; padding:13px 15px; font-size:15px; border:1px solid var(--line);
+    border-radius:10px; background:var(--card); outline:none; }
+  .saver input:focus { border-color:var(--accent); }
+  .saver input.bad { border-color:#e0857f; background:#fdf3f2; }
+  .saver button { padding:0 20px; font-size:15px; font-weight:600; color:#fff;
+    background:var(--accent); border:none; border-radius:10px; cursor:pointer; }
+  .inlineerr { color:#c0392b; font-size:13px; margin:2px 0 0; min-height:18px; }
+  .sim { background:#eef1f6; border:1px dashed #c3cad4; border-radius:10px; padding:10px 14px;
+    font-size:13px; color:#4a5563; margin:14px 0 22px; }
+  .sim label { display:flex; gap:8px; align-items:center; cursor:pointer; }
+  .count { color:var(--muted); font-size:13px; margin:0 0 12px; }
+  ul { list-style:none; margin:0; padding:0; }
+  li.item { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start; }
+  li.item.unread-fail { border-color:#eacf9e; background:#fffdf7; }
+  .favicon { width:32px; height:32px; border-radius:8px; flex:none; background:#eef1f6;
+    display:grid; place-items:center; font-size:16px; }
+  .body { min-width:0; flex:1; }
+  .title { font-weight:600; font-size:15.5px; margin:0 0 2px; }
+  .title a { color:var(--ink); text-decoration:none; }
+  .title a:hover { text-decoration:underline; }
+  .title .raw { color:var(--ink); font-weight:600; word-break:break-all; }
+  .desc { color:var(--muted); font-size:13.5px; margin:0 0 5px; }
+  .meta { color:var(--muted); font-size:12.5px; }
+  .warnnote { display:inline-flex; align-items:center; gap:6px; background:var(--warnbg); color:var(--warn);
+    border-radius:8px; padding:4px 10px; font-size:12.5px; margin-top:6px; }
+  .actions { flex:none; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:8px;
+    padding:5px 11px; font:inherit; font-size:13px; cursor:pointer; }
+  .btn:hover { border-color:#cdd3db; color:var(--ink); }
+  .btn.fix { border-color:#eacf9e; color:var(--warn); }
+  .edit-field { width:100%; font:inherit; border:1px solid var(--accent); border-radius:6px; padding:6px 8px; }
+  .spinner { width:16px; height:16px; border:2px solid var(--line); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .empty { text-align:center; color:var(--muted); padding:44px 20px; border:1px dashed var(--line);
+    border-radius:14px; }
+  .empty .big { font-size:17px; color:var(--ink); margin-bottom:6px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Paste a link. It sorts itself out.</p>
+
+    <div class="saver">
+      <input id="url" type="text" placeholder="Paste a link and press Save…" autocomplete="off">
+      <button id="save">Save</button>
+    </div>
+    <p class="inlineerr" id="err"></p>
+
+    <div class="sim">
+      <label><input type="checkbox" id="simfail"> <b>Simulate rough weather:</b>&nbsp;pretend the next page can’t be read (dead link / blocked site / wifi dropped)</label>
+    </div>
+
+    <p class="count" id="count"></p>
+    <ul id="list"></ul>
+    <div class="empty" id="empty" style="display:none">
+      <div class="big">Nothing saved yet 📎</div>
+      Paste your first link above — the title and summary fill themselves in.
+    </div>
+  </div>
+
+<script>
+const KNOWN={ "nytimes.com":{site:"The New York Times",emoji:"🗞️"}, "github.com":{site:"GitHub",emoji:"🐙"},
+  "youtube.com":{site:"YouTube",emoji:"▶️"}, "bbc.com":{site:"BBC",emoji:"📰"} };
+function titleCase(s){return s.replace(/[-_]+/g," ").replace(/\.[a-z]{2,4}$/i,"").trim()
+  .replace(/\s+/g," ").replace(/\b\w/g,c=>c.toUpperCase());}
+function parse(raw){ try { return new URL(raw.includes("://")?raw:"https://"+raw); } catch { return null; } }
+function looksLikeLink(raw){ const u=parse(raw); return !!(u && u.hostname.includes(".")); }
+
+function resolveOk(raw){ const u=parse(raw); const host=u.hostname.replace(/^www\./,"");
+  const key=Object.keys(KNOWN).find(k=>host===k||host.endsWith("."+k))||host;
+  const known=KNOWN[key]||{site:titleCase(host.split(".")[0]),emoji:"🔖"};
+  const seg=u.pathname.split("/").filter(Boolean).pop()||"";
+  let title=seg?titleCase(decodeURIComponent(seg)):known.site+" — home";
+  return { url:u.href, host, site:known.site, emoji:known.emoji, title,
+    desc:"A page on "+known.site+".", failed:false }; }
+
+// Couldn't read the page: SAVE IT ANYWAY so nothing is lost. Fall back to the address
+// as the title, flag that it needs a name, and invite a quick fix.
+function resolveFailed(raw){ const u=parse(raw); const host=u.hostname.replace(/^www\./,"");
+  return { url:u.href, host, site:host, emoji:"🔖", title:null, /* no readable title */
+    desc:"", failed:true }; }
+
+const list=document.getElementById("list"), empty=document.getElementById("empty"),
+  countEl=document.getElementById("count"), errEl=document.getElementById("err"),
+  urlEl=document.getElementById("url"), simfail=document.getElementById("simfail");
+const items=[]; let editing=null;
+
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function render(){
+  list.innerHTML=""; empty.style.display=items.length?"none":"block";
+  countEl.textContent=items.length?items.length+(items.length===1?" link saved":" links saved"):"";
+  items.forEach((it,idx)=>{
+    const li=document.createElement("li"); li.className="item"+(it.failed&&!it.title?" unread-fail":"");
+    if(editing===idx){
+      li.innerHTML=`<div class="favicon">${it.emoji}</div>
+        <div class="body">
+          <label style="font-size:12px;color:var(--muted)">Title</label>
+          <input class="edit-field t" value="${esc(it.title||"")}" placeholder="Give it a name you'll recognise">
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn done" style="background:var(--accent);color:#fff;border:none">Done</button>
+            <button class="btn cancel">Cancel</button>
+          </div>
+        </div>`;
+      li.querySelector(".t").focus();
+      li.querySelector(".done").addEventListener("click",()=>{ const v=li.querySelector(".t").value.trim();
+        if(v){ it.title=v; } editing=null; render(); });
+      li.querySelector(".cancel").addEventListener("click",()=>{ editing=null; render(); });
+      list.appendChild(li); return;
+    }
+    const titleHtml = it.title
+      ? `<a href="${it.url}" target="_blank" rel="noopener">${esc(it.title)}</a>`
+      : `<span class="raw">${esc(it.url)}</span>`;
+    const note = (it.failed && !it.title)
+      ? `<div><span class="warnnote">⚠️ Couldn’t read this page automatically — it’s saved, give it a name so you’ll find it.</span></div>` : "";
+    li.innerHTML=`<div class="favicon">${it.emoji}</div>
+      <div class="body">
+        <p class="title">${titleHtml}</p>
+        ${it.desc?`<p class="desc">${esc(it.desc)}</p>`:""}
+        <p class="meta">${esc(it.site)}</p>
+        ${note}
+      </div>
+      <div class="actions"><button class="btn ${it.failed&&!it.title?"fix":""}">${it.failed&&!it.title?"Name it":"Edit"}</button></div>`;
+    li.querySelector(".btn").addEventListener("click",()=>{ editing=idx; render(); });
+    list.appendChild(li);
+  });
+}
+
+function save(){
+  const raw=urlEl.value.trim(); errEl.textContent=""; urlEl.classList.remove("bad");
+  if(!raw){ return; }
+  if(!looksLikeLink(raw)){ // gentle inline error — no jarring popup
+    urlEl.classList.add("bad");
+    errEl.textContent="That doesn't look like a web link yet — it should include something like “.com”.";
+    return;
+  }
+  const willFail=simfail.checked;
+  urlEl.value="";
+  const li=document.createElement("li"); li.className="item"; empty.style.display="none";
+  li.innerHTML=`<div class="favicon"><div class="spinner"></div></div>
+    <div class="body"><p class="title">Figuring out this page…</p><p class="meta">Reading the title and summary</p></div>`;
+  list.insertBefore(li,list.firstChild);
+  setTimeout(()=>{ items.unshift(willFail?resolveFailed(raw):resolveOk(raw)); render(); },850);
+}
+document.getElementById("save").addEventListener("click",save);
+urlEl.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); });
+urlEl.addEventListener("input",()=>{ errEl.textContent=""; urlEl.classList.remove("bad"); });
+render();
+</script>
+</body>
+</html>

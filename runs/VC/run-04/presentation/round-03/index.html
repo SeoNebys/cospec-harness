@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookmarks</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #fff; --border: #e2e5ea; --text: #1c2430;
+    --muted: #6b7684; --accent: #3b6fed; --accent-soft: #eaf0ff; --danger: #e04747;
+    --radius: 10px; --shadow: 0 1px 3px rgba(20,30,50,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1d2127; --border: #2c313a; --text: #e6e9ef;
+      --muted: #8b94a3; --accent: #5b8cff; --accent-soft: #232b3d; --danger: #f16060;
+      --shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--panel);
+    border-bottom: 1px solid var(--border); padding: 14px 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 18px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .grow { flex: 1; }
+  input, textarea, button, select { font: inherit; color: inherit; }
+  #search {
+    flex: 1; min-width: 180px; max-width: 480px; padding: 9px 13px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); color: var(--text);
+  }
+  button {
+    cursor: pointer; border: 1px solid var(--border); background: var(--panel);
+    padding: 9px 14px; border-radius: var(--radius); transition: .12s;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.07); }
+  .layout { display: flex; gap: 22px; max-width: 1100px; margin: 22px auto; padding: 0 20px; }
+  aside { width: 210px; flex-shrink: 0; }
+  aside h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  .tag-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 24px; }
+  .tag-list a {
+    display: flex; justify-content: space-between; padding: 6px 10px; border-radius: 8px;
+    cursor: pointer; color: var(--text); text-decoration: none; font-size: 14px;
+  }
+  .tag-list a:hover { background: var(--accent-soft); }
+  .tag-list a.active { background: var(--accent); color: #fff; }
+  .tag-list .count { color: var(--muted); font-size: 12px; }
+  .tag-list a.active .count { color: #dfe8ff; }
+  main { flex: 1; min-width: 0; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 15px 17px; margin-bottom: 12px; box-shadow: var(--shadow);
+  }
+  .card .top { display: flex; align-items: flex-start; gap: 10px; }
+  .card .fav { background: none; border: none; padding: 0; font-size: 18px; line-height: 1; opacity: .5; }
+  .card .fav.on { opacity: 1; }
+  .card a.title { font-weight: 600; color: var(--accent); text-decoration: none; font-size: 16px; }
+  .card a.title:hover { text-decoration: underline; }
+  .card .url { color: var(--muted); font-size: 12.5px; word-break: break-all; margin: 2px 0 0; }
+  .card .desc { margin: 8px 0 0; color: var(--text); font-size: 14px; }
+  .card .notes { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); white-space: pre-wrap; }
+  .card .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    background: var(--accent-soft); color: var(--accent); padding: 2px 9px;
+    border-radius: 20px; font-size: 12px; cursor: pointer;
+  }
+  .card .actions { margin-left: auto; display: flex; gap: 6px; }
+  .card .actions button { padding: 4px 9px; font-size: 12.5px; }
+  .card .actions .del:hover { border-color: var(--danger); color: var(--danger); }
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  /* modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(10,14,22,.5); display: none;
+    align-items: flex-start; justify-content: center; padding: 60px 20px; z-index: 50;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--panel); border-radius: 14px; padding: 22px; width: 100%; max-width: 520px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  }
+  .modal h2 { margin: 0 0 16px; font-size: 18px; }
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 9px; background: var(--bg);
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .modal .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 10px;
+    opacity: 0; transition: .25s; pointer-events: none; z-index: 100;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔖 Bookmarks</h1>
+  <input id="search" type="search" placeholder="Search title, description, notes, tags…">
+  <button class="primary" onclick="openAdd()">+ Add</button>
+  <div style="position:relative">
+    <button onclick="toggleMenu()">⋯</button>
+    <div id="menu" style="display:none;position:absolute;right:0;top:110%;background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;min-width:160px">
+      <button style="display:block;width:100%;text-align:left;border:none;border-radius:0" onclick="exportJson()">Export JSON</button>
+      <button style="display:block;width:100%;text-align:left;border:none;border-radius:0" onclick="fileInput.click()">Import JSON / HTML</button>
+    </div>
+  </div>
+  <input id="fileInput" type="file" accept="application/json,text/html,.json,.html,.htm" style="display:none">
+</header>
+
+<div class="layout">
+  <aside>
+    <h3>Filters</h3>
+    <div class="tag-list" id="filters">
+      <a id="filter-all" class="active" onclick="setFilter(null,false)">All <span class="count" id="count-all"></span></a>
+      <a id="filter-fav" onclick="setFilter(null,true)">★ Favorites</a>
+    </div>
+    <h3>Tags</h3>
+    <div class="tag-list" id="tagList"></div>
+  </aside>
+  <main id="list"></main>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Add bookmark</h2>
+    <input type="hidden" id="editId">
+    <div class="field">
+      <label>URL</label>
+      <input id="f-url" placeholder="https://example.com">
+    </div>
+    <div class="field">
+      <label>Title <span class="hint" id="titleHint">(auto-fetched if blank)</span></label>
+      <input id="f-title" placeholder="Leave blank to fetch automatically">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="f-description" placeholder="Leave blank to fetch automatically"></textarea>
+    </div>
+    <div class="field">
+      <label>Tags <span class="hint">(comma-separated)</span></label>
+      <input id="f-tags" placeholder="reading, work, tools">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="f-notes"></textarea>
+    </div>
+    <div class="row">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="primary" id="saveBtn" onclick="save()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let state = { q: "", tag: null, favorite: false };
+
+async function api(path, opts) {
+  const r = await fetch("/api" + path, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.status === 204 ? null : r.json();
+}
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+
+async function load() {
+  const params = new URLSearchParams();
+  if (state.q) params.set("q", state.q);
+  if (state.tag) params.set("tag", state.tag);
+  if (state.favorite) params.set("favorite", "true");
+  const items = await api("/bookmarks?" + params.toString());
+  render(items);
+  loadTags();
+}
+
+async function loadTags() {
+  const tags = await api("/tags");
+  const el = $("#tagList");
+  el.innerHTML = tags.map(t =>
+    `<a class="${state.tag === t.name ? "active" : ""}" onclick="setFilter('${esc(t.name)}',false)">
+       ${esc(t.name)} <span class="count">${t.count}</span></a>`
+  ).join("") || `<span class="hint" style="padding:0 10px">No tags yet</span>`;
+}
+
+function render(items) {
+  const el = $("#list");
+  if (!items.length) {
+    el.innerHTML = `<div class="empty">No bookmarks found.<br>Click <b>+ Add</b> to save one.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(b => `
+    <div class="card">
+      <div class="top">
+        <button class="fav ${b.favorite ? "on" : ""}" title="Favorite" onclick="toggleFav(${b.id}, ${!b.favorite})">${b.favorite ? "★" : "☆"}</button>
+        <div style="min-width:0">
+          <a class="title" href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.title)}</a>
+          <div class="url">${esc(b.url)}</div>
+        </div>
+        <div class="actions">
+          <button onclick='openEdit(${JSON.stringify(b)})'>Edit</button>
+          <button class="del" onclick="del(${b.id})">Delete</button>
+        </div>
+      </div>
+      ${b.description ? `<p class="desc">${esc(b.description)}</p>` : ""}
+      ${b.notes ? `<p class="notes">${esc(b.notes)}</p>` : ""}
+      <div class="tags">
+        ${b.tags.map(t => `<span class="chip" onclick="setFilter('${esc(t)}',false)">${esc(t)}</span>`).join("")}
+        <span class="count" style="color:var(--muted);font-size:12px;margin-left:auto">${fmtDate(b.created_at)}</span>
+      </div>
+    </div>`).join("");
+}
+
+function setFilter(tag, fav) {
+  state.tag = tag; state.favorite = fav;
+  $("#filter-all").classList.toggle("active", !tag && !fav);
+  $("#filter-fav").classList.toggle("active", fav);
+  load();
+}
+
+let searchTimer;
+$("#search").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { state.q = e.target.value.trim(); load(); }, 220);
+});
+
+// ---- modal ----
+function openAdd() {
+  $("#modalTitle").textContent = "Add bookmark";
+  $("#editId").value = ""; $("#f-url").value = ""; $("#f-title").value = "";
+  $("#f-description").value = ""; $("#f-tags").value = ""; $("#f-notes").value = "";
+  $("#titleHint").style.display = "";
+  $("#modalBg").classList.add("show"); $("#f-url").focus();
+}
+function openEdit(b) {
+  $("#modalTitle").textContent = "Edit bookmark";
+  $("#editId").value = b.id; $("#f-url").value = b.url; $("#f-title").value = b.title;
+  $("#f-description").value = b.description; $("#f-tags").value = b.tags.join(", ");
+  $("#f-notes").value = b.notes;
+  $("#titleHint").style.display = "none";
+  $("#modalBg").classList.add("show");
+}
+function closeModal() { $("#modalBg").classList.remove("show"); }
+$("#modalBg").addEventListener("click", e => { if (e.target.id === "modalBg") closeModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+async function save() {
+  const id = $("#editId").value;
+  const url = $("#f-url").value.trim();
+  if (!url) { toast("URL is required"); return; }
+  const body = {
+    url,
+    title: $("#f-title").value.trim() || null,
+    description: $("#f-description").value.trim() || null,
+    notes: $("#f-notes").value,
+    tags: $("#f-tags").value.split(",").map(s => s.trim()).filter(Boolean),
+  };
+  const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = id ? "Saving…" : "Fetching…";
+  try {
+    if (id) await api("/bookmarks/" + id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    else await api("/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    closeModal(); load(); toast(id ? "Saved" : "Added");
+  } catch (e) { toast("Error: " + e.message); }
+  finally { btn.disabled = false; btn.textContent = "Save"; }
+}
+
+async function del(id) {
+  if (!confirm("Delete this bookmark?")) return;
+  await api("/bookmarks/" + id, { method: "DELETE" });
+  load(); toast("Deleted");
+}
+async function toggleFav(id, val) {
+  await api("/bookmarks/" + id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ favorite: val }) });
+  load();
+}
+
+// ---- menu / import / export ----
+function toggleMenu() { const m = $("#menu"); m.style.display = m.style.display === "none" ? "block" : "none"; }
+document.addEventListener("click", e => { if (!e.target.closest("#menu") && e.target.textContent !== "⋯") $("#menu").style.display = "none"; });
+
+async function exportJson() {
+  const data = await api("/export");
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "bookmarks.json"; a.click();
+  toggleMenu();
+}
+$("#fileInput").addEventListener("change", async e => {
+  const file = e.target.files[0]; if (!file) return;
+  const text = await file.text();
+  const isHtml = /\.html?$/i.test(file.name) || /^\s*<!DOCTYPE|<DL|<A\s/i.test(text);
+  try {
+    let res;
+    if (isHtml) {
+      res = await api("/import/html", { method: "POST", headers: { "Content-Type": "text/html" }, body: text });
+      toast(`Imported ${res.imported} of ${res.found} bookmark(s)`);
+    } else {
+      const data = JSON.parse(text);
+      const bookmarks = Array.isArray(data) ? data : data.bookmarks || [];
+      res = await api("/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bookmarks }) });
+      toast(`Imported ${res.imported} bookmark(s)`);
+    }
+    load();
+  } catch (err) { toast("Import failed: " + err.message); }
+  e.target.value = ""; $("#menu").style.display = "none";
+});
+
+load();
+</script>
+</body>
+</html>

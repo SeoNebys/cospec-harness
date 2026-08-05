@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 12 (to-read / haven't read yet)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; --unread:#e8590c; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; background:var(--bg); color:#1a1a1e; }
+  .wrap { max-width:720px; margin:0 auto; padding:22px 20px 90px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 14px; }
+
+  .switch { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+  .switch button { border:1px solid var(--line); background:#fff; color:#333; border-radius:20px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  .switch button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .styleName { font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+  .styleName b { color:#1a1a1e; }
+
+  .row { display:flex; gap:8px; margin-bottom:14px; }
+  input[type=url] { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:12px; }
+  .tabs button { border:1px solid var(--line); background:#fff; color:#333; border-radius:20px; padding:6px 13px; font-size:13px; cursor:pointer; display:inline-flex; gap:7px; align-items:center; }
+  .tabs button.on { background:#1a1a1e; color:#fff; border-color:#1a1a1e; }
+  .tabs .pill { background:#eef0f4; color:#555; border-radius:10px; padding:0 7px; font-size:11px; }
+  .tabs button.on .pill { background:#3a3a42; color:#fff; }
+
+  .count { font-size:13px; color:var(--muted); margin:6px 2px 12px; }
+  .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px 14px 30px; margin-bottom:10px; cursor:pointer; }
+  .card:hover { box-shadow:0 3px 14px rgba(0,0,0,.08); border-color:#cfd6ef; }
+  .card.unread { border-left:3px solid var(--unread); }
+  .card .dot { position:absolute; left:12px; top:19px; width:8px; height:8px; border-radius:50%; background:var(--unread); display:none; }
+  .card.unread .dot { display:block; }
+  .card .title { font-size:15px; margin:0 0 2px; font-weight:500; }
+  .card.unread .title { font-weight:700; }
+  .card .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .card .lbls { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .card .lbls span.l { background:#eef0f4; color:#444; border-radius:12px; padding:2px 9px; font-size:12px; }
+  .card .toread-tag { font-size:11px; color:var(--unread); background:#ffe8d9; border-radius:10px; padding:2px 9px; }
+  .card .mark { margin-left:auto; border:1px solid var(--line); background:#fff; color:#666;
+        border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer; }
+  .card .mark:hover { border-color:#cfd6ef; color:var(--accent); }
+  .empty { color:var(--muted); font-size:14px; padding:16px 2px; }
+
+  .toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:#1a1a1e; color:#fff;
+      padding:11px 16px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.28); opacity:0; transition:opacity .2s; pointer-events:none; z-index:80; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 12 — telling apart "haven't read this yet" from the rest</p>
+
+  <div class="switch">
+    <button data-style="A" class="on">Mechanism A — automatic</button>
+    <button data-style="B">Mechanism B — manual flag</button>
+  </div>
+  <div class="styleName" id="styleName"></div>
+
+  <div class="row">
+    <input id="urlInput" type="url" placeholder="Paste a link to save…" autocomplete="off">
+    <button id="addBtn" class="primary">Add</button>
+  </div>
+
+  <div class="tabs">
+    <button id="tabAll" class="on">All <span class="pill" id="allN"></span></button>
+    <button id="tabToRead">To read <span class="pill" id="trN"></span></button>
+  </div>
+
+  <div class="count" id="count"></div>
+  <div id="cards"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  let style="A";
+  const STYLE_DESC={
+    A:"<b>Mechanism A — automatic.</b> Anything you save starts as “to read”. When you open it (click to visit), it counts as read and drops out of your To-read pile. Zero extra effort — saving already means “I'll get to this”, and reading it clears it. You can still flip something back to unread by hand.",
+    B:"<b>Mechanism B — manual flag.</b> Nothing is unread automatically. You mark the things you specifically intend to return to as “To read”, and clear the flag yourself when you're done. Visiting a page changes nothing on its own."
+  };
+
+  let items=[
+    {id:1,t:"The Case for Slow Reading",u:"theatlantic.com/slow-reading",l:["reading"],unread:true,flag:true},
+    {id:2,t:"A Deep Dive into Database Indexes",u:"use-the-index-luke.com",l:["coding"],unread:true,flag:true},
+    {id:3,t:"Simplest Brothy Beans and Rice",u:"smittenkitchen.com/beans",l:["recipes","dinner"],unread:false,flag:false},
+    {id:4,t:"ripgrep — regex search",u:"github.com/ripgrep",l:["tools"],unread:false,flag:false},
+    {id:5,t:"A Perfect Day in Kyoto",u:"natgeo.com/kyoto",l:["travel"],unread:true,flag:false}
+  ];
+  let nextId=6, view="all", toastT=null;
+
+  const el=id=>document.getElementById(id);
+  const cards=el("cards"),countEl=el("count"),allN=el("allN"),trN=el("trN"),
+        tabAll=el("tabAll"),tabToRead=el("tabToRead"),urlInput=el("urlInput"),addBtn=el("addBtn"),
+        styleName=el("styleName"),toast=el("toast");
+
+  document.querySelectorAll(".switch button").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll(".switch button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); style=b.dataset.style; styleName.innerHTML=STYLE_DESC[style]; render();
+  }));
+  styleName.innerHTML=STYLE_DESC["A"];
+
+  // "is this in the To-read pile?" depends on the mechanism.
+  const isToRead = b => style==="A" ? b.unread : b.flag;
+
+  function showToast(m){ toast.textContent=m; toast.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove("show"),1900); }
+
+  function render(){
+    allN.textContent=items.length;
+    trN.textContent=items.filter(isToRead).length;
+    tabAll.classList.toggle("on",view==="all"); tabToRead.classList.toggle("on",view==="toread");
+    const list=items.filter(b=> view==="toread" ? isToRead(b) : true);
+    countEl.textContent=list.length+(list.length===1?" bookmark":" bookmarks");
+    cards.innerHTML="";
+    if(!list.length){ cards.innerHTML='<div class="empty">Nothing here — your To-read pile is clear.</div>'; return; }
+    list.forEach(b=>{
+      const tr=isToRead(b);
+      const c=document.createElement("div"); c.className="card"+(tr?" unread":"");
+      c.innerHTML='<span class="dot"></span><p class="title"></p><div class="url"></div><div class="lbls"></div>';
+      c.querySelector(".title").textContent=b.t;
+      c.querySelector(".url").textContent=b.u;
+      const lb=c.querySelector(".lbls");
+      if(tr){ const t=document.createElement("span"); t.className="toread-tag"; t.textContent="to read"; lb.appendChild(t); }
+      b.l.forEach(l=>{const s=document.createElement("span"); s.className="l"; s.textContent=l; lb.appendChild(s);});
+      const mk=document.createElement("button"); mk.className="mark";
+      mk.textContent = tr ? "Mark read" : "Mark to-read";
+      mk.addEventListener("click",e=>{ e.stopPropagation(); mark(b,!tr); });
+      lb.appendChild(mk);
+      c.addEventListener("click",()=>visit(b));
+      cards.appendChild(c);
+    });
+  }
+
+  function mark(b,toRead){
+    if(style==="A") b.unread=toRead; else b.flag=toRead;
+    render();
+  }
+  function visit(b){
+    if(style==="A" && b.unread){ b.unread=false; showToast("↗ Opening — marked as read"); render(); }
+    else showToast("↗ Opening the page: "+b.u);
+  }
+
+  addBtn.addEventListener("click",()=>{
+    const u=urlInput.value.trim(); if(!u) return;
+    // Mechanism A: new save starts unread. Mechanism B: new save is NOT flagged.
+    items.unshift({id:nextId++, t:(u.replace(/^https?:\/\//,"").split("/")[0])+" — new save", u:u.replace(/^https?:\/\//,""), l:[], unread:true, flag:false});
+    urlInput.value=""; showToast("Saved"); render();
+  });
+  urlInput.addEventListener("keydown",e=>{if(e.key==="Enter")addBtn.click();});
+
+  tabAll.addEventListener("click",()=>{view="all"; render();});
+  tabToRead.addEventListener("click",()=>{view="toread"; render();});
+
+  render();
+</script>
+</body>
+</html>

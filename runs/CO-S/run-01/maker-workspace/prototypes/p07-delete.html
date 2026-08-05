@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deleting — confirm vs undo</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin:0; background:#f4f5f7; color:#1a1a1a; }
+  .bar { background:#111827; color:#fff; font-size:13px; padding:8px 16px; text-align:center; }
+  .bar button { background:#374151; color:#fff; border:0; border-radius:6px; padding:4px 10px; margin:0 4px; cursor:pointer; font-size:12px; }
+  .bar button.on { background:#2563eb; }
+  .wrap { max-width:640px; margin:0 auto; padding:24px 20px 100px; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  .desc { color:#6b7280; font-size:13px; margin:0 0 18px; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:13px 15px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
+  .meta { flex:1; min-width:0; }
+  .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .url { font-size:12.5px; color:#6b7280; margin:0; }
+  .trash { border:0; background:none; cursor:pointer; color:#9ca3af; font-size:16px; padding:6px 8px; border-radius:8px; }
+  .trash:hover { background:#fef2f2; color:#dc2626; }
+  .confirm { display:flex; gap:8px; align-items:center; }
+  .confirm span { font-size:13px; color:#b91c1c; }
+  .confirm button { border:0; border-radius:7px; padding:5px 12px; font-size:13px; cursor:pointer; }
+  .btn-del { background:#dc2626; color:#fff; }
+  .btn-cancel { background:#e5e7eb; color:#374151; }
+  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:26px; background:#111827; color:#fff;
+    padding:12px 16px; border-radius:12px; font-size:14px; display:flex; align-items:center; gap:14px; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  .toast button { background:none; border:0; color:#93c5fd; font-weight:700; cursor:pointer; font-size:14px; }
+  .toast .bar-timer { position:absolute; left:0; bottom:0; height:3px; background:#3b82f6; border-radius:0 0 12px 12px; animation:shrink 5s linear forwards; }
+  @keyframes shrink { from{width:100%;} to{width:0%;} }
+</style>
+</head>
+<body>
+<div class="bar">
+  Deleting style:
+  <button id="b1" class="on" onclick="setMode('confirm')">Confirm first</button>
+  <button id="b2" onclick="setMode('undo')">Delete instantly, with Undo</button>
+</div>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="desc" id="desc"></p>
+  <ul id="list"></ul>
+</div>
+<div id="toastHost"></div>
+<script>
+  let mode='confirm';
+  let items=[
+    { id:1, title:'A 3-Day Guide to Kyoto in Autumn', host:'nytimes.com' },
+    { id:2, title:'The state of AI agents in 2026', host:'arstechnica.com' },
+    { id:3, title:'How to make Neapolitan pizza dough', host:'seriouseats.com' },
+    { id:4, title:'The best noise-cancelling headphones of 2026', host:'theverge.com' }
+  ];
+  let confirmingId=null;
+  let lastDeleted=null, toastTimer=null;
+  const listEl=document.getElementById('list'), desc=document.getElementById('desc'), toastHost=document.getElementById('toastHost');
+  const DESCS={
+    confirm:'Click the trash icon — it asks you to confirm before anything is removed.',
+    undo:'Click the trash icon — it removes right away but shows an Undo for a few seconds.'
+  };
+  function setMode(m){ mode=m; confirmingId=null; clearToast();
+    document.getElementById('b1').className=m==='confirm'?'on':'';
+    document.getElementById('b2').className=m==='undo'?'on':'';
+    desc.textContent=DESCS[m]; render();
+  }
+  function clearToast(){ if(toastTimer){clearTimeout(toastTimer);toastTimer=null;} lastDeleted=null; toastHost.innerHTML=''; }
+  function render(){
+    listEl.innerHTML='';
+    items.forEach(it=>{
+      const li=document.createElement('li');
+      if(mode==='confirm' && confirmingId===it.id){
+        li.innerHTML='<div class="meta"><p class="title">'+it.title+'</p><p class="url">'+it.host+'</p></div>'+
+          '<div class="confirm"><span>Delete?</span>'+
+          '<button class="btn-del" data-del="'+it.id+'">Delete</button>'+
+          '<button class="btn-cancel" data-cancel="1">Cancel</button></div>';
+      } else {
+        li.innerHTML='<div class="meta"><p class="title">'+it.title+'</p><p class="url">'+it.host+'</p></div>'+
+          '<button class="trash" data-ask="'+it.id+'" title="Delete">&#128465;</button>';
+      }
+      listEl.appendChild(li);
+    });
+    if(!items.length) listEl.innerHTML='<li class="url" style="border:none;background:none;justify-content:center">Everything deleted. Switch modes up top to reset.</li>';
+    listEl.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{
+      const id=+b.dataset.ask;
+      if(mode==='confirm'){ confirmingId=id; render(); }
+      else { doDelete(id); }
+    });
+    listEl.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>doDelete(+b.dataset.del));
+    listEl.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=()=>{ confirmingId=null; render(); });
+  }
+  function doDelete(id){
+    const idx=items.findIndex(i=>i.id===id); if(idx<0) return;
+    const removed=items[idx]; items.splice(idx,1); confirmingId=null; render();
+    if(mode==='undo'){
+      lastDeleted={ item:removed, idx };
+      toastHost.innerHTML='<div class="toast"><span>Deleted “'+removed.title.slice(0,28)+(removed.title.length>28?'…':'')+'”</span>'+
+        '<button id="undoBtn">Undo</button><div class="bar-timer"></div></div>';
+      document.getElementById('undoBtn').onclick=()=>{
+        items.splice(lastDeleted.idx,0,lastDeleted.item); clearToast(); render();
+      };
+      if(toastTimer) clearTimeout(toastTimer);
+      toastTimer=setTimeout(clearToast,5000);
+    }
+  }
+  setMode('confirm');
+</script>
+</body>
+</html>

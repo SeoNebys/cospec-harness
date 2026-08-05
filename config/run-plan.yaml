@@ -1,0 +1,31 @@
+# Execution SCHEDULE — what to run, in which order, how many times.
+# The broker expands this into an ordered list of condition executions.
+#
+# order:
+#   interleaved -> one cycle = one run of each listed condition, repeated `repeat` times
+#                  e.g. VC, SD-S, SD-D, CO-S, CO-D  x5  (25 runs, cycle-interleaved)
+#   blocked     -> all repeats of a condition together
+#                  e.g. VC x5, SD-S x5, ...
+#   sequence    -> run the literal `sequence` list verbatim (custom / uneven counts)
+#
+# resume: when true, the broker counts existing runs under runs/<ID>/ and only
+#         schedules the shortfall needed to reach the target per condition
+#         (idempotent — safe to re-run after a crash mid-batch).
+
+run_plan:
+  order: interleaved
+  repeat: 5
+  conditions: [VC, SD-S, SD-D, CO-S, CO-D]
+
+  # For order: sequence, uncomment and list the literal execution order instead:
+  # sequence: [VC, SD-S, CO-D, CO-D, VC]
+
+  resume: true
+
+  # Optional: counter residual order effects / model drift over a long batch.
+  shuffle: false
+  seed: 42
+
+  # Session safety valves
+  max_rounds: 40
+  keep_going: true       # continue the batch even if one run errors

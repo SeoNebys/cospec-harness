@@ -1,0 +1,257 @@
+# Feature Specification: Bookmark Manager
+
+**Feature Branch**: `001-bookmark-manager`
+
+**Created**: 2026-07-14
+
+**Status**: Draft
+
+**Input**: User description: "An app to save and manage bookmarks"
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Save a bookmark with rich preview (Priority: P1)
+
+A person finds a web page worth keeping and saves it by entering its web address.
+The app records the page and, on its own, pulls a short description, the site's
+icon, and a preview picture where available, so the saved item reads as a
+recognizable card rather than a line of plain text. The app confirms it was saved.
+
+**Why this priority**: Saving is the core purpose of the app. Without it, nothing
+else has value. This single story — capturing links and seeing them as readable
+cards — is a viable MVP.
+
+**Independent Test**: Enter a valid web address, save it, and confirm a new
+bookmark card appears showing title, address, and whatever preview details
+(description, icon, image) could be gathered.
+
+**Acceptance Scenarios**:
+
+1. **Given** an empty bookmark list, **When** the person saves a valid web address, **Then** a new bookmark appears showing its title and address, enriched with a description, site icon, and preview image when those can be obtained.
+2. **Given** the person saves an address without typing a title, **When** the bookmark is created, **Then** the app supplies a default title (the page's own title if obtainable, otherwise its address).
+3. **Given** the person enters something that is not a valid web address, **When** they try to save, **Then** the app rejects the entry and explains what is wrong, saving nothing.
+4. **Given** the app fetched an odd or unhelpful description, **When** the person edits the description, **Then** their edited text is kept and shown instead.
+5. **Given** a page whose details cannot be reached at save time, **When** the person saves it, **Then** saving still succeeds using the address as the title, with preview details left blank.
+
+---
+
+### User Story 2 - Open, browse, and find bookmarks (Priority: P2)
+
+A person returns to their collection to reach a page they saved. Clicking a
+bookmark opens the page. When the collection has grown, they locate a specific
+item by searching words, an exact quoted phrase, or by combining tags in three
+ways — **any of** (either *recipes* or *dinner*), **all of** (both *recipes* and
+*dinner*), and **excluding** a tag (*not dessert*) — and these can be mixed, e.g.
+"*recipes* or *dinner*, but not *dessert*." Capitalization never matters.
+
+**Why this priority**: A saved link that cannot be opened or found again has no
+value. Opening and retrieval are the second-most critical capability.
+
+**Independent Test**: With several bookmarks saved, click one and confirm the
+page opens; then search a term and a quoted phrase and confirm only matching
+bookmarks remain; combine two tags and confirm the result narrows correctly.
+
+**Acceptance Scenarios**:
+
+1. **Given** a saved bookmark, **When** the person clicks it, **Then** its web page opens.
+2. **Given** multiple saved bookmarks, **When** the person types a search term, **Then** only bookmarks matching that term (in title, address, description, notes, or tags) are shown, regardless of letter case.
+3. **Given** a search, **When** the person wraps words in quotes, **Then** only bookmarks containing that exact phrase are shown.
+4. **Given** bookmarks with tags, **When** the person combines tags with "any of" (e.g., *recipes* or *dinner*), **Then** bookmarks carrying at least one of the selected tags are shown.
+5. **Given** bookmarks with tags, **When** the person combines tags with "all of" (e.g., *recipes* and *dinner*), **Then** only bookmarks carrying every selected tag are shown.
+6. **Given** bookmarks with tags, **When** the person excludes a tag (e.g., *not dessert*), **Then** bookmarks carrying the excluded tag are removed from the results.
+7. **Given** the person mixes these (e.g., *recipes* or *dinner*, but not *dessert*), **When** the filter runs, **Then** results include items matching the "any/all of" tags and exclude any carrying an excluded tag.
+8. **Given** an active search or tag filter, **When** the person clears it, **Then** the full list of bookmarks is shown again.
+9. **Given** a search or filter that matches nothing, **When** it runs, **Then** the app shows a clear "no results" message rather than an empty screen.
+
+---
+
+### User Story 3 - Organize, edit, and tidy bookmarks (Priority: P3)
+
+A person curates their collection over time: correcting a title, description, or
+the address itself; adding notes; applying tags with help from suggestions of
+tags they've used before; reordering the view; archiving items to get them out of
+the way without losing them; and permanently deleting what they no longer want.
+Notes accept light formatting — headings, bullet lists, and links — so they read
+as more than a flat block of text. When there is a lot to tidy, the person selects
+several bookmarks at once — or sweeps everything currently showing after a search
+or filter — and tags, archives, or deletes the whole batch in one action.
+
+**Why this priority**: Organization keeps the collection valuable long-term, but
+the app is already useful for capture and retrieval without it.
+
+**Independent Test**: Open an existing bookmark, change its title, description,
+and address, add a tag (choosing from a suggestion), and save; confirm the
+changes persist. Archive a bookmark and confirm it leaves the main list but is
+still recoverable. Delete a bookmark and confirm it is gone for good.
+
+**Acceptance Scenarios**:
+
+1. **Given** an existing bookmark, **When** the person edits its title, description, notes, tags, or web address and saves, **Then** the updated values are shown and persist across sessions.
+2. **Given** the person is typing a tag, **When** part of a previously used tag matches, **Then** the app suggests the existing tag so the same concept is not duplicated under slightly different spellings.
+3. **Given** a list of bookmarks, **When** the person chooses a sort order, **Then** the list reorders by newest saved (default), oldest saved, or title.
+4. **Given** an existing bookmark, **When** the person archives it, **Then** it is removed from the main list but remains available in an archived view and can be restored.
+5. **Given** an existing bookmark, **When** the person deletes it, **Then** the app asks for confirmation, and on confirming, the bookmark is permanently removed and does not reappear after reopening the app.
+6. **Given** the person's notes contain headings, bullet lists, or links, **When** the notes are displayed, **Then** that formatting is rendered rather than shown as raw markup.
+7. **Given** several selected bookmarks, **When** the person applies a tag, archives, or deletes, **Then** the action applies to every selected bookmark at once (deletion still asking for one confirmation for the batch).
+8. **Given** an active search or tag filter, **When** the person chooses "select all showing," **Then** every currently visible bookmark is selected for a batch action.
+
+---
+
+### User Story 4 - Read-later shortlist (Priority: P3)
+
+A person saves many pages they intend to get back to. They flag such items as
+"read later" and can switch to a view that shows only those, working through them
+and clearing the flag as they go.
+
+**Why this priority**: A meaningful share of saving is deferred reading; a
+dedicated shortlist makes that intent actionable. It builds on saving and
+retrieval, so it follows them.
+
+**Independent Test**: Flag two bookmarks as "read later," switch to the read-later
+view, confirm only those two appear, clear the flag on one, and confirm it drops
+out of that view but remains in the collection.
+
+**Acceptance Scenarios**:
+
+1. **Given** an existing bookmark, **When** the person marks it "read later," **Then** it appears in the read-later view.
+2. **Given** the read-later view, **When** the person opens it, **Then** only bookmarks flagged "read later" are shown.
+3. **Given** a "read later" bookmark, **When** the person clears the flag, **Then** it leaves the read-later view but stays in the collection.
+
+---
+
+### User Story 5 - Saved searches (Priority: P3)
+
+A person who repeatedly uses the same combination of search text and tag filters
+saves that combination under a name, then returns to it in one step later without
+rebuilding it. Applying a saved search shows the current matching bookmarks (it
+re-runs against the live collection, so newly added matches appear).
+
+**Why this priority**: A convenience that compounds for heavy users, but the app
+is fully usable without it. It builds on search and filtering, so it follows them.
+
+**Independent Test**: Build a search-plus-tag combination, save it under a name,
+clear everything, then apply the saved search and confirm the same combination is
+restored and the matching bookmarks are shown.
+
+**Acceptance Scenarios**:
+
+1. **Given** an active search and tag filter, **When** the person saves it with a name, **Then** it appears in a list of saved searches.
+2. **Given** a saved search, **When** the person applies it, **Then** the search text and tag filters are restored and the currently matching bookmarks are shown.
+3. **Given** a saved search, **When** the person renames or removes it, **Then** the change persists across sessions.
+
+---
+
+### User Story 6 - Back up and move the collection (Priority: P2)
+
+A person wants peace of mind that a broken or replaced computer will not wipe out
+their collection. They export everything to a single portable file they can store
+wherever they like (an external drive, a cloud folder), and later import that file
+— on the same machine or a brand-new one — to restore the collection. Importing
+into a collection that already has bookmarks merges rather than duplicating.
+
+**Why this priority**: The whole collection lives locally on one device; without a
+way to get the data out and back in, a single hardware failure destroys everything.
+This is data-safety, so it ranks above the day-to-day organizing conveniences. It
+is still independent of the core save/find flow.
+
+**Independent Test**: Export a collection to a file, start from an empty collection,
+import the file, and confirm every bookmark, tag, note, flag, and saved search is
+restored intact.
+
+**Acceptance Scenarios**:
+
+1. **Given** a collection of bookmarks, **When** the person exports, **Then** a single portable file is produced containing all bookmarks (address, title, description, notes, tags, read-later and archived state) and all saved searches.
+2. **Given** an exported file, **When** the person imports it into an empty collection, **Then** every bookmark, tag, note, flag, saved search, and each bookmark's **original saved and last-modified dates** are restored exactly as exported (import does not reset dates to the day of import), so "sort by oldest" remains correct afterward.
+3. **Given** an exported file, **When** the person imports it into a collection that already contains some of the same addresses, **Then** existing bookmarks are not duplicated (matched by normalized address), their tags are merged, and the person sees a summary of how many were added versus already present.
+4. **Given** a file that is not a valid export, **When** the person tries to import it, **Then** the app rejects it with a clear message and leaves the existing collection unchanged.
+5. **Given** the export file format, **When** the person opens it outside the app, **Then** it is in an open, documented, human-readable format so the collection is never trapped in a proprietary silo.
+
+---
+
+### Edge Cases
+
+- **Duplicate address**: When a person saves an address that already exists, the app does not create a second copy and does not dead-end them — instead it opens the existing bookmark for editing, having recognized the match.
+- **Very long titles, descriptions, or notes**: The app displays long text gracefully (truncation with full text available) rather than breaking the layout.
+- **Address without a scheme** (e.g., `example.com` with no `https://`): The app normalizes it to a usable web address rather than rejecting it.
+- **Unreachable page at save time**: Saving succeeds even if the page cannot be reached; fetching title, description, icon, and preview image is best-effort and never blocks saving.
+- **Partial preview data**: When only some preview details are available (e.g., icon but no image), the app shows what it has and leaves the rest blank.
+- **Archived items in search**: Archived bookmarks are excluded from the main list and default search results; the archived view is where they surface.
+- **Empty collection**: A first-time person sees a welcoming empty state explaining how to add their first bookmark.
+- **Empty read-later / archived views**: Each shows its own clear empty state rather than a blank screen.
+- **Editing an address to one that already exists**: Treated like the duplicate case — the app prevents creating a collision and tells the person the address is already saved.
+- **Batch delete**: A batch deletion asks for a single confirmation covering the whole selection rather than one prompt per item.
+- **Batch action on a filtered view**: "Select all showing" selects only what the current search/filter surfaces, not the whole collection, so a batch action cannot accidentally hit hidden or archived items.
+- **Saved search returns nothing later**: If a saved search matches nothing when re-applied (its matches were deleted or re-tagged), the app shows the normal "no results" state, and the saved search itself remains.
+- **Notes formatting**: Only light formatting (headings, bullet lists, links) is supported; unsupported markup is shown as plain text rather than breaking the display.
+- **Failed/partial import**: If an import fails partway (corrupt or invalid file), the existing collection is left exactly as it was — no half-imported, partially-corrupted state.
+- **Import merge collisions**: When an imported bookmark matches an existing one by normalized address, the app merges tags and keeps a single entry rather than creating a duplicate (consistent with FR-023).
+- **Export of an empty collection**: Produces a valid (empty) export file rather than an error.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: The app MUST allow a person to save a bookmark by providing a web address.
+- **FR-002**: The app MUST validate that a submitted address is a well-formed web address, normalize an address that omits its scheme, and reject malformed entries with an explanatory message.
+- **FR-003**: The app MUST let a person optionally provide a title, description, notes, and one or more tags when saving or editing a bookmark, where notes support light formatting (headings, bullet lists, and links).
+- **FR-004**: When no title is provided, the app MUST supply a default title derived from the page (its own title if obtainable, otherwise its address).
+- **FR-005**: On saving, the app MUST attempt, on a best-effort basis, to gather preview details for the page — a short description, the site icon, and a preview image — and MUST NOT block or fail the save if any of these cannot be obtained.
+- **FR-006**: The app MUST let a person edit the gathered description and keep the edited version.
+- **FR-007**: The app MUST display saved bookmarks as cards showing at least the title and address, plus available preview details (description, icon, image).
+- **FR-008**: The app MUST open a bookmark's web page when the person selects/clicks it.
+- **FR-009**: The app MUST let a person search bookmarks by text matching against title, address, description, notes, and tags, with matching that ignores letter case.
+- **FR-010**: The app MUST support exact-phrase search when the person wraps text in quotes.
+- **FR-011**: The app MUST let a person filter by tags using "any of" (match at least one), "all of" (match every one), and "excluding" (remove any carrying the tag); these MUST be combinable in one filter (e.g., "any of {recipes, dinner} and not {dessert}"), and the person MUST be able to clear all filters.
+- **FR-012**: The app MUST suggest previously used tags as a person types a tag, to discourage near-duplicate tags.
+- **FR-013**: The app MUST let a person edit the title, description, notes, tags, and web address of an existing bookmark, with changes persisted.
+- **FR-014**: The app MUST let a person sort the list by newest saved (default), oldest saved, or title.
+- **FR-015**: The app MUST let a person mark a bookmark "read later," view only read-later bookmarks, and clear the flag.
+- **FR-016**: The app MUST let a person archive a bookmark — removing it from the main list and default search results while keeping it in a separate archived view — and restore it from there.
+- **FR-017**: The app MUST let a person permanently delete a bookmark, and MUST ask for confirmation before permanent removal.
+- **FR-018**: The app MUST render notes with their light formatting (headings, bullet lists, links) applied, and MUST show any unsupported markup as plain text without breaking the display.
+- **FR-019**: The app MUST let a person select multiple bookmarks and apply tagging, archiving, or deletion to the whole selection in one action, with a single confirmation for a batch deletion.
+- **FR-020**: The app MUST offer a "select all showing" action that selects exactly the bookmarks surfaced by the current search/filter (excluding hidden and archived items) for a batch action.
+- **FR-021**: The app MUST let a person save a combination of search text and tag filters under a name, apply it later in one step (re-running it against the live collection), and rename or remove saved searches.
+- **FR-022**: The app MUST persist all bookmarks, tags, flags, archived state, and saved searches so they remain available after the app is closed and reopened.
+- **FR-023**: When a person saves an address that already matches an existing bookmark (including via editing another bookmark's address), the app MUST NOT create a duplicate and MUST bring up the existing bookmark for editing instead of blocking with a dead end.
+- **FR-024**: The app MUST show a clear empty state when no bookmarks exist, and a clear "no results" state when a search or filter matches nothing, including for the read-later and archived views.
+- **FR-025**: The app MUST record the date each bookmark was saved and the date it was last modified.
+- **FR-026**: The app MUST let a person export the entire collection — all bookmarks (address, title, description, notes, tags, read-later state, archived state, saved/modified dates) and all saved searches — to a single portable file.
+- **FR-027**: The export file MUST be in an open, documented, human-readable format so the collection is not locked into the app.
+- **FR-028**: The app MUST let a person import a previously exported file to restore the collection, including onto a fresh installation, such that an export followed by an import reproduces the collection intact — **including each bookmark's original saved and last-modified dates**, which MUST be preserved from the file and MUST NOT be reset to the time of import (so date-based sorting stays correct after a restore).
+- **FR-029**: On import into a non-empty collection, the app MUST merge rather than duplicate — bookmarks matching an existing one by normalized address are not duplicated, their tags are merged — and MUST report a summary of items added versus already present.
+- **FR-030**: An import that fails or receives an invalid file MUST leave the existing collection unchanged (no partial or corrupt state) and MUST explain the problem.
+
+### Key Entities *(include if feature involves data)*
+
+- **Bookmark**: A saved reference to a web page. Attributes: web address, title, description (auto-gathered, person-editable), notes, site icon, preview image, saved date, last-modified date, "read later" flag, archived state, and associated tags.
+- **Tag**: A short label a person applies to bookmarks to group them by topic or purpose. A bookmark may carry several tags; a tag may apply to many bookmarks. Previously used tags are offered as suggestions.
+- **Saved Search**: A named, reusable combination of search text and tag filters ("any of" / "all of" / "excluding"). It stores the filter definition, not a fixed list of results, and is re-run against the live collection when applied.
+- **Export File**: A single portable, open-format document capturing the full collection — every Bookmark (with its tags and state) and every Saved Search — sufficient to restore the collection on any installation via import.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: A person can save a new bookmark in under 20 seconds from opening the app, without waiting on preview-detail gathering.
+- **SC-002**: A person can locate a specific bookmark among at least 500 saved items in under 5 seconds using search or tag filtering.
+- **SC-003**: 95% of first-time users successfully save, find, and open a bookmark without external instructions.
+- **SC-004**: No saved bookmark is ever lost between sessions under normal use (100% persistence of confirmed saves); archiving never loses data.
+- **SC-005**: Search and filtering return results with no perceptible delay (results appear effectively instantly) for collections up to 500 bookmarks.
+- **SC-006**: For pages that publish standard preview information, at least 90% of saves display a description and site icon without the person editing anything.
+- **SC-007**: Saving an already-saved address results in zero duplicate entries in 100% of cases.
+- **SC-008**: An export followed by an import into an empty collection restores 100% of bookmarks, tags, notes, flags, saved searches, and original saved/modified dates with no data loss, and the restored collection's "sort by oldest" order is identical to the original.
+- **SC-009**: A person can export their whole collection and locate the resulting portable file in under 30 seconds, and can restore it on a new device by importing that one file.
+
+## Assumptions
+
+- **Single user, single device**: v1 serves one person on one device; multi-user accounts, sharing, and cross-device sync are out of scope. *(Confirmed by client.)*
+- **No authentication in v1**: The collection is personal and local, so sign-in is not required. *(Confirmed by client.)*
+- **Local persistence**: Bookmarks are stored locally on the person's device; cloud storage is out of scope for v1.
+- **Manual capture**: Bookmarks are added by entering an address within the app; browser-extension "one-click" capture and bulk import from browsers are out of scope for v1. *(Confirmed by client.)*
+- **Best-effort enrichment**: Retrieving a page's title, description, icon, and preview image is a convenience; if any cannot be fetched, saving still succeeds and the person can fill in details manually.
+- **Tags over folders**: Organization uses flat tags rather than nested folders. *(Confirmed by client.)*
+- **Duplicate = same normalized address**: Two entries are considered the same bookmark when their normalized web addresses match.
+- **Archive is reversible; delete is permanent**: Archiving hides an item but keeps it; deletion (after confirmation) removes it for good.
+- **Reasonable scale**: The collection is expected to hold up to a few thousand bookmarks, not millions.
+- **Manual backup, not sync**: Backup is a person-initiated export to a file they store wherever they choose; there is no automatic scheduled backup and no cloud sync in v1. Restoring is a manual import. *(Data-safety concern raised by client; cloud sync remains explicitly out of scope.)*

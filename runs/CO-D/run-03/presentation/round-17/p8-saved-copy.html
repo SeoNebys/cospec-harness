@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookmarks — prototype 8 (saved readable copy)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f4f5f7; color: #1a1a2e; }
+  header { background: #fff; border-bottom: 1px solid #e3e5e8; padding: 18px 28px; position: sticky; top: 0; z-index: 5; }
+  h1 { font-size: 20px; margin: 0 0 14px; }
+  .savebar { display: flex; gap: 8px; align-items: center; }
+  .savebar input.url { flex: 1; padding: 11px 14px; font-size: 15px; border: 1px solid #cfd3d8; border-radius: 8px; }
+  .savebar button.save { padding: 11px 20px; font-size: 15px; font-weight: 600; background: #2f6fed; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+  main { max-width: 900px; margin: 0 auto; padding: 22px 28px 60px; }
+  .searchrow { position: relative; margin-bottom: 20px; }
+  .searchrow input { width: 100%; padding: 12px 14px 12px 40px; font-size: 15px; border: 1px solid #cfd3d8; border-radius: 10px; background: #fff; }
+  .searchrow .mag { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #9aa1ab; }
+  .note { font-size: 13px; color: #6b7280; background: #eef4ff; border: 1px solid #cfe0ff; border-radius: 9px; padding: 10px 14px; margin-bottom: 16px; }
+  .count { color: #6b7280; font-size: 13px; margin: 0 0 14px 2px; }
+  .card { display: flex; gap: 14px; background: #fff; border: 1px solid #e3e5e8; border-radius: 12px; padding: 14px; margin-bottom: 12px; position: relative; }
+  .card.gone { border-left: 4px solid #b0b6c0; }
+  .clickable { cursor: pointer; } .clickable:hover .title { text-decoration: underline; }
+  .thumb { width: 108px; height: 76px; flex: none; border-radius: 8px; object-fit: cover; background: #e9ebef; }
+  .card.gone .thumb { filter: grayscale(.6); }
+  .body { min-width: 0; flex: 1; }
+  .titlerow { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; }
+  .badge.gone { color: #5a6270; background: #e7eaef; border: 1px solid #ccd2db; }
+  .body .title { font-size: 16px; font-weight: 600; }
+  .body .url { font-size: 12.5px; color: #2f6fed; margin: 0 0 6px; word-break: break-all; }
+  .body .desc { font-size: 13.5px; color: #4b5563; margin: 0 0 6px; line-height: 1.45; }
+  .copychip { font-size: 11.5px; color: #1a7a3c; background: #eafaf0; border: 1px solid #b6e0c2; border-radius: 999px; padding: 3px 10px; display: inline-flex; gap: 5px; }
+  mark { background: #fff2a8; }
+  /* viewer */
+  .browser { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40; display: none; align-items: flex-start; justify-content: center; padding: 34px 20px; }
+  .browser.show { display: flex; }
+  .win { background: #fff; width: 100%; max-width: 780px; max-height: 88vh; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35); display: flex; flex-direction: column; }
+  .chrome { display: flex; align-items: center; gap: 10px; background: #ececf0; padding: 10px 14px; border-bottom: 1px solid #dcdee3; }
+  .dots { display: flex; gap: 6px; } .dots span { width: 11px; height: 11px; border-radius: 50%; background: #c9ccd2; }
+  .addr { flex: 1; background: #fff; border-radius: 7px; padding: 6px 12px; font-size: 12.5px; color: #4b5563; border: 1px solid #dcdee3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .closex { cursor: pointer; color: #6b7280; font-size: 18px; }
+  .tabs { display: flex; gap: 0; background: #f6f7f9; border-bottom: 1px solid #e3e5e8; padding: 0 14px; }
+  .tab { font-size: 13px; font-weight: 600; color: #6b7280; padding: 11px 16px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: #1a1a2e; border-bottom-color: #2f6fed; }
+  .tab .dot { color: #1a7a3c; }
+  .viewer { overflow-y: auto; padding: 0; }
+  .banner { font-size: 13px; padding: 11px 34px; }
+  .banner.gone { background: #fff6e6; color: #8a5b00; border-bottom: 1px solid #f0dca8; }
+  .banner.copy { background: #eafaf0; color: #1a6b36; border-bottom: 1px solid #cde9d7; }
+  .reader { padding: 30px 40px 48px; max-width: 680px; }
+  .reader h2 { margin: 0 0 6px; font-size: 24px; line-height: 1.25; }
+  .reader .meta { font-size: 12.5px; color: #9aa1ab; margin-bottom: 22px; }
+  .reader p { color: #2b3140; line-height: 1.7; font-size: 15.5px; margin: 0 0 16px; }
+  .gonebox { text-align: center; padding: 54px 40px; }
+  .gonebox .big { font-size: 42px; } .gonebox h2 { margin: 8px 0; } .gonebox p { color: #6b7280; }
+  .gonebox .cta { margin-top: 18px; background: #1a7a3c; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; cursor: pointer; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a2e; color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 60; }
+  .toast.show { opacity: 1; }
+  .devbar { max-width: 900px; margin: 8px auto 0; padding: 0 28px; }
+  .devbar button { font-size: 12px; color: #6b7280; background: #fff; border: 1px dashed #cfd3d8; border-radius: 7px; padding: 6px 11px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <div class="savebar">
+    <input class="url" id="urlInput" type="text" placeholder="Paste a link to save…" autocomplete="off">
+    <button class="save" id="saveBtn">Save</button>
+  </div>
+</header>
+
+<main>
+  <div class="searchrow"><span class="mag">⌕</span><input id="searchInput" type="text" placeholder="Search everything you saved…"></div>
+  <div class="note">Every bookmark quietly keeps a <b>readable copy of the page</b> as it was when you saved it — so the content is yours even if the original disappears.</div>
+  <p class="count" id="count"></p>
+  <div id="list"></div>
+</main>
+<div class="devbar"><button id="killBtn">⚙ Demo: pretend the second article's original page has gone offline</button></div>
+
+<div class="toast" id="toast"></div>
+<div class="browser" id="browser"><div class="win">
+  <div class="chrome"><div class="dots"><span></span><span></span><span></span></div>
+    <div class="addr" id="addr"></div><div class="closex" id="closeBrowser">✕</div></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="viewer" id="viewer"></div>
+</div></div>
+
+<script>
+let bookmarks = [
+  { id:1, title:"No-Knead Bread in a Dutch Oven", url:"https://kitchenlab.example/no-knead-bread",
+    desc:"A four-ingredient loaf with a crackly crust and open crumb.", img:"https://picsum.photos/seed/dutchoven/216/152",
+    gone:false,
+    copy:[ "There is almost no work in this loaf. You stir together flour, water, salt, and a small pinch of yeast until it forms a shaggy, sticky dough, then cover the bowl and simply walk away for twelve to eighteen hours.",
+      "That long, slow rise is what does the kneading for you. As the dough sits, the flour hydrates fully and gluten develops on its own, giving you the open, holey crumb that usually takes real effort to achieve.",
+      "When you are ready to bake, turn the dough out, shape it loosely, and let it rest while a covered pot heats in a very hot oven. Baking inside the closed pot traps steam, and that steam is the secret to the thin, crackly, deeply browned crust.",
+      "Lift the lid for the last ten minutes to let the top colour, then cool the loaf completely before slicing — the crumb is still setting as it cools." ] },
+  { id:2, title:"The Article You Meant to Keep", url:"https://blog.example/great-article",
+    desc:"A long read on focus and attention in a distracted world.", img:"https://picsum.photos/seed/focus/216/152",
+    gone:false,
+    copy:[ "We treat attention as if it were infinite, something we can spend freely and always earn back. But attention behaves far more like a muscle: it tires, it has limits, and the way we spend it in the morning shapes what is left by afternoon.",
+      "Every notification is a small withdrawal. On its own each one seems harmless, but together they fragment the day into pieces too small to think in. The cost is not the seconds the interruption takes — it is the long climb back to depth afterwards.",
+      "The people who seem to focus effortlessly are rarely more disciplined. More often they have simply built an environment where the easy thing and the focused thing are the same thing: fewer inputs, clearer edges around work, and a deliberate refusal to keep everything a click away.",
+      "Protecting attention, then, is less about willpower and more about design. Decide in advance what deserves your focus, remove the rest from arm's reach, and let the quiet do its work." ] },
+];
+
+const canned = { "https://kitchenlab.example/no-knead-bread": bookmarks[0], "https://blog.example/great-article": bookmarks[1] };
+function autoCapture(url){
+  let host="the page"; try{host=new URL(url).hostname.replace(/^www\./,'');}catch(e){}
+  const seed=encodeURIComponent(url).slice(-12)||"link";
+  return { title:"Saved page from "+host, desc:"Automatically grabbed from "+host+".", img:"https://picsum.photos/seed/"+seed+"/216/152",
+    copy:[ "A full, readable copy of this page was kept the moment you saved it.",
+      "In the finished app this area would hold the page's actual article text, preserved exactly as it read when you bookmarked it — so even if the original site changes or disappears, the content you wanted is still here for you to read." ] };
+}
+function normUrl(u){ let s=u.trim().toLowerCase(); s=s.replace(/\/+$/,''); s=s.replace(/^https?:\/\//,''); s=s.replace(/^www\./,''); return s; }
+
+const listEl=document.getElementById('list'), countEl=document.getElementById('count'), searchEl=document.getElementById('searchInput');
+let currentOpen=null;
+
+function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function highlight(text,q){ const safe=esc(text); if(!q) return safe; const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'); return safe.replace(re,'<mark>$1</mark>'); }
+
+function render(){
+  const q=searchEl.value.trim(), ql=q.toLowerCase();
+  const matches=bookmarks.filter(b=> !ql || b.title.toLowerCase().includes(ql)||b.url.toLowerCase().includes(ql)||b.desc.toLowerCase().includes(ql)|| b.copy.join(' ').toLowerCase().includes(ql));
+  countEl.textContent = q ? matches.length+' of '+bookmarks.length+' match' : bookmarks.length+' saved';
+  listEl.innerHTML = matches.slice().reverse().map(b=>`
+    <div class="card ${b.gone?'gone':''}" data-id="${b.id}">
+      <img class="thumb clickable" src="${b.img}" data-act="open">
+      <div class="body">
+        <div class="clickable" data-act="open">
+          <div class="titlerow">${b.gone?'<span class="badge gone">original offline</span>':''}<div class="title">${highlight(b.title,q)}</div></div>
+          <div class="url">${highlight(b.url,q)}</div>
+          <div class="desc">${highlight(b.desc,q)}</div>
+        </div>
+        <span class="copychip">✓ readable copy kept</span>
+      </div>
+    </div>`).join('');
+}
+
+function openView(b, tab){
+  currentOpen=b;
+  tab = tab || (b.gone ? 'copy' : 'original');
+  document.getElementById('addr').textContent = b.url + (tab==='copy' ? '  ·  saved copy' : '');
+  document.getElementById('tabs').innerHTML =
+    `<div class="tab ${tab==='original'?'active':''}" data-tab="original">Original page</div>`+
+    `<div class="tab ${tab==='copy'?'active':''}" data-tab="copy">Your saved copy <span class="dot">✓</span></div>`;
+  const v=document.getElementById('viewer');
+  if(tab==='original'){
+    if(b.gone){
+      v.innerHTML=`<div class="gonebox"><div class="big">🚫</div><h2>This page is no longer available</h2>
+        <p>The original has moved or been taken down.</p>
+        <button class="cta" data-tab="copy">Read your saved copy →</button></div>`;
+    } else {
+      v.innerHTML=`<div class="reader"><h2>${esc(b.title)}</h2><div class="meta">Live page — ${esc(b.url)}</div>`+
+        b.copy.map(p=>`<p>${esc(p)}</p>`).join('')+`</div>`;
+    }
+  } else {
+    const banner = b.gone
+      ? `<div class="banner gone">The original page is gone — this is the readable copy you saved when you bookmarked it.</div>`
+      : `<div class="banner copy">This is the copy saved when you bookmarked this. It stays readable even if the original disappears.</div>`;
+    v.innerHTML = banner + `<div class="reader"><h2>${esc(b.title)}</h2><div class="meta">Saved copy · captured when you bookmarked this</div>`+
+      b.copy.map(p=>`<p>${esc(p)}</p>`).join('')+`</div>`;
+  }
+  document.getElementById('browser').classList.add('show');
+}
+document.getElementById('closeBrowser').addEventListener('click',()=>document.getElementById('browser').classList.remove('show'));
+document.getElementById('browser').addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]'); if(t && currentOpen){ openView(currentOpen, t.dataset.tab); return; }
+  if(e.target.id==='browser') document.getElementById('browser').classList.remove('show');
+});
+
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2400); }
+
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  const url=document.getElementById('urlInput').value.trim(); if(!url) return;
+  const existing=bookmarks.find(b=>normUrl(b.url)===normUrl(url));
+  if(existing){ document.getElementById('urlInput').value=''; searchEl.value=''; render(); toast('You already saved this — here it is.'); return; }
+  const cap= canned[url] ? {title:canned[url].title,desc:canned[url].desc,img:canned[url].img,copy:canned[url].copy} : autoCapture(url);
+  bookmarks.push({ id:Date.now(), url, title:cap.title, desc:cap.desc, img:cap.img, gone:false, copy:cap.copy });
+  document.getElementById('urlInput').value=''; searchEl.value=''; render(); toast('Saved — and a readable copy was kept');
+});
+document.getElementById('urlInput').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('saveBtn').click(); });
+searchEl.addEventListener('input',render);
+
+listEl.addEventListener('click',e=>{ const card=e.target.closest('.card'); if(!card) return; if(e.target.closest('[data-act="open"]')){ const b=bookmarks.find(x=>x.id===Number(card.dataset.id)); openView(b); } });
+
+// demo control: simulate link rot on the article
+document.getElementById('killBtn').addEventListener('click',()=>{ const b=bookmarks.find(x=>x.id===2); if(b){ b.gone=true; render(); toast('Demo: that article\\'s original page is now "offline"'); } });
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — p03b Tags</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; background: #f4f5f7; color: #1a1a1a; }
+  .bar { background:#111827; color:#fff; font-size:13px; padding:6px 16px; text-align:center; }
+  .layout { max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; display: grid;
+    grid-template-columns: 200px 1fr; gap: 24px; }
+  h1 { font-size: 20px; margin: 0 0 16px; grid-column: 1 / -1; }
+  .side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+    color: #9ca3af; margin: 0 0 8px; }
+  .tag { display:inline-block; margin:0 6px 6px 0; padding:5px 11px; border-radius:20px;
+    cursor:pointer; font-size:13px; background:#eef2ff; color:#4338ca; border:1px solid #dbe1ff; }
+  .tag:hover { background:#e0e7ff; }
+  .tag.active { background:#4338ca; color:#fff; border-color:#4338ca; }
+  .main { min-width: 0; }
+  .searchbar { position: relative; margin-bottom: 16px; }
+  .searchbar input { width:100%; border:1px solid #d1d5db; border-radius:10px;
+    padding:11px 14px 11px 38px; font-size:14px; background:#fff; }
+  .searchbar .icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#9ca3af; }
+  .count { color:#6b7280; font-size:13px; margin:0 0 10px; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:13px 15px;
+    margin-bottom:10px; display:flex; align-items:flex-start; gap:12px; }
+  .favicon { width:32px; height:32px; border-radius:8px; background:#eef2ff; display:flex;
+    align-items:center; justify-content:center; font-size:15px; color:#4f46e5; font-weight:700; flex-shrink:0; }
+  .meta { min-width:0; flex:1; }
+  .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .title a { color:#111827; text-decoration:none; }
+  .url { font-size:12.5px; color:#6b7280; margin:0 0 6px; }
+  .chips .chip { font-size:11px; color:#4338ca; background:#eef2ff; border:1px solid #dbe1ff;
+    padding:1px 8px; border-radius:20px; margin-right:5px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="bar">VERSION B — TAGS: a link can carry several labels; click a label to browse</div>
+<div class="layout">
+  <h1>My Bookmarks</h1>
+  <div class="side">
+    <h2>Tags</h2>
+    <div id="tags"></div>
+  </div>
+  <div class="main">
+    <div class="searchbar"><span class="icon">&#128269;</span>
+      <input id="search" placeholder="Search…" /></div>
+    <p class="count" id="count"></p>
+    <ul id="list"></ul>
+  </div>
+</div>
+<script>
+  const data = [
+    { title:'A 3-Day Guide to Kyoto in Autumn', host:'nytimes.com', tags:['Travel','Japan'] },
+    { title:'A weekend itinerary for Lisbon on a budget', host:'lonelyplanet.com', tags:['Travel'] },
+    { title:'The state of AI agents in 2026', host:'arstechnica.com', tags:['Tech','AI'] },
+    { title:'openai/whisper: Speech Recognition', host:'github.com', tags:['Tech','AI'] },
+    { title:'Understanding CSS Grid, once and for all', host:'css-tricks.com', tags:['Web Dev'] },
+    { title:'Rust vs Go for backend services in 2026', host:'infoq.com', tags:['Web Dev','Tech'] },
+    { title:'How to make Neapolitan pizza dough', host:'seriouseats.com', tags:['Cooking'] },
+    { title:'The best noise-cancelling headphones of 2026', host:'theverge.com', tags:['Gadgets','Reviews'] }
+  ];
+  const allTags = Array.from(new Set(data.flatMap(d => d.tags))).sort();
+  let active = null;
+  const tagsEl = document.getElementById('tags');
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+  const search = document.getElementById('search');
+
+  function renderTags() {
+    tagsEl.innerHTML = '';
+    const all = document.createElement('span');
+    all.className = 'tag' + (active===null?' active':'');
+    all.textContent = 'All';
+    all.onclick = () => { active = null; renderTags(); renderList(); };
+    tagsEl.appendChild(all);
+    allTags.forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'tag' + (active===t?' active':'');
+      span.textContent = t;
+      span.onclick = () => { active = (active===t?null:t); renderTags(); renderList(); };
+      tagsEl.appendChild(span);
+    });
+  }
+  function renderList() {
+    const q = search.value.trim().toLowerCase();
+    const items = data.filter(d =>
+      (active===null || d.tags.includes(active)) &&
+      (!q || d.title.toLowerCase().includes(q) || d.host.toLowerCase().includes(q)));
+    countEl.textContent = items.length + ' link' + (items.length===1?'':'s') +
+      (active===null?'':' tagged ' + active);
+    listEl.innerHTML = items.length ? '' : '<li class="url" style="border:none;background:none">No links here.</li>';
+    items.forEach(d => {
+      const li = document.createElement('li');
+      const chips = d.tags.map(t => '<span class="chip" data-t="'+t+'">'+t+'</span>').join('');
+      li.innerHTML = '<div class="favicon">'+d.title.charAt(0)+'</div>'+
+        '<div class="meta"><p class="title"><a href="#">'+d.title+'</a></p><p class="url">'+d.host+'</p>'+
+        '<div class="chips">'+chips+'</div></div>';
+      listEl.appendChild(li);
+    });
+    listEl.querySelectorAll('.chip').forEach(c =>
+      c.onclick = () => { active = c.dataset.t; renderTags(); renderList(); });
+  }
+  search.addEventListener('input', renderList);
+  renderTags(); renderList();
+</script>
+</body>
+</html>

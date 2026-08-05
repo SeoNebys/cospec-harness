@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks — prototype</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    max-width: 720px; margin: 0 auto; padding: 32px 20px; color: #1a1a1a;
+    background: #fafafa;
+  }
+  h1 { font-size: 22px; margin: 0 0 24px; }
+  .save-box {
+    background: #fff; border: 1px solid #e2e2e2; border-radius: 10px;
+    padding: 16px; margin-bottom: 28px;
+  }
+  .save-box label { display: block; font-size: 12px; color: #666; margin: 0 0 4px; }
+  .save-box input {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    border: 1px solid #d5d5d5; border-radius: 7px; margin-bottom: 12px;
+  }
+  .save-box button {
+    background: #2563eb; color: #fff; border: 0; border-radius: 7px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .save-box button:hover { background: #1d4ed8; }
+  .count { font-size: 12px; color: #888; margin: 0 0 10px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    background: #fff; border: 1px solid #e2e2e2; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  li .title { font-size: 15px; font-weight: 600; margin: 0 0 3px; }
+  li a { color: #2563eb; text-decoration: none; font-size: 13px; word-break: break-all; }
+  li a:hover { text-decoration: underline; }
+  .empty { color: #999; font-size: 14px; padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>📑 My Bookmarks</h1>
+
+  <div class="save-box">
+    <label for="url">Link</label>
+    <input id="url" type="text" placeholder="Paste a link here…" />
+    <label for="title">Name (optional)</label>
+    <input id="title" type="text" placeholder="What is this? (leave blank to use the link)" />
+    <button id="save">Save</button>
+  </div>
+
+  <p class="count" id="count"></p>
+  <ul id="list"></ul>
+
+  <script>
+    const KEY = 'bm_proto_v1';
+    const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+    const store = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
+
+    function render() {
+      const items = load();
+      const list = document.getElementById('list');
+      const count = document.getElementById('count');
+      list.innerHTML = '';
+      if (items.length === 0) {
+        count.textContent = '';
+        list.innerHTML = '<div class="empty">Nothing saved yet. Add your first link above.</div>';
+        return;
+      }
+      count.textContent = items.length + (items.length === 1 ? ' bookmark' : ' bookmarks');
+      // newest first
+      items.slice().reverse().forEach(it => {
+        const li = document.createElement('li');
+        const t = document.createElement('div');
+        t.className = 'title';
+        t.textContent = it.title || it.url;
+        const a = document.createElement('a');
+        a.href = it.url; a.target = '_blank'; a.textContent = it.url;
+        li.appendChild(t); li.appendChild(a);
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById('save').addEventListener('click', () => {
+      const url = document.getElementById('url').value.trim();
+      const title = document.getElementById('title').value.trim();
+      if (!url) return;
+      const items = load();
+      items.push({ url, title, savedAt: Date.now() });
+      store(items);
+      document.getElementById('url').value = '';
+      document.getElementById('title').value = '';
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>

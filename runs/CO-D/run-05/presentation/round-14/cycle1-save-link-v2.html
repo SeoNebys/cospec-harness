@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype (v2)</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1c2330; --muted: #6b7480;
+    --line: #e6e9ee; --accent: #2f6df6; --flash: #fff6d6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 28px; }
+
+  .saver { display: flex; gap: 10px; margin-bottom: 8px; }
+  .saver input { flex: 1; padding: 13px 15px; font-size: 15px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--card); outline: none; }
+  .saver input:focus { border-color: var(--accent); }
+  .saver button { padding: 0 20px; font-size: 15px; font-weight: 600; color: #fff;
+    background: var(--accent); border: none; border-radius: 10px; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+
+  .notice { background: #eef3ff; border: 1px solid #d4e0ff; color: #234; border-radius: 10px;
+    padding: 10px 14px; font-size: 13.5px; margin: 0 0 18px; display: none; }
+  .count { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.item { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 10px; display: flex; gap: 14px; align-items: flex-start;
+    transition: background .25s, border-color .25s; }
+  li.item.flash { background: var(--flash); border-color: #f0e3a8; }
+  .favicon { width: 32px; height: 32px; border-radius: 8px; flex: none;
+    background: #eef1f6; display: grid; place-items: center; font-size: 16px; }
+  .body { min-width: 0; flex: 1; }
+  .title { font-weight: 600; font-size: 15.5px; margin: 0 0 2px; }
+  .title a { color: var(--ink); text-decoration: none; }
+  .title a:hover { text-decoration: underline; }
+  .desc { color: var(--muted); font-size: 13.5px; margin: 0 0 5px; }
+  .meta { color: var(--muted); font-size: 12.5px; }
+
+  /* editable affordance */
+  .editable { cursor: text; border-radius: 5px; padding: 1px 4px; margin-left: -4px;
+    border: 1px solid transparent; }
+  .editable:hover { background: #f2f4f8; }
+  .pencil { opacity: 0; font-size: 12px; color: var(--muted); margin-left: 6px; }
+  .body:hover .pencil { opacity: .6; }
+  .edit-field { width: 100%; font: inherit; color: var(--ink);
+    border: 1px solid var(--accent); border-radius: 6px; padding: 4px 6px; outline: none; }
+  textarea.edit-field { resize: vertical; min-height: 40px; }
+
+  .resolving { color: var(--muted); }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Paste a link. It sorts itself out.</p>
+
+    <div class="saver">
+      <input id="url" type="text" placeholder="Paste a link and press Save…" autocomplete="off">
+      <button id="save">Save</button>
+    </div>
+    <p class="hint">Tip: try saving the <b>same link twice</b>, and try <b>clicking a title or its summary</b> to rename it.</p>
+
+    <div class="notice" id="notice"></div>
+    <p class="count" id="count"></p>
+    <ul id="list"></ul>
+    <div class="empty" id="empty">Nothing saved yet. Paste your first link above.</div>
+  </div>
+
+<script>
+const KNOWN = {
+  "nytimes.com": { site: "The New York Times", emoji: "🗞️" },
+  "cooking.nytimes.com": { site: "NYT Cooking", emoji: "🍝" },
+  "github.com": { site: "GitHub", emoji: "🐙" },
+  "youtube.com": { site: "YouTube", emoji: "▶️" },
+  "wikipedia.org": { site: "Wikipedia", emoji: "📚" },
+  "medium.com": { site: "Medium", emoji: "✍️" },
+  "bbc.com": { site: "BBC", emoji: "📰" },
+  "stackoverflow.com": { site: "Stack Overflow", emoji: "💬" },
+};
+function titleCase(s){return s.replace(/[-_]+/g," ").replace(/\.[a-z]{2,4}$/i,"").trim()
+  .replace(/\s+/g," ").replace(/\b\w/g,c=>c.toUpperCase());}
+
+// Normalise so trivially-different forms of the same link count as the same.
+function normalize(rawUrl){
+  let url; try { url = new URL(rawUrl.includes("://")?rawUrl:"https://"+rawUrl); } catch { return null; }
+  const host = url.hostname.replace(/^www\./,"").toLowerCase();
+  let path = url.pathname.replace(/\/+$/,"");
+  return host + path + (url.search||"");
+}
+function resolve(rawUrl){
+  let url; try { url = new URL(rawUrl.includes("://")?rawUrl:"https://"+rawUrl); } catch { return null; }
+  const host = url.hostname.replace(/^www\./,"");
+  const key = Object.keys(KNOWN).find(k=>host===k||host.endsWith("."+k))||host;
+  const known = KNOWN[key]||{site:titleCase(host.split(".")[0]),emoji:"🔖"};
+  const seg = url.pathname.split("/").filter(Boolean).pop()||"";
+  let title = seg?titleCase(decodeURIComponent(seg)):known.site+" — home";
+  if(title.length>70) title=title.slice(0,67)+"…";
+  return { id: normalize(rawUrl), url:url.href, host, site:known.site, emoji:known.emoji,
+    title, desc:"A page on "+known.site+". (In the real app this line shows the page's own summary.)" };
+}
+
+const list=document.getElementById("list"), empty=document.getElementById("empty"),
+  countEl=document.getElementById("count"), notice=document.getElementById("notice");
+const items=[];
+
+function showNotice(msg){ notice.textContent=msg; notice.style.display="block";
+  clearTimeout(showNotice._t); showNotice._t=setTimeout(()=>notice.style.display="none",4000); }
+
+function render(){
+  list.innerHTML=""; empty.style.display=items.length?"none":"block";
+  countEl.textContent=items.length?items.length+(items.length===1?" link saved":" links saved"):"";
+  items.forEach((it)=>{
+    const li=document.createElement("li"); li.className="item"; li.dataset.id=it.id;
+    li.innerHTML=`
+      <div class="favicon">${it.emoji}</div>
+      <div class="body">
+        <p class="title"><a href="${it.url}" target="_blank" rel="noopener">${escapeHtml(it.title)}</a><span class="pencil">✎</span></p>
+        <p class="desc"><span class="editable descedit">${escapeHtml(it.desc)}</span></p>
+        <p class="meta">${it.site} · ${it.host}</p>
+      </div>`;
+    // click the title text (not the link) to rename
+    const titleP=li.querySelector(".title");
+    titleP.addEventListener("click",e=>{ if(e.target.tagName==="A") return; startEdit(it,"title",titleP,false); });
+    li.querySelector(".pencil").addEventListener("click",()=>startEdit(it,"title",titleP,false));
+    li.querySelector(".descedit").addEventListener("click",()=>startEdit(it,"desc",li.querySelector(".desc"),true));
+    list.appendChild(li);
+  });
+}
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+function startEdit(it,field,container,multiline){
+  const current=it[field];
+  const el=document.createElement(multiline?"textarea":"input");
+  el.className="edit-field"; el.value=current;
+  container.replaceWith(wrap(el,container,field==="title"?"title":"desc"));
+  el.focus(); el.select();
+  const commit=()=>{ const v=el.value.trim(); if(v) it[field]=v; render(); };
+  el.addEventListener("keydown",e=>{
+    if(e.key==="Enter"&&!multiline){e.preventDefault();commit();}
+    if(e.key==="Escape"){render();}
+  });
+  el.addEventListener("blur",commit);
+}
+function wrap(el,oldContainer,cls){ const p=document.createElement("p"); p.className=cls; p.appendChild(el); return p; }
+
+function flash(id){
+  const li=list.querySelector(`li[data-id="${cssEscape(id)}"]`);
+  if(!li) return;
+  li.classList.add("flash"); li.scrollIntoView({behavior:"smooth",block:"center"});
+  setTimeout(()=>li.classList.remove("flash"),1600);
+}
+function cssEscape(s){return s.replace(/["\\]/g,"\\$&");}
+
+function showResolving(){
+  empty.style.display="none";
+  const li=document.createElement("li"); li.className="item resolving";
+  li.innerHTML=`<div class="favicon"><div class="spinner"></div></div>
+    <div class="body"><p class="title">Figuring out this page…</p>
+    <p class="meta">Reading the title and summary for you</p></div>`;
+  list.insertBefore(li,list.firstChild); return li;
+}
+
+const input=document.getElementById("url"), btn=document.getElementById("save");
+function save(){
+  const raw=input.value.trim(); if(!raw) return;
+  const resolved=resolve(raw);
+  if(!resolved){ alert("That doesn't look like a link yet."); return; }
+  input.value="";
+  // Already saved? Don't duplicate — take them to the one they have.
+  const existing=items.find(x=>x.id===resolved.id);
+  if(existing){ showNotice("You already saved this one — here it is. You can rename it below."); flash(existing.id); return; }
+  const placeholder=showResolving();
+  setTimeout(()=>{ placeholder.remove(); items.unshift(resolved); render(); },850);
+}
+btn.addEventListener("click",save);
+input.addEventListener("keydown",e=>{if(e.key==="Enter")save();});
+render();
+</script>
+</body>
+</html>

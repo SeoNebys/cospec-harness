@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 02 (labels at save)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; background: var(--bg); color: #1a1a1e; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 80px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+
+  .switch { display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
+  .switch button { border:1px solid var(--line); background:#fff; color:#333;
+      border-radius:20px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  .switch button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .styleName { font-size:13px; color:var(--muted); margin-bottom:14px; }
+  .styleName b { color:#1a1a1e; }
+
+  .saver { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .row { display: flex; gap: 8px; }
+  input[type=url], input[type=text], textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+      border-radius: 8px; font-size: 14px; font-family: inherit; background:#fff; }
+  textarea { resize: vertical; min-height: 54px; }
+  button.primary { background: var(--accent); color: #fff; border:0; border-radius:8px;
+      padding:10px 16px; font-size:14px; cursor:pointer; }
+  button.ghost { background:#eee; color:#333; border:0; border-radius:8px;
+      padding:10px 16px; font-size:14px; cursor:pointer; }
+
+  .fields { margin-top: 14px; display: none; }
+  .fields.show { display: block; }
+  label.fld { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  .fetching { margin-top: 14px; font-size: 13px; color: var(--muted); display:none; }
+  .fetching.show { display: block; }
+  .save-actions { margin-top:16px; display:flex; gap:8px; align-items:center; }
+
+  /* label styles */
+  .chips { display:flex; flex-wrap:wrap; gap:6px; padding:6px; border:1px solid var(--line);
+           border-radius:8px; align-items:center; }
+  .chip { background:#eaefff; color:var(--accent); border-radius:14px; padding:4px 10px;
+          font-size:13px; display:inline-flex; align-items:center; gap:6px; }
+  .chip button { border:0; background:transparent; color:var(--accent); cursor:pointer;
+          font-size:14px; line-height:1; padding:0; }
+  .chips input { border:0; outline:0; flex:1; min-width:120px; padding:6px; font-size:14px; }
+  .suggest { margin-top:6px; font-size:12px; color:var(--muted); }
+  .suggest button { border:1px dashed var(--line); background:#fff; color:#333;
+          border-radius:12px; padding:3px 9px; font-size:12px; cursor:pointer; margin-right:5px; }
+  .picklist { display:flex; flex-wrap:wrap; gap:8px; }
+  .picklist label { display:inline-flex; align-items:center; gap:6px; font-size:14px;
+          background:#f2f3f7; border-radius:8px; padding:7px 11px; cursor:pointer; }
+  .picklist label.sel { background:#eaefff; color:var(--accent); }
+  .newlabel { margin-top:8px; }
+
+  .list { margin-top: 28px; }
+  .list h2 { font-size: 13px; color: var(--muted); text-transform: uppercase;
+             letter-spacing: .04em; margin: 0 0 12px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px; margin-bottom:10px; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .card .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .card .desc { font-size:13px; color:#3a3a42; margin:8px 0 0; }
+  .card .lbls { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .card .lbls span { background:#eaefff; color:var(--accent); border-radius:12px;
+          padding:2px 9px; font-size:12px; }
+  .empty { color: var(--muted); font-size:14px; padding: 16px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 02 — adding labels while saving</p>
+
+  <div class="switch">
+    <button data-style="A" class="on">Style A</button>
+    <button data-style="B">Style B</button>
+    <button data-style="C">Style C</button>
+  </div>
+  <div class="styleName" id="styleName"></div>
+
+  <div class="saver">
+    <div class="row">
+      <input id="urlInput" type="url" placeholder="Paste a link here…" autocomplete="off" />
+      <button id="addBtn" class="primary">Add</button>
+    </div>
+    <div id="fetching" class="fetching">Reading the page…</div>
+    <div id="fields" class="fields">
+      <label class="fld">Title</label>
+      <input id="titleField" type="text" />
+      <label class="fld">Description</label>
+      <textarea id="descField"></textarea>
+      <label class="fld">Labels</label>
+      <div id="labelArea"></div>
+      <div class="save-actions">
+        <button id="saveBtn" class="primary">Save bookmark</button>
+        <button id="cancelBtn" class="ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="list">
+    <h2>Saved</h2>
+    <div id="cards"></div>
+  </div>
+</div>
+
+<script>
+  const KNOWN = {
+    "smittenkitchen.com": { title: "Simplest Brothy Beans and Rice",
+      desc: "A weeknight one-pot dinner: creamy beans simmered with garlic and herbs, over rice. About 40 minutes." },
+    "nytimes.com": { title: "How to Read More Books This Year",
+      desc: "Practical habits from lifelong readers for fitting more reading into a busy schedule." },
+    "github.com": { title: "ripgrep — recursively search directories for a regex pattern",
+      desc: "A line-oriented search tool that recursively searches your directory for a regex pattern." }
+  };
+  function lookup(url){ let h=""; try{h=new URL(url).hostname.replace(/^www\./,"");}catch(e){}
+    if(KNOWN[h]) return KNOWN[h];
+    const n=h?h.split(".")[0]:"Saved page";
+    return {title:n.charAt(0).toUpperCase()+n.slice(1)+" — page", desc:""}; }
+
+  const EXISTING = ["work","reading","tools"];   // labels "used before"
+  const STYLE_DESC = {
+    A: "<b>Style A — type them, comma-separated.</b> One text box; type <code>recipes, dinner</code>. Simplest possible.",
+    B: "<b>Style B — type + Enter makes a tag.</b> Each label becomes a removable pill; labels you've used before appear as one-tap suggestions.",
+    C: "<b>Style C — pick from your existing labels.</b> Tap to select from labels you already use, and add a brand-new one when you need it."
+  };
+
+  let style = "A";
+  let pendingUrl = "";
+  let currentLabels = [];
+  const saved = [];
+
+  const urlInput=document.getElementById("urlInput"), addBtn=document.getElementById("addBtn"),
+        fetching=document.getElementById("fetching"), fields=document.getElementById("fields"),
+        titleF=document.getElementById("titleField"), descF=document.getElementById("descField"),
+        labelArea=document.getElementById("labelArea"), saveBtn=document.getElementById("saveBtn"),
+        cancelBtn=document.getElementById("cancelBtn"), cards=document.getElementById("cards"),
+        styleName=document.getElementById("styleName");
+
+  document.querySelectorAll(".switch button").forEach(b=>{
+    b.addEventListener("click",()=>{
+      document.querySelectorAll(".switch button").forEach(x=>x.classList.remove("on"));
+      b.classList.add("on"); style=b.dataset.style; styleName.innerHTML=STYLE_DESC[style];
+      currentLabels=[]; if(fields.classList.contains("show")) renderLabelArea();
+    });
+  });
+  styleName.innerHTML = STYLE_DESC["A"];
+
+  function renderLabelArea(){
+    if(style==="A"){
+      labelArea.innerHTML='<input id="labelText" type="text" placeholder="e.g. recipes, dinner" />';
+      document.getElementById("labelText").value = currentLabels.join(", ");
+    } else if(style==="B"){
+      labelArea.innerHTML =
+        '<div class="chips" id="chips"></div>'+
+        '<div class="suggest">Used before: '+
+          EXISTING.map(l=>'<button data-add="'+l+'">'+l+'</button>').join('')+'</div>';
+      const chips=document.getElementById("chips");
+      currentLabels.forEach(l=>{
+        const c=document.createElement("span"); c.className="chip";
+        c.innerHTML=l+' <button data-del="'+l+'">×</button>'; chips.appendChild(c);
+      });
+      const inp=document.createElement("input"); inp.id="chipInput";
+      inp.placeholder=currentLabels.length?"":"type a label, press Enter"; chips.appendChild(inp);
+      inp.addEventListener("keydown",e=>{
+        if(e.key==="Enter"&&inp.value.trim()){ addLabel(inp.value.trim()); }
+      });
+      chips.querySelectorAll("[data-del]").forEach(x=>x.addEventListener("click",()=>{
+        currentLabels=currentLabels.filter(l=>l!==x.dataset.del); renderLabelArea();
+        document.getElementById("chipInput").focus();
+      }));
+      document.querySelectorAll("[data-add]").forEach(x=>x.addEventListener("click",()=>{
+        addLabel(x.dataset.add); document.getElementById("chipInput").focus();
+      }));
+    } else {
+      const all=[...new Set([...EXISTING,...currentLabels])];
+      labelArea.innerHTML='<div class="picklist">'+
+        all.map(l=>'<label class="'+(currentLabels.includes(l)?"sel":"")+'">'+
+          '<input type="checkbox" data-pick="'+l+'" '+(currentLabels.includes(l)?"checked":"")+'>'+l+'</label>').join('')+
+        '</div><div class="newlabel"><input id="newLabel" type="text" placeholder="+ new label, press Enter"></div>';
+      labelArea.querySelectorAll("[data-pick]").forEach(x=>x.addEventListener("change",()=>{
+        if(x.checked) currentLabels.push(x.dataset.pick);
+        else currentLabels=currentLabels.filter(l=>l!==x.dataset.pick);
+        renderLabelArea();
+      }));
+      document.getElementById("newLabel").addEventListener("keydown",e=>{
+        const v=e.target.value.trim();
+        if(e.key==="Enter"&&v){ addLabel(v); }
+      });
+    }
+  }
+  function addLabel(l){ if(!currentLabels.includes(l)) currentLabels.push(l); renderLabelArea();
+    if(style==="B"){ const i=document.getElementById("chipInput"); if(i) i.focus(); } }
+
+  function collectLabelsForSave(){
+    if(style==="A"){
+      const t=document.getElementById("labelText");
+      return t.value.split(",").map(s=>s.trim()).filter(Boolean);
+    }
+    return [...currentLabels];
+  }
+
+  function renderList(){
+    if(!saved.length){ cards.innerHTML='<div class="empty">Nothing saved yet.</div>'; return; }
+    cards.innerHTML="";
+    saved.forEach(b=>{
+      const c=document.createElement("div"); c.className="card";
+      c.innerHTML='<p class="title"></p><div class="url"></div>'+
+        (b.desc?'<p class="desc"></p>':'')+
+        (b.labels.length?'<div class="lbls"></div>':'');
+      c.querySelector(".title").textContent=b.title;
+      c.querySelector(".url").textContent=b.url;
+      if(b.desc) c.querySelector(".desc").textContent=b.desc;
+      if(b.labels.length){ const w=c.querySelector(".lbls");
+        b.labels.forEach(l=>{const s=document.createElement("span"); s.textContent=l; w.appendChild(s);}); }
+      cards.appendChild(c);
+    });
+  }
+
+  function startAdd(){
+    const url=urlInput.value.trim(); if(!url) return; pendingUrl=url;
+    fields.classList.remove("show"); fetching.classList.add("show");
+    setTimeout(()=>{ const m=lookup(url); titleF.value=m.title; descF.value=m.desc;
+      currentLabels=[]; renderLabelArea();
+      fetching.classList.remove("show"); fields.classList.add("show");
+      titleF.focus(); titleF.select(); },650);
+  }
+  addBtn.addEventListener("click",startAdd);
+  urlInput.addEventListener("keydown",e=>{if(e.key==="Enter")startAdd();});
+  saveBtn.addEventListener("click",()=>{
+    saved.unshift({url:pendingUrl,title:titleF.value.trim(),desc:descF.value.trim(),
+      labels:collectLabelsForSave()});
+    urlInput.value="";titleF.value="";descF.value="";currentLabels=[];pendingUrl="";
+    fields.classList.remove("show"); renderList(); urlInput.focus();
+  });
+  cancelBtn.addEventListener("click",()=>{ fields.classList.remove("show");
+    titleF.value="";descF.value="";currentLabels=[]; urlInput.focus(); });
+
+  renderList();
+</script>
+</body>
+</html>

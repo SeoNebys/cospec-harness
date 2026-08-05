@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype 08 (not-a-link & duplicates)</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #f4f5f7; color: #1c1e21; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 36px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #65676b; margin: 0 0 24px; font-size: 14px; }
+  .adder { display: flex; gap: 8px; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .adder input { flex: 1; border: 1px solid #d0d3d8; border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  .adder button { border: 0; background: #2d6cdf; color: #fff; font-size: 15px; padding: 0 18px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+  .notice { margin-top: 10px; border-radius: 10px; padding: 12px 14px; font-size: 14px; display: none; align-items: center; gap: 10px; }
+  .notice.show { display: flex; }
+  .notice.warn { background: #fff8e6; border: 1px solid #f0d68a; color: #7a5a00; }
+  .notice.info { background: #eaf1ff; border: 1px solid #b9cdf5; color: #274b8f; }
+  .notice .txt { flex: 1; }
+  .notice button { border: 0; border-radius: 6px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .notice .primary { background: #2d6cdf; color: #fff; }
+  .notice .ghost { background: transparent; color: inherit; text-decoration: underline; }
+
+  .count { margin: 22px 0 12px; font-size: 13px; color: #65676b; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li { background: #fff; border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 2px rgba(0,0,0,.06); transition: box-shadow .2s, background .2s; }
+  li.flash { background: #fff6d8; box-shadow: 0 0 0 2px #f0c419; }
+  .title { font-size: 15px; font-weight: 600; color: #2d6cdf; }
+  .link-url { font-size: 12px; color: #90949c; word-break: break-all; margin-top: 3px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Your one spot for links.</p>
+    <form class="adder" id="adder">
+      <input id="url" type="text" placeholder="Paste a link here…" autocomplete="off" autofocus>
+      <button type="submit">Save</button>
+    </form>
+    <div class="notice" id="notice"></div>
+    <div class="count" id="count"></div>
+    <ul id="list"></ul>
+  </div>
+
+<script>
+  const items = [
+    { title: 'How to Pull the Perfect Shot of Espresso — Coffee Weekly', url: 'https://coffeeweekly.com/perfect-espresso' },
+    { title: 'The Best Hiking Trails Near Portland', url: 'https://trailfinder.example.com/portland' }
+  ];
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+  const form = document.getElementById('adder');
+  const urlEl = document.getElementById('url');
+  const notice = document.getElementById('notice');
+
+  function looksLikeUrl(s) { return /\./.test(s) && !/\s/.test(s); }
+  function norm(u) { return u.trim().replace(/^https?:\/\//,'').replace(/\/+$/,'').toLowerCase(); }
+  function prettify(seg){ return seg.replace(/[-_]+/g,' ').replace(/\.[a-z]+$/,'').replace(/\b\w/g,c=>c.toUpperCase()).trim(); }
+  function makeName(url){ try { const u=new URL(url.match(/^https?:\/\//)?url:'https://'+url); const h=u.hostname.replace(/^www\./,''); const s=u.pathname.split('/').filter(Boolean).pop(); return s&&s.length>2?prettify(s)+' — '+prettify(h.split('.')[0]):prettify(h.split('.')[0]); } catch(e){ return url; } }
+
+  function clearNotice(){ notice.className='notice'; notice.innerHTML=''; }
+  function render(flashUrl){
+    countEl.textContent = items.length + (items.length===1?' link saved':' links saved');
+    listEl.innerHTML='';
+    items.forEach(it=>{
+      const li=document.createElement('li');
+      const t=document.createElement('div'); t.className='title'; t.textContent=it.title;
+      const u=document.createElement('div'); u.className='link-url'; u.textContent=it.url;
+      li.appendChild(t); li.appendChild(u); listEl.appendChild(li);
+      if(flashUrl && norm(it.url)===norm(flashUrl)){ li.classList.add('flash'); li.scrollIntoView({block:'center'}); setTimeout(()=>li.classList.remove('flash'),1500); }
+    });
+  }
+  function addLink(url){ items.unshift({ title: makeName(url), url }); }
+
+  form.addEventListener('submit', e=>{
+    e.preventDefault();
+    const url=urlEl.value.trim(); if(!url) return;
+    clearNotice();
+
+    // Duplicate?
+    const dup = items.find(it=>norm(it.url)===norm(url));
+    if(dup){
+      notice.className='notice info show';
+      notice.innerHTML='<span class="txt">You already saved this one — here it is.</span>';
+      render(dup.url); urlEl.value=''; return;
+    }
+    // Not a link?
+    if(!looksLikeUrl(url)){
+      notice.className='notice warn show';
+      const txt=document.createElement('span'); txt.className='txt'; txt.textContent='“'+url+'” doesn\'t look like a web link. Save it anyway?';
+      const save=document.createElement('button'); save.className='primary'; save.textContent='Save anyway';
+      const cancel=document.createElement('button'); cancel.className='ghost'; cancel.textContent='Cancel';
+      save.addEventListener('click', ()=>{ addLink(url); urlEl.value=''; clearNotice(); render(); });
+      cancel.addEventListener('click', ()=>{ clearNotice(); urlEl.focus(); });
+      notice.appendChild(txt); notice.appendChild(save); notice.appendChild(cancel);
+      return;
+    }
+    // Normal
+    addLink(url); urlEl.value=''; render();
+  });
+
+  render();
+</script>
+</body>
+</html>

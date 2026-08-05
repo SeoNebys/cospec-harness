@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — rename options</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2330; --muted:#6b7480; --line:#e6e9ee;
+    --accent:#2f6df6; --flash:#fff6d6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:740px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+
+  .switch { display:flex; gap:8px; background:#eceff3; padding:5px; border-radius:12px; margin:0 0 8px; }
+  .switch button { flex:1; padding:9px 8px; border:none; background:transparent; border-radius:9px;
+    font:inherit; font-weight:600; color:var(--muted); cursor:pointer; }
+  .switch button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .modehint { color:var(--muted); font-size:13px; margin:0 0 20px; min-height:18px; }
+
+  .saver { display:flex; gap:10px; margin-bottom:8px; }
+  .saver input { flex:1; padding:13px 15px; font-size:15px; border:1px solid var(--line);
+    border-radius:10px; background:var(--card); outline:none; }
+  .saver input:focus { border-color:var(--accent); }
+  .saver button { padding:0 20px; font-size:15px; font-weight:600; color:#fff;
+    background:var(--accent); border:none; border-radius:10px; cursor:pointer; }
+  .hint { color:var(--muted); font-size:13px; margin:0 0 18px; }
+  .notice { background:#eef3ff; border:1px solid #d4e0ff; border-radius:10px; padding:10px 14px;
+    font-size:13.5px; margin:0 0 18px; display:none; }
+  .count { color:var(--muted); font-size:13px; margin:0 0 12px; }
+
+  ul { list-style:none; margin:0; padding:0; }
+  li.item { position:relative; background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:10px; display:flex; gap:14px; align-items:flex-start;
+    transition:background .25s,border-color .25s; }
+  li.item.flash { background:var(--flash); border-color:#f0e3a8; }
+  .favicon { width:32px; height:32px; border-radius:8px; flex:none; background:#eef1f6;
+    display:grid; place-items:center; font-size:16px; }
+  .body { min-width:0; flex:1; }
+  .title { font-weight:600; font-size:15.5px; margin:0 0 2px; }
+  .title a { color:var(--ink); text-decoration:none; }
+  .title a:hover { text-decoration:underline; }
+  .desc { color:var(--muted); font-size:13.5px; margin:0 0 5px; }
+  .desc .descedit { cursor:text; border-radius:5px; padding:1px 4px; margin-left:-4px; border:1px solid transparent; }
+  .desc .descedit:hover { background:#f2f4f8; }
+  .meta { color:var(--muted); font-size:12.5px; }
+  .edit-field { width:100%; font:inherit; color:var(--ink); border:1px solid var(--accent);
+    border-radius:6px; padding:4px 6px; outline:none; }
+  textarea.edit-field { resize:vertical; min-height:40px; }
+
+  /* per-row action area (right side) */
+  .actions { flex:none; display:flex; align-items:center; gap:6px; }
+  .btn { border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:8px;
+    padding:5px 9px; font:inherit; font-size:13px; cursor:pointer; }
+  .btn:hover { border-color:#cdd3db; color:var(--ink); }
+
+  /* B: menu */
+  .menu { position:absolute; right:14px; top:46px; background:#fff; border:1px solid var(--line);
+    border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.12); padding:5px; z-index:5; display:none; min-width:160px; }
+  .menu button { display:block; width:100%; text-align:left; border:none; background:none; padding:8px 10px;
+    border-radius:7px; font:inherit; cursor:pointer; color:var(--ink); }
+  .menu button:hover { background:#f2f4f8; }
+  .menu button.future { color:#aab1bb; }
+
+  /* C: edit mode form */
+  .editform { flex:1; }
+  .editform label { display:block; font-size:12px; color:var(--muted); margin:6px 0 3px; }
+  .editform .done { margin-top:10px; background:var(--accent); color:#fff; border:none;
+    border-radius:8px; padding:7px 14px; font:inherit; font-weight:600; cursor:pointer; }
+
+  .spinner { width:16px; height:16px; border:2px solid var(--line); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .empty { text-align:center; color:var(--muted); padding:40px 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Paste a link. It sorts itself out.</p>
+
+    <div class="switch">
+      <button data-mode="button" class="on">A · Rename button</button>
+      <button data-mode="menu">B · Row menu (⋯)</button>
+      <button data-mode="editmode">C · Edit mode</button>
+    </div>
+    <p class="modehint" id="modehint"></p>
+
+    <div class="saver">
+      <input id="url" type="text" placeholder="Paste a link and press Save…" autocomplete="off">
+      <button id="save">Save</button>
+    </div>
+    <p class="hint">The first row has a deliberately <b>garbled title</b> — try to rescue it. Also try saving
+       <code>bbc.com/news/world-report</code>, then saving it again <b>with tracking junk</b>:
+       <code>bbc.com/news/world-report?utm_source=email&fbclid=xyz</code>.</p>
+
+    <div class="notice" id="notice"></div>
+    <p class="count" id="count"></p>
+    <ul id="list"></ul>
+    <div class="empty" id="empty" style="display:none">Nothing saved yet.</div>
+  </div>
+
+<script>
+const KNOWN={ "nytimes.com":{site:"The New York Times",emoji:"🗞️"},
+  "cooking.nytimes.com":{site:"NYT Cooking",emoji:"🍝"}, "github.com":{site:"GitHub",emoji:"🐙"},
+  "youtube.com":{site:"YouTube",emoji:"▶️"}, "wikipedia.org":{site:"Wikipedia",emoji:"📚"},
+  "bbc.com":{site:"BBC",emoji:"📰"}, "stackoverflow.com":{site:"Stack Overflow",emoji:"💬"} };
+// Tracking params that are safe to ignore when deciding "same link".
+const JUNK=new Set(["utm_source","utm_medium","utm_campaign","utm_term","utm_content",
+  "fbclid","gclid","mc_cid","mc_eid","igshid","ref","ref_src","spm","_hsenc","_hsmi"]);
+
+function titleCase(s){return s.replace(/[-_]+/g," ").replace(/\.[a-z]{2,4}$/i,"").trim()
+  .replace(/\s+/g," ").replace(/\b\w/g,c=>c.toUpperCase());}
+function parse(raw){ try { return new URL(raw.includes("://")?raw:"https://"+raw); } catch { return null; } }
+
+// Normalise: drop www, trailing slash, and known tracking params — but KEEP
+// meaningful params (like ?v=… that pick which page you mean).
+function normalize(raw){
+  const u=parse(raw); if(!u) return null;
+  const host=u.hostname.replace(/^www\./,"").toLowerCase();
+  const path=u.pathname.replace(/\/+$/,"");
+  const kept=[...u.searchParams.entries()].filter(([k])=>!JUNK.has(k.toLowerCase()))
+    .sort((a,b)=>a[0]<b[0]?-1:1).map(([k,v])=>k+"="+v).join("&");
+  return host+path+(kept?"?"+kept:"");
+}
+function resolve(raw){
+  const u=parse(raw); if(!u) return null;
+  const host=u.hostname.replace(/^www\./,"");
+  const key=Object.keys(KNOWN).find(k=>host===k||host.endsWith("."+k))||host;
+  const known=KNOWN[key]||{site:titleCase(host.split(".")[0]),emoji:"🔖"};
+  const seg=u.pathname.split("/").filter(Boolean).pop()||"";
+  let title=seg?titleCase(decodeURIComponent(seg)):known.site+" — home";
+  if(title.length>70) title=title.slice(0,67)+"…";
+  return { id:normalize(raw), url:u.href, host, site:known.site, emoji:known.emoji, title,
+    desc:"A page on "+known.site+". (Real app shows the page's own summary here.)" };
+}
+
+let mode="button";
+const MODEHINTS={
+  button:"A · A small “Rename” control sits on every row, always visible. Click the link to open; click Rename to edit.",
+  menu:"B · Each row has a “⋯” button that opens a little menu — Rename lives there, with room for more tidy-up actions later.",
+  editmode:"C · An “Edit” button flips the whole row into a form with labelled fields — made to hold more than just the title later."
+};
+const list=document.getElementById("list"), empty=document.getElementById("empty"),
+  countEl=document.getElementById("count"), notice=document.getElementById("notice"),
+  modehint=document.getElementById("modehint");
+
+const items=[
+  { id:normalize("nytimes.com/2024/recipes/pasta-al-limone-recipe-8813.html"),
+    url:"https://www.nytimes.com/2024/recipes/pasta-al-limone-recipe-8813.html",
+    host:"nytimes.com", site:"NYT Cooking", emoji:"🍝",
+    title:"Pasta Al Limone Recipe 8813", // deliberately garbled
+    desc:"A page on NYT Cooking. (Real app shows the page's own summary here.)" },
+  { id:normalize("bbc.com/news/technology-latest"),
+    url:"https://www.bbc.com/news/technology-latest", host:"bbc.com", site:"BBC", emoji:"📰",
+    title:"Technology Latest", desc:"A page on BBC. (Real app shows the page's own summary here.)" },
+];
+
+function showNotice(m){ notice.textContent=m; notice.style.display="block";
+  clearTimeout(showNotice._t); showNotice._t=setTimeout(()=>notice.style.display="none",4000); }
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function cssEsc(s){return s.replace(/["\\]/g,"\\$&");}
+
+let editing=null; // id currently in edit-mode form (mode C)
+
+function render(){
+  closeMenus();
+  list.innerHTML=""; empty.style.display=items.length?"none":"block";
+  countEl.textContent=items.length?items.length+(items.length===1?" link saved":" links saved"):"";
+  modehint.textContent=MODEHINTS[mode];
+  items.forEach(it=>{
+    const li=document.createElement("li"); li.className="item"; li.dataset.id=it.id;
+
+    if(mode==="editmode" && editing===it.id){
+      li.innerHTML=`<div class="favicon">${it.emoji}</div>
+        <div class="editform">
+          <label>Title</label><input class="edit-field t" value="${esc(it.title)}">
+          <label>Summary</label><textarea class="edit-field d">${esc(it.desc)}</textarea>
+          <button class="done">Done</button>
+        </div>`;
+      const t=li.querySelector(".t"), d=li.querySelector(".d");
+      li.querySelector(".done").addEventListener("click",()=>{
+        if(t.value.trim()) it.title=t.value.trim();
+        if(d.value.trim()) it.desc=d.value.trim(); editing=null; render();
+      });
+      t.focus(); t.select();
+      list.appendChild(li); return;
+    }
+
+    // shared body
+    li.innerHTML=`<div class="favicon">${it.emoji}</div>
+      <div class="body">
+        <p class="title"><a href="${it.url}" target="_blank" rel="noopener">${esc(it.title)}</a></p>
+        <p class="desc"><span class="descedit">${esc(it.desc)}</span></p>
+        <p class="meta">${it.site} · ${it.host}</p>
+      </div>
+      <div class="actions"></div>`;
+    // summary inline edit (identical across modes)
+    li.querySelector(".descedit").addEventListener("click",()=>inlineEdit(it,"desc",li.querySelector(".desc"),true));
+
+    const actions=li.querySelector(".actions");
+    if(mode==="button"){
+      const b=document.createElement("button"); b.className="btn"; b.textContent="✎ Rename";
+      b.addEventListener("click",()=>inlineEdit(it,"title",li.querySelector(".title"),false));
+      actions.appendChild(b);
+    } else if(mode==="menu"){
+      const b=document.createElement("button"); b.className="btn"; b.textContent="⋯";
+      b.addEventListener("click",e=>{ e.stopPropagation(); openMenu(li,it); });
+      actions.appendChild(b);
+    } else if(mode==="editmode"){
+      const b=document.createElement("button"); b.className="btn"; b.textContent="Edit";
+      b.addEventListener("click",()=>{ editing=it.id; render(); });
+      actions.appendChild(b);
+    }
+    list.appendChild(li);
+  });
+}
+
+function inlineEdit(it,field,container,multiline){
+  const el=document.createElement(multiline?"textarea":"input");
+  el.className="edit-field"; el.value=it[field];
+  const p=document.createElement("p"); p.className=container.className; p.appendChild(el);
+  container.replaceWith(p); el.focus(); el.select();
+  const commit=()=>{ if(el.value.trim()) it[field]=el.value.trim(); render(); };
+  el.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!multiline){e.preventDefault();commit();}
+    if(e.key==="Escape") render(); });
+  el.addEventListener("blur",commit);
+}
+
+function openMenu(li,it){
+  closeMenus();
+  const m=document.createElement("div"); m.className="menu";
+  m.innerHTML=`<button data-a="rename">✎ Rename title</button>
+    <button data-a="desc">✍️ Edit summary</button>
+    <button class="future" disabled>＋ More tidy-up (later)</button>`;
+  m.querySelector('[data-a="rename"]').addEventListener("click",()=>{ closeMenus(); inlineEdit(it,"title",li.querySelector(".title"),false); });
+  m.querySelector('[data-a="desc"]').addEventListener("click",()=>{ closeMenus(); inlineEdit(it,"desc",li.querySelector(".desc"),true); });
+  li.appendChild(m); m.style.display="block";
+}
+function closeMenus(){ document.querySelectorAll(".menu").forEach(m=>m.remove()); }
+document.addEventListener("click",e=>{ if(!e.target.closest(".menu")&&!e.target.closest(".actions")) closeMenus(); });
+
+function flash(id){ const li=list.querySelector(`li[data-id="${cssEsc(id)}"]`); if(!li) return;
+  li.classList.add("flash"); li.scrollIntoView({behavior:"smooth",block:"center"});
+  setTimeout(()=>li.classList.remove("flash"),1600); }
+
+const input=document.getElementById("url"), btn=document.getElementById("save");
+function save(){
+  const raw=input.value.trim(); if(!raw) return;
+  const r=resolve(raw); if(!r){ alert("That doesn't look like a link yet."); return; }
+  input.value="";
+  const existing=items.find(x=>x.id===r.id);
+  if(existing){ showNotice("You already saved this one — here it is. (Even with the tracking junk, it's the same page.)"); flash(existing.id); return; }
+  const li=document.createElement("li"); li.className="item"; empty.style.display="none";
+  li.innerHTML=`<div class="favicon"><div class="spinner"></div></div>
+    <div class="body"><p class="title">Figuring out this page…</p><p class="meta">Reading the title and summary</p></div>`;
+  list.insertBefore(li,list.firstChild);
+  setTimeout(()=>{ items.unshift(r); render(); },850);
+}
+btn.addEventListener("click",save);
+input.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); });
+
+document.querySelectorAll(".switch button").forEach(b=>{
+  b.addEventListener("click",()=>{ mode=b.dataset.mode; editing=null;
+    document.querySelectorAll(".switch button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
+});
+render();
+</script>
+</body>
+</html>

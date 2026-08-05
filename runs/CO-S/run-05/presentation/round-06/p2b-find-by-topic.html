@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — find by topic (B)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#2f6fed; --bg:#fafafb; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+         margin: 0; background: var(--bg); color: #1c1c20; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.06em;
+         color:#255fd4; background:#e9f0ff; padding:4px 9px; border-radius:20px; margin-bottom:14px;}
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 8px; }
+  .chip { padding:7px 14px; font-size:13.5px; font-weight:600; border-radius:20px;
+          border:1px solid var(--line); background:#fff; color:#3a3a40; cursor:pointer; }
+  .chip:hover { border-color:#c3c9d4; }
+  .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .count { font-size: 12.5px; color: var(--muted); margin: 14px 0 10px; min-height:16px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { display: flex; align-items: center; gap: 12px; padding: 14px 4px;
+       border-bottom: 1px solid var(--line); }
+  li:first-child { border-top: 1px solid var(--line); }
+  .favicon { width: 22px; height: 22px; flex: none; border-radius: 5px;
+       background: #dfe3ea; display: grid; place-items: center;
+       font-size: 11px; color: #7a8395; font-weight: 700; }
+  .meta { min-width: 0; }
+  .title { font-size: 15px; font-weight: 600; }
+  .title a { color: inherit; text-decoration: none; }
+  .title a:hover { text-decoration: underline; }
+  .url { font-size: 12.5px; color: var(--muted); }
+  .tag { font-size:11px; font-weight:700; color:#6a5b1f; background:#fbf1c7;
+         padding:2px 7px; border-radius:12px; margin-left:auto; flex:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="badge">APPROACH B · TOPICS</span>
+  <h1>My Bookmarks</h1>
+  <p class="sub">Find a link by picking the topic you filed it under.</p>
+
+  <div class="chips" id="chips"></div>
+
+  <p class="count" id="count"></p>
+  <ul id="list"></ul>
+</div>
+
+<script>
+  const DATA = [
+    {t:"Best Hikes Near Portland", h:"nytimes.com", g:"Travel"},
+    {t:"How to Cook Perfect Rice Every Time", h:"seriouseats.com", g:"Cooking"},
+    {t:"Rust Ownership Explained", h:"doc.rust-lang.org", g:"Coding"},
+    {t:"The Psychology of Money — summary", h:"jamesclear.com", g:"Reading"},
+    {t:"Tax Deductions for Freelancers", h:"irs.gov", g:"Finance"},
+    {t:"CSS Grid: A Complete Guide", h:"css-tricks.com", g:"Coding"},
+    {t:"20-Minute Weeknight Pasta", h:"bonappetit.com", g:"Cooking"},
+    {t:"Kyoto Travel Itinerary (5 days)", h:"japan-guide.com", g:"Travel"},
+    {t:"Index Funds for Beginners", h:"bogleheads.org", g:"Finance"},
+    {t:"Sleep and Productivity", h:"hubermanlab.com", g:"Reading"},
+    {t:"SQLite Internals", h:"sqlite.org", g:"Coding"},
+    {t:"Cheap Flights to Tokyo", h:"google.com/flights", g:"Travel"}
+  ];
+  const TOPICS = ["All", ...Array.from(new Set(DATA.map(d=>d.g)))];
+  let active = "All";
+  const chipsEl=document.getElementById('chips'), listEl=document.getElementById('list'),
+        countEl=document.getElementById('count');
+  function renderChips(){
+    chipsEl.innerHTML='';
+    TOPICS.forEach(topic=>{
+      const b=document.createElement('button');
+      b.className='chip'+(topic===active?' on':'');
+      const n = topic==="All" ? DATA.length : DATA.filter(d=>d.g===topic).length;
+      b.textContent = topic + " · " + n;
+      b.onclick=()=>{ active=topic; render(); };
+      chipsEl.appendChild(b);
+    });
+  }
+  function render(){
+    renderChips();
+    const rows = active==="All" ? DATA : DATA.filter(d=>d.g===active);
+    countEl.textContent = active==="All" ? DATA.length+' links'
+                          : rows.length+' links in '+active;
+    listEl.innerHTML='';
+    rows.forEach(d=>{
+      const li=document.createElement('li');
+      li.innerHTML='<div class="favicon">'+d.h.charAt(0).toUpperCase()+'</div>'+
+        '<div class="meta"><div class="title"><a href="#">'+d.t+'</a></div>'+
+        '<div class="url">'+d.h+'</div></div>'+
+        '<span class="tag">'+d.g+'</span>';
+      listEl.appendChild(li);
+    });
+  }
+  render();
+</script>
+</body>
+</html>

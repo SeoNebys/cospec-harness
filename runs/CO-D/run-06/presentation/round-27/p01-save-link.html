@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype 01 (save a link)</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b6b72; --accent:#3b5bdb; --bg:#f7f7f9; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; background: var(--bg); color: #1a1a1e; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+
+  .saver { background: #fff; border: 1px solid var(--line); border-radius: 12px;
+           padding: 18px; }
+  .row { display: flex; gap: 8px; }
+  input[type=url], input[type=text], textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+      border-radius: 8px; font-size: 14px; font-family: inherit; background:#fff; }
+  textarea { resize: vertical; min-height: 60px; }
+  button { border: 0; border-radius: 8px; padding: 10px 16px; font-size: 14px;
+           cursor: pointer; }
+  .primary { background: var(--accent); color: #fff; }
+  .primary:disabled { opacity: .5; cursor: default; }
+
+  .fields { margin-top: 14px; display: none; }
+  .fields.show { display: block; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  .fetching { margin-top: 14px; font-size: 13px; color: var(--muted); display:none; }
+  .fetching.show { display: block; }
+  .badge { display:inline-block; font-size:11px; color:var(--accent);
+           background:#eaefff; border-radius:6px; padding:2px 7px; margin-left:6px; }
+
+  .list { margin-top: 32px; }
+  .list h2 { font-size: 13px; color: var(--muted); text-transform: uppercase;
+             letter-spacing: .04em; margin: 0 0 12px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px; margin-bottom:10px; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  .card .url { font-size:12px; color:var(--accent); word-break:break-all; }
+  .card .desc { font-size:13px; color:#3a3a42; margin:8px 0 0; }
+  .empty { color: var(--muted); font-size:14px; padding: 20px 0; }
+  .save-actions { margin-top:16px; display:flex; gap:8px; align-items:center; }
+  .just-saved { animation: flash 1.2s ease; }
+  @keyframes flash { from { background:#eaffea; } to { background:#fff; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Prototype 01 — saving a link</p>
+
+  <div class="saver">
+    <div class="row">
+      <input id="urlInput" type="url" placeholder="Paste a link here…" autocomplete="off" />
+      <button id="addBtn" class="primary">Add</button>
+    </div>
+
+    <div id="fetching" class="fetching">Reading the page…</div>
+
+    <div id="fields" class="fields">
+      <label>Title <span class="badge">filled in for you</span></label>
+      <input id="titleField" type="text" />
+      <label>Description <span class="badge">filled in for you</span></label>
+      <textarea id="descField"></textarea>
+      <div class="save-actions">
+        <button id="saveBtn" class="primary">Save bookmark</button>
+        <button id="cancelBtn" style="background:#eee;color:#333">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="list">
+    <h2>Saved</h2>
+    <div id="cards"></div>
+  </div>
+</div>
+
+<script>
+  // --- Simulated "read the page" metadata. Phase-1 prototype: no real network. ---
+  const KNOWN = {
+    "smittenkitchen.com": {
+      title: "Simplest Brothy Beans and Rice",
+      desc: "A weeknight one-pot dinner: creamy beans simmered with garlic and herbs, served over rice. Ready in about 40 minutes."
+    },
+    "nytimes.com": {
+      title: "How to Read More Books This Year",
+      desc: "Practical habits from lifelong readers for fitting more reading into a busy schedule."
+    },
+    "github.com": {
+      title: "ripgrep — recursively search directories for a regex pattern",
+      desc: "A line-oriented search tool that recursively searches your current directory for a regex pattern while respecting gitignore rules."
+    },
+    "figma.com": {
+      title: "Figma: the collaborative interface design tool",
+      desc: "Design, prototype, and gather feedback all in one place with Figma."
+    }
+  };
+
+  function lookup(url) {
+    let host = "";
+    try { host = new URL(url).hostname.replace(/^www\./, ""); } catch (e) {}
+    if (KNOWN[host]) return KNOWN[host];
+    // Fallback: derive a rough title from the address, empty description.
+    const nice = host ? host.split(".")[0] : "Saved page";
+    return { title: nice.charAt(0).toUpperCase() + nice.slice(1) + " — page", desc: "" };
+  }
+
+  const urlInput = document.getElementById("urlInput");
+  const addBtn   = document.getElementById("addBtn");
+  const fetching = document.getElementById("fetching");
+  const fields   = document.getElementById("fields");
+  const titleF   = document.getElementById("titleField");
+  const descF    = document.getElementById("descField");
+  const saveBtn  = document.getElementById("saveBtn");
+  const cancelBtn= document.getElementById("cancelBtn");
+  const cards    = document.getElementById("cards");
+
+  let pendingUrl = "";
+  const saved = [];
+
+  function renderList() {
+    if (saved.length === 0) {
+      cards.innerHTML = '<div class="empty">Nothing saved yet.</div>';
+      return;
+    }
+    cards.innerHTML = "";
+    saved.forEach((b, i) => {
+      const c = document.createElement("div");
+      c.className = "card" + (i === 0 && b._new ? " just-saved" : "");
+      b._new = false;
+      c.innerHTML =
+        '<p class="title"></p><div class="url"></div>' +
+        (b.desc ? '<p class="desc"></p>' : "");
+      c.querySelector(".title").textContent = b.title;
+      c.querySelector(".url").textContent = b.url;
+      if (b.desc) c.querySelector(".desc").textContent = b.desc;
+      cards.appendChild(c);
+    });
+  }
+
+  function startAdd() {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    pendingUrl = url;
+    fields.classList.remove("show");
+    fetching.classList.add("show");
+    // Simulate the brief moment of reading the page.
+    setTimeout(() => {
+      const meta = lookup(url);
+      titleF.value = meta.title;
+      descF.value = meta.desc;
+      fetching.classList.remove("show");
+      fields.classList.add("show");
+      titleF.focus();
+      titleF.select();
+    }, 650);
+  }
+
+  addBtn.addEventListener("click", startAdd);
+  urlInput.addEventListener("keydown", e => { if (e.key === "Enter") startAdd(); });
+
+  saveBtn.addEventListener("click", () => {
+    saved.unshift({ url: pendingUrl, title: titleF.value.trim(),
+                    desc: descF.value.trim(), _new: true });
+    urlInput.value = ""; titleF.value = ""; descF.value = "";
+    pendingUrl = "";
+    fields.classList.remove("show");
+    renderList();
+    urlInput.focus();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    fields.classList.remove("show");
+    titleF.value = ""; descF.value = "";
+    urlInput.focus();
+  });
+
+  renderList();
+</script>
+</body>
+</html>

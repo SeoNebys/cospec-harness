@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks — save hiccups</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    max-width: 760px; margin: 0 auto; padding: 32px 20px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .note { font-size: 12px; color: #888; margin: 0 0 20px; }
+  .save-box { background: #fff; border: 1px solid #e2e2e2; border-radius: 10px; padding: 16px; margin-bottom: 18px; }
+  .save-box label { display: block; font-size: 12px; color: #666; margin: 0 0 4px; }
+  .save-box .hint { font-size: 12px; margin: -8px 0 12px; min-height: 16px; }
+  .save-box .hint.working { color: #999; }
+  .save-box .hint.warn { color: #b45309; }
+  .save-box .hint.ok { color: #999; }
+  .save-box input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #d5d5d5; border-radius: 7px; margin-bottom: 12px; }
+  .save-box button { background: #2563eb; color: #fff; border: 0; border-radius: 7px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .banner { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+  .banner.dup { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; }
+  .banner.bad { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+  .banner a { color: inherit; font-weight: 600; }
+  ul.list { list-style: none; padding: 0; margin: 0; }
+  ul.list li { background: #fff; border: 1px solid #e2e2e2; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  ul.list li.flash { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+  ul.list li .title { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  ul.list li a { color: #2563eb; text-decoration: none; font-size: 13px; word-break: break-all; }
+</style>
+</head>
+<body>
+  <h1>📑 My Bookmarks</h1>
+  <p class="note">Demo triggers: use a link containing <b>“offline”</b> to simulate a title that can’t be fetched; paste <b>github.com/torvalds/linux</b> (already saved) to see the duplicate case; type something that isn’t a link (e.g. <b>hello world</b>).</p>
+
+  <div class="save-box">
+    <label>Link</label>
+    <input id="url" placeholder="Paste a link here…" />
+    <label>Name</label>
+    <input id="title" placeholder="Grabbed automatically — edit if you like" />
+    <div class="hint" id="hint"></div>
+    <div id="banner"></div>
+    <label>Tags</label>
+    <input id="tags" placeholder="Type a tag…" />
+    <button id="save">Save</button>
+  </div>
+
+  <ul class="list" id="list"></ul>
+
+  <script>
+    const DATA = [
+      { title: 'torvalds/linux - GitHub', url: 'https://github.com/torvalds/linux', t: 2 },
+      { title: 'Technology - BBC News', url: 'https://www.bbc.com/news/technology', t: 1 },
+    ];
+    const $ = id => document.getElementById(id);
+    function looksLikeUrl(s){ return /\.[a-z]{2,}(\/|$|\?|:)/i.test(s) || /^https?:\/\//i.test(s); }
+    function normalize(u){ return u.replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/$/,'').toLowerCase(); }
+
+    let titleTouched=false, deb;
+    $('title').addEventListener('input', ()=>titleTouched=true);
+    $('url').addEventListener('input', ()=>{
+      const u=$('url').value.trim(); clearTimeout(deb); $('banner').innerHTML='';
+      if(!u){ $('hint').textContent=''; return; }
+      $('hint').className='hint working'; $('hint').textContent='Looking up the page title…';
+      deb=setTimeout(()=>{
+        if(u.toLowerCase().includes('offline')){
+          $('hint').className='hint warn';
+          $('hint').textContent='⚠ Couldn’t reach that page to grab its title. You can type your own name — the link is still fine to save.';
+        } else {
+          if(!titleTouched||!$('title').value.trim()){ let h=u; try{h=new URL(u.match(/^https?:\/\//)?u:'https://'+u).hostname.replace(/^www\./,'');}catch(e){} const w=h.split('.')[0].replace(/[-_]/g,' '); $('title').value=w.charAt(0).toUpperCase()+w.slice(1)+' — page'; titleTouched=false; }
+          $('hint').className='hint ok'; $('hint').textContent='Filled in the page title — edit it if you like.';
+        }
+      }, 600);
+    });
+
+    function render(flashUrl){
+      const list=$('list'); list.innerHTML='';
+      DATA.slice().sort((a,b)=>b.t-a.t).forEach(it=>{ const li=document.createElement('li');
+        if(flashUrl && it.url===flashUrl) li.className='flash';
+        li.innerHTML='<div class="title">'+it.title+'</div><a href="'+it.url+'" target="_blank">'+it.url+'</a>'; list.appendChild(li); });
+    }
+
+    $('save').onclick=()=>{
+      const u=$('url').value.trim(); const banner=$('banner'); banner.innerHTML='';
+      if(!u) return;
+      if(!looksLikeUrl(u)){
+        banner.innerHTML='<div class="banner bad">That doesn’t look like a web link. Double-check it, or add <b>https://</b> in front if you’re sure.</div>';
+        return;
+      }
+      const existing=DATA.find(d=>normalize(d.url)===normalize(u));
+      if(existing){
+        banner.innerHTML='<div class="banner dup">You’ve already saved this one — “<b>'+existing.title+'</b>”. <a href="#" id="jump">Show it</a></div>';
+        $('jump').onclick=(e)=>{ e.preventDefault(); render(existing.url); };
+        return;
+      }
+      DATA.push({title:$('title').value.trim()||u, url:u, t:Date.now()});
+      $('url').value=$('title').value=$('tags').value=''; $('hint').textContent=''; titleTouched=false; render();
+    };
+    render();
+  </script>
+</body>
+</html>

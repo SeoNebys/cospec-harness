@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge cases — save problems</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin:0; background:#f4f5f7; color:#1a1a1a; }
+  .bar { background:#111827; color:#fff; font-size:13px; padding:8px 16px; text-align:center; }
+  .bar button { background:#374151; color:#fff; border:0; border-radius:6px; padding:4px 10px; margin:0 4px; cursor:pointer; font-size:12px; }
+  .bar button.on { background:#2563eb; }
+  .wrap { max-width:640px; margin:0 auto; padding:24px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 6px; }
+  .desc { color:#6b7280; font-size:13px; margin:0 0 18px; }
+  .savebox { display:flex; gap:8px; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; }
+  .savebox input { flex:1; border:1px solid #d1d5db; border-radius:8px; padding:10px 12px; font-size:15px; }
+  .savebox input.bad { border-color:#ef4444; background:#fef2f2; }
+  .savebtn { border:0; background:#2563eb; color:#fff; font-size:15px; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:600; }
+  .inline-err { color:#b91c1c; font-size:13px; margin:0 0 18px; min-height:18px; }
+  .notice { background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:10px; padding:10px 12px; font-size:13.5px; margin:0 0 18px; display:none; }
+  .notice a { color:#92400e; font-weight:700; cursor:pointer; text-decoration:underline; margin-left:6px; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:13px 15px; margin-bottom:10px; }
+  li.flash { border-color:#fbbf24; box-shadow:0 0 0 3px #fef3c7; }
+  .title { font-size:15px; font-weight:600; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
+  .title .warn { font-size:11px; font-weight:600; color:#92400e; background:#fef3c7; border:1px solid #fde68a; padding:1px 7px; border-radius:20px; }
+  .title a.rename { font-size:12px; color:#2563eb; text-decoration:none; font-weight:500; cursor:pointer; }
+  .url { font-size:12.5px; color:#6b7280; margin:0; }
+</style>
+</head>
+<body>
+<div class="bar">
+  Try:
+  <button id="b1" class="on" onclick="setMode('title')">Title couldn't be fetched</button>
+  <button id="b2" onclick="setMode('dupe')">Saving the same link twice</button>
+  <button id="b3" onclick="setMode('invalid')">Pasting something that isn't a link</button>
+</div>
+<div class="wrap">
+  <h1>Save a link</h1>
+  <p class="desc" id="desc"></p>
+  <div class="savebox">
+    <input id="url" placeholder="Paste a link…" />
+    <button class="savebtn" id="save">Save</button>
+  </div>
+  <p class="inline-err" id="err"></p>
+  <div class="notice" id="notice"></div>
+  <ul id="list"></ul>
+</div>
+<script>
+  let mode='title';
+  const items=[
+    { title:'A 3-Day Guide to Kyoto in Autumn', host:'nytimes.com', href:'https://nytimes.com/2026/travel/kyoto-guide', noTitle:false }
+  ];
+  const urlEl=document.getElementById('url'), err=document.getElementById('err'),
+        notice=document.getElementById('notice'), listEl=document.getElementById('list'),
+        desc=document.getElementById('desc');
+
+  const DESCS={
+    title:'Some pages block title-fetching or have none. This shows what happens then.',
+    dupe:'Try saving a link you already have. Paste nytimes.com/2026/travel/kyoto-guide and Save.',
+    invalid:'Try pasting something that is not a web link, e.g. "grocery list" and Save.'
+  };
+  function setMode(m){ mode=m;
+    ['b1','b2','b3'].forEach((id,i)=>document.getElementById(id).className=(['title','dupe','invalid'][i]===m)?'on':'');
+    desc.textContent=DESCS[m]; err.textContent=''; notice.style.display='none'; urlEl.className='';
+    urlEl.value = m==='dupe' ? 'nytimes.com/2026/travel/kyoto-guide' : (m==='invalid' ? 'grocery list' : 'blogspot.example/broken-title-page');
+    render();
+  }
+  function looksLikeUrl(s){ return /\.[a-z]{2,}(\/|$|\?)/i.test(s) || /^https?:\/\//i.test(s); }
+  function hostOf(s){ try{ let u=s; if(!/^https?:\/\//i.test(u))u='https://'+u; return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return s; } }
+
+  document.getElementById('save').onclick=()=>{
+    const raw=urlEl.value.trim(); err.textContent=''; notice.style.display='none'; urlEl.className='';
+    if(!raw) return;
+    if(!looksLikeUrl(raw)){
+      urlEl.className='bad';
+      err.textContent='That doesn’t look like a web link, so nothing was saved. Paste a link starting with a site address (like example.com).';
+      return;
+    }
+    const host=hostOf(raw);
+    const href=/^https?:\/\//i.test(raw)?raw:'https://'+raw;
+    const existing=items.find(it=>it.href.replace(/^https?:\/\//,'')===href.replace(/^https?:\/\//,''));
+    if(existing){
+      notice.innerHTML='You already saved this link.<a onclick="flashExisting()">Show me the one I saved</a>';
+      notice.style.display='block';
+      return;
+    }
+    // simulate title fetch: this demo host fails
+    const failed = mode==='title' || /broken-title-page/.test(raw);
+    const item = failed
+      ? { title:host, host, href, noTitle:true }
+      : { title:host.split('.')[0].replace(/^./,c=>c.toUpperCase()), host, href, noTitle:false };
+    items.unshift(item); urlEl.value=''; render();
+  };
+  window.flashExisting=function(){ render(true); };
+
+  function render(flash){
+    listEl.innerHTML='';
+    items.forEach((it,idx)=>{
+      const li=document.createElement('li');
+      if(flash && idx===items.length-1) li.className='flash';
+      const warn = it.noTitle
+        ? '<span class="warn">title not found</span> <a class="rename" data-i="'+idx+'">add a name</a>'
+        : '';
+      li.innerHTML='<p class="title">'+it.title+' '+warn+'</p><p class="url">'+it.host+'</p>';
+      listEl.appendChild(li);
+    });
+    listEl.querySelectorAll('.rename').forEach(a=>a.onclick=()=>{
+      const i=+a.dataset.i; const name=prompt('Give this link a name you’ll recognize:', items[i].title);
+      if(name){ items[i].title=name; items[i].noTitle=false; render(); }
+    });
+  }
+  setMode('title');
+</script>
+</body>
+</html>

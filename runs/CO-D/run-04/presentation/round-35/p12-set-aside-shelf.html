@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Links — prototype 12 (set-aside shelf)</title>
+<style>
+  :root { --line:#e3e3e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; --green:#059669; --red:#dc2626; --amber:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#111827; background:var(--bg); }
+  header { padding:22px 28px; border-bottom:1px solid var(--line); background:#fff; }
+  h1 { font-size:19px; margin:0; } .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+  main { max-width:760px; margin:0 auto; padding:20px 20px 100px; }
+
+  .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+  .lens { display:inline-flex; background:#eceef1; border-radius:10px; padding:4px; }
+  .lens button { border:0; background:none; padding:8px 14px; border-radius:8px; font-size:14px; cursor:pointer; color:#4b5563; display:flex; align-items:center; gap:6px; }
+  .lens button.on { background:#fff; color:#111827; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  .lens .badge { background:var(--accent); color:#fff; font-size:11px; border-radius:20px; padding:1px 8px; font-weight:600; }
+  .lens .badge.grey { background:#9ca3af; }
+  .selbtn { margin-left:auto; border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer; color:#374151; }
+  .selbtn.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .searchwrap { position:relative; margin-bottom:8px; }
+  .searchwrap input { width:100%; padding:12px 40px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:#fff; }
+  .searchwrap .ico { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .barlabel { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 2px 8px; }
+  .topicsbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  .topicsbar .t { background:#fff; border:1px solid var(--line); border-radius:20px; padding:6px 13px; font-size:13px; cursor:pointer; }
+  .topicsbar .t .c { color:var(--muted); font-size:11px; margin-left:5px; }
+  .topicsbar .t.on { background:var(--accent); color:#fff; border-color:var(--accent); } .topicsbar .t.on .c{ color:#dbe3ff; }
+
+  .lenshint { font-size:13px; border-radius:8px; padding:10px 13px; margin-bottom:14px; display:none; }
+  .lenshint.show { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .lenshint.blue { background:#eef2ff; border:1px solid #c7d2fe; color:#3730a3; }
+  .lenshint.grey { background:#f3f4f6; border:1px solid #e5e7eb; color:#4b5563; }
+  .lenshint .selall { margin-left:auto; background:#fff; border:1px solid currentColor; border-radius:7px; padding:5px 10px; font-size:12px; cursor:pointer; }
+  .count { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; margin:0 2px 10px; }
+
+  ul { list-style:none; margin:0; padding:0; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; cursor:pointer; position:relative; transition:opacity .35s, transform .35s; }
+  li.card.leaving { opacity:0; transform:translateX(30px); }
+  li.card.unread { border-left:3px solid var(--accent); }
+  li.card.aside { background:#fafafa; }
+  li.card.picked { background:#f5f8ff; border-color:#c7d2fe; }
+  li.card.sel-mode { padding-left:44px; }
+  .checkbox { position:absolute; left:14px; top:16px; width:20px; height:20px; cursor:pointer; accent-color:var(--accent); }
+  .title { font-size:15px; font-weight:600; margin:0; padding-right:200px; } .title .ext { color:var(--muted); font-size:12px; font-weight:400; margin-left:6px; }
+  .desc { color:#374151; font-size:13px; margin:5px 0 0; line-height:1.45; }
+  .url { color:var(--muted); font-size:12px; margin-top:7px; display:flex; align-items:center; gap:6px; }
+  .fav { width:14px; height:14px; border-radius:3px; background:#dbe3ff; display:inline-block; font-size:9px; text-align:center; line-height:14px; color:#3552b5; font-weight:700; }
+  .tags { margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { background:#eef2ff; color:#3730a3; font-size:11px; border-radius:20px; padding:3px 10px; }
+
+  .status { position:absolute; top:12px; right:12px; display:flex; gap:6px; align-items:center; }
+  .btn { border:1px solid var(--line); background:#fff; border-radius:7px; font-size:12px; padding:5px 9px; cursor:pointer; color:#374151; }
+  .btn.flag.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.done { border-color:#a7f3d0; color:var(--green); background:#ecfdf5; font-weight:600; }
+  .btn.ghost { color:var(--muted); border-style:dashed; }
+  .btn.aside { color:var(--amber); border-color:#fde68a; }
+  .btn.back { color:var(--accent); border-color:#c7d2fe; background:#eff6ff; font-weight:600; }
+  .btn.trash { color:var(--red); border-color:#fecaca; } .btn.trash:hover { background:#fef2f2; }
+  .read-badge { font-size:11px; color:var(--green); background:#ecfdf5; border:1px solid #a7f3d0; border-radius:6px; padding:3px 8px; }
+  .empty { color:var(--muted); text-align:center; padding:44px 14px; font-size:14px; } .cheer { color:var(--green); font-weight:600; }
+
+  .batch { position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(90px); transition:transform .25s;
+           background:#111827; color:#fff; border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:10px; box-shadow:0 12px 30px rgba(0,0,0,.3); font-size:13px; flex-wrap:wrap; max-width:94vw; }
+  .batch.show { transform:translateX(-50%) translateY(0); }
+  .batch button { border:0; border-radius:8px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer; background:#374151; color:#e5e7eb; }
+  .batch .b-read { background:var(--green); color:#fff; } .batch .b-del { background:var(--red); color:#fff; }
+  .batch .b-back { background:var(--accent); color:#fff; } .batch .b-clear { background:none; color:#9ca3af; padding:8px 6px; }
+  .batch .lblbox { display:flex; gap:6px; align-items:center; background:#1f2937; border-radius:8px; padding:4px 6px; }
+  .batch .lblbox input { border:0; background:none; color:#fff; outline:0; font-size:13px; width:110px; }
+  .batch .sugg button { background:#374151; padding:5px 9px; font-weight:400; }
+
+  .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(90px); transition:transform .25s;
+           background:#111827; color:#fff; border-radius:12px; padding:12px 16px; display:flex; align-items:center; gap:14px; box-shadow:0 12px 30px rgba(0,0,0,.3); font-size:13px; z-index:20; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+  .toast button { background:none; border:0; color:#93c5fd; font-weight:700; cursor:pointer; font-size:13px; }
+</style>
+</head>
+<body>
+<header><h1>My Links</h1><div class="sub">Your personal library of saved links</div></header>
+<main>
+  <div class="toolbar">
+    <div class="lens" id="lens">
+      <button data-v="all" class="on">📚 Everything</button>
+      <button data-v="toread">📖 To read <span class="badge" id="trbadge">0</span></button>
+      <button data-v="aside">🗄 Set aside <span class="badge grey" id="asbadge">0</span></button>
+    </div>
+    <button class="selbtn" id="selbtn">☑ Select</button>
+  </div>
+  <div class="searchwrap"><span class="ico">🔍</span><input id="q" placeholder="Search…" autocomplete="off"></div>
+  <div class="barlabel">Topics</div>
+  <div class="topicsbar" id="bar"></div>
+  <div class="lenshint" id="lenshint"></div>
+  <div class="count" id="count"></div>
+  <ul id="list"></ul>
+</main>
+<div class="batch" id="batch"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+let view='all', q='', selected=[], picked=new Set(), selectMode=false, addingLabel=false;
+let undoStash=null, toastTimer=null;
+// each item: status 'none'|'unread'|'read'  +  aside:true/false (set-aside is independent of read state)
+let items=[
+  { id:1, url:"https://wikipedia.org/wiki/Sourdough", title:"Sourdough — Wikipedia", desc:"Bread by fermentation of dough.", tags:["recipes","baking"], status:'none', aside:false },
+  { id:2, url:"https://seriouseats.com/pizza-dough", title:"The Best Pizza Dough", desc:"A cold-ferment dough for blistered crust.", tags:["recipes","baking"], status:'none', aside:false },
+  { id:3, url:"https://cooking.com/weeknight-ramen", title:"Weeknight Ramen", desc:"A fast broth for busy evenings.", tags:["recipes"], status:'none', aside:false },
+  { id:5, url:"https://nytimes.com/2026/travel/kyoto", title:"36 Hours in Kyoto", desc:"Temples at dawn and quiet streets.", tags:["travel"], status:'unread', aside:false },
+  { id:6, url:"https://stripe.com/blog/payment-api", title:"Designing the Stripe Payments API", desc:"Idempotency and versioning at scale.", tags:["work","dev"], status:'unread', aside:false },
+  { id:9, url:"https://confvideos.example.com/simple-made-easy", title:"Simple Made Easy (talk)", desc:"A classic conference talk worth revisiting.", tags:["dev"], status:'none', aside:true },
+  { id:10, url:"https://oldproject.example.com/retro", title:"Project Aurora — retrospective", desc:"Finished project; might revisit the notes.", tags:["work"], status:'none', aside:true },
+  { id:8, url:"https://linear.app/method", title:"The Linear Method", desc:"How a focused team ships software.", tags:["work"], status:'read', aside:false },
+];
+const byId=id=>items.find(x=>x.id===id);
+function tagCounts(pool){ const m={}; pool.forEach(i=>i.tags.forEach(t=>m[t]=(m[t]||0)+1)); return m; }
+function allTags(){ const s=new Set(); items.forEach(i=>i.tags.forEach(t=>s.add(t))); return [...s].sort(); }
+function unreadCount(){ return items.filter(i=>i.status==='unread'&&!i.aside).length; }
+function asideCount(){ return items.filter(i=>i.aside).length; }
+
+const lens=document.getElementById('lens'), qEl=document.getElementById('q'), bar=document.getElementById('bar'),
+      count=document.getElementById('count'), list=document.getElementById('list'), lenshint=document.getElementById('lenshint'),
+      trbadge=document.getElementById('trbadge'), asbadge=document.getElementById('asbadge'),
+      batch=document.getElementById('batch'), toast=document.getElementById('toast'), selbtn=document.getElementById('selbtn');
+function host(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch{ return u; } }
+function full(u){ return /^https?:\/\//.test(u)?u:"https://"+u; }
+function passSearch(it){ if(!q) return true; const T=q.toLowerCase().split(/\s+/).filter(Boolean);
+  const hay=(it.title+' '+it.desc+' '+it.url).toLowerCase(); return T.every(t=>hay.includes(t)); }
+function poolForView(){ // set-aside items live only on the shelf; everyday views exclude them
+  if(view==='aside') return items.filter(i=>i.aside);
+  if(view==='toread') return items.filter(i=>!i.aside && i.status==='unread');
+  return items.filter(i=>!i.aside);
+}
+function currentShown(){ return poolForView().filter(it=> selected.every(t=>it.tags.includes(t)) && passSearch(it)); }
+function selecting(){ return view==='toread' || selectMode; }
+
+function statusControls(it){
+  if(view==='toread') return `<div class="status">
+      <button class="btn done" data-done="${it.id}">✓ Read</button>
+      <button class="btn ghost" data-drop="${it.id}">Not going to read</button></div>`;
+  if(view==='aside') return `<div class="status">
+      <button class="btn back" data-back="${it.id}">↩ Bring back</button>
+      <button class="btn trash" title="Delete for good" data-del="${it.id}">🗑</button></div>`;
+  const aside=`<button class="btn aside" title="Set aside" data-aside="${it.id}">🗄</button>`;
+  const trash=`<button class="btn trash" title="Delete for good" data-del="${it.id}">🗑</button>`;
+  if(it.status==='unread') return `<div class="status"><button class="btn flag on" data-flag="${it.id}">📖 To read</button>${aside}${trash}</div>`;
+  if(it.status==='read')   return `<div class="status"><span class="read-badge">✓ Read</span>${aside}${trash}</div>`;
+  return `<div class="status"><button class="btn flag" data-flag="${it.id}">＋ Read later</button>${aside}${trash}</div>`;
+}
+function renderBar(){
+  const c=tagCounts(poolForView());
+  bar.innerHTML=Object.keys(c).sort().map(t=>`<span class="t ${selected.includes(t)?'on':''}" data-topic="${t}">${t}<span class="c">${c[t]}</span></span>`).join('')
+    || `<span style="color:var(--muted);font-size:12px">No labels here yet.</span>`;
+  bar.querySelectorAll('[data-topic]').forEach(el=>el.addEventListener('click',()=>{ const t=el.dataset.topic; selected.includes(t)?selected=selected.filter(x=>x!==t):selected.push(t); render(); }));
+}
+function renderBatch(){
+  if(!selecting() || picked.size===0){ batch.className='batch'; addingLabel=false; return; }
+  batch.className='batch show';
+  let actions;
+  if(view==='toread'){
+    actions=`<button class="b-read" data-bulk="read">✓ Mark as read</button>
+             <button data-bulk="drop">Remove from pile</button>
+             <button data-bulk="aside">🗄 Set aside</button>
+             <button class="b-del" data-bulk="del">🗑 Delete</button>`;
+  } else if(view==='aside'){
+    actions=`<button class="b-back" data-bulk="back">↩ Bring back</button>
+             <button class="b-del" data-bulk="del">🗑 Delete</button>`;
+  } else {
+    const labelUI = addingLabel
+      ? `<span class="lblbox"><input id="lblin" placeholder="label…" autocomplete="off"><span class="sugg" id="sugg"></span></span>`
+      : `<button data-bulk="label">🏷 Add label</button>`;
+    actions=`${labelUI}
+             <button data-bulk="later">📖 Read later</button>
+             <button data-bulk="aside">🗄 Set aside</button>
+             <button class="b-del" data-bulk="del">🗑 Delete</button>`;
+  }
+  batch.innerHTML=`<b>${picked.size} selected</b> ${actions} <button class="b-clear" data-bulk="clear">Clear</button>`;
+  batch.querySelectorAll('[data-bulk]').forEach(b=>b.addEventListener('click',()=>bulk(b.dataset.bulk)));
+  if(addingLabel){ const inp=document.getElementById('lblin'); inp.focus();
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&inp.value.trim()) applyLabel(inp.value); });
+    drawSugg(); inp.addEventListener('input',drawSugg); }
+}
+function drawSugg(){ const box=document.getElementById('sugg'); if(!box) return;
+  const v=(document.getElementById('lblin').value||'').trim().toLowerCase();
+  const pool=allTags().filter(t=>!v||t.includes(v)).slice(0,4);
+  let h=pool.map(t=>`<button data-sg="${t}">${t}</button>`).join('');
+  if(v && !allTags().includes(v)) h+=`<button data-sg="${v}">+ "${v}"</button>`;
+  box.innerHTML=h; box.querySelectorAll('[data-sg]').forEach(b=>b.addEventListener('click',()=>applyLabel(b.dataset.sg))); }
+function applyLabel(raw){ const t=raw.trim().toLowerCase(); if(!t) return;
+  picked.forEach(id=>{ const it=byId(id); if(!it.tags.includes(t)) it.tags.push(t); }); addingLabel=false; render(); }
+
+function render(){
+  trbadge.textContent=unreadCount(); asbadge.textContent=asideCount();
+  selbtn.style.display = view==='toread' ? 'none' : '';
+  selbtn.classList.toggle('on', selectMode);
+  const shown=currentShown();
+  const sel=selecting();
+  const showHint = view==='toread' || view==='aside' || selectMode;
+  lenshint.className='lenshint'+(showHint?' show ':' ')+(view==='aside'?'grey':'blue');
+  if(view==='toread') lenshint.innerHTML=`Your read-later pile — tick a few and sweep them together, or handle one at a time. <button class="selall" id="selall">${picked.size&&picked.size===shown.length?'Unselect all':'Select all'}</button>`;
+  else if(view==='aside') lenshint.innerHTML=`Set aside — kept, but out of your everyday library. Bring one back whenever you want it again. <button class="selall" id="selall">${picked.size&&picked.size===shown.length?'Unselect all':'Select all'}</button>`;
+  else if(selectMode) lenshint.innerHTML=`Tidy mode — tick links to label, flag, set aside, or delete them in a batch. <button class="selall" id="selall">${picked.size&&picked.size===shown.length?'Unselect all':'Select all'}</button>`;
+  count.textContent = view==='toread' ? `${shown.length} still to read` : (view==='aside'? `${shown.length} set aside` : `${shown.length} links`);
+  if(!shown.length){
+    list.innerHTML = view==='toread' ? `<div class="empty"><div class="cheer">All caught up 🎉</div>Nothing left in your read-later pile.</div>`
+      : view==='aside' ? `<div class="empty">Nothing set aside. Tuck a link here to keep it without cluttering your library.</div>`
+      : `<div class="empty">No links match.</div>`;
+    renderBatch(); wireHint(); return;
+  }
+  list.innerHTML=shown.map(it=>`
+    <li class="card ${it.status==='unread'&&view!=='aside'?'unread':''} ${it.aside?'aside':''} ${sel?'sel-mode':''} ${picked.has(it.id)?'picked':''}" data-id="${it.id}">
+      ${sel?`<input type="checkbox" class="checkbox" data-sel="${it.id}" ${picked.has(it.id)?'checked':''}>`:''}
+      ${statusControls(it)}
+      <p class="title">${it.title}<span class="ext">↗ open</span></p>
+      <p class="desc">${it.desc}</p>
+      <div class="url"><span class="fav">${(host(it.url)[0]||'•').toUpperCase()}</span>${host(it.url)}</div>
+      <div class="tags">${it.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    </li>`).join('');
+  wire(); renderBatch(); wireHint();
+}
+function wireHint(){ const s=document.getElementById('selall'); if(s) s.addEventListener('click',()=>{
+  const shown=currentShown(); const all=picked.size===shown.length && shown.length>0;
+  picked = all ? new Set() : new Set(shown.map(it=>it.id)); render(); }); }
+function wire(){
+  list.querySelectorAll('.card').forEach(el=>el.addEventListener('click',e=>{
+    if(e.target.closest('[data-flag],[data-done],[data-reopen],[data-drop],[data-sel],[data-del],[data-aside],[data-back]')) return;
+    window.open(full(byId(+el.dataset.id).url),'_blank'); }));
+  list.querySelectorAll('[data-sel]').forEach(cb=>cb.addEventListener('change',e=>{ e.stopPropagation();
+    const id=+cb.dataset.sel; cb.checked?picked.add(id):picked.delete(id); render(); }));
+  list.querySelectorAll('[data-flag]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation();
+    const it=byId(+b.dataset.flag); it.status = it.status==='unread'?'none':'unread'; render(); }));
+  list.querySelectorAll('[data-done]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation();
+    animateOut([+b.dataset.done], it=>it.status='read'); }));
+  list.querySelectorAll('[data-drop]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation();
+    animateOut([+b.dataset.drop], it=>it.status='none'); }));
+  list.querySelectorAll('[data-aside]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation();
+    animateOut([+b.dataset.aside], it=>it.aside=true); }));
+  list.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation();
+    animateOut([+b.dataset.back], it=>it.aside=false); }));
+  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation();
+    deleteIds([+b.dataset.del]); }));
+}
+function animateOut(ids, mut){
+  ids.forEach(id=>{ const card=list.querySelector(`.card[data-id="${id}"]`); if(card) card.classList.add('leaving'); });
+  setTimeout(()=>{ ids.forEach(id=>{ mut(byId(id)); picked.delete(id); }); render(); }, 340);
+}
+function deleteIds(ids){
+  const removed=ids.map(id=>({ item:byId(id), idx:items.findIndex(x=>x.id===id) })).sort((a,b)=>a.idx-b.idx);
+  ids.forEach(id=>{ const card=list.querySelector(`.card[data-id="${id}"]`); if(card) card.classList.add('leaving'); });
+  setTimeout(()=>{ items=items.filter(x=>!ids.includes(x.id)); ids.forEach(id=>picked.delete(id));
+    undoStash=removed; showToast(`${ids.length} link${ids.length>1?'s':''} deleted`); render(); }, 340);
+}
+function showToast(msg){ toast.innerHTML=`${msg} <button id="undo">Undo</button>`; toast.className='toast show';
+  document.getElementById('undo').addEventListener('click',undoDelete);
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ toast.className='toast'; undoStash=null; }, 6000); }
+function undoDelete(){ if(!undoStash) return;
+  undoStash.forEach(({item,idx})=>{ items.splice(Math.min(idx,items.length),0,item); });
+  undoStash=null; toast.className='toast'; clearTimeout(toastTimer); render(); }
+function bulk(kind){
+  if(kind==='clear'){ picked=new Set(); addingLabel=false; render(); return; }
+  if(kind==='label'){ addingLabel=true; renderBatch(); return; }
+  const ids=[...picked];
+  if(kind==='read')  return animateOut(ids, it=>it.status='read');
+  if(kind==='drop')  return animateOut(ids, it=>it.status='none');
+  if(kind==='aside') return animateOut(ids, it=>it.aside=true);
+  if(kind==='back')  return animateOut(ids, it=>it.aside=false);
+  if(kind==='later'){ ids.forEach(id=>byId(id).status='unread'); picked=new Set(); render(); return; }
+  if(kind==='del')   return deleteIds(ids);
+}
+selbtn.addEventListener('click',()=>{ selectMode=!selectMode; if(!selectMode) picked=new Set(); render(); });
+lens.addEventListener('click',e=>{ const b=e.target.closest('button[data-v]'); if(!b) return;
+  view=b.dataset.v; picked=new Set(); selectMode=false; addingLabel=false; selected=[];
+  lens.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); renderBar(); render(); });
+qEl.addEventListener('input',()=>{ q=qEl.value.trim(); render(); });
+renderBar(); render();
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Links — prototype 1</title>
+<style>
+  :root { --line:#e3e3e6; --muted:#6b7280; --accent:#2563eb; --bg:#f7f7f8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         color:#111827; background:var(--bg); }
+  header { padding:22px 28px; border-bottom:1px solid var(--line); background:#fff; }
+  h1 { font-size:19px; margin:0; }
+  .sub { color:var(--muted); font-size:13px; margin-top:3px; }
+  main { max-width:760px; margin:0 auto; padding:24px 20px 60px; }
+
+  .adder { display:flex; gap:8px; margin-bottom:8px; }
+  .adder input { flex:1; padding:11px 13px; border:1px solid var(--line); border-radius:8px;
+                 font-size:14px; background:#fff; }
+  .adder button { padding:11px 18px; border:0; border-radius:8px; background:var(--accent);
+                  color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  .adder button:disabled { opacity:.5; cursor:default; }
+  .hint { color:var(--muted); font-size:12px; margin:0 0 22px 2px; }
+
+  .count { color:var(--muted); font-size:12px; text-transform:uppercase;
+           letter-spacing:.05em; margin:20px 2px 10px; }
+
+  ul { list-style:none; margin:0; padding:0; }
+  li.card { background:#fff; border:1px solid var(--line); border-radius:10px;
+            padding:14px 16px; margin-bottom:10px; }
+  li.card.fresh { animation: pop .5s ease; border-color:#c7d2fe; }
+  @keyframes pop { from { transform: translateY(-6px); opacity:0 } to { transform:none; opacity:1 } }
+  .title { font-size:15px; font-weight:600; margin:0; }
+  .desc { color:#374151; font-size:13px; margin:5px 0 0; line-height:1.45; }
+  .url { color:var(--muted); font-size:12px; margin-top:7px; display:flex; align-items:center; gap:6px; }
+  .fav { width:14px; height:14px; border-radius:3px; background:#dbe3ff; display:inline-block;
+         font-size:9px; text-align:center; line-height:14px; color:#3552b5; font-weight:700; }
+  .loading { color:var(--muted); font-style:italic; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Links</h1>
+  <div class="sub">Your personal library of saved links</div>
+</header>
+
+<main>
+  <div class="adder">
+    <input id="url" type="text" placeholder="Paste a link here…" autocomplete="off">
+    <button id="save" disabled>Save</button>
+  </div>
+  <p class="hint">Paste any web address and press Save (or hit Enter).</p>
+
+  <div class="count" id="count"></div>
+  <ul id="list"></ul>
+</main>
+
+<script>
+// --- prototype-only: simulate fetching a page's title + description ---
+const KNOWN = {
+  "stripe.com/blog/payment-api": {
+    t: "Designing the Stripe Payments API",
+    d: "How we think about API ergonomics, idempotency, and versioning at scale." },
+  "nytimes.com/2026/travel/kyoto": {
+    t: "36 Hours in Kyoto",
+    d: "Temples at dawn, a tofu lunch, and where to find the quiet streets." },
+  "wikipedia.org/wiki/Sourdough": {
+    t: "Sourdough — Wikipedia",
+    d: "Bread made by the fermentation of dough using naturally occurring lactobacilli and yeast." },
+};
+function fakeFetch(raw) {
+  const key = raw.replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/$/,'');
+  if (KNOWN[key]) return Promise.resolve(KNOWN[key]);
+  // fallback: derive something plausible from the URL
+  const host = (key.split('/')[0]||'link').replace(/\.[a-z]+$/,'');
+  const slug = (key.split('/').slice(1).join(' ').replace(/[-_]/g,' ')||'Saved page').trim();
+  const t = (slug.charAt(0).toUpperCase()+slug.slice(1)).slice(0,70) || (host+' page');
+  return Promise.resolve({ t, d: "A page saved from " + host + "." });
+}
+
+const seed = [
+  { url:"https://wikipedia.org/wiki/Sourdough", ...KNOWN["wikipedia.org/wiki/Sourdough"] },
+  { url:"https://nytimes.com/2026/travel/kyoto", ...KNOWN["nytimes.com/2026/travel/kyoto"] },
+];
+let items = seed.map(s => ({ url:s.url, title:s.t, desc:s.d }));
+
+const list = document.getElementById('list');
+const input = document.getElementById('url');
+const btn = document.getElementById('save');
+const count = document.getElementById('count');
+
+function host(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch { return u; } }
+function render(freshUrl){
+  count.textContent = items.length + (items.length===1?" link":" links");
+  list.innerHTML = items.map(it => `
+    <li class="card ${it.url===freshUrl?'fresh':''}">
+      <p class="title">${it.title}</p>
+      <p class="desc">${it.desc}</p>
+      <div class="url"><span class="fav">${host(it.url)[0]?.toUpperCase()||'•'}</span>${host(it.url)}</div>
+    </li>`).join('');
+}
+input.addEventListener('input', ()=> btn.disabled = input.value.trim().length < 4);
+function save(){
+  const url = input.value.trim(); if(url.length<4) return;
+  input.value=''; btn.disabled=true;
+  // show a placeholder row while "fetching"
+  items.unshift({ url, title:"…", desc:"", _loading:true });
+  renderLoading(url);
+  fakeFetch(url).then(meta=>{
+    items[0] = { url, title:meta.t, desc:meta.d };
+    render(url);
+  });
+}
+function renderLoading(url){
+  count.textContent = items.length + (items.length===1?" link":" links");
+  list.innerHTML = items.map(it => it._loading ? `
+    <li class="card fresh"><p class="loading">Reading the page to get its name…</p>
+      <div class="url">${host(it.url)}</div></li>` : `
+    <li class="card">
+      <p class="title">${it.title}</p><p class="desc">${it.desc}</p>
+      <div class="url"><span class="fav">${host(it.url)[0]?.toUpperCase()||'•'}</span>${host(it.url)}</div>
+    </li>`).join('');
+}
+btn.addEventListener('click', save);
+input.addEventListener('keydown', e=>{ if(e.key==='Enter') save(); });
+render();
+</script>
+</body>
+</html>

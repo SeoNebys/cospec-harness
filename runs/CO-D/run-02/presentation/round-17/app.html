@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks</title>
+<style>
+  :root { --ink:#1f2328; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --bg:#f7f8fa; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap { max-width:720px; margin:0 auto; padding:32px 20px 80px; }
+  .top { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 20px; font-size:14px; }
+  .add-btn { border:none; background:var(--accent); color:#fff; font-size:14px; font-weight:600; padding:10px 16px; border-radius:10px; cursor:pointer; white-space:nowrap; }
+  .add-btn:hover { background:#1d4ed8; }
+
+  .adder { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; margin:0 0 20px; display:none; }
+  .adder.open { display:block; }
+  .adder h2 { font-size:15px; margin:0 0 12px; }
+  .field { margin:0 0 12px; }
+  .field label { display:block; font-size:12px; color:var(--muted); margin:0 0 4px; }
+  .field input, .field textarea { width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; outline:none; background:#fff; font-family:inherit; }
+  .field input:focus, .field textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+  .field textarea { min-height:56px; resize:vertical; }
+  .autofilled { font-size:11px; color:#059669; margin-left:6px; }
+  .preview { display:none; }
+  .preview.show { display:block; }
+  .row-btns { display:flex; gap:8px; margin-top:4px; align-items:center; }
+  .save { border:none; background:var(--accent); color:#fff; font-weight:600; font-size:14px; padding:10px 18px; border-radius:8px; cursor:pointer; }
+  .save:disabled { background:#cbd5e1; cursor:default; }
+  .cancel { border:1px solid var(--line); background:#fff; color:#334155; font-size:14px; padding:10px 16px; border-radius:8px; cursor:pointer; }
+  .aside-btn { margin-left:auto; border:1px solid var(--line); background:#fff; color:#334155; font-size:13px; padding:9px 14px; border-radius:8px; cursor:pointer; display:none; }
+  .aside-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .delete { border:1px solid #fecaca; background:#fff; color:#b91c1c; font-size:13px; padding:9px 14px; border-radius:8px; cursor:pointer; display:none; }
+  .delete.armed { background:#dc2626; color:#fff; border-color:#dc2626; }
+  .add-note { background:none; border:none; color:#818cf8; font-size:12px; cursor:pointer; padding:2px 0; margin:0 0 8px; }
+  .add-note:hover { color:var(--accent); text-decoration:underline; }
+  #asideBar a { color:var(--muted); text-decoration:none; }
+  #asideBar a:hover { color:var(--accent); }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#1f2937; color:#fff; padding:10px 14px; border-radius:10px; display:none; align-items:center; gap:14px; font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.2); z-index:10; }
+  #toast button { background:none; border:none; color:#93c5fd; font-weight:600; cursor:pointer; font-size:14px; }
+  .warn { color:#b45309; font-size:13px; margin:0 0 10px; display:none; }
+  .chips-in { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .chips-in input { border:none; outline:none; box-shadow:none !important; flex:1; min-width:120px; padding:4px; }
+  .chip-editable { font-size:12px; padding:3px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; display:inline-flex; gap:6px; align-items:center; }
+  .chip-editable button { border:none; background:none; color:#3730a3; cursor:pointer; font-size:13px; line-height:1; padding:0; }
+  .suggest { margin-top:8px; font-size:12px; color:var(--muted); }
+  .suggest button { font-size:12px; padding:3px 9px; border-radius:999px; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; cursor:pointer; margin:0 4px 4px 0; }
+  .suggest button:hover { border-color:#c7d2fe; }
+
+  .search { position:sticky; top:0; background:var(--bg); padding:12px 0 10px; z-index:2; }
+  .search input { width:100%; font-size:17px; padding:14px 16px; border:1px solid var(--line); border-radius:10px; outline:none; background:#fff; }
+  .search input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+  .tagbar { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 6px; padding-bottom:6px; }
+  .tagbar .label { font-size:12px; color:var(--muted); align-self:center; margin-right:2px; }
+  .filter { font-size:13px; padding:5px 12px; border-radius:999px; background:#fff; color:#334155; border:1px solid #e2e8f0; cursor:pointer; }
+  .filter:hover { border-color:#c7d2fe; }
+  .filter.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .clear { font-size:13px; padding:5px 12px; border-radius:999px; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; cursor:pointer; margin-left:4px; }
+  .count { color:var(--muted); font-size:13px; margin:4px 2px 14px; }
+  ul { list-style:none; margin:0; padding:0; }
+  li { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  li.fresh { animation:pop .6s ease; border-color:#86efac; }
+  @keyframes pop { from { background:#f0fdf4; } to { background:#fff; } }
+  .card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .title { font-size:16px; font-weight:600; margin:0 0 3px; }
+  .title a { color:var(--ink); text-decoration:none; }
+  .title a:hover { text-decoration:underline; }
+  .edit-btn { flex:none; border:1px solid var(--line); background:#fff; color:#64748b; font-size:12px; padding:4px 10px; border-radius:8px; cursor:pointer; }
+  .edit-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .site { color:var(--accent); font-size:12px; margin:0 0 6px; }
+  .desc { color:#374151; font-size:14px; margin:0 0 8px; line-height:1.45; }
+  .note-edit { font-size:14px; line-height:1.45; color:#3730a3; border-left:3px solid #c7d2fe; padding:4px 10px; margin:0 0 8px; outline:none; border-radius:0 6px 6px 0; }
+  .note-edit:focus { background:#f5f3ff; border-left-color:var(--accent); }
+  .note-edit.empty { color:#a5b4fc; font-style:italic; }
+  .date { color:var(--muted); font-size:12px; margin:0 0 8px; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .tag { font-size:12px; padding:3px 9px; border-radius:999px; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; cursor:pointer; }
+  .tag:hover { background:#e0e7ff; border-color:#c7d2fe; color:#3730a3; }
+  .tag.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tag .x { margin-left:6px; color:#94a3b8; cursor:pointer; font-weight:700; }
+  .tag .x:hover { color:#dc2626; }
+  .add-label { font-size:12px; padding:3px 9px; border-radius:999px; background:#fff; color:#64748b; border:1px dashed #cbd5e1; cursor:pointer; }
+  .add-label:hover { border-color:var(--accent); color:var(--accent); }
+  .add-label-input { font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--accent); outline:none; width:110px; }
+  mark { background:#fde68a; color:inherit; padding:0 1px; border-radius:2px; }
+  .empty { color:var(--muted); text-align:center; padding:48px 12px; }
+  .empty strong { color:var(--ink); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>My Bookmarks</h1>
+        <p class="sub">Everything you've saved, all in one place.</p>
+      </div>
+      <button class="add-btn" id="addBtn">＋ Add bookmark</button>
+    </div>
+
+    <div id="asideBar" style="margin:-8px 0 16px; font-size:13px;"></div>
+
+    <div class="adder" id="adder">
+      <h2 id="adderTitle">Save a new bookmark</h2>
+      <div class="field">
+        <label id="urlLabel">Paste the link</label>
+        <input id="url" type="text" placeholder="https://…" autocomplete="off" />
+        <p id="urlHint" style="font-size:12px; margin:6px 2px 0; display:none;"></p>
+      </div>
+
+      <div class="dupe" id="dupe" style="display:none; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:12px; border-radius:8px; margin:0 0 12px; font-size:14px;">
+        <span id="dupeText"></span>
+        <button id="openExisting" style="border:none; background:#fdba74; color:#7c2d12; border-radius:6px; padding:4px 10px; cursor:pointer; margin-left:8px; font-size:13px;">Open it to make changes</button>
+      </div>
+
+      <div class="preview" id="preview">
+        <div class="field">
+          <label>Title <span class="autofilled" id="tFill"></span></label>
+          <input id="fTitle" type="text" placeholder="Give it a title you'll recognise" />
+        </div>
+        <div class="field">
+          <label>Site <span class="autofilled" id="sFill"></span></label>
+          <input id="fSite" type="text" />
+        </div>
+        <div class="field">
+          <label>What it's about, from the page <span class="autofilled" id="dFill"></span></label>
+          <textarea id="fDesc"></textarea>
+        </div>
+        <div class="field">
+          <label>Your own note (optional) — in your words, so you can find it your way later</label>
+          <textarea id="fNote" placeholder="e.g. the cake I'm making for Sarah's birthday"></textarea>
+        </div>
+        <div class="field">
+          <label>Labels (type and press Enter)</label>
+          <div class="chips-in" id="chipsIn">
+            <input id="labelInput" type="text" placeholder="e.g. recipe" autocomplete="off" />
+          </div>
+          <div class="suggest" id="suggest"></div>
+        </div>
+      </div>
+
+      <p class="warn" id="warn"></p>
+      <div class="row-btns">
+        <button class="save" id="saveBtn" disabled>Save it</button>
+        <button class="cancel" id="cancelBtn">Cancel</button>
+        <button class="aside-btn" id="asideBtn">Set aside</button>
+        <button class="delete" id="deleteBtn">Delete for good</button>
+      </div>
+    </div>
+
+    <div class="search" id="searchBar"><input id="q" type="text" placeholder="Search your bookmarks…" autocomplete="off" /></div>
+    <div class="tagbar" id="tagbar"></div>
+    <div class="count" id="count"></div>
+
+    <ul id="list"></ul>
+    <div class="empty" id="empty" style="display:none;"></div>
+  </div>
+
+  <div id="toast"><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
+
+<script>
+  const bookmarks = [
+    { url:"https://seriouseats.com/pasta-science", title:"The best way to cook pasta, according to science", source:"Serious Eats", site:"seriouseats.com", desc:"Why you don't need a huge pot of water, and how much salt actually matters when boiling pasta.", note:"", date:"Saved 3 weeks ago", tags:["recipe"] },
+    { url:"https://martinfowler.com/articles/react-structure", title:"How to structure a large React application", source:"Martin Fowler", site:"martinfowler.com", desc:"Folder structure, state management, and where to draw module boundaries as a front-end project grows.", note:"For the dashboard rewrite at work.", date:"Saved 5 days ago", tags:["work","reference"] },
+    { url:"https://theatlantic.com/procrastination", title:"The psychology of why we procrastinate", source:"The Atlantic", site:"theatlantic.com", desc:"A long read on why we put things off, and what actually helps. Been meaning to finish this one.", note:"", date:"Saved 6 weeks ago", tags:["read later"] },
+    { url:"https://nytimes.com/no-knead-bread", title:"A no-knead bread recipe anyone can make", source:"The New York Times", site:"nytimes.com", desc:"Four ingredients, no kneading, overnight rise. The crustiest loaf from a home oven.", note:"", date:"Saved 4 months ago", tags:["recipe"] }
+  ];
+
+  function normUrl(u){ return u.trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').replace(/\/+$/,''); }
+  function findExisting(u, except){ const n=normUrl(u); if(!n) return null; return bookmarks.find(b=>b!==except && b.url && normUrl(b.url)===n); }
+
+  const fetchMock = [
+    { match:"smittenkitchen", title:"The best olive oil cake, ever", source:"Smitten Kitchen", desc:"A one-bowl olive oil cake with a crackly top — plush, citrusy, and impossible to mess up." },
+    { match:"nytimes", title:"A weeknight sheet-pan chicken dinner", source:"The New York Times", desc:"Everything roasts on one tray: chicken thighs, potatoes and lemon. Minimal cleanup." },
+    { match:"css-tricks", title:"A complete guide to Flexbox", source:"CSS-Tricks", desc:"The go-to visual reference for the flexbox layout properties, with diagrams for each one." }
+  ];
+
+  let pendingTags=[], editing=null, activeTag=null, deleteArmed=false, viewMode='active', toastTimer=null;
+  const $ = id => document.getElementById(id);
+
+  // ---------- gentle tidying: set aside (reversible) vs delete (permanent), both undoable ----------
+  function showToast(msg, undoFn){
+    $('toastMsg').textContent=msg; $('toast').style.display='flex';
+    $('toastUndo').onclick=()=>{ hideToast(); undoFn(); };
+    if(toastTimer) clearTimeout(toastTimer); toastTimer=setTimeout(hideToast,6000);
+  }
+  function hideToast(){ $('toast').style.display='none'; }
+  function setAside(b){ b.aside=true; if(activeTag && !bookmarks.some(x=>!x.aside && x.tags.includes(activeTag))) activeTag=null; render(); showToast('Set aside — out of your main list.', ()=>{ b.aside=false; render(); }); }
+  function bringBack(b){ b.aside=false; render(); showToast('Brought back to your list.', ()=>{ b.aside=true; render(); }); }
+  function deleteForGood(b){ const i=bookmarks.indexOf(b); if(i<0) return; bookmarks.splice(i,1); if(activeTag && !bookmarks.some(x=>x.tags.includes(activeTag))) activeTag=null; render(); showToast('Deleted for good.', ()=>{ bookmarks.splice(i,0,b); render(); }); }
+  const list=$('list'), empty=$('empty'), count=$('count'), q=$('q'), tagbar=$('tagbar');
+
+  function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function esc(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+  function highlight(text,tokens){const safe=escapeHtml(text);if(!tokens.length)return safe;const re=new RegExp('\\b('+tokens.map(esc).join('|')+')','ig');return safe.replace(re,'<mark>$1</mark>');}
+
+  // ---------- add / fuller editor ----------
+  // Does this even look like a web address? (tolerant of a missing https://)
+  function asUrl(u){
+    let s=u.trim(); if(!s) return null;
+    if(!/^https?:\/\//i.test(s)) s='https://'+s;
+    try { const url=new URL(s); return url.hostname.includes('.') ? url : null; } catch(e){ return null; }
+  }
+  function guessFromUrl(u){
+    const url=asUrl(u); if(!url) return null;
+    const hit=fetchMock.find(m=>u.toLowerCase().includes(m.match));
+    if(hit) return {...hit, autofilled:true};
+    const host=url.hostname.replace(/^www\./,'');
+    const name=host.split('.')[0].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    return { title:'', source:name, site:host, desc:'', autofilled:false };  // couldn't read the page
+  }
+
+  function renderChips(){
+    const box=$('chipsIn'); box.querySelectorAll('.chip-editable').forEach(e=>e.remove());
+    pendingTags.forEach((t,i)=>{
+      const c=document.createElement('span'); c.className='chip-editable';
+      c.innerHTML=`${escapeHtml(t)} <button data-i="${i}">✕</button>`;
+      c.querySelector('button').addEventListener('click',()=>{ pendingTags.splice(i,1); renderChips(); renderSuggest(); });
+      box.insertBefore(c,$('labelInput'));
+    });
+  }
+  function renderSuggest(){
+    const typed=$('labelInput').value.trim().toLowerCase();
+    let existing=[...new Set(bookmarks.flatMap(b=>b.tags))].filter(t=>!pendingTags.includes(t));
+    if(typed) existing=existing.filter(t=>t.toLowerCase().includes(typed));
+    const heading=typed?'Did you mean: ':'Reuse a label: ';
+    $('suggest').innerHTML = existing.length ? heading+existing.map(t=>`<button data-t="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('') : '';
+    $('suggest').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ pendingTags.push(b.getAttribute('data-t')); $('labelInput').value=''; renderChips(); renderSuggest(); }));
+  }
+  function addLabelFromInput(){ const v=$('labelInput').value.trim(); if(v){ const m=[...new Set(bookmarks.flatMap(b=>b.tags))].find(t=>t.toLowerCase()===v.toLowerCase()); const use=m||v; if(!pendingTags.includes(use)) pendingTags.push(use); } $('labelInput').value=''; renderChips(); renderSuggest(); }
+
+  function resetDelete(){ deleteArmed=false; $('deleteBtn').classList.remove('armed'); $('deleteBtn').textContent='Delete for good'; }
+  function openAdder(){ editing=null; $('adder').classList.add('open'); $('adderTitle').textContent='Save a new bookmark'; $('urlLabel').textContent='Paste the link'; $('saveBtn').textContent='Save it'; $('deleteBtn').style.display='none'; $('asideBtn').style.display='none'; $('preview').classList.remove('show'); $('saveBtn').disabled=true; $('url').focus(); }
+  function openEditor(b){
+    editing=b; resetDelete();
+    $('adder').classList.add('open'); $('adderTitle').textContent='Edit details'; $('urlLabel').textContent='The link (its real web address — you can fix it if it moved or is wrong)';
+    $('dupe').style.display='none'; $('warn').style.display='none';
+    $('url').value=b.url||'';
+    $('preview').classList.add('show');
+    $('fTitle').value=b.title; $('fSite').value=b.source; $('fDesc').value=b.desc||''; $('fNote').value=b.note||'';
+    $('tFill').textContent=''; $('sFill').textContent=''; $('dFill').textContent='';
+    pendingTags=[...b.tags]; renderChips(); renderSuggest();
+    $('saveBtn').disabled=false; $('saveBtn').textContent='Save changes'; $('deleteBtn').style.display='inline-block'; $('asideBtn').style.display='inline-block';
+    $('adder').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function closeAdder(){
+    $('adder').classList.remove('open'); $('preview').classList.remove('show');
+    $('url').value=''; $('fTitle').value=''; $('fSite').value=''; $('fDesc').value=''; $('fNote').value='';
+    $('dupe').style.display='none'; $('warn').style.display='none'; $('urlHint').style.display='none'; editing=null; resetDelete();
+    $('deleteBtn').style.display='none'; $('asideBtn').style.display='none';
+    pendingTags=[]; renderChips(); renderSuggest(); $('saveBtn').disabled=true;
+    $('tFill').textContent=''; $('sFill').textContent=''; $('dFill').textContent='';
+  }
+  function flashTo(b){ b._fresh=true; render(); const el=list.querySelector('[data-url="'+(b.url||'').replace(/"/g,'\\"')+'"]'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); else window.scrollTo({top:0,behavior:'smooth'}); }
+
+  $('addBtn').addEventListener('click',openAdder);
+  $('cancelBtn').addEventListener('click',closeAdder);
+
+  $('url').addEventListener('input',()=>{
+    if(editing) return;                          // in the editor the link is yours to fix; no auto-fetch
+    const u=$('url').value.trim();
+    if(!u){ $('urlHint').style.display='none'; $('dupe').style.display='none'; $('preview').classList.remove('show'); $('saveBtn').disabled=true; return; }
+    const existing=findExisting(u);
+    if(existing){
+      $('urlHint').style.display='none'; $('dupe').style.display='block';
+      $('dupeText').textContent='You already saved this one — "'+existing.title+'".';
+      $('openExisting').onclick=()=>{ $('dupe').style.display='none'; openEditor(existing); };
+      $('preview').classList.remove('show'); $('saveBtn').disabled=true; return;
+    }
+    $('dupe').style.display='none';
+    if(!asUrl(u)){                               // not a link at all
+      $('urlHint').style.display='block'; $('urlHint').style.color='#b45309';
+      $('urlHint').textContent="That doesn't look like a web link yet — a bookmark needs an address (like https://…) to take you back to.";
+      $('preview').classList.remove('show'); $('saveBtn').disabled=true; return;
+    }
+    const g=guessFromUrl(u);
+    $('preview').classList.add('show');
+    $('fTitle').value=g.title; $('fSite').value=g.source; $('fDesc').value=g.desc;
+    if(g.autofilled){
+      $('urlHint').style.display='none';
+      $('tFill').textContent='filled in for you'; $('sFill').textContent='filled in for you'; $('dFill').textContent='filled in for you';
+    } else {                                     // a real link, but the page couldn't be read
+      $('urlHint').style.display='block'; $('urlHint').style.color='#6b7280';
+      $('urlHint').textContent="Couldn't read this page automatically — pop in a title so you'll recognise it later. You can still save it.";
+      $('tFill').textContent=''; $('sFill').textContent=''; $('dFill').textContent='';
+    }
+    renderSuggest(); $('saveBtn').disabled=false;
+  });
+
+  $('labelInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); addLabelFromInput(); }});
+  $('labelInput').addEventListener('input',renderSuggest);
+
+  $('saveBtn').addEventListener('click',()=>{
+    if(editing){
+      const u=$('url').value.trim();
+      const clash=findExisting(u, editing);
+      if(clash){ $('warn').style.display='block'; $('warn').textContent='That link already belongs to another bookmark ("'+clash.title+'"). Give this one a different link.'; return; }
+      editing.url=u||editing.url;
+      editing.title=$('fTitle').value.trim()||'(untitled)';
+      editing.source=$('fSite').value.trim()||'Unknown site';
+      editing.desc=$('fDesc').value.trim();
+      editing.note=$('fNote').value.trim();
+      editing.tags=[...pendingTags];
+      const ref=editing; closeAdder(); flashTo(ref); return;
+    }
+    const u=$('url').value.trim();
+    const existing=findExisting(u);
+    if(existing){ closeAdder(); openEditor(existing); return; }
+    const b={ url:u, title:$('fTitle').value.trim()||'(untitled)', source:$('fSite').value.trim()||'Unknown site',
+      site:'', desc:$('fDesc').value.trim(), note:$('fNote').value.trim(), date:'Saved just now', tags:[...pendingTags] };
+    bookmarks.unshift(b); closeAdder(); q.value=''; activeTag=null; flashTo(b);
+  });
+
+  $('asideBtn').addEventListener('click',()=>{ if(!editing) return; const b=editing; closeAdder(); setAside(b); });
+
+  $('deleteBtn').addEventListener('click',()=>{
+    if(!editing) return;
+    if(!deleteArmed){ deleteArmed=true; $('deleteBtn').classList.add('armed'); $('deleteBtn').textContent='Really delete? Click again'; return; }
+    const b=editing; closeAdder(); deleteForGood(b);
+  });
+
+  // ---------- find + roundups + inline tidies ----------
+  function renderTagbar(){
+    const allTags=[...new Set(bookmarks.filter(b=>!b.aside).flatMap(b=>b.tags))];
+    tagbar.innerHTML = (allTags.length?'<span class="label">Round up:</span>':'') + allTags.map(t=>
+      `<button class="filter ${t===activeTag?'on':''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')
+      + (activeTag?'<button class="clear" id="clearBtn">✕ Show all again</button>':'');
+    tagbar.querySelectorAll('.filter').forEach(el=>el.addEventListener('click',()=>{ const t=el.getAttribute('data-tag'); activeTag=(activeTag===t)?null:t; render(); }));
+    const cb=$('clearBtn'); if(cb) cb.addEventListener('click',()=>{ activeTag=null; render(); });
+  }
+
+  function renderAsideBar(){
+    const n=bookmarks.filter(b=>b.aside).length; const bar=$('asideBar');
+    if(viewMode==='aside'){ bar.innerHTML='<a href="#" id="backActive">← Back to my list</a>'; $('backActive').onclick=e=>{e.preventDefault(); viewMode='active'; render();}; }
+    else if(n>0){ bar.innerHTML='<a href="#" id="toAside">🗂 Set aside ('+n+')</a>'; $('toAside').onclick=e=>{e.preventDefault(); viewMode='aside'; render();}; }
+    else bar.innerHTML='';
+  }
+
+  function renderAside(){
+    $('searchBar').style.display='none'; tagbar.innerHTML='';
+    const aside=bookmarks.filter(b=>b.aside);
+    count.textContent = aside.length+(aside.length===1?' thing set aside':' things set aside');
+    if(!aside.length){ list.innerHTML=''; empty.style.display='block'; empty.innerHTML='Nothing set aside.'; return; }
+    empty.style.display='none';
+    list.innerHTML = aside.map(b=>`
+      <li data-url="${escapeHtml(b.url||'')}" style="opacity:.85;">
+        <p class="title">${escapeHtml(b.title)}</p>
+        <p class="site">${escapeHtml(b.source)}</p>
+        ${b.note?`<p class="desc" style="border-left:3px solid #c7d2fe; padding-left:10px; color:#3730a3;"><em>${escapeHtml(b.note)}</em></p>`:''}
+        <div class="row-btns" style="margin-top:8px;">
+          <button class="save bringback" data-url="${escapeHtml(b.url||'')}">Bring back</button>
+          <button class="cancel delperm" data-url="${escapeHtml(b.url||'')}">Delete for good</button>
+        </div>
+      </li>`).join('');
+    list.querySelectorAll('.bringback').forEach(el=>el.addEventListener('click',()=>{ const b=bookmarks.find(x=>(x.url||'')===el.getAttribute('data-url')&&x.aside); if(b) bringBack(b); }));
+    list.querySelectorAll('.delperm').forEach(el=>el.addEventListener('click',()=>{ const b=bookmarks.find(x=>(x.url||'')===el.getAttribute('data-url')&&x.aside); if(b) deleteForGood(b); }));
+  }
+
+  function render(){
+    renderAsideBar();
+    if(viewMode==='aside'){ renderAside(); return; }
+    $('searchBar').style.display='';
+    const term=q.value;
+    const tokens=term.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const tokenRes=tokens.map(tok=>new RegExp('\\b'+esc(tok),'i'));
+    const matches=bookmarks.filter(b=>{
+      if(b.aside) return false;
+      if(activeTag && !b.tags.includes(activeTag)) return false;
+      if(!tokens.length) return true;
+      const hay=(b.title+' '+b.desc+' '+(b.note||'')+' '+b.source+' '+b.site).toLowerCase();
+      return tokenRes.every(re=>re.test(hay));
+    });
+    renderTagbar();
+
+    if(matches.length===0){ list.innerHTML=''; empty.style.display='block'; empty.innerHTML= bookmarks.length? 'Nothing to show for that.' : 'Nothing saved yet.'; count.textContent=''; return; }
+    empty.style.display='none';
+    count.textContent = matches.length + (matches.length===1?' bookmark':' bookmarks') + (activeTag?' tagged "'+escapeHtml(activeTag)+'"':'');
+
+    list.innerHTML = matches.map(b=>`
+      <li class="${b._fresh?'fresh':''}" data-url="${escapeHtml(b.url||'')}">
+        <div class="card-head">
+          <p class="title"><a href="#" onclick="return false;">${highlight(b.title,tokens)}</a></p>
+          <button class="edit-btn" data-url="${escapeHtml(b.url||'')}">Edit details</button>
+        </div>
+        <p class="site">${highlight(b.source,tokens)}</p>
+        ${b.desc?`<p class="desc">${highlight(b.desc,tokens)}</p>`:''}
+        ${b.note ? `<div class="note-edit" contenteditable="true" data-url="${escapeHtml(b.url||'')}">${highlight(b.note,tokens)}</div>` : `<button class="add-note" data-url="${escapeHtml(b.url||'')}">＋ add a note</button>`}
+        <p class="date">${escapeHtml(b.date)}</p>
+        <div class="tags" data-url="${escapeHtml(b.url||'')}">${b.tags.map(t=>`<span class="tag ${t===activeTag?'on':''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}<span class="x" data-remove="${escapeHtml(t)}">×</span></span>`).join('')}<span class="add-label">＋ label</span></div>
+      </li>`).join('');
+
+    list.querySelectorAll('.edit-btn').forEach(el=>el.addEventListener('click',()=>{ const b=bookmarks.find(x=>(x.url||'')===el.getAttribute('data-url')); if(b) openEditor(b); }));
+    list.querySelectorAll('.tag').forEach(el=>el.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; const t=el.getAttribute('data-tag'); activeTag=(activeTag===t)?null:t; render(); window.scrollTo({top:0,behavior:'smooth'}); }));
+    list.querySelectorAll('.tag .x').forEach(el=>el.addEventListener('click',e=>{ e.stopPropagation(); const li=el.closest('li'); const b=bookmarks.find(x=>(x.url||'')===li.getAttribute('data-url')); const t=el.getAttribute('data-remove'); if(b){ b.tags=b.tags.filter(x=>x!==t); if(activeTag&&!bookmarks.some(x=>x.tags.includes(activeTag))) activeTag=null; render(); }}));
+    function wireNote(el){
+      el.addEventListener('blur',()=>{ const li=el.closest('li'); const b=bookmarks.find(x=>(x.url||'')===li.getAttribute('data-url')); if(b){ const v=el.textContent.trim(); if(v!==(b.note||'')){ b.note=v; render(); } else if(!v){ render(); } }});
+    }
+    list.querySelectorAll('.note-edit').forEach(wireNote);
+    // empty cards show only a quiet link; clicking it opens an editable note in place
+    list.querySelectorAll('.add-note').forEach(el=>el.addEventListener('click',()=>{
+      const div=document.createElement('div'); div.className='note-edit'; div.setAttribute('contenteditable','true');
+      el.replaceWith(div); wireNote(div); div.focus();
+    }));
+    list.querySelectorAll('.add-label').forEach(el=>el.addEventListener('click',()=>{
+      const li=el.closest('li'); const b=bookmarks.find(x=>(x.url||'')===li.getAttribute('data-url'));
+      const existing=[...new Set(bookmarks.flatMap(x=>x.tags))];
+      const inp=document.createElement('input'); inp.className='add-label-input'; inp.placeholder='label…';
+      const dl=document.createElement('datalist'); dl.id='dl-'+Math.abs(hashStr(b.url||''));
+      existing.forEach(t=>{const o=document.createElement('option');o.value=t;dl.appendChild(o);});
+      inp.setAttribute('list',dl.id); el.replaceWith(inp); inp.parentNode.appendChild(dl); inp.focus();
+      let done=false;
+      const commit=()=>{ if(done) return; done=true; let v=inp.value.trim(); if(v){ const m=existing.find(t=>t.toLowerCase()===v.toLowerCase()); v=m||v; if(!b.tags.includes(v)) b.tags.push(v); } render(); };
+      inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); commit(); } if(e.key==='Escape'){ done=true; render(); }});
+      inp.addEventListener('blur',commit);
+    }));
+    bookmarks.forEach(b=>{ if(b._fresh) delete b._fresh; });
+  }
+  function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return h;}
+
+  q.addEventListener('input',render);
+  render();
+</script>
+</body>
+</html>

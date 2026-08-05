@@ -159,8 +159,8 @@ enforces each method's interaction model — notably COSPEC's internal Gherkin
 
 ## Citation
 
-Citation metadata is provided in `CITATION.cff`. The DOI for the archived release
-will be added after the public GitHub release is deposited in Zenodo.
+Citation metadata is provided in `CITATION.cff`. The archived v1.0.1 release is
+available at <https://doi.org/10.5281/zenodo.21803280>.
 
 Source repository: <https://github.com/SeoNebys/cospec-harness>
 

@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks — prototype</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #18201d; background: #f4f3ed; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 22px 7vw; border-bottom: 1px solid #d8d8cf; background: #fbfaf5; }
+    .brand { font-size: 20px; font-weight: 750; letter-spacing: -.02em; }
+    main { width: min(920px, 86vw); margin: 72px auto; }
+    h1 { margin: 0 0 8px; font-size: clamp(30px, 5vw, 48px); letter-spacing: -.04em; }
+    .lead { margin: 0 0 34px; color: #66706b; font-size: 18px; }
+    .save-box { display: flex; gap: 10px; padding: 10px; border: 1px solid #ccd1ca; border-radius: 14px; background: white; box-shadow: 0 12px 32px rgba(38, 48, 43, .08); }
+    input { flex: 1; min-width: 0; border: 0; padding: 12px 14px; font: inherit; outline: none; }
+    button { border: 0; border-radius: 10px; padding: 12px 18px; background: #175e45; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    .header-action { display: none; }
+    .overlay { display: none; position: fixed; inset: 0; z-index: 5; align-items: center; justify-content: center; padding: 24px; background: rgba(24, 32, 29, .42); }
+    .overlay.open { display: flex; }
+    .dialog { width: min(620px, 94vw); padding: 26px; border-radius: 18px; background: #f4f3ed; box-shadow: 0 24px 70px rgba(20, 26, 23, .25); }
+    .dialog h2, .drawer h2 { margin: 0 0 18px; font-size: 24px; }
+    .drawer { position: fixed; top: 0; right: -520px; z-index: 6; width: min(480px, 92vw); height: 100vh; padding: 34px 28px; background: #f4f3ed; box-shadow: -20px 0 60px rgba(20, 26, 23, .18); transition: right .22s ease; }
+    .drawer.open { right: 0; }
+    .drawer .save-box, .dialog .save-box { flex-direction: column; }
+    #hint { min-height: 24px; margin: 10px 4px 0; color: #66706b; font-size: 14px; }
+    .collection { margin-top: 62px; }
+    .collection h2 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: #66706b; }
+    .search-box { display: none; margin: 18px 0 8px; padding: 4px 14px; border: 1px solid #ccd1ca; border-radius: 12px; background: white; }
+    .search-box.visible { display: block; }
+    .search-box input { width: 100%; }
+    .result-count { display: none; margin: 10px 2px; color: #66706b; font-size: 14px; }
+    .view-tabs { display: none; gap: 8px; margin: 18px 0; }
+    .view-tabs.visible { display: flex; }
+    .view-tab { border: 1px solid #c9d2cc; background: white; color: #356a58; }
+    .view-tab.active { border-color: #175e45; background: #175e45; color: white; }
+    .later-toggle { border: 1px solid #c9d2cc; background: white; color: #356a58; white-space: nowrap; }
+    .later-toggle.marked { border-color: #175e45; background: #e1eee8; color: #175e45; }
+    .manage { position: relative; align-self: start; }
+    .manage-button { border: 1px solid #c9d2cc; background: white; color: #356a58; }
+    .manage-menu { display: none; position: absolute; right: 0; top: 48px; z-index: 3; width: 150px; padding: 6px; border: 1px solid #d8dcd6; border-radius: 10px; background: white; box-shadow: 0 12px 28px rgba(38,48,43,.14); }
+    .manage-menu.open { display: grid; gap: 4px; }
+    .manage-menu button { text-align: left; background: transparent; color: #27342f; font-weight: 600; }
+    .manage-menu .danger { color: #a13d35; }
+    .manage.actions { display: grid; gap: 6px; }
+    .manage.actions button { padding: 8px 12px; border: 1px solid #c9d2cc; background: white; color: #356a58; }
+    .manage.actions .danger { color: #a13d35; }
+    .edit-panel { display: none; grid-column: 2 / -1; gap: 10px; padding-top: 14px; border-top: 1px solid #e2e5e0; }
+    .edit-panel.open { display: grid; }
+    .edit-panel label { display: grid; gap: 5px; color: #66706b; font-size: 13px; font-weight: 700; }
+    .edit-panel input { border: 1px solid #c9d2cc; border-radius: 8px; }
+    .edit-panel button { justify-self: start; }
+    .notice { display: none; margin-top: 18px; padding: 18px; border-radius: 12px; background: #e8eee9; color: #355447; }
+    .empty { margin-top: 18px; padding: 54px 20px; border: 1px dashed #bdc3bc; border-radius: 16px; text-align: center; color: #748079; }
+    .card { display: none; grid-template-columns: 52px 1fr auto; gap: 16px; align-items: center; margin-top: 18px; padding: 18px; border: 1px solid #d8dcd6; border-radius: 16px; background: white; }
+    .favicon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 12px; background: #f1f4f2; color: #175e45; font-weight: 800; }
+    .title { margin: 0 0 5px; font-size: 18px; }
+    .description, .url { margin: 0; color: #66706b; font-size: 14px; }
+    .url { margin-top: 7px; color: #356a58; }
+    .saved { color: #356a58; font-size: 14px; font-weight: 700; }
+    .tags { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .tag { padding: 5px 9px; border-radius: 999px; background: #e1eee8; color: #175e45; font-size: 13px; font-weight: 700; }
+    .tag-action { padding: 5px 9px; border: 1px solid #c9d2cc; background: transparent; color: #356a58; font-size: 13px; }
+    .tag-editor { display: none; gap: 8px; margin-top: 12px; }
+    .tag-editor.open { display: flex; }
+    .tag-editor input { flex: 0 1 220px; padding: 8px 10px; border: 1px solid #c9d2cc; border-radius: 8px; }
+    .tag-editor button { padding: 8px 12px; }
+    @media (max-width: 620px) { .save-box { flex-direction: column; } .card { grid-template-columns: 44px 1fr; } .saved { grid-column: 2; } }
+  </style>
+</head>
+<body>
+  <header><div class="brand">Keepsake</div><div id="header-label">All bookmarks</div><button id="header-action" class="header-action" type="button">+ Save a link</button></header>
+  <main data-harness-ready="true">
+    <h1>Save what matters.</h1>
+    <p class="lead">Paste a link and its details will be filled in for you.</p>
+    <form id="save-form" class="save-box">
+      <input id="url" type="url" required autocomplete="off" placeholder="Paste a web address…" aria-label="Web address">
+      <button id="save" type="submit">Save bookmark</button>
+    </form>
+    <p id="hint" role="status"></p>
+    <section class="collection" aria-labelledby="collection-heading">
+      <h2 id="collection-heading">Your bookmarks</h2>
+      <div id="view-tabs" class="view-tabs"><button id="all-view" class="view-tab active" type="button">All bookmarks</button><button id="later-view" class="view-tab" type="button">Read later</button><button id="archive-view" class="view-tab" type="button" style="display:none">Archive</button></div>
+      <div id="search-box" class="search-box"><input id="search" type="search" placeholder="Search titles and tags…" aria-label="Search bookmarks"></div>
+      <p id="result-count" class="result-count"></p>
+      <div id="empty" class="empty">No bookmarks yet. Your first saved link will appear here.</div>
+      <article id="card" class="card bookmark-card" data-search="javascript mdn language reference">
+        <div class="favicon">MDN</div>
+        <div>
+          <h3 id="title" class="title"></h3>
+          <p id="description" class="description"></p>
+          <p id="display-url" class="url"></p>
+          <div id="tags" class="tags"><button id="tag-action" class="tag-action" type="button">+ Add a tag</button></div>
+          <div id="tag-editor" class="tag-editor"><input id="tag-input" type="text" placeholder="Tag name" aria-label="Tag name"><button id="add-tag" type="button">Add</button></div>
+        </div>
+        <div class="saved">Saved</div>
+        <div id="edit-panel" class="edit-panel"><label>Title<input id="edit-title" value="JavaScript | MDN"></label><label>Web address<input id="edit-url" type="url" value="https://developer.mozilla.org/en-US/docs/Web/JavaScript"></label><button id="save-changes" type="button">Save changes</button></div>
+      </article>
+      <article id="recipe-card" class="card bookmark-card" data-search="weeknight pasta recipes cooking">
+        <div class="favicon">WK</div><div><h3 class="title">Five easy weeknight pasta recipes</h3><p class="description">Quick dinners for busy evenings.</p><p class="url">kitchen.example/pasta</p><div class="tags"><span class="tag">cooking</span></div></div><div class="saved">Saved</div>
+      </article>
+      <article id="design-card" class="card bookmark-card" data-search="designing calmer interfaces design inspiration">
+        <div class="favicon">UI</div><div><h3 class="title">Designing calmer interfaces</h3><p class="description">Principles for focused product design.</p><p class="url">design.example/calm</p><div class="tags"><span class="tag">inspiration</span></div></div><div class="saved">Saved</div>
+      </article>
+      <div id="notice" class="notice" role="status"></div>
+    </section>
+  </main>
+  <div id="overlay" class="overlay"><section class="dialog"><h2>Save a bookmark</h2><div id="dialog-target"></div></section></div>
+  <aside id="drawer" class="drawer"><h2>Save a bookmark</h2><div id="drawer-target"></div></aside>
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url');
+    const button = document.querySelector('#save');
+    const hint = document.querySelector('#hint');
+    const method = new URLSearchParams(location.search).get('method') || 'inline';
+    const flow = new URLSearchParams(location.search).get('flow');
+    const headerAction = document.querySelector('#header-action');
+    const overlay = document.querySelector('#overlay');
+    const drawer = document.querySelector('#drawer');
+    if (method === 'dialog') {
+      document.querySelector('#dialog-target').append(form);
+      document.querySelector('#header-label').style.display = 'none';
+      headerAction.style.display = 'block';
+      headerAction.addEventListener('click', () => { overlay.classList.add('open'); input.focus(); });
+      overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.classList.remove('open'); });
+    }
+    if (method === 'drawer') {
+      document.querySelector('#drawer-target').append(form);
+      document.querySelector('#header-label').style.display = 'none';
+      headerAction.style.display = 'block';
+      headerAction.addEventListener('click', () => { drawer.classList.add('open'); input.focus(); });
+    }
+    if (flow === 'tags') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#card').style.display = 'grid';
+      document.querySelector('#title').textContent = 'JavaScript | MDN';
+      document.querySelector('#description').textContent = 'JavaScript is a scripting language that enables you to create dynamically updating content.';
+      document.querySelector('#display-url').textContent = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript';
+    }
+    if (flow === 'search') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#search-box').classList.add('visible');
+      document.querySelector('#result-count').style.display = 'block';
+      document.querySelectorAll('.bookmark-card').forEach(card => card.style.display = 'grid');
+      document.querySelector('#title').textContent = 'JavaScript | MDN';
+      document.querySelector('#description').textContent = 'JavaScript is a scripting language that enables you to create dynamically updating content.';
+      document.querySelector('#display-url').textContent = 'developer.mozilla.org/en-US/docs/Web/JavaScript';
+      const referenceTag = document.createElement('span');
+      referenceTag.className = 'tag';
+      referenceTag.textContent = 'reference';
+      document.querySelector('#tags').prepend(referenceTag);
+      document.querySelector('#tag-action').style.display = 'none';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+    }
+    if (flow === 'read-later') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#view-tabs').classList.add('visible');
+      document.querySelectorAll('.bookmark-card').forEach(card => card.style.display = 'grid');
+      document.querySelector('#title').textContent = 'JavaScript | MDN';
+      document.querySelector('#description').textContent = 'JavaScript is a scripting language that enables you to create dynamically updating content.';
+      document.querySelector('#display-url').textContent = 'developer.mozilla.org/en-US/docs/Web/JavaScript';
+      document.querySelectorAll('.bookmark-card .saved').forEach(status => {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'later-toggle';
+        const iconControl = method === 'icon';
+        toggle.textContent = iconControl ? '♡' : 'Read later';
+        if (iconControl) toggle.setAttribute('aria-label', 'Add to reading list');
+        toggle.addEventListener('click', () => {
+          const card = toggle.closest('.bookmark-card');
+          card.dataset.readLater = card.dataset.readLater === 'true' ? 'false' : 'true';
+          const marked = card.dataset.readLater === 'true';
+          toggle.classList.toggle('marked', marked);
+          toggle.textContent = iconControl ? (marked ? '♥' : '♡') : (marked ? '✓ In reading list' : 'Read later');
+          if (iconControl) toggle.setAttribute('aria-label', marked ? 'Remove from reading list' : 'Add to reading list');
+        });
+        status.replaceWith(toggle);
+      });
+    }
+    if (flow === 'manage') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#view-tabs').classList.add('visible');
+      document.querySelector('#later-view').style.display = 'none';
+      document.querySelector('#archive-view').style.display = 'block';
+      document.querySelector('#card').style.display = 'grid';
+      document.querySelector('#title').textContent = 'JavaScript | MDN';
+      document.querySelector('#description').textContent = 'JavaScript is a scripting language that enables you to create dynamically updating content.';
+      document.querySelector('#display-url').textContent = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript';
+      const status = document.querySelector('#card .saved');
+      const management = document.createElement('div');
+      management.className = method === 'actions' ? 'manage actions' : 'manage';
+      management.innerHTML = method === 'actions'
+        ? '<button class="edit-action" type="button">Edit</button><button class="archive-action" type="button">Archive</button><button class="delete-action danger" type="button">Delete</button>'
+        : '<button class="manage-button" type="button">Manage</button><div class="manage-menu"><button class="edit-action" type="button">Edit</button><button class="archive-action" type="button">Archive</button><button class="delete-action danger" type="button">Delete</button></div>';
+      status.replaceWith(management);
+      const menu = management.querySelector('.manage-menu');
+      if (menu) management.querySelector('.manage-button').addEventListener('click', () => menu.classList.toggle('open'));
+      management.querySelector('.edit-action').addEventListener('click', () => { if (menu) menu.classList.remove('open'); document.querySelector('#edit-panel').classList.add('open'); });
+      management.querySelector('.archive-action').addEventListener('click', () => { const card = document.querySelector('#card'); card.dataset.archived = 'true'; card.style.display = 'none'; const notice = document.querySelector('#notice'); notice.style.display = 'block'; notice.textContent = 'Bookmark moved to Archive. It is no longer in All bookmarks.'; });
+      management.querySelector('.delete-action').addEventListener('click', () => { if (menu) menu.classList.remove('open'); if (confirm('Delete this bookmark?')) { document.querySelector('#card').style.display = 'none'; const notice = document.querySelector('#notice'); notice.style.display = 'block'; notice.textContent = 'Bookmark deleted.'; } });
+    }
+    document.querySelector('#save-changes').addEventListener('click', () => {
+      document.querySelector('#title').textContent = document.querySelector('#edit-title').value;
+      document.querySelector('#display-url').textContent = document.querySelector('#edit-url').value;
+      document.querySelector('#edit-panel').classList.remove('open');
+      const notice = document.querySelector('#notice'); notice.style.display = 'block'; notice.textContent = 'Changes saved.';
+    });
+    document.querySelector('#all-view').addEventListener('click', () => {
+      document.querySelectorAll('.bookmark-card').forEach(card => card.style.display = (flow === 'manage' && card.id !== 'card') || card.dataset.archived === 'true' ? 'none' : 'grid');
+      document.querySelector('#all-view').classList.add('active');
+      document.querySelector('#later-view').classList.remove('active');
+      document.querySelector('#archive-view').classList.remove('active');
+    });
+    document.querySelector('#later-view').addEventListener('click', () => {
+      document.querySelectorAll('.bookmark-card').forEach(card => card.style.display = card.dataset.readLater === 'true' ? 'grid' : 'none');
+      document.querySelector('#later-view').classList.add('active');
+      document.querySelector('#all-view').classList.remove('active');
+    });
+    document.querySelector('#archive-view').addEventListener('click', () => {
+      document.querySelectorAll('.bookmark-card').forEach(card => card.style.display = card.dataset.archived === 'true' ? 'grid' : 'none');
+      document.querySelector('#archive-view').classList.add('active');
+      document.querySelector('#all-view').classList.remove('active');
+      const management = document.querySelector('#card .manage');
+      if (management && document.querySelector('#card').dataset.archived === 'true') {
+        management.innerHTML = '<button class="manage-button restore-action" type="button">Restore</button>';
+        management.querySelector('.restore-action').addEventListener('click', () => {
+          document.querySelector('#card').dataset.archived = 'false';
+          document.querySelector('#card').style.display = 'none';
+          const notice = document.querySelector('#notice'); notice.style.display = 'block'; notice.textContent = 'Bookmark restored to All bookmarks.';
+        });
+      }
+    });
+    document.querySelector('#search').addEventListener('input', (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      let visible = 0;
+      document.querySelectorAll('.bookmark-card').forEach(card => {
+        const matches = card.dataset.search.includes(query);
+        card.style.display = matches ? 'grid' : 'none';
+        if (matches) visible++;
+      });
+      document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+    });
+    document.querySelector('#tag-action').addEventListener('click', () => {
+      document.querySelector('#tag-editor').classList.add('open');
+      document.querySelector('#tag-input').focus();
+    });
+    document.querySelector('#add-tag').addEventListener('click', () => {
+      const tagInput = document.querySelector('#tag-input');
+      const name = tagInput.value.trim();
+      if (!name) return;
+      const chip = document.createElement('span');
+      chip.className = 'tag';
+      chip.textContent = name;
+      document.querySelector('#tags').prepend(chip);
+      tagInput.value = '';
+      document.querySelector('#tag-editor').classList.remove('open');
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Getting details…';
+      hint.textContent = 'Reading the page details…';
+      window.setTimeout(() => {
+        let host = '';
+        try { host = new URL(input.value).hostname.replace(/^www\./, ''); } catch (_) {}
+        const isMdn = host === 'developer.mozilla.org';
+        document.querySelector('#title').textContent = isMdn ? 'JavaScript | MDN' : `A saved page from ${host || 'the web'}`;
+        document.querySelector('#description').textContent = isMdn
+          ? 'JavaScript is a scripting language that enables you to create dynamically updating content.'
+          : 'Page title and description filled in automatically.';
+        document.querySelector('#display-url').textContent = input.value;
+        document.querySelector('#empty').style.display = 'none';
+        document.querySelector('#card').style.display = 'grid';
+        button.disabled = false;
+        button.textContent = 'Save bookmark';
+        hint.textContent = 'Bookmark saved with its page details.';
+        input.value = '';
+        overlay.classList.remove('open');
+        drawer.classList.remove('open');
+      }, 650);
+    });
+  </script>
+</body>
+</html>

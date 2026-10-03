@@ -1,0 +1,1 @@
+import type {LibraryQuery} from '../api/types.ts';export function ActiveFilters({query,clear}:{query:LibraryQuery;clear:()=>void}){const active=Boolean(query.q||query.tags.length||query.favorite);return active?<div className="active-filters"><span>Showing filtered results</span><button onClick={clear}>Clear all</button></div>:null}

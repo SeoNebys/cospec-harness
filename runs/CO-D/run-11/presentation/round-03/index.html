@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e4e6eb; --ink:#1c1e21; --sub:#65676b; --accent:#2f6fed; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 20px; }
+  header h1 { margin:0; font-size:18px; }
+  main { max-width:720px; margin:0 auto; padding:20px 16px 60px; }
+  .capture { background:var(--card); border:1px solid var(--line); border-radius:12px;
+             padding:16px; margin-bottom:24px; }
+  .capture label { display:block; font-size:13px; color:var(--sub); margin:0 0 4px; }
+  .capture input { width:100%; padding:11px 12px; border:1px solid var(--line);
+                   border-radius:9px; font-size:15px; margin-bottom:12px; }
+  .capture input:focus { outline:none; border-color:var(--accent); }
+  .row { display:flex; gap:10px; align-items:center; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:9px;
+                   padding:11px 18px; font-size:15px; cursor:pointer; }
+  button.primary:disabled { opacity:.5; cursor:not-allowed; }
+  .hint { font-size:12px; color:var(--sub); }
+  .list-head { font-size:13px; color:var(--sub); margin:0 0 10px; text-transform:uppercase;
+               letter-spacing:.04em; }
+  .item { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:14px 16px; margin-bottom:10px; display:flex; gap:12px; align-items:flex-start; }
+  .fav { width:28px; height:28px; border-radius:7px; background:#eef1f6; flex:0 0 auto;
+         display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--sub); }
+  .item .body { min-width:0; flex:1; }
+  .item .title { font-size:15px; font-weight:600; margin:0 0 2px; word-break:break-word; }
+  .item .title a { color:var(--ink); text-decoration:none; }
+  .item .title a:hover { text-decoration:underline; }
+  .item .url { font-size:13px; color:var(--sub); word-break:break-all; margin:0; }
+  .item .meta { font-size:12px; color:var(--sub); margin-top:6px; }
+  .empty { text-align:center; color:var(--sub); padding:40px 10px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+           background:#1c1e21; color:#fff; padding:10px 16px; border-radius:9px; font-size:14px;
+           opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  @media (max-width:480px){ .row{flex-wrap:wrap;} button.primary{width:100%;} }
+</style>
+</head>
+<body>
+<header><h1>My Bookmarks</h1></header>
+<main>
+  <section class="capture">
+    <label for="url">Paste a link to save</label>
+    <input id="url" type="text" placeholder="https://…" autocomplete="off" />
+    <label for="title">Title <span class="hint">(optional — filled in for you if left blank)</span></label>
+    <input id="title" type="text" placeholder="e.g. Article about gardening" autocomplete="off" />
+    <div class="row">
+      <button id="save" class="primary" disabled>Save link</button>
+      <span class="hint" id="cap-hint">Enter a link to enable saving.</span>
+    </div>
+  </section>
+
+  <p class="list-head">Saved links</p>
+  <div id="list"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+  var items = [];
+  var urlEl = document.getElementById('url');
+  var titleEl = document.getElementById('title');
+  var saveEl = document.getElementById('save');
+  var listEl = document.getElementById('list');
+  var hintEl = document.getElementById('cap-hint');
+  var toastEl = document.getElementById('toast');
+
+  function normalize(u){
+    u = u.trim();
+    if(!u) return '';
+    if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    return u;
+  }
+  function hostOf(u){
+    try { return new URL(u).hostname.replace(/^www\./,''); } catch(e){ return u; }
+  }
+  function titleFromUrl(u){
+    var h = hostOf(u);
+    return h.charAt(0).toUpperCase() + h.slice(1);
+  }
+  function fmtDate(d){
+    return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' · ' +
+           d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  }
+  function toast(msg){
+    toastEl.textContent = msg; toastEl.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(function(){ toastEl.classList.remove('show'); },1800);
+  }
+
+  function render(){
+    if(items.length === 0){
+      listEl.innerHTML = '<div class="empty">No links saved yet. Paste one above to get started.</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    items.forEach(function(it){
+      var el = document.createElement('div');
+      el.className = 'item';
+      el.innerHTML =
+        '<div class="fav">🔖</div>' +
+        '<div class="body">' +
+          '<p class="title"><a href="'+it.url+'" target="_blank" rel="noopener">'+escapeHtml(it.title)+'</a></p>' +
+          '<p class="url">'+escapeHtml(it.url)+'</p>' +
+          '<p class="meta">Saved '+fmtDate(it.saved)+'</p>' +
+        '</div>';
+      listEl.appendChild(el);
+    });
+  }
+  function escapeHtml(s){ return s.replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  function refreshButton(){
+    var has = urlEl.value.trim().length > 0;
+    saveEl.disabled = !has;
+    hintEl.textContent = has ? 'Ready to save.' : 'Enter a link to enable saving.';
+  }
+
+  function save(){
+    var raw = urlEl.value.trim();
+    if(!raw) return;
+    var url = normalize(raw);
+    var title = titleEl.value.trim() || titleFromUrl(url);
+    items.unshift({ url:url, title:title, saved:new Date() });
+    urlEl.value=''; titleEl.value=''; refreshButton();
+    render(); urlEl.focus();
+    toast('Saved “'+title+'”');
+  }
+
+  urlEl.addEventListener('input', refreshButton);
+  urlEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); titleEl.focus(); }});
+  titleEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); save(); }});
+  saveEl.addEventListener('click', save);
+
+  render(); refreshButton();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

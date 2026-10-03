@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Keepsake — personal bookmarks</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="/" aria-label="Keepsake home"><span>K</span>Keepsake</a>
+    <button class="primary" id="new-bookmark">Save a link</button>
+  </header>
+  <main id="app" aria-live="polite">
+    <section class="hero">
+      <div><p class="kicker">Personal bookmark library</p><h1>Things worth finding again.</h1></div>
+      <label class="search"><span>Search</span><input id="search" type="search" placeholder="Titles, notes, addresses…"></label>
+    </section>
+    <section class="workspace">
+      <aside id="sidebar" class="sidebar">
+        <p class="side-label">Library</p>
+        <button class="side-item active" data-view="active">All bookmarks <span id="active-count">0</span></button>
+        <button class="side-item" data-view="later">Read later <span id="later-count">0</span></button>
+        <button class="side-item" data-view="archive">Archive <span id="archive-count">0</span></button>
+        <div class="side-divider"></div>
+        <p class="side-label">Tags</p>
+        <button class="side-item tag-choice active" data-tag="all">All tags</button>
+        <div id="tag-list"></div>
+      </aside>
+      <div class="collection">
+        <div id="notice" class="notice" role="status"></div>
+        <div class="collection-bar">
+          <p id="result-count">0 bookmarks</p>
+          <label>Order by <select id="sort"><option value="newest">Newest first</option><option value="title">Title A–Z</option></select></label>
+        </div>
+        <div id="cards" class="cards"></div>
+        <section id="empty" class="empty"></section>
+      </div>
+    </section>
+    <section id="first-empty" class="first-empty">
+      <div class="empty-icon">K</div><h2>Your library is ready</h2><p>Save your first link to begin a collection you can find again.</p><button class="primary" id="first-save">Save your first link</button>
+    </section>
+    <div id="bulk-bar" class="bulk-bar"><strong id="selected-count">0 selected</strong><div><button data-bulk="tag">Add tags</button><button data-bulk="later">Save for later</button><button data-bulk="archive">Archive selected</button><button class="danger" data-bulk="delete">Delete permanently</button></div></div>
+  </main>
+
+  <div id="scrim" class="scrim" hidden></div>
+  <section id="save-dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="save-heading" hidden>
+    <button class="close" data-close aria-label="Close">×</button>
+    <p class="kicker">Save bookmark</p><h2 id="save-heading">Add something useful.</h2>
+    <form id="url-form" novalidate><label>Web address<input id="url" type="text" inputmode="url" placeholder="https://example.com/article" required></label><button class="primary" type="submit">Get details</button></form>
+    <p id="url-error" class="field-error"></p>
+    <section id="fetch-error" class="fetch-error" hidden><h3>We couldn’t get this page’s details</h3><p>The address is valid, but the page didn’t respond. Retry or fill in the bookmark yourself.</p><button id="retry-fetch">Retry</button></section>
+    <form id="bookmark-form" hidden>
+      <div id="duplicate-note" class="duplicate-note" hidden></div>
+      <div id="media-preview" class="media-preview" hidden><img id="preview-image" alt="Fetched page preview"></div>
+      <div class="site-line"><img id="preview-icon" alt="" hidden><span id="preview-site"></span></div>
+      <label>Title<input id="bookmark-title" required></label>
+      <label>Description<textarea id="bookmark-description" rows="3"></textarea></label>
+      <label>My note</label>
+      <div class="format-bar"><button type="button" data-format="bold"><strong>B</strong></button><button type="button" data-format="insertUnorderedList">• List</button></div>
+      <div id="bookmark-note" class="rich-note" contenteditable="true" role="textbox" aria-label="My note"></div>
+      <label>Tags<div id="chosen-tags" class="tag-chips"></div><input id="tag-input" autocomplete="off" placeholder="Type a tag…"><div id="tag-suggestions" class="tag-suggestions"></div></label>
+      <p id="tag-help" class="help">Choose an existing tag or press Enter to add a new one.</p>
+      <div id="refresh-box" class="refresh-box" hidden></div>
+      <div class="form-actions"><button type="button" id="refresh-details" class="quiet" hidden>Check page for updates</button><button type="button" id="restore-existing" class="quiet" hidden>Restore to library</button><button type="button" class="quiet" data-close>Cancel</button><button class="primary" id="save-button" type="submit">Save bookmark</button></div>
+    </form>
+  </section>
+
+  <section id="tag-dialog" class="dialog small" role="dialog" aria-modal="true" aria-labelledby="tag-heading" hidden>
+    <button class="close" data-close aria-label="Close">×</button><h2 id="tag-heading">Add a tag</h2><p>Existing tags on each bookmark will stay in place.</p>
+    <label>Tag<input id="bulk-tag-input" autocomplete="off" placeholder="Type a tag…"><div id="bulk-tag-suggestions" class="tag-suggestions"></div></label>
+    <div class="form-actions"><span></span><button class="quiet" data-close>Cancel</button><button class="primary" id="apply-bulk-tag">Add tag</button></div>
+  </section>
+
+  <section id="confirm-dialog" class="dialog small" role="dialog" aria-modal="true" aria-labelledby="confirm-heading" hidden>
+    <button class="close" data-close aria-label="Close">×</button><h2 id="confirm-heading">Delete permanently?</h2><p id="confirm-copy"></p>
+    <div class="form-actions"><span></span><button class="quiet" data-close>Cancel</button><button class="danger solid" id="confirm-delete">Delete permanently</button></div>
+  </section>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

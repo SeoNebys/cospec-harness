@@ -1,0 +1,3 @@
+// @vitest-environment jsdom
+import { fireEvent,render,screen } from "@testing-library/react";import { describe,expect,it,vi } from "vitest";import { LibraryControls } from "../../src/client/features/bookmarks/LibraryControls.js";
+describe("library controls",()=>{it("shows active filters and clears them",()=>{const clear=vi.fn();render(<LibraryControls query={{q:"type",folderId:"",tagId:"",favorite:true,sort:"title"}} setQuery={()=>{}} clear={clear} folders={[]} tags={[]} total={0}/>);expect(screen.getByText("Search: type ×")).toBeInTheDocument();fireEvent.click(screen.getByRole("button",{name:"Clear all"}));expect(clear).toHaveBeenCalled();});});

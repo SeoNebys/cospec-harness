@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Your library</title>
+  <style>
+    :root { --ink:#17201d; --muted:#68736e; --line:#dfe6e2; --paper:#fff; --wash:#f3f6f3; --green:#28664f; --green2:#e5f1eb; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--wash); color:var(--ink); font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    header { height:68px; background:var(--paper); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 5vw; }
+    .brand { font:700 21px/1.2 Georgia,serif; letter-spacing:.01em; }
+    .brand i { display:inline-block; width:11px; height:15px; margin-right:9px; background:var(--green); border-radius:2px 2px 5px 5px; vertical-align:-2px; }
+    .save-link { color:var(--green); text-decoration:none; font-weight:700; }
+    main { width:min(980px,90vw); margin:54px auto; }
+    .eyebrow { color:var(--green); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; }
+    h1 { font:600 clamp(34px,5vw,48px)/1.08 Georgia,serif; margin:8px 0 26px; letter-spacing:-.025em; }
+    .search-wrap { position:relative; margin-bottom:14px; }
+    .search-wrap span { position:absolute; left:16px; top:13px; color:var(--muted); font-size:18px; }
+    #search { width:100%; height:50px; border:1px solid #c8d2cd; border-radius:12px; padding:0 16px 0 46px; font:16px system-ui,sans-serif; outline:none; background:#fff; }
+    #search:focus { border-color:var(--green); box-shadow:0 0 0 3px var(--green2); }
+    .count { color:var(--muted); font-size:13px; margin:0 0 20px; }
+    .filter-label { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin:0 0 8px; }
+    .top-filters { display:none; margin:16px 0 20px; }
+    .filter-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .tag-filter { border:1px solid #c8d2cd; background:#fff; color:#405048; border-radius:999px; padding:8px 13px; font:650 13px/1 system-ui,sans-serif; cursor:pointer; }
+    .tag-filter.active { background:var(--green); border-color:var(--green); color:#fff; }
+    .library-layout { display:block; }
+    .side-filters { display:none; }
+    body.mode-chips .top-filters { display:block; }
+    body.mode-sidebar .library-layout { display:grid; grid-template-columns:170px 1fr; gap:24px; align-items:start; }
+    body.mode-sidebar .side-filters { display:block; background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; }
+    body.mode-sidebar .side-filters .tag-filter { display:block; width:100%; text-align:left; margin:6px 0; border-radius:8px; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; min-height:252px; }
+    .later-control { display:none; position:absolute; top:10px; right:10px; z-index:1; border:1px solid rgba(255,255,255,.8); background:rgba(255,255,255,.94); color:var(--green); cursor:pointer; box-shadow:0 3px 10px rgba(25,48,39,.12); }
+    body.mode-later-text .later-control { display:block; border-radius:8px; padding:7px 10px; font:700 11px/1 system-ui,sans-serif; }
+    body.mode-later-icon .later-control { display:grid; place-items:center; border-radius:50%; width:34px; height:34px; padding:0; font-size:0; }
+    body.mode-later-icon .later-control:after { content:"♡"; font-size:19px; line-height:1; }
+    body.mode-later-icon .later-control.marked:after { content:"♥"; }
+    .later-control.marked { background:var(--green); color:#fff; }
+    .archive-button, .more-wrap { display:none; }
+    body.mode-archive-button .archive-button { display:block; position:absolute; right:10px; bottom:10px; z-index:2; border:1px solid #c8d2cd; background:#fff; color:#536159; border-radius:8px; padding:7px 10px; font:700 11px/1 system-ui,sans-serif; cursor:pointer; }
+    body.mode-archive-menu .more-wrap { display:block; position:absolute; right:10px; top:10px; z-index:2; }
+    .more-button { width:34px; height:34px; border:1px solid rgba(255,255,255,.8); border-radius:50%; background:rgba(255,255,255,.94); color:var(--ink); font-weight:800; cursor:pointer; }
+    .more-menu { display:none; position:absolute; right:0; top:39px; width:120px; padding:5px; border:1px solid #c8d2cd; border-radius:9px; background:#fff; box-shadow:0 10px 22px rgba(25,48,39,.15); }
+    .more-menu.show { display:block; }
+    .more-menu button { width:100%; border:0; background:#fff; color:var(--ink); text-align:left; border-radius:6px; padding:8px; cursor:pointer; }
+    .archive-view { display:none !important; }
+    body.mode-archive-button .archive-view, body.mode-archive-menu .archive-view, body.mode-bulk-checkbox .archive-view, body.mode-bulk-mode .archive-view { display:block !important; }
+    .delete-button, .delete-more-wrap { display:none; }
+    body.mode-delete-button .card[data-archived="true"] .delete-button { display:block; position:absolute; left:16px; bottom:14px; z-index:3; border:0; background:transparent; color:#a23b32; padding:0; font:700 12px/1 system-ui,sans-serif; cursor:pointer; }
+    body.mode-delete-menu .card[data-archived="true"] .delete-more-wrap { display:block; position:absolute; right:10px; top:10px; z-index:3; }
+    .delete-more-wrap .more-menu button { color:#a23b32; }
+    .modal-backdrop { display:none; position:fixed; inset:0; z-index:20; background:rgba(14,24,20,.48); place-items:center; padding:20px; }
+    .modal-backdrop.show { display:grid; }
+    .modal { width:min(440px,100%); background:#fff; border-radius:16px; padding:24px; box-shadow:0 24px 70px rgba(0,0,0,.25); }
+    .modal h2 { font-size:24px; margin:0 0 8px; }
+    .modal p { color:var(--muted); margin:0; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:22px; }
+    .modal-actions button { height:40px; border-radius:9px; padding:0 14px; font-weight:700; cursor:pointer; }
+    .cancel-delete { border:1px solid #c8d2cd; background:#fff; color:var(--ink); }
+    .confirm-delete { border:0; background:#a23b32; color:#fff; }
+    .image { height:104px; background:linear-gradient(145deg,#d4e3da,#839f8e); }
+    .image.food { background:linear-gradient(145deg,#f0cda2,#bd7655); }
+    .image.work { background:linear-gradient(145deg,#c8d8e5,#6787a0); }
+    .body { padding:16px; }
+    .site { color:var(--green); font-size:11px; font-weight:800; letter-spacing:.06em; }
+    h2 { font:600 19px/1.25 Georgia,serif; margin:7px 0 7px; }
+    .description { color:var(--muted); font-size:13px; margin:0; }
+    .url { display:block; color:#7b8882; font-size:11px; margin-top:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .note { margin:10px 0 0; padding-top:9px; border-top:1px solid var(--line); color:#4f5d57; font-size:12px; }
+    .note b { color:var(--green); }
+    .note ul { margin:5px 0 0; padding-left:18px; }
+    .card-tags { display:flex; gap:5px; flex-wrap:wrap; margin-top:10px; }
+    .card-tag { padding:3px 7px; border-radius:999px; background:var(--green2); color:var(--green); font-size:10px; font-weight:750; }
+    body.mode-long .card:first-child h2, body.mode-long .card:first-child .description { display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; }
+    body.mode-long .card:first-child h2 { -webkit-line-clamp:2; }
+    body.mode-long .card:first-child .description { -webkit-line-clamp:3; }
+    body.mode-long .card:first-child .note { max-height:92px; overflow:hidden; position:relative; }
+    body.mode-long .card:first-child .note:after { content:""; position:absolute; left:0; right:0; bottom:0; height:24px; background:linear-gradient(transparent,#fff); }
+    .edit-long { display:none; margin-top:10px; border:0; background:transparent; color:var(--green); padding:0; font-weight:750; cursor:pointer; }
+    body.mode-long .card:first-child .edit-long { display:block; }
+    .edit-panel { display:none; position:fixed; inset:0; z-index:25; background:rgba(14,24,20,.48); place-items:center; padding:20px; }
+    .edit-panel.show { display:grid; }
+    .edit-sheet { width:min(680px,100%); max-height:90vh; overflow:auto; background:#fff; border-radius:16px; padding:24px; }
+    .edit-sheet h2 { font-size:25px; margin:0 0 16px; }
+    .edit-sheet label { display:block; margin:12px 0 5px; font-size:12px; font-weight:750; color:var(--muted); }
+    .edit-sheet input, .edit-sheet textarea, .edit-note-full { width:100%; border:1px solid #c8d2cd; border-radius:9px; padding:10px; font:14px/1.45 system-ui,sans-serif; }
+    .edit-sheet textarea { min-height:100px; }
+    .edit-note-full { min-height:140px; }
+    .close-edit { margin-top:16px; border:0; border-radius:9px; background:var(--green); color:#fff; padding:10px 14px; font-weight:750; cursor:pointer; }
+    body.mode-open-title .card h2 a { color:var(--ink); text-decoration:none; }
+    body.mode-open-title .card h2 a:hover { color:var(--green); text-decoration:underline; }
+    .open-site { display:none; color:var(--green); font-weight:750; font-size:12px; text-decoration:none; margin-top:10px; }
+    body.mode-open-button .open-site { display:inline-block; }
+    .sort-top { display:none; justify-content:flex-end; align-items:center; gap:8px; margin:-2px 0 16px; }
+    body.mode-sort-dropdown .sort-top { display:flex; }
+    .sort-top label { color:var(--muted); font-size:12px; font-weight:700; }
+    .sort-top select { height:38px; border:1px solid #c8d2cd; border-radius:9px; background:#fff; color:var(--ink); padding:0 32px 0 10px; font:650 13px system-ui,sans-serif; }
+    .sort-side { display:none; }
+    body.mode-sort-sidebar .sort-side { display:block; }
+    .sort-choice { display:block; width:100%; border:0; border-radius:7px; background:transparent; color:#405048; text-align:left; padding:8px; cursor:pointer; }
+    .sort-choice.active { background:var(--green2); color:var(--green); font-weight:750; }
+    .bulk-top { display:none; justify-content:flex-end; margin:0 0 14px; }
+    body.mode-bulk-mode .bulk-top { display:flex; }
+    .bulk-toggle { border:1px solid #c8d2cd; background:#fff; color:var(--ink); border-radius:9px; padding:9px 12px; font-weight:700; cursor:pointer; }
+    .pick { display:none; position:absolute; left:10px; top:10px; z-index:4; width:22px; height:22px; accent-color:var(--green); cursor:pointer; }
+    body.mode-bulk-checkbox .pick, body.mode-bulk-mode.selecting .pick { display:block; }
+    .card.selected { outline:3px solid #78a68f; outline-offset:-3px; }
+    .bulk-bar { display:none; position:sticky; bottom:16px; z-index:10; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; padding:12px 14px; background:#173c2f; color:#fff; border-radius:12px; box-shadow:0 12px 30px rgba(20,45,35,.22); }
+    .bulk-bar.show { display:flex; }
+    .bulk-actions { display:flex; gap:7px; }
+    .bulk-actions button { border:1px solid rgba(255,255,255,.35); border-radius:8px; background:#fff; color:#173c2f; padding:8px 11px; font-weight:750; cursor:pointer; }
+    .bulk-notice { display:none; margin:0 0 14px; padding:10px 12px; border-radius:9px; background:var(--green2); color:var(--green); font-weight:700; }
+    .bulk-notice.show { display:block; }
+    .bulk-tag-suggestions { display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+    .bulk-tag-suggestions button { border:1px solid #bad0c4; border-radius:999px; background:var(--green2); color:var(--green); padding:7px 10px; cursor:pointer; }
+    .empty { display:none; padding:52px; text-align:center; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:14px; }
+    .empty h2 { color:var(--ink); font-size:22px; margin:0 0 6px; }
+    .empty p { margin:0; }
+    .initial-empty { display:none; padding:68px 32px; text-align:center; background:#fff; border:1px solid var(--line); border-radius:14px; }
+    .initial-empty.show { display:block; }
+    .initial-empty .empty-mark { width:48px; height:56px; margin:0 auto 16px; background:var(--green2); border-radius:8px 8px 14px 14px; }
+    .initial-empty h2 { font-size:25px; margin:0 0 7px; }
+    .initial-empty p { color:var(--muted); margin:0 0 18px; }
+    .initial-empty a { display:inline-block; color:#fff; background:var(--green); border-radius:9px; padding:10px 15px; text-decoration:none; font-weight:700; }
+    body.mode-empty .search-wrap, body.mode-empty .top-filters, body.mode-empty .count, body.mode-empty #grid, body.mode-empty .side-filters, body.mode-empty #empty { display:none !important; }
+    body.mode-empty .library-layout { display:block; }
+    @media(max-width:720px){ .grid{grid-template-columns:1fr;} body.mode-sidebar .library-layout{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><i></i>Keep</div><a class="save-link" href="/">+ Save a link</a></header>
+  <main data-harness-ready="true">
+    <div class="eyebrow">Your library</div>
+    <h1>Find what you saved.</h1>
+    <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search your bookmarks…" aria-label="Search saved bookmarks"></div>
+    <div class="top-filters">
+      <p class="filter-label">Filter by tag</p>
+      <div class="filter-row"><button class="tag-filter active" data-tag="all">All</button><button class="tag-filter" data-tag="recipes">Recipes</button><button class="tag-filter" data-tag="work">Work</button><button class="tag-filter" data-tag="reading">Reading</button></div>
+    </div>
+    <div class="library-layout">
+      <aside class="side-filters">
+        <p class="filter-label">Library</p>
+        <button class="tag-filter view-filter active" data-view="all">All bookmarks</button><button class="tag-filter view-filter" data-view="later">Read later</button>
+        <button class="tag-filter view-filter archive-view" data-view="archive">Archive</button>
+        <div style="height:12px"></div>
+        <p class="filter-label">Tags</p>
+        <button class="tag-filter active" data-tag="all">All tags</button><button class="tag-filter" data-tag="recipes">Recipes</button><button class="tag-filter" data-tag="work">Work</button><button class="tag-filter" data-tag="reading">Reading</button>
+        <div class="sort-side"><div style="height:12px"></div><p class="filter-label">Order by</p><button class="sort-choice active" data-sort="newest">Newest first</button><button class="sort-choice" data-sort="title">Title A–Z</button></div>
+      </aside>
+      <div>
+      <p class="count" id="count">3 bookmarks</p>
+      <div class="bulk-notice" id="bulk-notice"></div>
+      <div class="bulk-top"><button class="bulk-toggle">Select bookmarks</button></div>
+      <div class="sort-top"><label for="sort-select">Order by</label><select id="sort-select"><option value="newest">Newest first</option><option value="title">Title A–Z</option></select></div>
+      <section class="grid" id="grid">
+      <article class="card" data-date="2026-09-24" data-tags="recipes" data-search="simple weeknight pasta recipe tomatoes garlic kitchennotes.test/weeknight-pasta remember book a table invite sam">
+        <input class="pick" type="checkbox" aria-label="Select Simple weeknight pasta">
+        <button class="later-control" aria-label="Add Simple weeknight pasta to read later">Read later</button>
+        <button class="archive-button">Archive</button><div class="more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="archive-menu-action">Archive</button></div></div>
+        <button class="delete-button">Delete permanently</button><div class="delete-more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="delete-menu-action">Delete permanently</button></div></div>
+        <div class="image food"></div><div class="body"><div class="site">KITCHEN NOTES</div><h2>Simple weeknight pasta</h2><p class="description">A flexible tomato pasta recipe for busy evenings.</p><div class="card-tags"><span class="card-tag">Recipes</span></div><span class="url">kitchennotes.test/weeknight-pasta</span><div class="note"><b>Remember:</b><ul><li>Book a table</li><li>Invite Sam</li></ul></div><a class="open-site" href="https://example.com/pasta" target="_blank" rel="noopener">Open original page ↗</a><button class="edit-long">Edit bookmark to see full text</button></div>
+      </article>
+      <article class="card" data-date="2026-09-18" data-tags="work reading" data-search="practical guide focused work attention meaningful example.com/already-saved send to maya">
+        <input class="pick" type="checkbox" aria-label="Select A practical guide to focused work">
+        <button class="later-control marked" aria-label="Remove A practical guide to focused work from read later">Saved for later</button>
+        <button class="archive-button">Archive</button><div class="more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="archive-menu-action">Archive</button></div></div>
+        <button class="delete-button">Delete permanently</button><div class="delete-more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="delete-menu-action">Delete permanently</button></div></div>
+        <div class="image work"></div><div class="body"><div class="site">EXAMPLE.COM</div><h2>A practical guide to focused work</h2><p class="description">Ideas for protecting your attention and making time for meaningful work.</p><div class="card-tags"><span class="card-tag">Work</span><span class="card-tag">Reading</span></div><span class="url">example.com/already-saved</span><p class="note"><b>My note:</b> Send to Maya</p><a class="open-site" href="https://example.com/" target="_blank" rel="noopener">Open original page ↗</a></div>
+      </article>
+      <article class="card" data-date="2026-09-20" data-tags="reading" data-search="live presence age productivity reflection purpose quiet marginalian.org/presence reread when overwhelmed">
+        <input class="pick" type="checkbox" aria-label="Select How to live with presence">
+        <button class="later-control" aria-label="Add How to live with presence to read later">Read later</button>
+        <button class="archive-button">Archive</button><div class="more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="archive-menu-action">Archive</button></div></div>
+        <button class="delete-button">Delete permanently</button><div class="delete-more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="delete-menu-action">Delete permanently</button></div></div>
+        <div class="image"></div><div class="body"><div class="site">THE MARGINALIAN</div><h2>How to live with presence</h2><p class="description">A reflection on attention, purpose, and the quiet work of being fully alive.</p><div class="card-tags"><span class="card-tag">Reading</span></div><span class="url">marginalian.org/presence</span><p class="note"><b>My note:</b> Reread when overwhelmed</p><a class="open-site" href="https://www.themarginalian.org/" target="_blank" rel="noopener">Open original page ↗</a></div>
+      </article>
+    </section>
+    <div class="empty" id="empty"><h2>No bookmarks match that search</h2><p>Clear or change the search to bring your library back.</p></div>
+    <div class="initial-empty" id="initial-empty"><div class="empty-mark"></div><h2>Your library is ready</h2><p>Save your first link to start building a collection you can find again.</p><a href="/">Save your first link</a></div>
+    <div class="bulk-bar" id="bulk-bar"><strong id="bulk-count">0 selected</strong><div class="bulk-actions"><button id="bulk-tag">Add tags</button><button id="bulk-later">Save for later</button><button id="bulk-archive">Archive selected</button><button id="bulk-delete" style="display:none">Delete permanently</button></div></div>
+      </div>
+    </div>
+  </main>
+  <div class="modal-backdrop" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <div class="modal"><h2 id="delete-title">Delete this bookmark permanently?</h2><p><strong id="delete-name"></strong> will be removed for good. This cannot be undone.</p><div class="modal-actions"><button class="cancel-delete">Cancel</button><button class="confirm-delete">Delete permanently</button></div></div>
+  </div>
+  <div class="edit-panel" id="edit-panel" role="dialog" aria-modal="true" aria-labelledby="edit-title-heading"><div class="edit-sheet"><h2 id="edit-title-heading">Edit bookmark</h2><label for="edit-full-title">Title</label><textarea id="edit-full-title"></textarea><label for="edit-full-description">Description</label><textarea id="edit-full-description"></textarea><label>My note</label><div class="edit-note-full" id="edit-full-note" contenteditable="true"></div><button class="close-edit">Done</button></div></div>
+  <div class="modal-backdrop" id="bulk-tag-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-tag-heading"><div class="modal"><h2 id="bulk-tag-heading">Add a tag to selected bookmarks</h2><p>Existing tags on each bookmark will stay in place.</p><div class="field"><label for="bulk-tag-input">Tag</label><input id="bulk-tag-input" placeholder="Type a tag…" autocomplete="off"></div><div class="bulk-tag-suggestions" id="bulk-tag-suggestions"></div><div class="modal-actions"><button class="cancel-delete" id="cancel-bulk-tag">Cancel</button><button class="save" id="apply-bulk-tag">Add tag</button></div></div></div>
+  <script>
+    const search = document.querySelector('#search');
+    const cards = [...document.querySelectorAll('.card')];
+    const count = document.querySelector('#count');
+    const empty = document.querySelector('#empty');
+    const mode = new URLSearchParams(location.search).get('tags');
+    if (mode === 'chips') document.body.classList.add('mode-chips');
+    if (mode === 'sidebar') document.body.classList.add('mode-sidebar');
+    const laterMode = new URLSearchParams(location.search).get('later');
+    if (laterMode === 'text') document.body.classList.add('mode-sidebar', 'mode-later-text');
+    if (laterMode === 'icon') document.body.classList.add('mode-sidebar', 'mode-later-icon');
+    const archiveMode = new URLSearchParams(location.search).get('archive');
+    if (archiveMode === 'button') document.body.classList.add('mode-sidebar', 'mode-archive-button');
+    if (archiveMode === 'menu') document.body.classList.add('mode-sidebar', 'mode-archive-menu');
+    const deleteMode = new URLSearchParams(location.search).get('delete');
+    if (deleteMode === 'button') document.body.classList.add('mode-sidebar', 'mode-archive-button', 'mode-delete-button');
+    if (deleteMode === 'menu') document.body.classList.add('mode-sidebar', 'mode-archive-button', 'mode-delete-menu');
+    let selectedTag = 'all';
+    let selectedView = 'all';
+    cards[1].dataset.later = 'true';
+    if (deleteMode) cards[2].dataset.archived = 'true';
+    function filterCards() {
+      const query = search.value.trim().toLocaleLowerCase();
+      let shown = 0;
+      cards.forEach(card => {
+        const textMatch = card.dataset.search.toLocaleLowerCase().includes(query);
+        const tagMatch = selectedTag === 'all' || card.dataset.tags.split(' ').includes(selectedTag);
+        const archived = card.dataset.archived === 'true';
+        const viewMatch = selectedView === 'archive' ? archived : (!archived && (selectedView === 'all' || card.dataset.later === 'true'));
+        const match = textMatch && tagMatch && viewMatch;
+        card.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      count.textContent = `${shown} bookmark${shown === 1 ? '' : 's'}`;
+      if (!shown) {
+        if (selectedView === 'later' && !query && selectedTag === 'all') empty.innerHTML = '<h2>Nothing saved for later</h2><p>Use “Read later” on any bookmark and it will appear here.</p>';
+        else if (selectedView === 'archive' && !query && selectedTag === 'all') empty.innerHTML = '<h2>Your archive is empty</h2><p>Bookmarks you archive will stay safe here until you restore or delete them.</p>';
+        else if (selectedTag !== 'all' && !query) empty.innerHTML = '<h2>No bookmarks with this tag</h2><p>Choose another tag or return to all tags.</p>';
+        else empty.innerHTML = '<h2>No bookmarks match that search</h2><p>Clear or change the search to bring your library back.</p>';
+      }
+      empty.style.display = shown ? 'none' : 'block';
+    }
+    search.addEventListener('input', filterCards);
+    document.querySelectorAll('.tag-filter').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.view) return;
+      selectedTag = button.dataset.tag;
+      document.querySelectorAll('.tag-filter[data-tag]').forEach(item => item.classList.toggle('active', item.dataset.tag === selectedTag));
+      filterCards();
+    }));
+    document.querySelectorAll('.view-filter').forEach(button => button.addEventListener('click', () => {
+      selectedView = button.dataset.view;
+      document.querySelectorAll('.view-filter').forEach(item => item.classList.toggle('active', item === button));
+      filterCards();
+    }));
+    document.querySelectorAll('.later-control').forEach(button => button.addEventListener('click', () => {
+      const card = button.closest('.card');
+      const marked = card.dataset.later === 'true';
+      card.dataset.later = marked ? 'false' : 'true';
+      button.classList.toggle('marked', !marked);
+      button.textContent = marked ? 'Read later' : 'Saved for later';
+      button.setAttribute('aria-label', `${marked ? 'Add' : 'Remove'} ${card.querySelector('h2').textContent} ${marked ? 'to' : 'from'} read later`);
+      filterCards();
+    }));
+    function toggleArchive(card) {
+      const archived = card.dataset.archived === 'true';
+      card.dataset.archived = archived ? 'false' : 'true';
+      card.querySelector('.archive-button').textContent = archived ? 'Archive' : 'Restore';
+      card.querySelector('.archive-menu-action').textContent = archived ? 'Archive' : 'Restore';
+      filterCards();
+    }
+    document.querySelectorAll('.archive-button, .archive-menu-action').forEach(button => button.addEventListener('click', () => toggleArchive(button.closest('.card'))));
+    document.querySelectorAll('.more-button').forEach(button => button.addEventListener('click', () => button.nextElementSibling.classList.toggle('show')));
+    const deleteModal = document.querySelector('#delete-modal');
+    let pendingDelete = null;
+    document.querySelectorAll('.delete-button, .delete-menu-action').forEach(button => button.addEventListener('click', () => {
+      pendingDelete = button.closest('.card');
+      document.querySelector('#delete-title').textContent = 'Delete this bookmark permanently?';
+      document.querySelector('#delete-name').textContent = pendingDelete.querySelector('h2').textContent;
+      deleteModal.classList.add('show');
+    }));
+    document.querySelector('.cancel-delete').addEventListener('click', () => { deleteModal.classList.remove('show'); pendingDelete = null; pendingBulkDelete = []; });
+    document.querySelector('.confirm-delete').addEventListener('click', () => {
+      const removing = pendingDelete ? [pendingDelete] : [...pendingBulkDelete];
+      removing.forEach(card => { card.remove(); const index=cards.indexOf(card); if(index>=0) cards.splice(index,1); });
+      deleteModal.classList.remove('show'); pendingDelete=null; pendingBulkDelete=[]; clearBulkSelection(); filterCards();
+      if(removing.length>1) showBulkNotice(`${removing.length} bookmarks deleted permanently.`);
+    });
+    if (new URLSearchParams(location.search).get('empty') === 'library') {
+      document.body.classList.add('mode-empty');
+      cards.forEach(card => card.remove()); cards.splice(0, cards.length);
+      document.querySelector('#count').textContent = '0 bookmarks';
+      document.querySelector('#initial-empty').classList.add('show');
+    }
+    if (new URLSearchParams(location.search).get('empty') === 'later') cards.forEach(card => card.dataset.later = 'false');
+    if ((new URLSearchParams(location.search).get('boundary') || '').startsWith('long')) {
+      document.body.classList.add('mode-long');
+      const longTitle = 'A wonderfully thorough guide to making weeknight pasta when time is short, the cupboard is nearly bare, and everyone is already hungry';
+      const longDescription = 'A very detailed collection of adaptable techniques, ingredient substitutions, timing guidance, and practical advice for turning pantry staples into a satisfying dinner on even the busiest evenings, including what to prepare ahead and what to do when plans change.';
+      const longNote = '<b>Remember all of this for next time:</b><ul><li>Check which vegetables need using first</li><li>Double the sauce and freeze half for next week</li><li>Try the roasted garlic variation</li><li>Write down whether everyone preferred the spicy version</li><li>Invite Sam, who asked for the recipe</li></ul>';
+      cards[0].querySelector('h2').textContent = longTitle;
+      cards[0].querySelector('.description').textContent = longDescription;
+      cards[0].querySelector('.note').innerHTML = longNote;
+      document.querySelector('#edit-full-title').value = longTitle;
+      document.querySelector('#edit-full-description').value = longDescription;
+      document.querySelector('#edit-full-note').innerHTML = longNote;
+    }
+    document.querySelector('.edit-long').addEventListener('click', () => document.querySelector('#edit-panel').classList.add('show'));
+    document.querySelector('.close-edit').addEventListener('click', () => document.querySelector('#edit-panel').classList.remove('show'));
+    const openMode = new URLSearchParams(location.search).get('open');
+    const originalAddresses = ['https://example.com/pasta', 'https://example.com/', 'https://www.themarginalian.org/'];
+    if (openMode === 'title') {
+      document.body.classList.add('mode-open-title');
+      cards.forEach((card, index) => {
+        const heading = card.querySelector('h2');
+        heading.innerHTML = `<a href="${originalAddresses[index]}" target="_blank" rel="noopener">${heading.textContent}</a>`;
+      });
+    }
+    if (openMode === 'button') document.body.classList.add('mode-open-button');
+    const sortMode = new URLSearchParams(location.search).get('sort');
+    if (sortMode === 'dropdown') document.body.classList.add('mode-sidebar', 'mode-sort-dropdown');
+    if (sortMode === 'sidebar') document.body.classList.add('mode-sidebar', 'mode-sort-sidebar');
+    function sortCards(order) {
+      const sorted = [...cards].sort((a,b) => order === 'title'
+        ? a.querySelector('h2').textContent.localeCompare(b.querySelector('h2').textContent)
+        : b.dataset.date.localeCompare(a.dataset.date));
+      sorted.forEach(card => document.querySelector('#grid').appendChild(card));
+    }
+    document.querySelector('#sort-select').addEventListener('change', event => sortCards(event.target.value));
+    document.querySelectorAll('.sort-choice').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('.sort-choice').forEach(item => item.classList.toggle('active', item === button));
+      sortCards(button.dataset.sort);
+    }));
+    if (sortMode) sortCards('newest');
+    const bulkMode = new URLSearchParams(location.search).get('bulk');
+    if (bulkMode === 'checkbox') document.body.classList.add('mode-sidebar', 'mode-bulk-checkbox');
+    if (bulkMode === 'mode') document.body.classList.add('mode-sidebar', 'mode-bulk-mode');
+    const bulkBar = document.querySelector('#bulk-bar');
+    function updateSelection() {
+      const selected = cards.filter(card => card.querySelector('.pick').checked);
+      cards.forEach(card => card.classList.toggle('selected', card.querySelector('.pick').checked));
+      document.querySelector('#bulk-count').textContent = `${selected.length} selected`;
+      document.querySelector('#bulk-later').textContent = selected.length && selected.every(card => card.dataset.later === 'true') ? 'Mark done' : 'Save for later';
+      const inArchive = selectedView === 'archive';
+      document.querySelector('#bulk-tag').style.display = inArchive ? 'none' : '';
+      document.querySelector('#bulk-later').style.display = inArchive ? 'none' : '';
+      document.querySelector('#bulk-archive').style.display = inArchive ? 'none' : '';
+      document.querySelector('#bulk-delete').style.display = inArchive ? '' : 'none';
+      bulkBar.classList.toggle('show', selected.length > 0);
+    }
+    document.querySelectorAll('.pick').forEach(box => box.addEventListener('change', updateSelection));
+    document.querySelector('.bulk-toggle').addEventListener('click', () => {
+      document.body.classList.toggle('selecting');
+      document.querySelector('.bulk-toggle').textContent = document.body.classList.contains('selecting') ? 'Done selecting' : 'Select bookmarks';
+      if (!document.body.classList.contains('selecting')) { document.querySelectorAll('.pick').forEach(box => box.checked=false); updateSelection(); }
+    });
+    const selectedCards = () => cards.filter(card => card.querySelector('.pick').checked);
+    function clearBulkSelection() { document.querySelectorAll('.pick').forEach(box => box.checked=false); updateSelection(); }
+    function showBulkNotice(message) { const notice=document.querySelector('#bulk-notice'); notice.textContent=message; notice.classList.add('show'); }
+    const bulkTagModal = document.querySelector('#bulk-tag-modal');
+    const bulkTagInput = document.querySelector('#bulk-tag-input');
+    const bulkTagSuggestions = document.querySelector('#bulk-tag-suggestions');
+    document.querySelector('#bulk-tag').addEventListener('click', () => { bulkTagInput.value=''; bulkTagSuggestions.innerHTML=''; bulkTagModal.classList.add('show'); bulkTagInput.focus(); });
+    bulkTagInput.addEventListener('input', () => {
+      const q=bulkTagInput.value.trim().toLocaleLowerCase();
+      const tags=['Recipes','Reading','Work'];
+      bulkTagSuggestions.innerHTML=tags.filter(tag=>tag.toLocaleLowerCase().includes(q)).map(tag=>`<button type="button" data-value="${tag}">${tag}</button>`).join('');
+      bulkTagSuggestions.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{ bulkTagInput.value=button.dataset.value; }));
+    });
+    document.querySelector('#cancel-bulk-tag').addEventListener('click',()=>bulkTagModal.classList.remove('show'));
+    document.querySelector('#apply-bulk-tag').addEventListener('click',()=>{
+      const tag=bulkTagInput.value.trim(); if(!tag) return;
+      const selected=selectedCards();
+      selected.forEach(card=>{
+        const tags=card.dataset.tags.split(' ');
+        if(!tags.includes(tag.toLocaleLowerCase())) { card.dataset.tags += ` ${tag.toLocaleLowerCase()}`; const chip=document.createElement('span'); chip.className='card-tag'; chip.textContent=tag; card.querySelector('.card-tags').appendChild(chip); }
+      });
+      bulkTagModal.classList.remove('show'); clearBulkSelection(); showBulkNotice(`${tag} added to ${selected.length} bookmarks.`);
+    });
+    document.querySelector('#bulk-later').addEventListener('click',()=>{ const selected=selectedCards(); const markDone=selected.every(card=>card.dataset.later==='true'); selected.forEach(card=>card.dataset.later=markDone?'false':'true'); clearBulkSelection(); filterCards(); showBulkNotice(markDone ? `${selected.length} bookmarks marked done.` : `${selected.length} bookmarks saved for later.`); });
+    document.querySelector('#bulk-archive').addEventListener('click',()=>{ const selected=selectedCards(); selected.forEach(card=>card.dataset.archived='true'); clearBulkSelection(); filterCards(); showBulkNotice(`${selected.length} bookmarks archived.`); });
+    let pendingBulkDelete = [];
+    document.querySelector('#bulk-delete').addEventListener('click',()=>{
+      pendingBulkDelete = selectedCards();
+      document.querySelector('#delete-title').textContent = `Delete ${pendingBulkDelete.length} bookmarks permanently?`;
+      document.querySelector('#delete-name').textContent = 'The selected bookmarks';
+      deleteModal.classList.add('show');
+    });
+  </script>
+</body>
+</html>

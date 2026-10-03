@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks — Save flow prototype</title>
+  <style>
+    :root {
+      --ink: #1d2925;
+      --muted: #697772;
+      --paper: #f7f5ef;
+      --card: #fffdfa;
+      --line: #dedbd1;
+      --green: #286851;
+      --green-dark: #174b39;
+      --green-soft: #e4efe8;
+      --shadow: 0 18px 50px rgba(32, 45, 40, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 5%, rgba(191, 215, 198, .36), transparent 27rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+
+    .shell {
+      width: min(1080px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 88px;
+      border-bottom: 1px solid rgba(102, 116, 109, .18);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      color: white;
+      background: var(--green);
+      border-radius: 11px 11px 11px 4px;
+      font: 700 19px/1 Georgia, serif;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 680px;
+      font: 500 clamp(38px, 5vw, 59px)/1.05 Georgia, "Times New Roman", serif;
+      letter-spacing: -.04em;
+    }
+
+    .subhead {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    main { padding: 74px 0 90px; }
+
+    .collection-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin: 62px 0 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font: 600 25px/1.2 Georgia, "Times New Roman", serif;
+    }
+
+    .count { color: var(--muted); font-size: 14px; }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 310px;
+      padding: 42px 24px;
+      text-align: center;
+      background: rgba(255, 253, 250, .74);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+    }
+
+    .empty-icon {
+      display: grid;
+      place-items: center;
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 18px;
+      font-size: 29px;
+    }
+
+    .empty h3 { margin: 0 0 8px; font-size: 19px; }
+    .empty p { margin: 0 0 24px; color: var(--muted); }
+
+    .primary {
+      border: 0;
+      border-radius: 11px;
+      padding: 12px 17px;
+      color: white;
+      background: var(--green);
+      box-shadow: 0 7px 16px rgba(40, 104, 81, .18);
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .primary:hover { background: var(--green-dark); }
+    .primary:focus-visible, .secondary:focus-visible, input:focus-visible {
+      outline: 3px solid rgba(40, 104, 81, .25);
+      outline-offset: 2px;
+    }
+
+    .bookmark-card {
+      display: none;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 16px;
+      padding: 19px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      box-shadow: 0 8px 24px rgba(45, 56, 50, .06);
+    }
+
+    .bookmark-card.visible { display: grid; }
+    .site-icon {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 13px;
+      font: 700 20px/1 Georgia, serif;
+      text-transform: uppercase;
+    }
+
+    .bookmark-title { margin: 0 0 5px; font-size: 16px; font-weight: 800; }
+    .bookmark-url {
+      overflow: hidden;
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .saved-badge {
+      padding: 7px 10px;
+      color: var(--green);
+      background: var(--green-soft);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    dialog {
+      width: min(500px, calc(100% - 32px));
+      padding: 0;
+      color: var(--ink);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    dialog::backdrop {
+      background: rgba(20, 31, 27, .46);
+      backdrop-filter: blur(3px);
+    }
+
+    .dialog-body { padding: 30px; }
+    .dialog-body h2 { margin-bottom: 7px; font-size: 27px; }
+    .dialog-copy { margin: 0 0 25px; color: var(--muted); font-size: 14px; }
+
+    label {
+      display: block;
+      margin: 18px 0 7px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    input {
+      width: 100%;
+      height: 46px;
+      padding: 0 13px;
+      color: var(--ink);
+      background: white;
+      border: 1px solid #cbc9c0;
+      border-radius: 10px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .secondary {
+      padding: 11px 15px;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .confirmation {
+      display: none;
+      align-items: center;
+      gap: 9px;
+      margin: 15px 0 0;
+      color: var(--green);
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .confirmation.visible { display: flex; }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 30px, 1080px); }
+      header { height: 74px; }
+      main { padding-top: 50px; }
+      .collection-heading { margin-top: 46px; }
+      .bookmark-card { grid-template-columns: 44px minmax(0, 1fr); }
+      .saved-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="brand-mark">B</span> Bookmarks</div>
+    </header>
+
+    <main>
+      <p class="eyebrow">Your quiet corner of the web</p>
+      <h1>Keep the useful parts of the internet close.</h1>
+      <p class="subhead">Save links you want to return to, without losing them in the shuffle.</p>
+
+      <div class="collection-heading">
+        <h2>All bookmarks</h2>
+        <span class="count" id="count">0 bookmarks</span>
+      </div>
+
+      <section class="empty" id="empty-state">
+        <div>
+          <div class="empty-icon" aria-hidden="true">↗</div>
+          <h3>Your collection starts here</h3>
+          <p>Save a useful page so it’s easy to find again.</p>
+          <button class="primary" id="add-first" type="button">Add your first bookmark</button>
+        </div>
+      </section>
+
+      <article class="bookmark-card" id="bookmark-card" aria-live="polite">
+        <div class="site-icon" id="site-icon">L</div>
+        <div>
+          <p class="bookmark-title" id="saved-title"></p>
+          <p class="bookmark-url" id="saved-url"></p>
+        </div>
+        <span class="saved-badge">Saved</span>
+      </article>
+      <p class="confirmation" id="confirmation"><span aria-hidden="true">✓</span> Bookmark saved to your collection</p>
+    </main>
+  </div>
+
+  <dialog id="add-dialog" aria-labelledby="dialog-title">
+    <form id="bookmark-form">
+      <div class="dialog-body">
+        <h2 id="dialog-title">Save a bookmark</h2>
+        <p class="dialog-copy">Give the link a name you’ll recognize later.</p>
+
+        <label for="bookmark-name">Name</label>
+        <input id="bookmark-name" name="name" autocomplete="off" placeholder="e.g. MDN Web Docs" required>
+
+        <label for="bookmark-address">Web address</label>
+        <input id="bookmark-address" name="address" type="url" autocomplete="url" placeholder="https://example.com" required>
+
+        <div class="actions">
+          <button class="secondary" id="cancel" type="button">Cancel</button>
+          <button class="primary" type="submit">Save bookmark</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const dialog = document.querySelector('#add-dialog');
+    const form = document.querySelector('#bookmark-form');
+    const nameInput = document.querySelector('#bookmark-name');
+    const addressInput = document.querySelector('#bookmark-address');
+
+    document.querySelector('#add-first').addEventListener('click', () => {
+      dialog.showModal();
+      nameInput.focus();
+    });
+
+    document.querySelector('#cancel').addEventListener('click', () => dialog.close());
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+
+      const title = nameInput.value.trim();
+      const address = addressInput.value.trim();
+      document.querySelector('#saved-title').textContent = title;
+      document.querySelector('#saved-url').textContent = address;
+      document.querySelector('#site-icon').textContent = title.slice(0, 1) || '↗';
+      document.querySelector('#empty-state').hidden = true;
+      document.querySelector('#bookmark-card').classList.add('visible');
+      document.querySelector('#confirmation').classList.add('visible');
+      document.querySelector('#count').textContent = '1 bookmark';
+      dialog.close();
+    });
+  </script>
+</body>
+</html>

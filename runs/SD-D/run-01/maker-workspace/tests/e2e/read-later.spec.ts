@@ -1,0 +1,2 @@
+import{test,expect}from'@playwright/test';import{apiBookmark,createAccount}from'./helpers';
+test('read-later queue marks an item read',async({page})=>{await createAccount(page);await apiBookmark(page,{url:'https://reading.example',title:'An unread essay',readLaterState:'unread'});await page.getByRole('link',{name:'Read later'}).click();await expect(page.getByRole('link',{name:/An unread essay/})).toBeVisible();await page.getByRole('button',{name:'Mark read'}).click();await expect(page.getByText('Your reading queue is clear')).toBeVisible();});

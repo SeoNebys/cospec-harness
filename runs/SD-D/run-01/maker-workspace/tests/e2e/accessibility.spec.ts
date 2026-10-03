@@ -1,0 +1,2 @@
+import{test,expect}from'@playwright/test';import{createAccount}from'./helpers';
+test('primary navigation and capture are keyboard operable and labelled',async({page})=>{await createAccount(page);await page.keyboard.press('Tab');const focused=await page.evaluate(()=>document.activeElement?.tagName);expect(['A','BUTTON','INPUT']).toContain(focused);await expect(page.getByRole('navigation',{name:'Primary'})).toBeVisible();await expect(page.getByRole('button',{name:'＋ Save a link'})).toBeVisible();});

@@ -1,0 +1,1 @@
+export const thousandBookmarks=Array.from({length:1000},(_,index)=>({url:`https://example.com/item-${index}`,title:`Reference item ${String(index).padStart(4,'0')}`,tags:[`group-${index%10}`],description:`Deterministic performance fixture ${index}`}));

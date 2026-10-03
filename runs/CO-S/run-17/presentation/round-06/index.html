@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2721;
+      --muted: #667069;
+      --paper: #f7f5ef;
+      --card: #fffefa;
+      --line: #dcded5;
+      --green: #315a43;
+      --green-deep: #254635;
+      --soft-green: #e4eee7;
+      --orange: #d8783a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 248px 1fr; }
+    aside {
+      padding: 32px 24px;
+      border-right: 1px solid var(--line);
+      background: #eeefe8;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 750; font-size: 20px; letter-spacing: -0.02em; }
+    .brand-mark {
+      width: 32px; height: 32px; border-radius: 10px; background: var(--green);
+      display: grid; place-items: center; color: white; font-family: Georgia, serif; font-size: 21px;
+    }
+    nav { margin-top: 52px; }
+    .nav-label { color: #8a918b; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin: 0 10px 10px; }
+    .nav-item { display: flex; gap: 12px; align-items: center; padding: 11px 12px; border-radius: 9px; font-weight: 650; background: #dde6df; color: var(--green-deep); }
+    .nav-icon { font-size: 18px; }
+    main { width: min(930px, calc(100vw - 248px)); margin: 0 auto; padding: 48px 56px 80px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 34px; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-size: 38px; line-height: 1.1; margin: 0; letter-spacing: -0.025em; font-weight: 600; }
+    .subhead { margin: 9px 0 0; color: var(--muted); font-size: 15px; }
+    .save-panel {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px;
+      box-shadow: 0 10px 35px rgba(36, 52, 42, .05);
+    }
+    label { display: block; font-weight: 700; margin-bottom: 10px; font-size: 14px; }
+    .url-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    input {
+      width: 100%; border: 1px solid #c9cec7; border-radius: 10px; padding: 13px 14px;
+      font: inherit; color: var(--ink); background: white; outline: none;
+    }
+    input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(49, 90, 67, .13); }
+    button {
+      border: 0; border-radius: 10px; background: var(--green); color: white; padding: 0 20px;
+      font: inherit; font-weight: 750; cursor: pointer; min-height: 46px;
+    }
+    button:hover { background: var(--green-deep); }
+    button:disabled { opacity: .65; cursor: wait; }
+    .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+    .section-head { display: flex; justify-content: space-between; align-items: baseline; margin: 34px 0 14px; }
+    h2 { font-size: 18px; margin: 0; }
+    .count { color: var(--muted); font-size: 13px; }
+    .empty {
+      border: 1px dashed #cbd0c7; min-height: 230px; border-radius: 14px; display: grid; place-items: center;
+      text-align: center; color: var(--muted); background: rgba(255,255,255,.35); padding: 30px;
+    }
+    .empty-icon { display: block; margin: 0 auto 14px; width: 44px; height: 44px; border-radius: 50%; background: var(--soft-green); color: var(--green); font-size: 22px; line-height: 44px; }
+    .empty strong { color: var(--ink); display: block; margin-bottom: 5px; }
+    .bookmark {
+      display: none; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px;
+      grid-template-columns: 50px 1fr auto; align-items: start; gap: 16px; box-shadow: 0 7px 24px rgba(36,52,42,.045);
+    }
+    .bookmark.visible { display: grid; animation: arrive .35s ease-out; }
+    @keyframes arrive { from { opacity: 0; transform: translateY(7px); } }
+    .site-icon { width: 50px; height: 50px; border-radius: 12px; background: #181818; color: white; display: grid; place-items: center; font-family: Georgia, serif; font-weight: 700; font-size: 23px; }
+    .bookmark h3 { margin: 1px 0 7px; font-size: 17px; }
+    .bookmark p { color: var(--muted); margin: 0 0 12px; font-size: 14px; line-height: 1.45; max-width: 580px; }
+    .domain { font-size: 12px; color: #7a827c; }
+    .saved { color: var(--green); background: var(--soft-green); border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .toast { position: fixed; right: 28px; bottom: 28px; background: var(--green-deep); color: white; border-radius: 10px; padding: 12px 16px; font-size: 14px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 760px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { width: 100%; padding: 28px 20px; }
+      .url-row { grid-template-columns: 1fr; }
+      button { min-height: 46px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside aria-label="Main navigation">
+      <div class="brand"><span class="brand-mark">K</span> Keepwell</div>
+      <nav>
+        <p class="nav-label">Library</p>
+        <div class="nav-item"><span class="nav-icon">⌂</span> All bookmarks</div>
+      </nav>
+    </aside>
+    <main data-harness-ready="true">
+      <header>
+        <div>
+          <h1>Your bookmarks</h1>
+          <p class="subhead">A place for links worth finding again.</p>
+        </div>
+      </header>
+
+      <section class="save-panel" aria-labelledby="save-title">
+        <label id="save-title" for="url">Save a new bookmark</label>
+        <div class="url-row">
+          <input id="url" type="url" value="https://www.seriouseats.com/the-food-lab-5118015" aria-describedby="url-hint">
+          <button id="save" type="button">Save bookmark</button>
+        </div>
+        <p class="hint" id="url-hint">Paste a page address and Keepwell will fill in the useful details.</p>
+      </section>
+
+      <div class="section-head">
+        <h2>All bookmarks</h2>
+        <span class="count" id="count">0 bookmarks</span>
+      </div>
+
+      <div class="empty" id="empty">
+        <div><span class="empty-icon">↗</span><strong>No bookmarks yet</strong>Your saved links will appear here with details you can recognize.</div>
+      </div>
+
+      <article class="bookmark" id="bookmark" aria-live="polite">
+        <div class="site-icon">SE</div>
+        <div>
+          <h3>The Food Lab: Better Home Cooking Through Science</h3>
+          <p>Explore practical cooking techniques, tested recipes, and the science behind better results in the kitchen.</p>
+          <span class="domain">seriouseats.com</span>
+        </div>
+        <span class="saved">Saved</span>
+      </article>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status">Bookmark saved with page details</div>
+  <script>
+    const saveButton = document.querySelector('#save');
+    const urlInput = document.querySelector('#url');
+    const empty = document.querySelector('#empty');
+    const bookmark = document.querySelector('#bookmark');
+    const count = document.querySelector('#count');
+    const toast = document.querySelector('#toast');
+
+    saveButton.addEventListener('click', () => {
+      if (!urlInput.value.trim()) { urlInput.focus(); return; }
+      saveButton.disabled = true;
+      saveButton.textContent = 'Getting details…';
+      window.setTimeout(() => {
+        empty.hidden = true;
+        bookmark.classList.add('visible');
+        count.textContent = '1 bookmark';
+        saveButton.textContent = 'Saved';
+        toast.classList.add('show');
+        window.setTimeout(() => toast.classList.remove('show'), 2400);
+      }, 650);
+    });
+  </script>
+</body>
+</html>

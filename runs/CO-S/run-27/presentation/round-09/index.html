@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmark flow prototype</title>
+  <style>
+    :root { color-scheme: light; --ink:#17231d; --muted:#66736c; --line:#dfe6e1; --green:#176b47; --wash:#f4f7f4; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:#fbfcfb; }
+    .shell { min-height:100vh; display:grid; grid-template-columns:240px 1fr; }
+    aside { padding:30px 22px; background:#eef3ef; border-right:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:760; font-size:19px; margin-bottom:38px; }
+    .mark { width:30px; height:30px; display:grid; place-items:center; border-radius:9px; color:#fff; background:var(--green); }
+    nav a { display:flex; gap:12px; align-items:center; padding:11px 12px; color:#536159; text-decoration:none; border-radius:9px; margin:5px 0; }
+    nav a.active { background:#fff; color:var(--ink); font-weight:650; box-shadow:0 1px 2px #1c382520; }
+    main { width:min(880px, calc(100vw - 290px)); margin:0 auto; padding:62px 0; }
+    h1 { margin:0; font-family:Georgia, serif; font-size:42px; letter-spacing:-1.2px; }
+    .lede { color:var(--muted); font-size:17px; margin:10px 0 34px; }
+    .savebox { background:#fff; padding:18px; border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px #223d2c0a; }
+    .searchbox { display:none; margin-bottom:24px; }
+    .searchbox input { width:100%; background:#fff; padding-left:44px; }
+    .search-wrap { position:relative; }
+    .search-wrap::before { content:'⌕'; position:absolute; left:16px; top:9px; z-index:1; color:var(--muted); font-size:25px; }
+    .row { display:flex; gap:10px; }
+    input { flex:1; font:inherit; padding:14px 15px; border:1px solid #cbd5ce; border-radius:9px; outline:none; }
+    input:focus { border-color:var(--green); box-shadow:0 0 0 3px #176b4718; }
+    button { font:inherit; font-weight:700; border:0; border-radius:9px; padding:0 20px; color:#fff; background:var(--green); cursor:pointer; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .status { min-height:20px; margin-top:10px; color:var(--muted); font-size:14px; }
+    .preview { display:none; margin-top:14px; padding:14px; border-radius:10px; background:var(--wash); }
+    .preview.show { display:block; }
+    .preview strong { display:block; margin-bottom:5px; }
+    .preview p { margin:0; color:var(--muted); line-height:1.45; }
+    .tag-panel { border-top:1px solid #dfe6e1; margin-top:13px; padding-top:13px; position:relative; }
+    .tag-label { display:block; font-size:13px; font-weight:700; margin-bottom:8px; }
+    .tag-input-wrap { display:flex; align-items:center; gap:6px; padding:7px; min-height:45px; background:#fff; border:1px solid #cbd5ce; border-radius:9px; }
+    .tag-input-wrap input { min-width:90px; border:0; padding:5px; box-shadow:none; }
+    .chip { display:inline-flex; align-items:center; border-radius:99px; padding:5px 9px; background:#dfeee5; color:#165c40; font-size:13px; }
+    button.chip { border:0; font-weight:600; cursor:pointer; }
+    button.chip:hover { background:#cfe4d7; }
+    .tag-suggestions { display:none; position:absolute; left:0; right:0; top:76px; z-index:2; padding:5px; background:#fff; border:1px solid #cbd5ce; border-radius:9px; box-shadow:0 8px 24px #1f332628; }
+    .tag-suggestions.show { display:block; }
+    .tag-suggestion { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 11px; color:var(--ink); background:#edf5f0; font-weight:650; text-align:left; }
+    .tag-suggestion small { color:var(--muted); font-weight:500; }
+    .section-head { display:flex; justify-content:space-between; align-items:center; margin-top:48px; }
+    h2 { font-size:17px; margin:0; }
+    .count { font-size:13px; color:var(--muted); }
+    .empty { margin-top:14px; padding:58px 20px; text-align:center; color:var(--muted); border:1px dashed #cbd5ce; border-radius:13px; background:#fff; }
+    .card { margin-top:14px; padding:19px 20px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+    .card a { color:var(--ink); font-weight:730; font-size:18px; text-decoration:none; }
+    .card p { color:var(--muted); line-height:1.5; margin:8px 0; }
+    .domain { color:var(--green); font-size:13px; }
+    .saved-tags { display:flex; gap:6px; margin-top:13px; }
+    .filter-note { display:none; align-items:center; justify-content:space-between; margin-top:10px; padding:10px 12px; border-radius:9px; background:#e7f1eb; color:#24573f; font-size:14px; }
+    .filter-note.show { display:flex; }
+    .filter-note button { padding:4px 7px; color:#24573f; background:transparent; font-size:18px; }
+    @media (max-width:720px) { .shell{grid-template-columns:1fr} aside{display:none} main{width:auto;padding:32px 20px} .row{flex-direction:column} button{height:48px} h1{font-size:34px} }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="mark">⌑</span> Keepsake</div>
+      <nav>
+        <a class="active" href="#">▤ &nbsp;All bookmarks</a>
+        <a href="#">◷ &nbsp;Read later</a>
+        <a href="#"># &nbsp;Tags</a>
+      </nav>
+    </aside>
+    <main>
+      <h1>Your bookmarks</h1>
+      <p class="lede">Save the useful corners of the web.</p>
+      <section id="searchbox" class="searchbox" aria-label="Search bookmarks">
+        <div class="search-wrap"><input id="search" aria-label="Search bookmarks" placeholder="Search bookmarks…" autocomplete="off"></div>
+        <div id="filter-note" class="filter-note"><span>Showing tag: <strong id="filter-tag"></strong></span><button id="clear-filter" aria-label="Clear tag filter">×</button></div>
+      </section>
+      <section class="savebox" aria-label="Save a bookmark">
+        <div class="row">
+          <input id="url" aria-label="Web address" placeholder="Paste a web address…" autocomplete="off">
+          <button id="save" disabled>Save bookmark</button>
+        </div>
+        <div id="status" class="status">Paste an address to get started.</div>
+        <div id="preview" class="preview">
+          <strong id="preview-title"></strong>
+          <p id="preview-description"></p>
+          <div class="tag-panel">
+            <label class="tag-label" for="chip-input">Tags</label>
+            <div class="tag-input-wrap"><span class="chip">web design ×</span><input id="chip-input" placeholder="Add a tag…"></div>
+            <div id="tag-suggestions" class="tag-suggestions">
+              <button id="tag-suggestion" class="tag-suggestion"><span>reference</span><small>Existing tag · Enter ↵</small></button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="section-head"><h2>All bookmarks</h2><span id="count" class="count">0 bookmarks</span></div>
+      <div id="list"><div class="empty">Your saved links will appear here.</div></div>
+    </main>
+  </div>
+  <script>
+    const url = document.querySelector('#url');
+    const save = document.querySelector('#save');
+    const status = document.querySelector('#status');
+    const preview = document.querySelector('#preview');
+    const list = document.querySelector('#list');
+    const count = document.querySelector('#count');
+    const search = document.querySelector('#search');
+    let timer;
+    let details = null;
+    const chipInput=document.querySelector('#chip-input');
+    const tagSuggestions=document.querySelector('#tag-suggestions');
+    function addChip(value) {
+        if (!value.trim()) return;
+        const chip=document.createElement('span'); chip.className='chip'; chip.textContent=value.trim().toLowerCase()+' ×';
+        chipInput.before(chip); chipInput.value=''; tagSuggestions.classList.remove('show');
+    }
+    chipInput.addEventListener('input', event => {
+      const typed=event.target.value.trim().toLowerCase();
+      tagSuggestions.classList.toggle('show', typed.length > 0 && 'reference'.startsWith(typed));
+    });
+    chipInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && event.target.value.trim()) {
+        event.preventDefault();
+        addChip(tagSuggestions.classList.contains('show') ? 'reference' : event.target.value);
+      }
+    });
+    document.querySelector('#tag-suggestion').addEventListener('click', event => { event.preventDefault(); addChip('reference'); });
+    const known = {
+      'developer.mozilla.org': ['CSS grid layout - CSS | MDN', 'CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.'],
+      'www.nationalgeographic.com': ['National Geographic', 'Explore the world through science, history, nature, and culture.'],
+      'en.wikipedia.org': ['Wikipedia, the free encyclopedia', 'The free encyclopedia that anyone can edit.']
+    };
+    const exampleBookmarks = [
+      { title:'CSS grid layout - CSS | MDN', description:'A complete guide to two-dimensional layouts with rows and columns.', site:'developer.mozilla.org', tags:['web design','reference'] },
+      { title:'The Marginalian', description:'Long-form reflections on books, art, philosophy, and what makes a meaningful life.', site:'themarginalian.org', tags:['reading','essays'] },
+      { title:'A guide to better sourdough bread', description:'Practical notes on starters, fermentation, shaping, and baking.', site:'example.com', tags:['cooking','read later'] },
+      { title:'Inclusive Components', description:'Accessible interface patterns, with practical examples and thoughtful explanations.', site:'inclusive-components.design', tags:['accessibility','web design'] }
+    ];
+    function renderExamples(items) {
+      list.innerHTML=items.length ? items.map(item => `<article class="card"><a href="#">${item.title}</a><p>${item.description}</p><span class="domain">${item.site}</span><div class="saved-tags">${item.tags.map(tag => `<button class="chip" data-tag="${tag}">${tag}</button>`).join('')}</div></article>`).join('') : '<div class="empty">No bookmarks match your search.</div>';
+      count.textContent=`${items.length} bookmark${items.length === 1 ? '' : 's'}`;
+    }
+    if (new URLSearchParams(location.search).get('view') === 'search') {
+      document.querySelector('.savebox').style.display='none';
+      document.querySelector('#searchbox').style.display='block';
+      document.querySelector('.lede').textContent='Find anything you saved.';
+      renderExamples(exampleBookmarks);
+      search.addEventListener('input', () => {
+        document.querySelector('#filter-note').classList.remove('show');
+        const term=search.value.trim().toLowerCase();
+        renderExamples(exampleBookmarks.filter(item => [item.title, item.description, ...item.tags].some(value => value.toLowerCase().includes(term))));
+      });
+      list.addEventListener('click', event => {
+        const tag=event.target.closest('[data-tag]')?.dataset.tag;
+        if (!tag) return;
+        search.value=''; document.querySelector('#filter-tag').textContent=tag;
+        document.querySelector('#filter-note').classList.add('show');
+        renderExamples(exampleBookmarks.filter(item => item.tags.includes(tag)));
+      });
+      document.querySelector('#clear-filter').addEventListener('click', () => {
+        document.querySelector('#filter-note').classList.remove('show'); renderExamples(exampleBookmarks);
+      });
+    }
+    url.addEventListener('input', () => {
+      clearTimeout(timer); details=null; preview.classList.remove('show'); save.disabled=true;
+      const value=url.value.trim();
+      if (!value) { status.textContent='Paste an address to get started.'; return; }
+      status.textContent='Getting page details…';
+      timer=setTimeout(() => {
+        try {
+          const parsed=new URL(value);
+          const fallback=[parsed.hostname.replace(/^www\./,''), 'Saved from '+parsed.hostname+'.'];
+          details=known[parsed.hostname] || fallback;
+          document.querySelector('#preview-title').textContent=details[0];
+          document.querySelector('#preview-description').textContent=details[1];
+          preview.classList.add('show'); status.textContent='Page details found.'; save.disabled=false;
+        } catch { status.textContent='That doesn’t look like a complete web address.'; }
+      }, 550);
+    });
+    save.addEventListener('click', () => {
+      if (!details) return;
+      const parsed=new URL(url.value.trim());
+      const tags=[...document.querySelectorAll('.tag-input-wrap .chip')].map(chip => chip.textContent.replace(/\s*×$/, ''));
+      const tagMarkup=tags.map(tag => `<button class="chip" data-tag="${tag}">${tag}</button>`).join('');
+      list.innerHTML=`<article class="card"><a href="${parsed.href}" target="_blank" rel="noreferrer">${details[0]}</a><p>${details[1]}</p><span class="domain">${parsed.hostname}</span><div class="saved-tags">${tagMarkup}</div></article>`;
+      count.textContent='1 bookmark'; status.textContent='Bookmark saved.'; preview.classList.remove('show');
+      url.value=''; save.disabled=true; details=null;
+    });
+  </script>
+</body>
+</html>

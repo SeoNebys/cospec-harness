@@ -1,0 +1,6 @@
+"use client";
+import type { Bookmark } from "@/lib/contracts/bookmark";
+export function BookmarkCard({bookmark,onEdit,onDelete,onTag}:{bookmark:Bookmark;onEdit:()=>void;onDelete:()=>void;onTag:(tag:string)=>void}){
+ let host=bookmark.url;try{host=new URL(bookmark.url).hostname.replace(/^www\./,"");}catch{}
+ return <article className="bookmark-card"><div className="card-top"><div className="favicon" aria-hidden="true">{bookmark.title.slice(0,1).toUpperCase()}</div><div className="card-heading"><a href={bookmark.url} target="_blank" rel="noreferrer" className="bookmark-title">{bookmark.title}<span aria-hidden="true">↗</span></a><div className="host">{host}</div></div><div className="card-actions"><button className="icon-button" onClick={onEdit} aria-label={`Edit ${bookmark.title}`}>✎</button><button className="icon-button" onClick={onDelete} aria-label={`Delete ${bookmark.title}`}>×</button></div></div>{bookmark.description&&<p className="description">{bookmark.description}</p>}<div className="card-footer"><div className="tag-row">{bookmark.tags.map(tag=><button key={tag} className="tag" onClick={()=>onTag(tag)}>#{tag}</button>)}</div><time dateTime={bookmark.createdAt}>{new Intl.DateTimeFormat("en",{month:"short",day:"numeric",year:"numeric"}).format(new Date(bookmark.createdAt))}</time></div></article>;
+}

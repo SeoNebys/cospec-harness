@@ -1,0 +1,2 @@
+import{describe,expect,it}from'vitest';import{assertPublicUrl,normalizeUrl}from'../../src/capture/url-policy.js';
+describe('URL policy',()=>{it('adds HTTPS and removes fragments',()=>expect(normalizeUrl('Example.com/a#x')).toBe('https://example.com/a'));it.each(['file:///etc/passwd','http://127.0.0.1','http://[::1]'])('rejects unsafe %s',async url=>await expect(assertPublicUrl(url)).rejects.toThrow());});

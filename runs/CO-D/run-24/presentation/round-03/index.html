@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eef2ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .saver input[type=url] {
+    flex: 1 1 320px;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .saver button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .saver button:disabled { opacity: .55; cursor: default; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 2px 0; }
+  .list { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .favicon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--accent-soft);
+    display: grid; place-items: center;
+    font-weight: 700; color: var(--accent);
+    flex: none; font-size: 15px;
+  }
+  .card .body { flex: 1; min-width: 0; }
+  .card .title { font-weight: 600; font-size: 15px; margin: 0 0 3px; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: 0 0 6px; line-height: 1.4; }
+  .card .site { color: var(--accent); font-size: 12px; word-break: break-all; }
+  .card.saving { opacity: .7; }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block; vertical-align: -3px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    text-align: center; color: var(--muted); padding: 48px 20px;
+    border: 1px dashed var(--line); border-radius: 12px; margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and I'll fill in the page details for you.</p>
+</header>
+<main>
+  <form class="saver" id="saver" autocomplete="off">
+    <input type="url" id="url" placeholder="Paste a link, e.g. https://…" required />
+    <button type="submit" id="saveBtn">Save</button>
+  </form>
+  <div class="hint">Paste any web address and press Save.</div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">No bookmarks yet. Paste a link above to save your first one.</div>
+</main>
+
+<script>
+// --- Prototype: simulated page-detail lookup (no real network needed) ---
+const KNOWN = {
+  "github.com": { site: "GitHub", title: "GitHub · Build and ship software", desc: "The complete developer platform to build, scale, and deliver secure software." },
+  "en.wikipedia.org": { site: "Wikipedia", title: "Wikipedia, the free encyclopedia", desc: "A free online encyclopedia, created and edited by volunteers around the world." },
+  "nytimes.com": { site: "The New York Times", title: "The New York Times — Breaking News, World News & Multimedia", desc: "Live news, investigations, opinion, photos and video." },
+  "youtube.com": { site: "YouTube", title: "YouTube", desc: "Enjoy the videos and music you love, upload original content, and share it all." },
+  "developer.mozilla.org": { site: "MDN Web Docs", title: "MDN Web Docs", desc: "Resources for developers, by developers. Documentation for web technologies." },
+  "medium.com": { site: "Medium", title: "Medium — Where good ideas find you", desc: "Read and write stories, deepen your understanding of the topics that matter." },
+};
+function metadataFor(url) {
+  let host;
+  try { host = new URL(url).hostname.replace(/^www\./, ""); }
+  catch { host = url.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, ""); }
+  if (KNOWN[host]) return { ...KNOWN[host], host };
+  const name = (host.split(".")[0] || host).replace(/[-_]/g, " ");
+  const pretty = name.charAt(0).toUpperCase() + name.slice(1);
+  return {
+    site: pretty,
+    title: pretty + " — " + host,
+    desc: "Saved page from " + host + ".",
+    host,
+  };
+}
+
+const list = document.getElementById("list");
+const empty = document.getElementById("empty");
+const form = document.getElementById("saver");
+const urlInput = document.getElementById("url");
+const saveBtn = document.getElementById("saveBtn");
+
+let bookmarks = [];
+
+function render() {
+  empty.style.display = bookmarks.length ? "none" : "block";
+  list.innerHTML = "";
+  for (const b of bookmarks) {
+    const card = document.createElement("div");
+    card.className = "card" + (b.loading ? " saving" : "");
+    const initial = (b.site || b.host || "?").trim().charAt(0).toUpperCase();
+    card.innerHTML = `
+      <div class="favicon">${b.loading ? '<span class="spinner"></span>' : initial}</div>
+      <div class="body">
+        <p class="title">${b.loading ? "Fetching page details…" : escapeHtml(b.title)}</p>
+        <p class="desc">${b.loading ? "" : escapeHtml(b.desc)}</p>
+        <span class="site">${escapeHtml(b.url)}</span>
+      </div>`;
+    list.appendChild(card);
+  }
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  if (!url) return;
+  const entry = { url, loading: true, id: Date.now() };
+  bookmarks.unshift(entry);
+  urlInput.value = "";
+  saveBtn.disabled = true;
+  render();
+  // Simulate the brief moment of fetching page details.
+  setTimeout(() => {
+    const meta = metadataFor(url);
+    Object.assign(entry, meta, { loading: false });
+    saveBtn.disabled = false;
+    render();
+  }, 650);
+});
+
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

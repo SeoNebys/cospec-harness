@@ -1,0 +1,2 @@
+import type { Bookmark } from "../../../shared/contracts/bookmarks.js";
+export function FavoriteButton({bookmark,onToggle}:{bookmark:Bookmark;onToggle:()=>void}){return <button className={`icon-button favorite ${bookmark.isFavorite?"active":""}`} aria-label={bookmark.isFavorite?"Remove from favorites":"Add to favorites"} aria-pressed={bookmark.isFavorite} onClick={onToggle}>{bookmark.isFavorite?"★":"☆"}</button>;}

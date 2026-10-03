@@ -1,0 +1,22 @@
+import { test, expect } from '@playwright/test';
+import { createBookmark, removeBookmark } from './helpers';
+test('editing keeps formatted notes and reuses tag suggestions', async ({ page, request }) => {
+  const stamp = Date.now();
+  const source = await createBookmark(request, `Tag source ${stamp}`, { tagLabels: ['Reusable'] });
+  const bookmark = await createBookmark(request, `Editable ${stamp}`);
+  await page.goto('/');
+  const card = page.getByRole('article').filter({ hasText: `Editable ${stamp}` });
+  await card.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel('Title').fill(`Edited ${stamp}`);
+  const tags = page.getByRole('combobox', { name: 'Add tags' });
+  await tags.fill('reu');
+  await expect(page.getByRole('option', { name: /Reusable/ })).toBeVisible();
+  await tags.press('Enter');
+  await page.locator('.tiptap').fill(`Searchable context ${stamp}`);
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByText(`Edited ${stamp}`)).toBeVisible();
+  await page.getByLabel('Search bookmarks').fill(`"Searchable context ${stamp}"`);
+  await expect(page.getByText(`Edited ${stamp}`)).toBeVisible();
+  await removeBookmark(request, bookmark.id);
+  await removeBookmark(request, source.id);
+});

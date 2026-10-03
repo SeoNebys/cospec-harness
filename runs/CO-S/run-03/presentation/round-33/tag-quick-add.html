@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Tagging prototype</title>
+  <style>
+    :root { color-scheme:light; --ink:#17211d; --muted:#68736e; --line:#dce3df; --paper:#fbfcfa; --green:#245c45; --green-soft:#e7f1eb; --cream:#f3f0e8; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { height:68px; display:flex; align-items:center; border-bottom:1px solid var(--line); }
+    .shell { width:min(920px,calc(100% - 48px)); margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; font-size:18px; }
+    .mark { width:29px; height:34px; border-radius:4px 4px 9px 9px; background:var(--green); }
+    main { padding:64px 0; }
+    .eyebrow { color:var(--green); font-weight:700; font-size:12px; letter-spacing:.11em; text-transform:uppercase; }
+    h1 { margin:8px 0 36px; font:600 40px/1.08 Georgia,serif; letter-spacing:-.03em; }
+    .library-head { display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:13px; }
+    h2 { margin:0; font-size:17px; }
+    .count { color:var(--muted); font-size:13px; }
+    .card { display:grid; grid-template-columns:58px 1fr auto; gap:16px; padding:22px 4px; border-bottom:1px solid var(--line); align-items:start; }
+    .thumb { width:58px; height:58px; display:grid; place-items:center; border-radius:12px; background:var(--cream); color:var(--green); font:700 22px Georgia,serif; }
+    .domain { color:var(--green); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .title { margin:3px 0; font:600 20px/1.25 Georgia,serif; }
+    .summary { margin:0; color:var(--muted); }
+    .tags { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:11px; }
+    .tag { display:inline-flex; align-items:center; height:25px; padding:0 9px; border-radius:999px; background:var(--green-soft); color:var(--green); font-size:12px; font-weight:680; }
+    button { height:40px; padding:0 15px; border:1px solid #bdc9c2; border-radius:8px; background:white; color:var(--ink); font:650 14px inherit; cursor:pointer; }
+    .tag-button { height:29px; padding:0 10px; color:var(--green); border-color:#c6d6cd; }
+    button.primary { border-color:var(--green); background:var(--green); color:white; }
+    .tag-editor { display:none; grid-column:2 / 4; align-items:center; gap:8px; padding:14px; border-radius:11px; background:#f3f6f4; }
+    .tag-editor.visible { display:flex; }
+    input { flex:1; min-width:0; height:40px; padding:0 12px; border:1px solid #bdc9c2; border-radius:8px; background:white; color:var(--ink); font:inherit; }
+    @media(max-width:620px){.shell{width:min(100% - 28px,920px)}.card{grid-template-columns:48px 1fr}.thumb{width:48px;height:48px}.edit-button{grid-column:2}.tag-editor{grid-column:1 / 3;flex-wrap:wrap}.tag-editor input{flex-basis:100%}}
+  </style>
+</head>
+<body>
+  <header><div class="shell brand"><span class="mark" aria-hidden="true"></span><span>Keep</span></div></header>
+  <main class="shell" data-harness-ready="true">
+    <div class="eyebrow">Your bookmark library</div>
+    <h1>All bookmarks</h1>
+    <section>
+      <div class="library-head"><h2>Saved</h2><span class="count">1 bookmark</span></div>
+      <article class="card">
+        <div class="thumb" aria-hidden="true">A</div>
+        <div>
+          <div class="domain">example.com</div>
+          <h3 class="title">Design systems, without the jargon</h3>
+          <p class="summary">How reusable foundations, components, and shared patterns help teams create consistent digital products.</p>
+          <div class="tags" id="shown-tags"><button class="tag-button" id="tag-button" type="button">+ Add tags</button></div>
+        </div>
+        <button class="edit-button" type="button">Edit details</button>
+        <form class="tag-editor" id="tag-editor">
+          <input id="tag-input" aria-label="Tags" placeholder="Add tags separated by commas">
+          <button id="cancel" type="button">Cancel</button>
+          <button class="primary" type="submit">Add tags</button>
+        </form>
+      </article>
+    </section>
+  </main>
+  <script>
+    const form = document.querySelector('#tag-editor');
+    const trigger = document.querySelector('#tag-button');
+    const area = document.querySelector('#shown-tags');
+    if (new URLSearchParams(location.search).get('case') === 'duplicate') {
+      const chip = document.createElement('span'); chip.className = 'tag'; chip.textContent = 'design'; area.insertBefore(chip, trigger);
+    }
+    trigger.addEventListener('click', () => { form.classList.add('visible'); trigger.hidden = true; document.querySelector('#tag-input').focus(); });
+    document.querySelector('#cancel').addEventListener('click', () => { form.classList.remove('visible'); trigger.hidden = false; });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const tags = [...new Set(document.querySelector('#tag-input').value.split(',').map(tag => tag.trim().toLowerCase()).filter(Boolean))];
+      area.replaceChildren(...tags.map(tag => {
+        const chip = document.createElement('span'); chip.className = 'tag'; chip.textContent = tag; return chip;
+      }), trigger);
+      form.classList.remove('visible');
+      trigger.hidden = false;
+    });
+  </script>
+</body>
+</html>

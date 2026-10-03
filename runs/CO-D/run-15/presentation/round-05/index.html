@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stow — Bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2d28;
+      --muted: #65736e;
+      --paper: #f6f3eb;
+      --card: #fffefa;
+      --line: #d8d8ce;
+      --accent: #236b52;
+      --accent-dark: #174b39;
+      --soft: #e2eee8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 85% -10%, #d9e7de 0, transparent 32rem),
+        var(--paper);
+    }
+
+    button, input { font: inherit; }
+
+    .shell {
+      width: min(960px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 32px 0 72px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 64px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 750;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      color: white;
+      background: var(--accent);
+      font-family: Georgia, serif;
+      font-size: 22px;
+    }
+
+    .account {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    main { max-width: 780px; margin: 0 auto; }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 640px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(38px, 6vw, 62px);
+      font-weight: 500;
+      line-height: 1.03;
+      letter-spacing: -.035em;
+    }
+
+    .intro {
+      max-width: 560px;
+      margin: 18px 0 32px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .save-form {
+      display: flex;
+      gap: 10px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 254, 250, .9);
+      box-shadow: 0 12px 40px rgba(42, 66, 57, .08);
+    }
+
+    .save-form:focus-within {
+      border-color: #8ca99c;
+      box-shadow: 0 0 0 4px rgba(35, 107, 82, .1), 0 12px 40px rgba(42, 66, 57, .08);
+    }
+
+    .save-form input {
+      min-width: 0;
+      flex: 1;
+      border: 0;
+      outline: 0;
+      padding: 11px 13px;
+      color: var(--ink);
+      background: transparent;
+    }
+
+    .save-form button {
+      border: 0;
+      border-radius: 11px;
+      padding: 11px 20px;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .save-form button:hover { background: var(--accent-dark); }
+    .save-form button:disabled { opacity: .65; cursor: wait; }
+
+    .hint, .status {
+      min-height: 22px;
+      margin: 10px 4px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status { color: var(--accent); }
+
+    .collection { margin-top: 56px; }
+
+    .collection-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+
+    h2 { margin: 0; font-size: 19px; }
+    .count { color: var(--muted); font-size: 13px; }
+
+    .empty {
+      padding: 42px 24px;
+      border: 1px dashed #c7cbbf;
+      border-radius: 16px;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(255,255,255,.27);
+    }
+
+    .bookmark {
+      display: grid;
+      grid-template-columns: 116px 1fr;
+      gap: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: inherit;
+      text-decoration: none;
+      background: var(--card);
+      box-shadow: 0 12px 30px rgba(38, 55, 48, .07);
+      animation: rise .28s ease-out;
+    }
+
+    .bookmark:hover { border-color: #9aafa5; transform: translateY(-1px); }
+
+    .preview {
+      width: 116px;
+      height: 92px;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #d9c7ac;
+    }
+
+    .source {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 1px 0 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .favicon {
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      color: white;
+      background: #b22f24;
+      font-family: Georgia, serif;
+      font-weight: 700;
+    }
+
+    .bookmark h3 { margin: 0 0 7px; font-size: 18px; line-height: 1.25; }
+
+    .bookmark p {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 24px, 960px); padding-top: 20px; }
+      header { margin-bottom: 42px; }
+      .account { display: none; }
+      .save-form { display: grid; }
+      .save-form button { width: 100%; }
+      .bookmark { grid-template-columns: 1fr; }
+      .preview { width: 100%; height: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="brand-mark">S</span> Stow</div>
+      <div class="account">Your private collection</div>
+    </header>
+
+    <main>
+      <p class="eyebrow">Start your collection</p>
+      <h1>Keep the good parts of the internet.</h1>
+      <p class="intro">Paste a link and Stow will collect the page details for you, so it’s useful when you come back.</p>
+
+      <form class="save-form" id="save-form">
+        <input id="url" type="url" required aria-label="Web address" placeholder="Paste a link…" autocomplete="off">
+        <button id="save-button" type="submit">Save link</button>
+      </form>
+      <div class="hint" id="hint">Try: https://www.seriouseats.com/roman-pasta-recipes-5117829</div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+
+      <section class="collection" aria-labelledby="collection-title">
+        <div class="collection-head">
+          <h2 id="collection-title">Your bookmarks</h2>
+          <span class="count" id="count">0 saved</span>
+        </div>
+        <div class="empty" id="empty">Your saved links will appear here.</div>
+        <div id="bookmarks"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url');
+    const button = document.querySelector('#save-button');
+    const status = document.querySelector('#status');
+    const hint = document.querySelector('#hint');
+    const empty = document.querySelector('#empty');
+    const bookmarks = document.querySelector('#bookmarks');
+    const count = document.querySelector('#count');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Gathering details…';
+      status.textContent = 'Reading the page…';
+
+      window.setTimeout(() => {
+        empty.hidden = true;
+        hint.hidden = true;
+        bookmarks.innerHTML = `
+          <a class="bookmark" href="https://www.seriouseats.com/roman-pasta-recipes-5117829" target="_blank" rel="noreferrer">
+            <svg class="preview" viewBox="0 0 232 184" role="img" aria-label="Bowl of pasta illustration" xmlns="http://www.w3.org/2000/svg">
+              <rect width="232" height="184" fill="#e7d6b8"/>
+              <circle cx="116" cy="92" r="67" fill="#f7f0dd"/>
+              <circle cx="116" cy="92" r="48" fill="#d99442"/>
+              <path d="M77 73c23 35 63 5 79 34M71 91c28-31 61 23 91-7M84 115c20-26 45 15 70-12" fill="none" stroke="#f4cf71" stroke-width="9" stroke-linecap="round"/>
+              <g fill="#47744b"><circle cx="93" cy="73" r="5"/><circle cx="135" cy="111" r="5"/><circle cx="145" cy="77" r="4"/></g>
+            </svg>
+            <div>
+              <div class="source"><span class="favicon">S</span> seriouseats.com</div>
+              <h3>Essential Roman Pasta Recipes</h3>
+              <p>Master the four classic pasta dishes of Rome, from silky cacio e pepe to deeply savory amatriciana.</p>
+            </div>
+          </a>`;
+        count.textContent = '1 saved';
+        status.textContent = 'Saved with title, description, site icon, and preview.';
+        button.disabled = false;
+        button.textContent = 'Save link';
+        input.value = '';
+      }, 700);
+    });
+  </script>
+</body>
+</html>

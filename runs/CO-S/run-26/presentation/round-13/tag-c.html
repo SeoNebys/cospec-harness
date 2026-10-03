@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tags — variant 3</title>
+<link rel="stylesheet" href="tags.css" />
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — adding tags &amp; notes</p>
+  <span class="variant-tag">Variant 3 of 3</span>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <p class="title">Artemis II - NASA</p>
+    <p class="site">nasa.gov</p>
+    <p class="desc">Artemis II will be the first crewed mission of NASA's Artemis campaign, sending four astronauts around the Moon.</p>
+
+    <div class="field-label">Tags</div>
+    <div class="chips" id="chips" style="margin-bottom:8px;"></div>
+    <input id="tagField" type="text" placeholder="Type to find or create a tag…" autocomplete="off" />
+    <div class="suggests" id="suggests"></div>
+
+    <div class="field-label">Note</div>
+    <textarea id="note" placeholder="Add your own note…"></textarea>
+    <div class="saved-note" id="savedNote"></div>
+  </div>
+  <p class="hint">This is one of three ways to add tags. Try clicking a suggestion, and typing a new tag, then compare with the others.</p>
+</div>
+
+<script>
+  // A few tags the client might already have used elsewhere — the suggestion pool.
+  const EXISTING = ["space", "science", "reading", "to-read", "reference", "work"];
+  const tags = [];
+  const chips = document.getElementById("chips");
+  const field = document.getElementById("tagField");
+  const suggests = document.getElementById("suggests");
+
+  function renderChips() {
+    chips.innerHTML = tags.map((t, i) =>
+      `<span class="chip">${t} <button data-i="${i}" title="remove">×</button></span>`).join("");
+    chips.querySelectorAll("button").forEach(b =>
+      b.onclick = () => { tags.splice(+b.dataset.i, 1); renderChips(); renderSuggests(); });
+  }
+  function addTag(t) { if (t && !tags.includes(t)) { tags.push(t); renderChips(); } field.value=""; renderSuggests(); }
+  function renderSuggests() {
+    const q = field.value.trim().toLowerCase();
+    const pool = EXISTING.filter(t => !tags.includes(t) && (!q || t.includes(q)));
+    let html = pool.map(t => `<span class="sug" data-t="${t}">${t}</span>`).join("");
+    if (q && !EXISTING.includes(q) && !tags.includes(q)) {
+      html += `<span class="sug" data-t="${q}">+ create "${q}"</span>`;
+    }
+    suggests.innerHTML = html;
+    suggests.querySelectorAll(".sug").forEach(s => s.onclick = () => addTag(s.dataset.t));
+  }
+  field.addEventListener("input", renderSuggests);
+  field.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); addTag(field.value.trim()); }
+  });
+
+  const note = document.getElementById("note");
+  const savedNote = document.getElementById("savedNote");
+  note.addEventListener("blur", () => {
+    savedNote.textContent = note.value.trim() ? "Saved note: " + note.value.trim() : "";
+  });
+
+  renderChips(); renderSuggests();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

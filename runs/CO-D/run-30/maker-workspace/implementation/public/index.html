@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#223046">
+  <title>Bookmarks</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell" aria-busy="true">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Bookmarks home">
+        <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 3.5h11v17l-5.5-3.3-5.5 3.3z"/></svg></span>
+        <span>Bookmarks</span>
+      </a>
+      <button class="button button-primary" id="add-bookmark" type="button"><span aria-hidden="true">＋</span> Add bookmark</button>
+    </header>
+
+    <main class="main-content">
+      <section class="page-heading" aria-labelledby="page-title">
+        <div><p class="eyebrow">Personal library</p><h1 id="page-title">Your collection</h1><p class="subtitle">Good things, kept within reach.</p></div>
+        <span class="count-pill" id="result-count">Loading…</span>
+      </section>
+
+      <section class="library-controls" id="library-controls" hidden>
+        <div class="search-row">
+          <label class="search-box" for="search-input">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg>
+            <input id="search-input" type="search" placeholder="Search titles, descriptions, sites, and addresses" autocomplete="off">
+            <button class="icon-button search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>×</button>
+          </label>
+          <button class="button button-secondary select-toggle" id="select-toggle" type="button">Select items</button>
+        </div>
+        <div class="view-tabs" id="view-tabs" role="tablist" aria-label="Bookmark views">
+          <button class="view-tab active" type="button" data-view="active" role="tab">Collection</button>
+          <button class="view-tab" type="button" data-view="later" role="tab">Read later</button>
+          <button class="view-tab" type="button" data-view="archived" role="tab">Archived</button>
+        </div>
+        <div class="label-chips" id="label-chips" aria-label="Filter by label"></div>
+      </section>
+
+      <section class="loading-state" id="loading-state"><span class="large-spinner" aria-hidden="true"></span><p>Opening your collection…</p></section>
+      <section class="bookmark-grid" id="bookmark-grid" aria-live="polite"></section>
+      <section class="empty-state" id="empty-state" hidden>
+        <div class="empty-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 3.5h11v17l-5.5-3.3-5.5 3.3z"/></svg></div>
+        <h2 id="empty-title"></h2>
+        <p id="empty-copy"></p>
+        <button class="button button-primary" id="empty-action" type="button"></button>
+      </section>
+    </main>
+  </div>
+
+  <aside class="bulk-bar" id="bulk-bar" aria-label="Actions for selected bookmarks" hidden>
+    <strong id="selected-count">0 selected</strong>
+    <button class="button button-on-dark" id="bulk-label" type="button">Add label</button>
+    <button class="button button-on-dark" id="bulk-later" type="button">Mark read later</button>
+    <button class="button button-danger-light" id="bulk-delete" type="button">Delete selected</button>
+  </aside>
+
+  <dialog class="dialog bookmark-dialog" id="bookmark-dialog">
+    <form id="bookmark-form">
+      <header class="dialog-header">
+        <div><p class="eyebrow" id="dialog-eyebrow">New bookmark</p><h2 id="dialog-title">Add a bookmark</h2><p id="dialog-subtitle">Paste a link and its details will appear automatically.</p></div>
+        <button class="icon-button dialog-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="dialog-body">
+        <div class="archived-notice" id="archived-notice" hidden><strong>This bookmark is archived</strong><span>Your edits will stay in the archive unless you restore it.</span></div>
+
+        <div class="url-entry" id="url-entry">
+          <label for="bookmark-url">Web address</label>
+          <input id="bookmark-url" type="url" placeholder="https://example.com/article" autocomplete="url" required>
+          <p class="field-help">Use the complete address beginning with http:// or https://.</p>
+          <p class="field-error" id="url-error" hidden></p>
+        </div>
+
+        <div class="source-summary" id="source-summary" hidden>
+          <span class="site-avatar" id="source-avatar"></span>
+          <div><strong id="source-site"></strong><span id="source-url"></span></div>
+        </div>
+
+        <div class="fetching" id="fetching" hidden><span class="spinner" aria-hidden="true"></span><span>Getting page details…</span></div>
+
+        <section class="bookmark-fields" id="bookmark-fields" hidden>
+          <div class="fallback-notice" id="fallback-notice" hidden><strong>Page details weren’t available</strong><span>We used the site name as a stand-in. You can save now or adjust it first.</span></div>
+          <div class="field"><label for="bookmark-title-input">Title</label><input id="bookmark-title-input" type="text" required></div>
+          <div class="field"><label for="bookmark-description">Description</label><textarea id="bookmark-description" rows="4"></textarea></div>
+          <fieldset class="label-picker"><legend>Labels</legend><div class="label-options" id="label-options"></div><div class="new-label-row"><input id="new-label" type="text" placeholder="New label" aria-label="New label"><button class="button button-secondary" id="create-label" type="button">Create &amp; add</button></div><p class="field-help label-notice" id="label-notice" aria-live="polite"></p></fieldset>
+          <label class="check-control"><input id="bookmark-later" type="checkbox"><span>Read later</span></label>
+        </section>
+
+        <div class="operation-error" id="operation-error" role="alert" hidden><strong>Couldn’t save this bookmark</strong><span>Your details are still here. Check your connection and try again.</span></div>
+      </div>
+      <footer class="dialog-footer">
+        <div class="footer-start"><button class="button button-danger-text" id="delete-bookmark" type="button" hidden>Delete bookmark</button><button class="button button-secondary" id="archive-bookmark" type="button" hidden>Archive</button><button class="button button-secondary" id="restore-bookmark" type="button" hidden>Restore to collection</button></div>
+        <button class="button button-secondary dialog-cancel" type="button">Cancel</button>
+        <button class="button button-primary" id="save-bookmark" type="submit" disabled>Save bookmark</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="dialog confirm-dialog" id="delete-confirm">
+    <header class="dialog-header"><div><p class="eyebrow danger-eyebrow">Permanent action</p><h2>Delete bookmark?</h2></div></header>
+    <div class="dialog-body"><p id="delete-confirm-copy"></p><p class="permanent-warning">This is permanent and cannot be undone.</p></div>
+    <footer class="dialog-footer"><button class="button button-secondary" data-close-dialog type="button">Keep bookmark</button><button class="button button-danger" id="confirm-delete" type="button">Delete permanently</button></footer>
+  </dialog>
+
+  <dialog class="dialog confirm-dialog" id="bulk-delete-confirm">
+    <header class="dialog-header"><div><p class="eyebrow danger-eyebrow">Permanent action</p><h2>Delete selected bookmarks?</h2></div></header>
+    <div class="dialog-body"><p id="bulk-delete-copy"></p><p class="permanent-warning">This is permanent and cannot be undone.</p></div>
+    <footer class="dialog-footer"><button class="button button-secondary" data-close-dialog type="button">Keep bookmarks</button><button class="button button-danger" id="confirm-bulk-delete" type="button">Delete permanently</button></footer>
+  </dialog>
+
+  <dialog class="dialog label-dialog" id="bulk-label-dialog">
+    <header class="dialog-header"><div><p class="eyebrow">Bulk tidy-up</p><h2>Add a label</h2><p>Existing labels on every selected bookmark will be kept.</p></div><button class="icon-button" data-close-dialog type="button" aria-label="Close">×</button></header>
+    <div class="dialog-body"><div class="bulk-label-options" id="bulk-label-options"></div><label for="bulk-new-label">Or create a new label</label><input id="bulk-new-label" type="text" placeholder="New label"><p class="field-help" id="bulk-label-notice"></p></div>
+    <footer class="dialog-footer"><button class="button button-secondary" data-close-dialog type="button">Cancel</button><button class="button button-primary" id="apply-bulk-label" type="button">Add label</button></footer>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

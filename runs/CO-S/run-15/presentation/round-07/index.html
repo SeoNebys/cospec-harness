@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; background: #f5f6f8; color: #1c2330;
+  }
+  header {
+    background: #fff; border-bottom: 1px solid #e3e6ea;
+    padding: 18px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: #6b7480; font-size: 13px; }
+  li.card .titlerow { display: flex; align-items: center; gap: 8px; }
+  li.card .editbtn {
+    border: 1px solid #cfd4da; background: #fff; color: #56606d;
+    border-radius: 6px; font-size: 12px; padding: 3px 9px; cursor: pointer;
+  }
+  li.card .editbtn:hover { background: #f0f2f5; }
+  li.card .titleedit {
+    flex: 1; font-size: 15px; padding: 6px 8px; border: 1px solid #2f6fed;
+    border-radius: 6px;
+  }
+  .fetching { color: #94a0ad; font-style: italic; }
+  .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag {
+    background: #eef3ff; color: #2f5fd0; border-radius: 999px;
+    font-size: 12px; padding: 3px 10px 3px 11px; display: inline-flex; gap: 6px; align-items: center;
+  }
+  .tag .x { cursor: pointer; color: #7a92c7; font-weight: 700; }
+  .tag .x:hover { color: #c0392b; }
+  .tagadd {
+    border: 1px dashed #cfd4da; background: #fff; color: #56606d;
+    border-radius: 999px; font-size: 12px; padding: 3px 12px; cursor: pointer;
+  }
+  .tagadd:hover { background: #f0f2f5; }
+  .taginput {
+    font-size: 12px; padding: 3px 8px; border: 1px solid #2f6fed;
+    border-radius: 999px; width: 120px;
+  }
+  .tagwrap { position: relative; display: inline-block; }
+  .suggest {
+    position: absolute; top: 26px; left: 0; z-index: 5; min-width: 130px;
+    background: #fff; border: 1px solid #cfd4da; border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(20,30,50,.12); padding: 4px; margin: 0;
+  }
+  .suggest li {
+    list-style: none; padding: 5px 10px; font-size: 12px; border-radius: 6px;
+    cursor: pointer; color: #2f5fd0; background: #fff; border: none; margin: 0;
+  }
+  .suggest li:hover, .suggest li.active { background: #eef3ff; }
+  .suggest .none { color: #94a0ad; cursor: default; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px; }
+  .save-box {
+    background: #fff; border: 1px solid #e3e6ea; border-radius: 10px;
+    padding: 16px; display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .save-box input {
+    flex: 1 1 260px; min-width: 0; padding: 11px 12px; font-size: 15px;
+    border: 1px solid #cfd4da; border-radius: 8px;
+  }
+  .save-box button {
+    padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: #2f6fed; color: #fff; border: none; border-radius: 8px;
+  }
+  .save-box button:hover { background: #2258c9; }
+  .hint { color: #6b7480; font-size: 12px; margin: 8px 2px 0; }
+  .err { color: #c0392b; font-size: 13px; margin: 8px 2px 0; display: none; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+       color: #6b7480; margin: 26px 2px 10px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li.card {
+    background: #fff; border: 1px solid #e3e6ea; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  li.card .title { font-size: 16px; font-weight: 600; }
+  li.card a { color: #2f6fed; text-decoration: none; word-break: break-all;
+              font-size: 13px; }
+  li.card .meta { color: #94a0ad; font-size: 12px; margin-top: 6px; }
+  .empty {
+    text-align: center; color: #94a0ad; padding: 40px 20px;
+    border: 1px dashed #cfd4da; border-radius: 10px; background: #fff;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and it will appear in your list below.</p>
+</header>
+<main>
+  <div class="save-box">
+    <input id="url" type="text" placeholder="Paste or type a link (e.g. https://example.com/article)" />
+    <button id="saveBtn">Save link</button>
+  </div>
+  <div class="err" id="err"></div>
+  <p class="hint">Tip: paste a web address and press Save. We'll show its name so you can recognise it later.</p>
+
+  <h2>Saved links (<span id="count">0</span>)</h2>
+  <ul id="list"></ul>
+  <div class="empty" id="empty">No links saved yet. Paste a link above to get started.</div>
+</main>
+
+<script>
+  var links = [];
+  var nextId = 1;
+
+  // PROTOTYPE ONLY: simulate fetching the page's real <title>.
+  // The real app will fetch the actual page title. Here we return a
+  // plausible title so the client can experience the flow.
+  var knownTitles = {
+    'example.com': 'Example Domain',
+    'developer.mozilla.org': 'MDN Web Docs',
+    'en.wikipedia.org': 'Wikipedia, the free encyclopedia',
+    'github.com': 'GitHub',
+    'news.ycombinator.com': 'Hacker News'
+  };
+  function fetchTitle(raw, cb) {
+    // Simulate network latency of fetching the page title.
+    setTimeout(function () {
+      var title;
+      try {
+        var u = new URL(raw);
+        var host = u.hostname.replace(/^www\./, '');
+        if (knownTitles[host]) {
+          title = knownTitles[host];
+        } else {
+          var seg = u.pathname.split('/').filter(Boolean).pop();
+          if (seg) {
+            seg = decodeURIComponent(seg).replace(/[-_]+/g, ' ').replace(/\.[a-z0-9]+$/i, '');
+            title = seg.trim().replace(/\b\w/g, function(c){ return c.toUpperCase(); }) +
+                    ' — ' + host;
+          } else {
+            title = host;
+          }
+        }
+      } catch (e) { title = raw; }
+      cb(title);
+    }, 600);
+  }
+
+  function normalise(raw) {
+    var v = raw.trim();
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try { new URL(v); } catch (e) { return null; }
+    return v;
+  }
+
+  function render() {
+    var list = document.getElementById('list');
+    var empty = document.getElementById('empty');
+    document.getElementById('count').textContent = links.length;
+    list.innerHTML = '';
+    if (links.length === 0) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    links.forEach(function (item) {
+      var host = '';
+      try { host = new URL(item.url).hostname.replace(/^www\./, ''); } catch (e) {}
+      var li = document.createElement('li');
+      li.className = 'card';
+      if (item.editing) {
+        li.innerHTML =
+          '<div class="titlerow">' +
+            '<input class="titleedit" type="text" />' +
+            '<button class="editbtn savename">Save name</button>' +
+          '</div>' +
+          '<a href="' + item.url + '" target="_blank" rel="noopener"></a>' +
+          '<div class="meta">' + host + ' · saved just now</div>';
+        var field = li.querySelector('.titleedit');
+        field.value = item.title;
+        li.querySelector('.savename').addEventListener('click', function () {
+          var v = field.value.trim();
+          if (v) item.title = v;
+          item.editing = false; render();
+        });
+        field.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { var v = field.value.trim(); if (v) item.title = v; item.editing = false; render(); }
+        });
+      } else {
+        li.innerHTML =
+          '<div class="titlerow">' +
+            '<div class="title' + (item.fetching ? ' fetching' : '') + '"></div>' +
+            (item.fetching ? '' : '<button class="editbtn">Rename</button>') +
+          '</div>' +
+          '<a href="' + item.url + '" target="_blank" rel="noopener"></a>' +
+          '<div class="meta">' + host + ' · saved just now</div>';
+        li.querySelector('.title').textContent = item.fetching ? 'Fetching page title…' : item.title;
+        li.querySelector('a').textContent = item.url;
+        var eb = li.querySelector('.editbtn');
+        if (eb) eb.addEventListener('click', function () { item.editing = true; render();
+          var f = document.querySelector('.titleedit'); if (f) { f.focus(); f.select(); } });
+      }
+      if (!item.editing) li.appendChild(buildTags(item));
+      list.appendChild(li);
+    });
+  }
+
+  function allTags() {
+    var set = {};
+    links.forEach(function (l) { l.tags.forEach(function (t) { set[t] = true; }); });
+    return Object.keys(set).sort();
+  }
+
+  function buildTags(item) {
+    var wrap = document.createElement('div');
+    wrap.className = 'tags';
+    item.tags.forEach(function (t) {
+      var chip = document.createElement('span');
+      chip.className = 'tag';
+      var label = document.createElement('span');
+      label.textContent = t;
+      var x = document.createElement('span');
+      x.className = 'x'; x.textContent = '×'; x.title = 'Remove tag';
+      x.addEventListener('click', function () {
+        item.tags = item.tags.filter(function (v) { return v !== t; });
+        render();
+      });
+      chip.appendChild(label); chip.appendChild(x);
+      wrap.appendChild(chip);
+    });
+    if (item.addingTag) {
+      var box = document.createElement('span');
+      box.className = 'tagwrap';
+      var inp = document.createElement('input');
+      inp.className = 'taginput'; inp.placeholder = 'tag name';
+      var sug = document.createElement('ul');
+      sug.className = 'suggest'; sug.style.display = 'none';
+
+      var addTag = function (v) {
+        v = (v || '').trim().toLowerCase();
+        if (v && item.tags.indexOf(v) === -1) item.tags.push(v);
+      };
+      var refreshSuggest = function () {
+        var q = inp.value.trim().toLowerCase();
+        sug.innerHTML = '';
+        if (!q) { sug.style.display = 'none'; return; }
+        // Existing tags across all links that match what is being typed
+        // and are not already on this item.
+        var matches = allTags().filter(function (t) {
+          return t.indexOf(q) !== -1 && item.tags.indexOf(t) === -1;
+        });
+        if (matches.length === 0) { sug.style.display = 'none'; return; }
+        matches.slice(0, 6).forEach(function (t) {
+          var li2 = document.createElement('li');
+          li2.textContent = t;
+          li2.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            addTag(t); inp.value = ''; item._suppressBlur = true; render();
+          });
+          sug.appendChild(li2);
+        });
+        sug.style.display = 'block';
+      };
+      inp.addEventListener('input', refreshSuggest);
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { addTag(inp.value); item._suppressBlur = true; render(); }
+        else if (e.key === 'Escape') { item.addingTag = false; item._suppressBlur = true; render(); }
+      });
+      inp.addEventListener('blur', function () {
+        if (item._suppressBlur) { item._suppressBlur = false; return; }
+        addTag(inp.value); item.addingTag = false; render();
+      });
+      box.appendChild(inp); box.appendChild(sug);
+      wrap.appendChild(box);
+      setTimeout(function () { inp.focus(); }, 0);
+    } else {
+      var add = document.createElement('button');
+      add.className = 'tagadd';
+      add.textContent = item.tags.length ? '+ tag' : '+ add tag';
+      add.addEventListener('click', function () { item.addingTag = true; render(); });
+      wrap.appendChild(add);
+    }
+    return wrap;
+  }
+
+  function save() {
+    var input = document.getElementById('url');
+    var err = document.getElementById('err');
+    var url = normalise(input.value);
+    if (!url) {
+      err.textContent = 'That doesn\'t look like a valid link. Try something like example.com/page.';
+      err.style.display = 'block';
+      return;
+    }
+    err.style.display = 'none';
+    var item = { id: nextId++, url: url, title: '', fetching: true, editing: false, tags: [] };
+    links.unshift(item);
+    input.value = '';
+    input.focus();
+    render();
+    fetchTitle(url, function (title) {
+      item.title = title;
+      item.fetching = false;
+      render();
+    });
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', save);
+  document.getElementById('url').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') save();
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready', 'true');
+</script>
+</body>
+</html>

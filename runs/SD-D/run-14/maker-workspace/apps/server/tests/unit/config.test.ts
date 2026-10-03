@@ -1,0 +1,1 @@
+import{expect,it}from'vitest';import{loadConfig}from'../../src/config.js';it('uses the required production defaults',()=>{const c=loadConfig({});expect(c.host).toBe('0.0.0.0');expect(c.port).toBe(4000)});

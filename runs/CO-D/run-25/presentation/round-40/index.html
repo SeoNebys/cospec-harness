@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepmark prototype</title>
+  <style>
+    :root { color-scheme: light; --ink:#14251d; --muted:#68756e; --line:#dce4df; --paper:#fbfcfa; --green:#176b47; --soft:#eef5f0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f2f4f0; color:var(--ink); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    button,input { font:inherit; }
+    .shell { min-height:100vh; display:grid; grid-template-columns:220px 1fr; }
+    aside { padding:30px 24px; border-right:1px solid var(--line); background:#f8faf7; }
+    .brand { display:flex; gap:10px; align-items:center; font-size:19px; font-weight:750; letter-spacing:-.4px; margin-bottom:38px; }
+    .brand-mark { width:29px; height:29px; border-radius:9px; display:grid; place-items:center; color:white; background:var(--green); font-size:16px; }
+    nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; margin:3px 0; border-radius:9px; color:#4d5b54; text-decoration:none; }
+    nav a.active { color:var(--ink); background:#e9efe9; font-weight:650; }
+    nav span { width:19px; text-align:center; }
+    main { width:min(930px, calc(100vw - 270px)); margin:0 auto; padding:54px 28px; }
+    .eyebrow { color:var(--green); font-size:13px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { font:700 36px/1.15 Georgia, serif; letter-spacing:-1px; margin:7px 0 8px; }
+    .sub { color:var(--muted); margin:0 0 27px; }
+    form { display:flex; gap:10px; padding:9px; border:1px solid #cbd6cf; background:white; border-radius:14px; box-shadow:0 9px 28px rgba(30,55,42,.07); }
+    .search-form { display:none; margin-top:14px; box-shadow:none; background:#f9fbf9; }
+    .search-form.visible { display:flex; }
+    .search-hint { display:none; margin:6px 3px 0; color:#9a5a22; font-size:12px; }
+    .search-hint.visible { display:block; }
+    .notice { display:none; margin-top:12px; padding:12px 14px; border:1px solid #d8c892; border-radius:10px; background:#fff9e8; color:#5d512b; }
+    .notice.visible { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .notice strong { display:block; color:#403816; }
+    .notice-actions { display:flex; gap:6px; flex:0 0 auto; }
+    .notice-actions button { padding:7px 10px; font-size:12px; }
+    .duplicate-focus { outline:3px solid #d8bd55; outline-offset:2px; }
+    input { flex:1; min-width:0; border:0; outline:0; padding:9px 11px; color:var(--ink); }
+    input::placeholder { color:#95a19a; }
+    button { border:0; border-radius:9px; padding:10px 18px; font-weight:700; cursor:pointer; background:var(--green); color:white; }
+    button:disabled { opacity:.7; cursor:wait; }
+    .section-head { display:flex; justify-content:space-between; align-items:center; margin:44px 0 14px; }
+    .sort-select { display:none; padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:white; color:#45544c; font:inherit; font-size:12px; }
+    .sort-buttons { display:none; gap:4px; }
+    .sort-buttons button { padding:6px 9px; border:1px solid var(--line); background:white; color:#536159; font-size:12px; }
+    .sort-buttons button.active { background:#e7f1ea; color:#28523d; border-color:#bfd2c5; }
+    h2 { font-size:17px; margin:0; }
+    .count { color:var(--muted); font-size:13px; }
+    .empty { padding:56px 24px; border:1px dashed #cbd5cf; border-radius:14px; text-align:center; color:var(--muted); background:rgba(255,255,255,.45); }
+    .empty strong { display:block; color:#425048; margin-bottom:4px; }
+    .search-empty { display:none; padding:42px 24px; border:1px dashed #cbd5cf; border-radius:14px; text-align:center; color:var(--muted); background:rgba(255,255,255,.45); }
+    .search-empty.visible { display:block; }
+    .search-empty button { margin-top:12px; }
+    .card { display:none; grid-template-columns:150px 1fr; overflow:hidden; background:white; border:1px solid var(--line); border-radius:14px; box-shadow:0 5px 18px rgba(30,55,42,.05); }
+    .card.visible { display:grid; animation:up .25s ease-out; }
+    .card + .card { margin-top:13px; }
+    .preview { min-height:145px; display:grid; place-items:center; color:#fff; background:linear-gradient(145deg,#314f88,#6b8ed5); font:700 42px Georgia, serif; }
+    .content { padding:19px 21px 17px; }
+    .site { display:flex; align-items:center; gap:7px; color:#617068; font-size:12px; }
+    .favicon { display:grid; place-items:center; width:19px; height:19px; border-radius:5px; background:#111f3e; color:#fff; font-size:11px; font-weight:800; }
+    h3 { margin:9px 0 5px; font:700 21px/1.25 Georgia, serif; }
+    .description { color:#5d6b64; margin:0; max-width:590px; }
+    .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+    .card-top h3 { flex:1; }
+    .card-actions { display:flex; gap:6px; }
+    .edit-button { background:transparent; color:#536159; padding:6px 9px; border:1px solid var(--line); font-size:12px; }
+    .edit-form { display:none; margin-top:10px; }
+    .edit-form.visible { display:block; }
+    .edit-form label, .dialog label { display:block; margin:10px 0 4px; color:#536159; font-size:12px; font-weight:700; }
+    .edit-form input, .dialog input, .edit-form textarea, .dialog textarea { width:100%; padding:9px 10px; border:1px solid #cbd6cf; border-radius:8px; color:var(--ink); background:white; resize:vertical; }
+    .edit-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+    .cancel { background:white; color:#536159; border:1px solid var(--line); }
+    .overlay { display:none; position:fixed; inset:0; z-index:5; place-items:center; padding:20px; background:rgba(18,31,24,.45); }
+    .overlay.visible { display:grid; }
+    .dialog { width:min(510px,100%); padding:24px; background:white; border-radius:15px; box-shadow:0 22px 70px rgba(0,0,0,.22); }
+    .dialog h2 { font:700 23px Georgia,serif; }
+    .dialog p { color:var(--muted); margin:4px 0 14px; font-size:13px; }
+    .meta { display:flex; gap:8px; align-items:center; margin-top:14px; color:#879189; font-size:12px; }
+    .note { display:none; margin:14px 0 0; padding:10px 12px; border-left:3px solid #9bbca7; border-radius:0 8px 8px 0; background:#f4f8f4; color:#45544c; font-size:13px; }
+    .note.visible { display:block; }
+    .note.collapsed { max-height:82px; overflow:hidden; position:relative; }
+    .note.collapsed::after { content:""; position:absolute; left:0; right:0; bottom:0; height:30px; background:linear-gradient(transparent,#f4f8f4); }
+    .show-note { display:none; margin-top:6px; padding:5px 8px; background:white; color:#42604e; border:1px solid var(--line); font-size:12px; }
+    .show-note.visible { display:inline-block; }
+    .note ul { margin:6px 0 0; padding-left:20px; }
+    .format-tools { display:none; gap:6px; padding:6px; border:1px solid #cbd6cf; border-bottom:0; border-radius:8px 8px 0 0; background:#f5f7f5; }
+    .format-tools.visible { display:flex; }
+    .format-tools button { min-width:31px; padding:4px 8px; border:1px solid #d3dcd6; background:white; color:#34463c; }
+    .rich-note { display:none; min-height:95px; padding:9px 10px; border:1px solid #cbd6cf; border-radius:0 0 8px 8px; background:white; outline:none; }
+    .rich-note.visible { display:block; }
+    .format-help { display:none; margin-top:4px; color:#7b877f; font-size:11px; }
+    .format-help.visible { display:block; }
+    .label-entry { display:none; }
+    .label-entry.visible { display:block; }
+    .token-box { display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-height:42px; padding:5px 8px; border:1px solid #cbd6cf; border-radius:8px; background:white; }
+    .token-box input { flex:1; min-width:130px; padding:4px; }
+    .suggestions { display:none; margin-top:4px; padding:5px; border:1px solid #d5ded8; border-radius:8px; background:white; box-shadow:0 8px 22px rgba(30,55,42,.1); }
+    .suggestions.visible { display:block; }
+    .suggestion { width:100%; padding:7px 9px; border-radius:6px; background:white; color:#34463c; text-align:left; font-weight:500; }
+    .suggestion:hover { background:#eef5f0; }
+    .token, .card-label { display:inline-flex; align-items:center; border-radius:20px; background:#e7f1ea; color:#28523d; font-size:12px; }
+    .token { gap:5px; padding:4px 8px; }
+    .token button { padding:0; background:none; color:#5f7769; }
+    .card-label { margin:12px 6px 0 0; padding:4px 9px; border:0; }
+    .check-row { display:none; align-items:center; gap:8px; margin-top:12px; color:#425048; font-size:13px; }
+    .check-row.visible { display:flex; }
+    .check-row input { flex:0 0 auto; width:16px; height:16px; }
+    .pill { background:var(--soft); color:#42604e; padding:3px 8px; border-radius:20px; }
+    .toast { position:fixed; right:24px; bottom:24px; padding:11px 15px; border-radius:10px; background:#173e2c; color:white; opacity:0; transform:translateY(8px); transition:.2s; }
+    .toast.show { opacity:1; transform:none; }
+    .undo-bar { display:none; position:fixed; left:50%; bottom:24px; z-index:7; transform:translateX(-50%); align-items:center; gap:18px; padding:11px 15px; border-radius:10px; background:#173e2c; color:white; }
+    .undo-bar.visible { display:flex; }
+    .undo-bar button { padding:4px 8px; background:white; color:#173e2c; }
+    @keyframes up { from { opacity:0; transform:translateY(8px); } }
+    @media (max-width:700px) { .shell{grid-template-columns:1fr} aside{display:none} main{width:100%;padding:32px 20px}.card{grid-template-columns:1fr}.preview{min-height:105px} }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="brand-mark">K</span> Keepmark</div>
+      <nav>
+        <a class="active" id="allBookmarks" href="#"><span>⌂</span> All bookmarks</a>
+        <a href="#" id="readLaterLink"><span>◷</span> Read later</a>
+        <a href="#"><span>◇</span> Labels</a>
+      </nav>
+    </aside>
+    <main>
+      <div class="eyebrow">Your library</div>
+      <h1>Save something worth returning to.</h1>
+      <p class="sub">Paste a web address. The page details will be gathered for you.</p>
+      <form id="saveForm">
+        <input id="url" type="url" required aria-label="Web address" placeholder="Paste a web address…" autocomplete="off">
+        <button id="saveButton" type="submit">Save bookmark</button>
+      </form>
+      <div class="notice" id="duplicateNotice" role="status"><div><strong id="noticeTitle">This bookmark is already saved</strong><span id="duplicateMessage">Your existing bookmark is shown below.</span></div><div class="notice-actions" id="duplicateActions"></div></div>
+      <form class="search-form" id="searchForm">
+        <input id="searchInput" type="search" aria-label="Search bookmarks" placeholder="Search titles, descriptions, and notes…" autocomplete="off">
+        <button id="searchButton" type="submit">Search</button>
+      </form>
+      <div class="search-hint" id="searchHint" role="status">Finish the search command—check its quotation marks, parentheses, or ending word.</div>
+
+      <div class="section-head">
+        <h2>Recently saved</h2>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select class="sort-select" id="sortSelect" aria-label="Sort bookmarks"><option value="recent">Recently saved</option><option value="oldest">Oldest saved</option><option value="az">Title A–Z</option><option value="za">Title Z–A</option></select>
+          <div class="sort-buttons" id="sortButtons"><button type="button" data-sort="recent" class="active">Recent</button><button type="button" data-sort="az">A–Z</button><button type="button" data-sort="za">Z–A</button></div>
+          <button class="edit-button" id="clearLabel" type="button" style="display:none">× Clear label</button><span class="count" id="count">0 bookmarks</span>
+        </div>
+      </div>
+      <div class="empty" id="empty"><strong>Your collection is empty</strong>Your first saved page will appear here.</div>
+      <div class="search-empty" id="searchEmpty"><strong>No bookmarks match this search</strong><div>Try a different word or clear the search to see everything.</div><button id="clearSearch" type="button">Clear search</button></div>
+      <div class="search-empty" id="readLaterEmpty"><strong>Nothing waiting to be read</strong><div>Bookmarks you mark for later will appear here.</div></div>
+      <article class="card" id="card">
+        <div class="preview">CSS</div>
+        <div class="content">
+          <div class="site"><span class="favicon">M</span><span id="host">developer.mozilla.org</span></div>
+          <div id="displayDetails">
+            <div class="card-top"><h3 id="title">CSS grid layout</h3><div class="card-actions"><button class="edit-button" id="readLaterButton" type="button" style="display:none">◷ Read later</button><button class="edit-button" id="editButton" type="button">Edit details</button><button class="edit-button" id="removeButton" type="button" style="display:none">Remove</button></div></div>
+            <p class="description" id="description">CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.</p>
+          </div>
+          <form class="edit-form" id="inlineEdit">
+            <label for="inlineAddress">Web address</label><input id="inlineAddress" type="url" value="https://developer.mozilla.org/en-US/docs/Web/CSS/grid">
+            <label for="inlineTitle">Title</label><input id="inlineTitle" value="CSS grid layout">
+            <label for="inlineDescription">Description</label><textarea id="inlineDescription" rows="3">CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.</textarea>
+            <label for="inlineNote">Personal note</label>
+            <div class="format-tools" id="formatTools"><button type="button" data-command="bold"><strong>B</strong></button><button type="button" data-command="insertUnorderedList">• List</button><button type="button" data-command="createLink">↗ Link</button></div>
+            <div class="rich-note" id="richNote" contenteditable="true" aria-label="Personal note"></div>
+            <textarea id="inlineNote" rows="5" placeholder="Why are you saving this?"></textarea>
+            <div class="format-help" id="formatHelp">Formatting is shown on the card after saving.</div>
+            <div class="label-entry" id="tokenLabelEntry">
+              <label for="tokenLabelInput">Labels</label>
+              <div class="token-box" id="tokenBox"><input id="tokenLabelInput" placeholder="Type a label and press Enter"></div>
+              <div class="suggestions" id="labelSuggestions"></div>
+            </div>
+            <div class="label-entry" id="textLabelEntry">
+              <label for="textLabelInput">Labels</label><input id="textLabelInput" placeholder="design, reference">
+              <div class="format-help visible">Separate multiple labels with commas.</div>
+            </div>
+            <label class="check-row" id="readLaterCheckRow"><input id="readLaterCheck" type="checkbox"> Keep this in Read later</label>
+            <div class="edit-actions"><button class="cancel" type="button">Cancel</button><button type="submit">Save changes</button></div>
+          </form>
+          <p class="note" id="noteDisplay"></p>
+          <button class="show-note" id="showNote" type="button">Show full note</button>
+          <div id="cardLabels"></div>
+          <div class="meta"><span class="pill">Saved just now</span><span id="displayUrl">developer.mozilla.org/en-US/docs/Web/CSS/grid</span></div>
+        </div>
+      </article>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status">Bookmark saved</div>
+  <div class="overlay" id="overlay">
+    <form class="dialog" id="dialogEdit">
+      <h2>Edit bookmark details</h2><p>The address and page image stay unchanged.</p>
+      <label for="dialogTitle">Title</label><input id="dialogTitle" value="CSS grid layout">
+      <label for="dialogDescription">Description</label><textarea id="dialogDescription" rows="4">CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.</textarea>
+      <div class="edit-actions"><button class="cancel" type="button">Cancel</button><button type="submit">Save changes</button></div>
+    </form>
+  </div>
+  <div class="overlay" id="deleteOverlay">
+    <div class="dialog"><h2>Remove this bookmark?</h2><p>Its personal note and labels will also be removed.</p><div class="edit-actions"><button class="cancel" id="keepBookmark" type="button">Keep bookmark</button><button id="confirmRemove" type="button">Remove bookmark</button></div></div>
+  </div>
+  <div class="overlay" id="refreshOverlay">
+    <div class="dialog"><h2>Replace your edited details?</h2><p>This title was changed by you. Gathering details from the new page would replace it.</p><div class="edit-actions"><button class="cancel" id="keepEdits" type="button">Keep my title</button><button id="refreshDetails" type="button">Use new page details</button></div></div>
+  </div>
+  <div class="undo-bar" id="undoBar">Bookmark removed <button type="button" id="undoRemove">Undo</button></div>
+  <script>
+    const form = document.querySelector('#saveForm');
+    const input = document.querySelector('#url');
+    const button = document.querySelector('#saveButton');
+    const params = new URLSearchParams(location.search);
+    if (params.get('invalid')) input.type = 'text';
+    const editMode = params.get('edit') || 'inline';
+    const noteMode = params.get('note') || 'plain';
+    const labelMode = params.get('label');
+    if (params.get('delete')) document.querySelector('#removeButton').style.display = '';
+    if (labelMode === 'tokens') document.querySelector('#tokenLabelEntry').classList.add('visible');
+    if (labelMode === 'text') document.querySelector('#textLabelEntry').classList.add('visible');
+    const labels = [];
+    const existingLabels = ['CSS', 'Reference', 'Research', 'Reading'];
+    const labelInput = document.querySelector('#tokenLabelInput');
+    const suggestions = document.querySelector('#labelSuggestions');
+    const addLabel = label => {
+      const canonical = existingLabels.find(item => item.toLowerCase() === label.toLowerCase()) || label;
+      if (!labels.some(item => item.toLowerCase() === canonical.toLowerCase())) labels.push(canonical);
+      labelInput.value = ''; suggestions.classList.remove('visible'); redrawTokens();
+    };
+    const redrawTokens = () => {
+      document.querySelectorAll('#tokenBox .token').forEach(el => el.remove());
+      labels.forEach((label, index) => {
+        const token = document.createElement('span'); token.className = 'token'; token.textContent = label;
+        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×';
+        remove.addEventListener('click', () => { labels.splice(index, 1); redrawTokens(); });
+        token.append(remove); document.querySelector('#tokenBox').insertBefore(token, labelInput);
+      });
+    };
+    labelInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && labelInput.value.trim()) { e.preventDefault(); addLabel(labelInput.value.trim()); }
+    });
+    labelInput.addEventListener('input', () => {
+      const query = labelInput.value.trim().toLowerCase();
+      const matches = existingLabels.filter(item => query && item.toLowerCase().startsWith(query) && !labels.some(label => label.toLowerCase() === item.toLowerCase()));
+      suggestions.replaceChildren(...matches.map(label => {
+        const choice = document.createElement('button'); choice.type = 'button'; choice.className = 'suggestion'; choice.textContent = label;
+        choice.addEventListener('click', () => addLabel(label)); return choice;
+      }));
+      suggestions.classList.toggle('visible', matches.length > 0);
+    });
+    if (noteMode === 'toolbar') {
+      document.querySelector('#inlineNote').style.display = 'none';
+      document.querySelector('#formatTools').classList.add('visible');
+      document.querySelector('#richNote').classList.add('visible');
+    } else if (noteMode === 'markup') {
+      document.querySelector('#formatHelp').classList.add('visible');
+      document.querySelector('#inlineNote').placeholder = '**Review**\n- Compare grid and flexbox\n- Try the examples';
+    }
+    if (params.get('state') === 'saved') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#card').classList.add('visible');
+      document.querySelector('#count').textContent = '1 bookmark';
+    }
+    if (params.get('address') === 'protected') {
+      document.querySelector('#title').textContent = 'My CSS layout reference';
+      document.querySelector('#inlineTitle').value = 'My CSS layout reference';
+    }
+    if (params.get('longnote')) {
+      document.querySelector('#noteDisplay').innerHTML = '<strong>Things to revisit</strong><ul><li>Compare the examples with the layout in my current project.</li><li>Check how nested grids affect alignment and spacing.</li><li>Try the accessibility advice with keyboard navigation.</li><li>Write down which browser fallbacks are still relevant.</li><li>Share the best example with the design team next week.</li></ul><div>There are a few more experiments I want to run before treating this as my default reference.</div>';
+      document.querySelector('#noteDisplay').classList.add('visible');
+      if (params.get('longnote') === 'collapse') { document.querySelector('#noteDisplay').classList.add('collapsed'); document.querySelector('#showNote').classList.add('visible'); }
+    }
+    document.querySelector('#showNote').addEventListener('click', event => {
+      const note = document.querySelector('#noteDisplay'); const collapsed = note.classList.toggle('collapsed');
+      event.currentTarget.textContent = collapsed ? 'Show full note' : 'Show less';
+    });
+    const markReadLater = () => {
+      if (!document.querySelector('#readLaterStatus')) {
+        const status = document.createElement('span'); status.id = 'readLaterStatus'; status.className = 'pill'; status.textContent = '◷ Read later';
+        document.querySelector('#card .meta').prepend(status);
+      }
+      document.querySelector('#readLaterButton').textContent = '✓ In Read later';
+      showToast('Added to Read later');
+    };
+    const removeReadLater = () => {
+      document.querySelector('#readLaterStatus')?.remove();
+      document.querySelector('#readLaterButton').textContent = '◷ Read later';
+      showToast(params.get('complete') === 'read' ? 'Marked as read' : 'Removed from Read later');
+    };
+    if (params.get('readlater') === 'direct') document.querySelector('#readLaterButton').style.display = '';
+    if (params.get('readlater') === 'edit') document.querySelector('#readLaterCheckRow').classList.add('visible');
+    document.querySelector('#readLaterButton').addEventListener('click', () => document.querySelector('#readLaterStatus') ? removeReadLater() : markReadLater());
+    const removeCard = () => { document.querySelector('#card').classList.remove('visible'); document.querySelector('#count').textContent = '0 bookmarks'; };
+    document.querySelector('#removeButton').addEventListener('click', () => {
+      if (params.get('delete') === 'confirm') document.querySelector('#deleteOverlay').classList.add('visible');
+      else { removeCard(); document.querySelector('#undoBar').classList.add('visible'); }
+    });
+    document.querySelector('#confirmRemove').addEventListener('click', () => { removeCard(); document.querySelector('#deleteOverlay').classList.remove('visible'); showToast('Bookmark removed'); });
+    document.querySelector('#keepBookmark').addEventListener('click', () => document.querySelector('#deleteOverlay').classList.remove('visible'));
+    document.querySelector('#undoRemove').addEventListener('click', () => { document.querySelector('#card').classList.add('visible'); document.querySelector('#count').textContent = '1 bookmark'; document.querySelector('#undoBar').classList.remove('visible'); });
+    if (params.get('state') === 'collection') {
+      if (params.get('search')) document.querySelector('#searchForm').classList.add('visible');
+      if (params.get('sort') === 'select') document.querySelector('#sortSelect').style.display = '';
+      if (params.get('sort') === 'buttons') document.querySelector('#sortButtons').style.display = 'flex';
+      document.querySelector('#empty').style.display = 'none';
+      const firstCard = document.querySelector('#card');
+      firstCard.classList.add('visible'); firstCard.dataset.labels = 'CSS,Reference'; firstCard.dataset.search = 'CSS grid layout CSS grid layout is a two-dimensional layout system for the web. Compare grid and flexbox layouts. developer.mozilla.org/en-US/docs/Web/CSS/grid';
+      document.querySelector('#cardLabels').innerHTML = '<button type="button" class="card-label">CSS</button><button type="button" class="card-label">Reference</button>';
+      document.querySelector('#noteDisplay').innerHTML = 'Compare grid and <strong>flexbox</strong> layouts.'; document.querySelector('#noteDisplay').classList.add('visible');
+      firstCard.insertAdjacentHTML('afterend', `
+        <article class="card visible" data-labels="Reference,Design" data-search="Designing better empty states Practical patterns for making empty screens helpful and easy to understand. smashingmagazine.com/empty-states">
+          <div class="preview" style="background:linear-gradient(145deg,#8b583d,#d69b71)">UX</div>
+          <div class="content"><div class="site"><span class="favicon" style="background:#b54b2d">S</span>smashingmagazine.com</div>
+          <div class="card-top"><h3>Designing better empty states</h3></div><p class="description">Practical patterns for making empty screens helpful and easy to understand.</p>
+          <div><button type="button" class="card-label">Reference</button><button type="button" class="card-label">Design</button></div>
+          <div class="meta"><span class="pill">Saved yesterday</span><span>smashingmagazine.com/empty-states</span></div></div>
+        </article>
+        <article class="card visible" data-labels="JavaScript" data-search="The modern JavaScript tutorial A detailed guide to the JavaScript language, from fundamentals to advanced topics. javascript.info">
+          <div class="preview" style="background:linear-gradient(145deg,#725c13,#ddbf43)">JS</div>
+          <div class="content"><div class="site"><span class="favicon" style="background:#222">J</span>javascript.info</div>
+          <div class="card-top"><h3>The modern JavaScript tutorial</h3></div><p class="description">A detailed guide to the JavaScript language, from fundamentals to advanced topics.</p>
+          <div><button type="button" class="card-label">JavaScript</button></div>
+          <div class="meta"><span class="pill">Saved 3 days ago</span><span>javascript.info</span></div></div>
+        </article>`);
+      if (params.get('dataset') === 'rome') {
+        document.querySelector('article.card:last-of-type').insertAdjacentHTML('afterend', `
+          <article class="card visible" data-labels="Article,Travel" data-search="Rome neighborhood guide Quiet streets markets and cafés beyond the main sights. slowtravel.example/rome-neighborhoods">
+            <div class="preview" style="background:linear-gradient(145deg,#7d3f35,#d7876d)">RM</div><div class="content"><div class="site"><span class="favicon" style="background:#7d3f35">S</span>slowtravel.example</div>
+            <div class="card-top"><h3>Rome neighborhood guide</h3></div><p class="description">Quiet streets, markets, and cafés beyond the main sights.</p><div><button type="button" class="card-label">Article</button><button type="button" class="card-label">Travel</button></div></div>
+          </article>
+          <article class="card visible" data-labels="Book,Travel" data-search="A reader's Rome Books and passages for exploring the city. reading.example/rome">
+            <div class="preview" style="background:linear-gradient(145deg,#355c55,#82a99e)">RB</div><div class="content"><div class="site"><span class="favicon" style="background:#355c55">R</span>reading.example</div>
+            <div class="card-top"><h3>A reader's Rome</h3></div><p class="description">Books and passages for exploring the city.</p><div><button type="button" class="card-label">Book</button><button type="button" class="card-label">Travel</button></div></div>
+          </article>
+          <article class="card visible" data-labels="Article,Travel" data-search="Florence walking notes Renaissance streets gardens and viewpoints. slowtravel.example/florence">
+            <div class="preview" style="background:linear-gradient(145deg,#5b4b75,#a291bc)">FL</div><div class="content"><div class="site"><span class="favicon" style="background:#5b4b75">S</span>slowtravel.example</div>
+            <div class="card-top"><h3>Florence walking notes</h3></div><p class="description">Renaissance streets, gardens, and viewpoints.</p><div><button type="button" class="card-label">Article</button><button type="button" class="card-label">Travel</button></div></div>
+          </article>`);
+      }
+      if (params.get('dataset') === 'phrase') {
+        document.querySelector('article.card:last-of-type').insertAdjacentHTML('afterend', `
+          <article class="card visible" data-labels="JavaScript,Reference" data-search="JavaScript patterns for the modern web Approaches for organizing browser code. patterns.example/javascript-modern-web">
+            <div class="preview" style="background:linear-gradient(145deg,#3e526e,#8397b3)">JP</div><div class="content"><div class="site"><span class="favicon" style="background:#3e526e">P</span>patterns.example</div>
+            <div class="card-top"><h3>JavaScript patterns for the modern web</h3></div><p class="description">Approaches for organizing browser code.</p><div><button type="button" class="card-label">JavaScript</button><button type="button" class="card-label">Reference</button></div></div>
+          </article>`);
+      }
+      const collectionSize = document.querySelectorAll('article.card').length;
+      document.querySelectorAll('article.card').forEach((card, index) => { card.dataset.order = index; card.dataset.title = card.querySelector('h3').textContent.trim().toLowerCase(); });
+      const applySort = order => {
+        const cards = [...document.querySelectorAll('article.card')];
+        cards.sort((a,b) => order === 'az' ? a.dataset.title.localeCompare(b.dataset.title) : order === 'za' ? b.dataset.title.localeCompare(a.dataset.title) : order === 'oldest' ? Number(b.dataset.order) - Number(a.dataset.order) : Number(a.dataset.order) - Number(b.dataset.order));
+        cards.forEach(card => card.parentNode.append(card));
+        document.querySelectorAll('#sortButtons button').forEach(button => button.classList.toggle('active', button.dataset.sort === order));
+      };
+      document.querySelector('#sortSelect').addEventListener('change', event => applySort(event.target.value));
+      document.querySelectorAll('#sortButtons button').forEach(button => button.addEventListener('click', () => applySort(button.dataset.sort)));
+      document.querySelector('#count').textContent = collectionSize + ' bookmarks';
+      if (params.get('view') === 'readlater' && params.get('emptyread') !== 'true') {
+        const collectionCards = [...document.querySelectorAll('article.card')];
+        [collectionCards[0], collectionCards[2]].forEach(card => {
+          card.dataset.readlater = 'true';
+          const status = document.createElement('span'); status.className = 'pill'; status.textContent = '◷ Read later'; card.querySelector('.meta')?.prepend(status);
+          const action = document.createElement('button'); action.type = 'button'; action.className = 'edit-button complete-read'; action.textContent = '✓ Mark as read'; card.querySelector('.card-top').append(action);
+        });
+      }
+      const showAll = () => {
+        document.querySelectorAll('article.card').forEach(card => card.classList.add('visible'));
+        document.querySelector('.section-head h2').textContent = 'Recently saved';
+        document.querySelector('#count').textContent = collectionSize + ' bookmarks';
+        document.querySelector('#clearLabel').style.display = 'none';
+        document.querySelector('#allBookmarks').classList.add('active');
+      };
+      document.addEventListener('click', event => {
+        if (!event.target.classList.contains('card-label')) return;
+        const chosen = event.target.textContent.trim();
+        let visible = 0;
+        document.querySelectorAll('article.card').forEach(card => {
+          const matches = (card.dataset.labels || '').split(',').includes(chosen);
+          card.classList.toggle('visible', matches); if (matches) visible++;
+        });
+        document.querySelector('.section-head h2').textContent = chosen;
+        document.querySelector('#count').textContent = visible + (visible === 1 ? ' bookmark' : ' bookmarks');
+        document.querySelector('#readLaterEmpty').classList.toggle('visible', visible === 0);
+        document.querySelector('#allBookmarks').classList.remove('active');
+        if (params.get('clear') === 'button') document.querySelector('#clearLabel').style.display = '';
+      });
+      document.querySelector('#clearLabel').addEventListener('click', showAll);
+      document.querySelector('#allBookmarks').addEventListener('click', event => {
+        if (params.get('clear') === 'navigation') { event.preventDefault(); showAll(); }
+      });
+      document.querySelector('#readLaterLink').addEventListener('click', event => {
+        if (params.get('view') !== 'readlater') return;
+        event.preventDefault(); let visible = 0;
+        document.querySelectorAll('article.card').forEach(card => { const matches = card.dataset.readlater === 'true'; card.classList.toggle('visible', matches); if (matches) visible++; });
+        document.querySelector('.section-head h2').textContent = 'Read later';
+        document.querySelector('#count').textContent = visible + (visible === 1 ? ' bookmark' : ' bookmarks');
+        document.querySelector('#allBookmarks').classList.remove('active'); event.currentTarget.classList.add('active');
+      });
+      document.addEventListener('click', event => {
+        if (!event.target.classList.contains('complete-read')) return;
+        const card = event.target.closest('article.card'); card.dataset.readlater = 'false';
+        card.querySelectorAll('.pill').forEach(pill => { if (pill.textContent.includes('Read later')) pill.remove(); });
+        event.target.remove();
+        if (document.querySelector('.section-head h2').textContent === 'Read later') {
+          card.classList.remove('visible');
+          const remaining = document.querySelectorAll('article.card.visible').length;
+          document.querySelector('#count').textContent = remaining + (remaining === 1 ? ' bookmark' : ' bookmarks');
+          document.querySelector('#readLaterEmpty').classList.toggle('visible', remaining === 0);
+        }
+      });
+      const runSearch = () => {
+        const query = document.querySelector('#searchInput').value.trim();
+        const normalized = query.toLowerCase();
+        const quoteCount = (query.match(/"/g) || []).length;
+        let depth = 0, brokenParentheses = false;
+        for (const character of query) { if (character === '(') depth++; if (character === ')') depth--; if (depth < 0) brokenParentheses = true; }
+        const malformed = quoteCount % 2 !== 0 || depth !== 0 || brokenParentheses || /\b(and|or|not)\s*$/i.test(query);
+        document.querySelector('#searchHint').classList.toggle('visible', Boolean(query) && malformed);
+        if (query && malformed) return;
+        const tokenize = value => {
+          const found = [];
+          const matcher = /"([^"]*)"|#[\w-]+|\(|\)|\b(?:and|or|not)\b|[^\s()]+/gi;
+          let match;
+          while ((match = matcher.exec(value)) !== null) {
+            const raw = match[0], lower = raw.toLowerCase();
+            if (raw.startsWith('"')) found.push({type:'phrase', value:match[1].toLowerCase()});
+            else if (raw === '(') found.push({type:'open'});
+            else if (raw === ')') found.push({type:'close'});
+            else if (['and','or','not'].includes(lower)) found.push({type:lower});
+            else if (raw.startsWith('#')) found.push({type:'label', value:raw.slice(1).toLowerCase()});
+            else found.push({type:'term', value:lower});
+          }
+          const tokens = [];
+          found.forEach(current => {
+            const previous = tokens[tokens.length - 1];
+            const previousEnds = previous && ['term','phrase','label','close'].includes(previous.type);
+            const currentStarts = ['term','phrase','label','open','not'].includes(current.type);
+            if (previousEnds && currentStarts) tokens.push({type:'and'});
+            tokens.push(current);
+          });
+          return tokens;
+        };
+        const compile = value => {
+          const tokens = tokenize(value); let position = 0;
+          const primary = () => {
+            const token = tokens[position++];
+            if (!token) return () => true;
+            if (token.type === 'open') { const inside = orExpr(); if (tokens[position]?.type === 'close') position++; return inside; }
+            if (token.type === 'label') return card => (card.dataset.labels || '').split(',').some(label => label.toLowerCase() === token.value);
+            if (token.type === 'term') return card => (card.dataset.search || '').toLowerCase().includes(token.value);
+            if (token.type === 'phrase') return card => {
+              const text = (card.dataset.search || '').toLowerCase();
+              const escaped = token.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              return new RegExp(`(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(text);
+            };
+            return () => true;
+          };
+          const unary = () => tokens[position]?.type === 'not' ? (position++, ((operand) => card => !operand(card))(unary())) : primary();
+          const andExpr = () => { let left = unary(); while (tokens[position]?.type === 'and') { position++; const right = unary(), prior = left; left = card => prior(card) && right(card); } return left; };
+          const orExpr = () => { let left = andExpr(); while (tokens[position]?.type === 'or') { position++; const right = andExpr(), prior = left; left = card => prior(card) || right(card); } return left; };
+          return orExpr();
+        };
+        const matchesQuery = compile(query);
+        let visible = 0;
+        document.querySelectorAll('article.card').forEach(card => {
+          const matches = !normalized || matchesQuery(card);
+          card.classList.toggle('visible', matches); if (matches) visible++;
+        });
+        document.querySelector('.section-head h2').textContent = normalized ? `Search: “${query}”` : 'Recently saved';
+        document.querySelector('#count').textContent = visible + (visible === 1 ? ' bookmark' : ' bookmarks');
+        document.querySelector('#searchEmpty').classList.toggle('visible', Boolean(normalized) && visible === 0);
+      };
+      document.querySelector('#clearSearch').addEventListener('click', () => { document.querySelector('#searchInput').value = ''; runSearch(); document.querySelector('#searchInput').focus(); });
+      document.querySelector('#searchForm').addEventListener('submit', event => { event.preventDefault(); runSearch(); });
+      if (params.get('search') === 'live') {
+        document.querySelector('#searchButton').style.display = 'none';
+        document.querySelector('#searchInput').addEventListener('input', runSearch);
+      }
+    }
+    const showToast = (message) => {
+      const toast = document.querySelector('#toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1800);
+    };
+    if (params.get('marked') === 'true') queueMicrotask(() => {
+      markReadLater();
+      document.querySelector('#toast').classList.remove('show');
+      document.querySelector('#readLaterButton').textContent = params.get('complete') === 'read' ? '✓ Mark as read' : '× Remove from Read later';
+    });
+    document.querySelector('#editButton').addEventListener('click', () => {
+      if (editMode === 'dialog') document.querySelector('#overlay').classList.add('visible');
+      else {
+        document.querySelector('#displayDetails').style.display = 'none';
+        document.querySelector('#inlineEdit').classList.add('visible');
+      }
+    });
+    const renderMarkup = value => {
+      const safe = value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const lines = safe.split('\n');
+      let html = '', inList = false;
+      for (let line of lines) {
+        line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2">$1</a>');
+        if (line.startsWith('- ')) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + line.slice(2) + '</li>'; }
+        else { if (inList) { html += '</ul>'; inList = false; } if (line) html += '<div>' + line + '</div>'; }
+      }
+      if (inList) html += '</ul>';
+      return html;
+    };
+    document.querySelectorAll('[data-command]').forEach(tool => tool.addEventListener('click', () => {
+      document.querySelector('#richNote').focus();
+      const command = tool.dataset.command;
+      if (command === 'createLink') {
+        const link = prompt('Paste the link address');
+        if (link) document.execCommand(command, false, link);
+      } else document.execCommand(command, false, null);
+    }));
+    const applyEdit = (title, description, address, note, noteIsHtml = false, savedLabels = []) => {
+      if (address) {
+        const parsed = new URL(address);
+        const cleanHost = parsed.hostname.replace(/^www\./, '');
+        document.querySelector('#host').textContent = cleanHost;
+        document.querySelector('#displayUrl').textContent = (parsed.hostname + parsed.pathname + parsed.search).replace(/^www\./, '');
+        document.querySelector('.favicon').textContent = cleanHost.slice(0, 1).toUpperCase();
+        document.querySelector('.preview').textContent = cleanHost.slice(0, 2).toUpperCase();
+        if (params.get('address') === 'refetch' && cleanHost === 'web.dev') {
+          title = 'Learn CSS: Flexbox';
+          description = 'Learn how to use flexbox to create flexible layouts that adapt to different screen sizes.';
+          document.querySelector('#inlineTitle').value = title;
+          document.querySelector('#inlineDescription').value = description;
+        }
+      }
+      document.querySelector('#title').textContent = title;
+      document.querySelector('#description').textContent = description;
+      const noteDisplay = document.querySelector('#noteDisplay');
+      if (note) { noteDisplay[noteIsHtml ? 'innerHTML' : 'textContent'] = note; noteDisplay.classList.add('visible'); }
+      else noteDisplay.classList.remove('visible');
+      const cardLabels = document.querySelector('#cardLabels');
+      cardLabels.replaceChildren(...savedLabels.filter(Boolean).map(label => {
+        const chip = document.createElement('button'); chip.type = 'button'; chip.className = 'card-label'; chip.textContent = label.trim(); return chip;
+      }));
+      document.querySelector('#displayDetails').style.display = '';
+      document.querySelector('#inlineEdit').classList.remove('visible');
+      document.querySelector('#overlay').classList.remove('visible');
+      showToast('Changes saved');
+    };
+    let pendingProtectedEdit = null;
+    document.querySelector('#inlineEdit').addEventListener('submit', e => {
+      e.preventDefault();
+      const rawNote = noteMode === 'toolbar' ? document.querySelector('#richNote').innerHTML : document.querySelector('#inlineNote').value;
+      const renderedNote = noteMode === 'markup' ? renderMarkup(rawNote) : rawNote;
+      const savedLabels = labelMode === 'tokens' ? labels : (labelMode === 'text' ? document.querySelector('#textLabelInput').value.split(',') : []);
+      if (params.get('address') === 'protected' && !document.querySelector('#inlineAddress').value.includes('mozilla.org')) {
+        pendingProtectedEdit = {address:document.querySelector('#inlineAddress').value, note:renderedNote, labels:savedLabels};
+        document.querySelector('#refreshOverlay').classList.add('visible'); return;
+      }
+      applyEdit(document.querySelector('#inlineTitle').value, document.querySelector('#inlineDescription').value, document.querySelector('#inlineAddress').value, renderedNote, noteMode !== 'plain', savedLabels);
+      if (document.querySelector('#readLaterCheck').checked) markReadLater();
+    });
+    document.querySelector('#keepEdits').addEventListener('click', () => {
+      applyEdit(document.querySelector('#inlineTitle').value, document.querySelector('#inlineDescription').value, pendingProtectedEdit.address, pendingProtectedEdit.note, noteMode !== 'plain', pendingProtectedEdit.labels);
+      document.querySelector('#refreshOverlay').classList.remove('visible');
+    });
+    document.querySelector('#refreshDetails').addEventListener('click', () => {
+      applyEdit('Learn CSS: Flexbox', 'Learn how to use flexbox to create flexible layouts that adapt to different screen sizes.', pendingProtectedEdit.address, pendingProtectedEdit.note, noteMode !== 'plain', pendingProtectedEdit.labels);
+      document.querySelector('#refreshOverlay').classList.remove('visible');
+    });
+    document.querySelector('#dialogEdit').addEventListener('submit', e => { e.preventDefault(); applyEdit(document.querySelector('#dialogTitle').value, document.querySelector('#dialogDescription').value); });
+    document.querySelectorAll('.cancel').forEach(el => el.addEventListener('click', () => {
+      document.querySelector('#displayDetails').style.display = '';
+      document.querySelector('#inlineEdit').classList.remove('visible');
+      document.querySelector('#overlay').classList.remove('visible');
+    }));
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      let parsed;
+      try { parsed = new URL(input.value); if (!['http:','https:'].includes(parsed.protocol)) throw new Error('unsupported'); }
+      catch {
+        document.querySelector('#noticeTitle').textContent = 'Enter a complete web address';
+        document.querySelector('#duplicateMessage').textContent = 'For example: https://example.com/article';
+        document.querySelector('#duplicateNotice').classList.add('visible'); document.querySelector('#duplicateActions').replaceChildren();
+        input.setAttribute('aria-invalid', 'true'); input.focus(); return;
+      }
+      if (params.get('duplicate')) {
+        const notice = document.querySelector('#duplicateNotice'); notice.classList.add('visible');
+        const actions = document.querySelector('#duplicateActions'); actions.replaceChildren();
+        if (params.get('duplicate') === 'focus') {
+          document.querySelector('#duplicateMessage').textContent = 'Your existing bookmark is highlighted below.';
+          document.querySelector('#card').classList.add('duplicate-focus');
+        } else {
+          document.querySelector('#duplicateMessage').textContent = 'Would you like to open the existing bookmark or save another copy?';
+          ['Open existing','Save another copy'].forEach(label => { const action = document.createElement('button'); action.type = 'button'; action.textContent = label; if (label.startsWith('Open')) action.className = 'cancel'; actions.append(action); });
+        }
+        return;
+      }
+      if (params.get('metadata') === 'missing') {
+        button.disabled = true; button.textContent = 'Getting page details…';
+        setTimeout(() => {
+          const host = parsed.hostname.replace(/^www\./, '');
+          document.querySelector('#host').textContent = host; document.querySelector('#displayUrl').textContent = host + parsed.pathname;
+          document.querySelector('#title').textContent = host; document.querySelector('#description').textContent = 'No page description was available.';
+          document.querySelector('.favicon').textContent = host.slice(0,1).toUpperCase(); document.querySelector('.preview').textContent = '↗';
+          document.querySelector('#empty').style.display = 'none'; document.querySelector('#card').classList.add('visible'); document.querySelector('#count').textContent = '1 bookmark';
+          document.querySelector('#noticeTitle').textContent = 'Saved with limited page details';
+          document.querySelector('#duplicateMessage').textContent = 'The page did not provide a title, description, site icon, or preview. You can edit the bookmark at any time.';
+          document.querySelector('#duplicateNotice').classList.add('visible'); document.querySelector('#duplicateActions').replaceChildren();
+          input.value = ''; button.disabled = false; button.textContent = 'Save bookmark';
+        }, 700);
+        return;
+      }
+      button.disabled = true;
+      button.textContent = 'Getting page details…';
+      setTimeout(() => {
+        const isMdn = parsed.hostname.includes('mozilla.org');
+        document.querySelector('#host').textContent = parsed.hostname.replace(/^www\./, '');
+        document.querySelector('#displayUrl').textContent = (parsed.hostname + parsed.pathname).replace(/^www\./, '');
+        if (!isMdn) {
+          document.querySelector('#title').textContent = 'A saved page from ' + parsed.hostname.replace(/^www\./, '');
+          document.querySelector('#description').textContent = 'A short description gathered from the page will appear here.';
+          document.querySelector('.preview').textContent = parsed.hostname.slice(0, 2).toUpperCase();
+        }
+        document.querySelector('#empty').style.display = 'none';
+        document.querySelector('#card').classList.add('visible');
+        document.querySelector('#count').textContent = '1 bookmark';
+        input.value = '';
+        button.disabled = false;
+        button.textContent = 'Save bookmark';
+        showToast('Bookmark saved');
+      }, 700);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+import{NextRequest,NextResponse}from"next/server";import{getBookmark,updateBookmark,deleteBookmark}from"@/server/services/bookmark-service";
+export async function GET(_:NextRequest,{params}:{params:Promise<{id:string}>}){const{id}=await params;const b=getBookmark(id);return b?NextResponse.json(b):NextResponse.json({message:"Not found"},{status:404});}
+export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){const{id}=await params;try{const r=updateBookmark(id,await req.json());if(!r)return NextResponse.json({message:"Not found"},{status:404});return NextResponse.json(r,{status:r.duplicate?409:200});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Invalid update"},{status:422});}}
+export async function DELETE(_:NextRequest,{params}:{params:Promise<{id:string}>}){const{id}=await params;return new NextResponse(null,{status:deleteBookmark(id)?204:404});}

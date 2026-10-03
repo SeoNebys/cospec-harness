@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --card: #ffffff;
+    --ink: #2b2b2b;
+    --muted: #8a8a82;
+    --line: #e8e6e0;
+    --accent: #4a6b57;
+    --accent-soft: #eef2ef;
+    --warm: #fff7e8;
+    --warm-line: #f0dfb8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 48px 20px 80px; }
+  header h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+
+  .saver {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; display: flex; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .saver input {
+    flex: 1; border: none; outline: none; font-size: 15px;
+    padding: 10px 8px; background: transparent; color: var(--ink);
+  }
+  .saver button {
+    border: none; background: var(--accent); color: #fff; font-size: 14px;
+    font-weight: 600; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  }
+  .saver button:active { transform: translateY(1px); }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 4px 0; min-height: 18px; }
+  .hint.warn { color: #b5741f; }
+
+  /* Review / edit panel */
+  .review {
+    margin-top: 14px; background: var(--card); border: 1px solid var(--accent);
+    border-radius: 14px; padding: 18px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    animation: rise 0.24s ease;
+  }
+  .review .cap { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px; }
+  .review .source { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    font: inherit; font-size: 14px; color: var(--ink); background: #fdfdfc; outline: none; resize: vertical;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .review .actions { display: flex; gap: 8px; margin-top: 6px; }
+  .btn-primary { border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; padding: 9px 18px; border-radius: 10px; cursor: pointer; }
+  .btn-ghost { border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 14px; padding: 9px 16px; border-radius: 10px; cursor: pointer; }
+
+  .list { margin-top: 34px; display: flex; flex-direction: column; gap: 12px; }
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 20px; }
+
+  .item {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); animation: rise 0.28s ease;
+    transition: box-shadow .2s, border-color .2s, background .4s;
+  }
+  .item.flash { border-color: var(--warm-line); background: var(--warm); box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .preview-img {
+    height: 150px; border-radius: 10px; margin: 0 0 12px; position: relative; overflow: hidden;
+    display: flex; align-items: flex-end; color: #fff;
+  }
+  .preview-img .pv-title {
+    position: relative; z-index: 1; padding: 12px 14px; font-size: 14px; font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,.35); word-break: break-word;
+  }
+  .preview-img::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.32), rgba(0,0,0,0) 55%); }
+  .review .preview-img { height: 120px; }
+  .pv-note { font-size: 11px; color: var(--muted); margin: -4px 0 12px; }
+  .item .title { font-size: 15px; font-weight: 600; color: var(--ink); word-break: break-word; margin: 0 0 4px; }
+  .item .desc { font-size: 13.5px; color: #5f5f58; margin: 0 0 8px; word-break: break-word; }
+  .item .url { font-size: 12.5px; color: var(--accent); word-break: break-all; text-decoration: none; }
+  .item .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .source-line { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+  .fav { width: 16px; height: 16px; border-radius: 4px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
+  .fav img { width: 16px; height: 16px; display: block; }
+  .edit-link { background: none; border: none; color: var(--muted); font-size: 12.5px; cursor: pointer; padding: 2px 4px; }
+  .edit-link:hover { color: var(--accent); }
+
+  /* Tags — the client's own labels, deliberately distinct from the muted source line */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; background: var(--accent-soft);
+    color: var(--accent); font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 999px;
+  }
+  .tag .x { cursor: pointer; opacity: .6; font-size: 13px; line-height: 1; }
+  .tag .x:hover { opacity: 1; }
+  .tag-input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 14px; outline: none; background: #fdfdfc; }
+  .tag-input:focus { border-color: var(--accent); }
+  .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chips:not(:empty) { margin-bottom: 8px; }
+  .tag-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .tag-toggle {
+    border: 1px solid var(--line); background: #fff; color: var(--muted); font-size: 12px;
+    padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  }
+  .tag-toggle.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+  .tag-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Bookmarks</h1>
+      <p>One calm place for the links you want to keep.</p>
+    </header>
+
+    <form class="saver" id="saver">
+      <input id="url" type="text" placeholder="Paste a link to save…" autocomplete="off" autofocus />
+      <button type="submit">Add</button>
+    </form>
+    <div class="hint" id="hint"></div>
+
+    <div id="reviewMount"></div>
+
+    <div class="list" id="list">
+      <div class="empty" id="empty">Nothing saved yet. Paste a link above to begin.</div>
+    </div>
+  </div>
+
+<script>
+  const form = document.getElementById('saver');
+  const input = document.getElementById('url');
+  const list = document.getElementById('list');
+  const hint = document.getElementById('hint');
+  const reviewMount = document.getElementById('reviewMount');
+
+  let items = [];           // {id, key, url, host, title, desc, tags, hasPreview}
+  let seq = 1;
+  let editingId = null;     // id when editing an existing item, else null
+
+  // Tag-adding interaction under comparison: a = chips, b = comma text, c = pick-from-existing
+  const MODE = (new URLSearchParams(location.search).get('tags') || 'c').toLowerCase();
+
+  function allTags() {
+    const set = [];
+    items.forEach(it => (it.tags || []).forEach(t => { if (!set.includes(t)) set.push(t); }));
+    return set;
+  }
+  function cleanTag(t) { return t.trim().replace(/^#/, '').replace(/\s+/g, ' ').toLowerCase(); }
+  function uniq(arr) { const o = []; arr.forEach(t => { if (t && !o.includes(t)) o.push(t); }); return o; }
+
+  function normalise(raw) {
+    let v = (raw || '').trim();
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try { return new URL(v); } catch (e) { return null; }
+  }
+  function keyOf(u) {
+    const host = u.hostname.replace(/^www\./, '').toLowerCase();
+    const path = u.pathname.replace(/\/+$/, '');
+    return host + path + (u.search || '');
+  }
+  function guessTitle(u) {
+    let path = decodeURIComponent(u.pathname).replace(/\/+$/, '');
+    let last = path.split('/').filter(Boolean).pop();
+    if (last) {
+      last = last.replace(/[-_]+/g, ' ').replace(/\.[a-z0-9]+$/i, '');
+      return last.charAt(0).toUpperCase() + last.slice(1);
+    }
+    return u.hostname.replace(/^www\./, '');
+  }
+  function favEl(host) {
+    const span = document.createElement('span');
+    span.className = 'fav';
+    span.textContent = host.charAt(0).toUpperCase();
+    const img = new Image();
+    img.width = 16; img.height = 16;
+    img.onload = function () { span.textContent = ''; span.appendChild(img); };
+    img.onerror = function () {};
+    img.src = 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(host) + '&sz=64';
+    return span;
+  }
+  function hueOf(host) {
+    let h = 0; for (let i = 0; i < host.length; i++) h = (h * 31 + host.charCodeAt(i)) % 360;
+    return h;
+  }
+  function previewEl(host, title) {
+    // Simulated preview image (stand-in for the page's real preview picture).
+    const h = hueOf(host);
+    const div = document.createElement('div');
+    div.className = 'preview-img';
+    div.style.background = 'linear-gradient(135deg, hsl(' + h + ',42%,58%), hsl(' + ((h + 40) % 360) + ',46%,42%))';
+    const t = document.createElement('div'); t.className = 'pv-title'; t.textContent = title;
+    div.appendChild(t);
+    return div;
+  }
+  function renderEmpty() {
+    if (items.length === 0 && !document.getElementById('empty')) {
+      const e = document.createElement('div');
+      e.className = 'empty'; e.id = 'empty';
+      e.textContent = 'Nothing saved yet. Paste a link above to begin.';
+      list.appendChild(e);
+    }
+  }
+
+  function openReview(data, isEdit) {
+    reviewMount.innerHTML = '';
+    editingId = isEdit ? data.id : null;
+    const host = data.host;
+    const panel = document.createElement('div');
+    panel.className = 'review';
+    panel.innerHTML =
+      '<div class="cap">' + (isEdit ? 'Edit bookmark' : 'Review before saving') + '</div>' +
+      '<div class="source" id="src"></div>' +
+      '<div class="field"><label>Title</label><input id="fTitle" type="text" /></div>' +
+      '<div class="field"><label>Description</label><textarea id="fDesc" rows="2" placeholder="A short note about this page"></textarea></div>' +
+      '<div class="field"><label>Tags</label><div id="fTags"></div></div>' +
+      '<div class="actions">' +
+        '<button class="btn-primary" id="doSave">' + (isEdit ? 'Save changes' : 'Save bookmark') + '</button>' +
+        '<button class="btn-ghost" id="doCancel">Cancel</button>' +
+      '</div>';
+    reviewMount.appendChild(panel);
+    const cap = panel.querySelector('.cap');
+    const pv = previewEl(host, data.title || host);
+    cap.insertAdjacentElement('afterend', pv);
+    const note = document.createElement('div');
+    note.className = 'pv-note';
+    note.textContent = 'Preview picture gathered from the page (stand-in shown here).';
+    pv.insertAdjacentElement('afterend', note);
+    const src = panel.querySelector('#src');
+    src.appendChild(favEl(host));
+    const s = document.createElement('span');
+    s.textContent = host + '  ·  ' + data.url;
+    src.appendChild(s);
+    const fTitle = panel.querySelector('#fTitle');
+    const fDesc = panel.querySelector('#fDesc');
+    fTitle.value = data.title || '';
+    fDesc.value = data.desc || '';
+
+    const getTags = buildTagInput(panel.querySelector('#fTags'), (data.tags || []).slice());
+    fTitle.focus(); fTitle.select();
+
+    panel.querySelector('#doCancel').addEventListener('click', function () {
+      reviewMount.innerHTML = ''; editingId = null; input.focus();
+    });
+    panel.querySelector('#doSave').addEventListener('click', function () {
+      commit(data, fTitle.value.trim() || guessTitle(new URL(data.url)), fDesc.value.trim(), getTags());
+    });
+  }
+
+  // Builds the tag-adding widget for the mode under comparison; returns a getter for the chosen tags.
+  function buildTagInput(mount, current) {
+    mount.innerHTML = '';
+    if (MODE === 'b') {
+      // Comma-separated free text
+      const inp = document.createElement('input');
+      inp.className = 'tag-input';
+      inp.placeholder = 'e.g. work, reading, ai';
+      inp.value = current.join(', ');
+      const hint = document.createElement('div');
+      hint.className = 'tag-hint'; hint.textContent = 'Separate tags with commas.';
+      mount.appendChild(inp); mount.appendChild(hint);
+      return () => uniq(inp.value.split(',').map(cleanTag).filter(Boolean));
+    }
+    if (MODE === 'c') {
+      // Pick from existing, plus add a new one
+      let chosen = current.slice();
+      const pick = document.createElement('div'); pick.className = 'tag-pick';
+      const inp = document.createElement('input');
+      inp.className = 'tag-input'; inp.placeholder = 'Tap a tag, or type to filter / add a new one';
+      const hint = document.createElement('div');
+      hint.className = 'tag-hint';
+      function paint() {
+        pick.innerHTML = '';
+        const q = cleanTag(inp.value);
+        const universe = uniq(allTags().concat(chosen));
+        // As you type, narrow the existing tags to those that match; chosen tags stay visible.
+        const shown = universe.filter(t => chosen.includes(t) || !q || t.includes(q));
+        shown.forEach(function (t) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'tag-toggle' + (chosen.includes(t) ? ' on' : '');
+          b.textContent = t;
+          b.addEventListener('click', function () {
+            if (chosen.includes(t)) chosen = chosen.filter(x => x !== t); else chosen.push(t);
+            inp.value = ''; paint(); inp.focus();
+          });
+          pick.appendChild(b);
+        });
+        const exactExists = universe.includes(q);
+        if (universe.length === 0) {
+          hint.textContent = 'No tags yet — type one and press Enter to create it.';
+        } else if (q && !exactExists) {
+          hint.textContent = 'Press Enter to create the new tag "' + q + '".';
+        } else if (q && shown.filter(t => !chosen.includes(t)).length === 0 && !exactExists) {
+          hint.textContent = 'No matches — press Enter to create "' + q + '".';
+        } else {
+          hint.textContent = 'Tap an existing tag to apply it, or type to filter / add a new one.';
+        }
+      }
+      inp.addEventListener('input', paint);
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const t = cleanTag(inp.value);
+          if (t && !chosen.includes(t)) chosen.push(t);
+          inp.value = ''; paint();
+        }
+      });
+      mount.appendChild(pick); mount.appendChild(inp); mount.appendChild(hint);
+      paint();
+      return () => uniq(chosen.map(cleanTag).filter(Boolean));
+    }
+    // MODE 'a' (default): chips added with Enter, removable with ×
+    let chips = current.slice();
+    const box = document.createElement('div'); box.className = 'tag-chips';
+    const inp = document.createElement('input');
+    inp.className = 'tag-input'; inp.placeholder = 'Type a tag and press Enter';
+    const hint = document.createElement('div');
+    hint.className = 'tag-hint'; hint.textContent = 'Press Enter to add each tag; click × to remove.';
+    function paint() {
+      box.innerHTML = '';
+      chips.forEach(function (t, i) {
+        const c = document.createElement('span'); c.className = 'tag';
+        c.appendChild(document.createTextNode(t));
+        const x = document.createElement('span'); x.className = 'x'; x.textContent = '×';
+        x.addEventListener('click', function () { chips.splice(i, 1); paint(); });
+        c.appendChild(x); box.appendChild(c);
+      });
+    }
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const t = cleanTag(inp.value);
+        if (t && !chips.includes(t)) chips.push(t);
+        inp.value = ''; paint();
+      } else if (e.key === 'Backspace' && !inp.value && chips.length) {
+        chips.pop(); paint();
+      }
+    });
+    mount.appendChild(box); mount.appendChild(inp); mount.appendChild(hint);
+    paint();
+    return () => uniq(chips.map(cleanTag).filter(Boolean));
+  }
+
+  function commit(data, title, desc, tags) {
+    tags = tags || [];
+    if (editingId) {
+      const it = items.find(x => x.id === editingId);
+      if (it) { it.title = title; it.desc = desc; it.tags = tags; }
+      reviewMount.innerHTML = ''; editingId = null;
+      redraw();
+      const el = it ? document.getElementById('item-' + it.id) : null;
+      if (el) flashEl(el);
+    } else {
+      const it = { id: seq++, key: data.key, url: data.url, host: data.host, title: title, desc: desc, tags: tags, hasPreview: true };
+      items.unshift(it);
+      reviewMount.innerHTML = '';
+      redraw();
+      hint.className = 'hint'; hint.textContent = 'Saved.';
+      setTimeout(() => { if (hint.textContent === 'Saved.') hint.textContent = ''; }, 1800);
+    }
+    input.value = ''; input.focus();
+  }
+
+  function flashEl(el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 1600);
+  }
+
+  function redraw() {
+    const empty = document.getElementById('empty');
+    if (empty) empty.remove();
+    list.innerHTML = '';
+    items.forEach(function (it) {
+      const el = document.createElement('div');
+      el.className = 'item'; el.id = 'item-' + it.id;
+      el.innerHTML =
+        '<div class="title"></div>' +
+        (it.desc ? '<div class="desc"></div>' : '') +
+        ((it.tags && it.tags.length) ? '<div class="tags"></div>' : '') +
+        '<a class="url" target="_blank" rel="noopener"></a>' +
+        '<div class="foot">' +
+          '<span class="source-line"></span>' +
+          '<button class="edit-link">Edit</button>' +
+        '</div>';
+      el.querySelector('.title').textContent = it.title;
+      if (it.hasPreview) el.insertBefore(previewEl(it.host, it.title), el.firstChild);
+      if (it.desc) el.querySelector('.desc').textContent = it.desc;
+      if (it.tags && it.tags.length) {
+        const tg = el.querySelector('.tags');
+        it.tags.forEach(function (t) {
+          const s = document.createElement('span'); s.className = 'tag'; s.textContent = t; tg.appendChild(s);
+        });
+      }
+      const a = el.querySelector('.url'); a.textContent = it.url; a.href = it.url;
+      const sl = el.querySelector('.source-line');
+      sl.appendChild(favEl(it.host));
+      const hs = document.createElement('span'); hs.textContent = it.host; sl.appendChild(hs);
+      el.querySelector('.edit-link').addEventListener('click', function () {
+        openReview({ id: it.id, url: it.url, host: it.host, title: it.title, desc: it.desc }, true);
+        reviewMount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      list.appendChild(el);
+    });
+    renderEmpty();
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const u = normalise(input.value);
+    if (!u) { hint.className = 'hint warn'; hint.textContent = "Hmm, that doesn't look like a link yet."; return; }
+    const key = keyOf(u);
+    const existing = items.find(x => x.key === key);
+    if (existing) {
+      hint.className = 'hint warn';
+      hint.textContent = "You've already saved this — here it is. You can update it.";
+      reviewMount.innerHTML = '';
+      const el = document.getElementById('item-' + existing.id);
+      if (el) {
+        flashEl(el);
+        openReview({ id: existing.id, url: existing.url, host: existing.host, title: existing.title, desc: existing.desc }, true);
+      }
+      input.value = '';
+      return;
+    }
+    hint.className = 'hint'; hint.textContent = '';
+    openReview({ key: key, url: u.href, host: u.hostname.replace(/^www\./, ''), title: guessTitle(u), desc: '' }, false);
+  });
+
+  document.body.setAttribute('data-harness-ready', 'true');
+</script>
+</body>
+</html>

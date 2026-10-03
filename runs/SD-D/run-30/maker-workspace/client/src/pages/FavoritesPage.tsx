@@ -1,0 +1,1 @@
+import { CollectionPage } from './ActiveBookmarksPage';export default function FavoritesPage(){return <CollectionPage view="favorites" title="Favorites" subtitle="The links you want to keep especially close."/>}

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Bookmarks — prototype</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #f5f6f8;
+      color: #1c1e21;
+    }
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e3e5e8;
+      padding: 18px 24px;
+    }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: #65676b; font-size: 13px; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px; }
+    .card {
+      background: #fff;
+      border: 1px solid #e3e5e8;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 15px; color: #444; }
+    label { display: block; font-size: 13px; color: #444; margin: 12px 0 4px; }
+    input[type=text], input[type=url], textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #ccd0d5;
+      border-radius: 7px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 56px; }
+    .details { display: none; }
+    .details.show { display: block; }
+    .status { font-size: 12px; color: #8a8d91; margin-top: 6px; min-height: 16px; }
+    .status.filled { color: #1a7f37; }
+    button {
+      margin-top: 16px;
+      background: #2f6fed;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #255ad0; }
+    button:disabled { background: #b7c2d6; cursor: default; }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .item {
+      display: flex;
+      gap: 12px;
+      padding: 16px 0;
+      border-top: 1px solid #eceef0;
+    }
+    .item:first-child { border-top: none; }
+    .favicon {
+      width: 32px; height: 32px; border-radius: 6px; flex: 0 0 32px;
+      background: #eaf0fb; color: #2f6fed;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px; overflow: hidden;
+    }
+    .favicon img { width: 32px; height: 32px; display: block; }
+    .body { flex: 1; min-width: 0; }
+    .body a { color: #2f6fed; text-decoration: none; font-size: 15px; font-weight: 600; }
+    .body a:hover { text-decoration: underline; }
+    .desc { color: #3c4043; font-size: 13px; margin-top: 4px; }
+    .url { color: #65676b; font-size: 12px; margin-top: 5px; word-break: break-all; }
+    .meta { color: #8a8d91; font-size: 12px; margin-top: 3px; }
+    .count { color: #65676b; font-size: 13px; margin: 0 0 12px; }
+    .empty { text-align: center; color: #8a8d91; padding: 30px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Bookmarks</h1>
+    <p>Your personal place to save links and find them again.</p>
+  </header>
+  <main id="app">
+    <section class="card">
+      <h2>Save a link</h2>
+      <form id="addForm" autocomplete="off">
+        <label for="url">Link address</label>
+        <input type="url" id="url" placeholder="Paste a link address here…" required />
+        <div class="status" id="status"></div>
+
+        <div class="details" id="details">
+          <label for="title">Title</label>
+          <input type="text" id="title" />
+          <label for="desc">Description</label>
+          <textarea id="desc"></textarea>
+        </div>
+
+        <button type="submit" id="saveBtn" disabled>Save</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Saved links</h2>
+      <p class="count" id="count"></p>
+      <ul class="list" id="list"></ul>
+    </section>
+  </main>
+
+  <script>
+    const KEY = 'bm_proto_v2';
+    const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+    const save = (items) => localStorage.setItem(KEY, JSON.stringify(items));
+
+    const urlEl = document.getElementById('url');
+    const statusEl = document.getElementById('status');
+    const detailsEl = document.getElementById('details');
+    const titleEl = document.getElementById('title');
+    const descEl = document.getElementById('desc');
+    const saveBtn = document.getElementById('saveBtn');
+
+    function hostOf(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } }
+
+    function titleCase(s) {
+      return s.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+              .replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Simulated auto-fill: derives a plausible title/description from the address.
+    // (A real version would read these from the page itself.)
+    function deriveMeta(u) {
+      const host = hostOf(u);
+      let slug = '';
+      try {
+        const p = new URL(u).pathname.split('/').filter(Boolean).pop() || '';
+        slug = decodeURIComponent(p).replace(/\.(html?|php|aspx)$/i, '');
+      } catch {}
+      const site = titleCase(host.split('.')[0] || 'Site');
+      const title = slug ? titleCase(slug) + ' — ' + site : site;
+      const desc = slug
+        ? 'An article about ' + titleCase(slug).toLowerCase() + ', from ' + host + '.'
+        : 'A page from ' + host + '.';
+      return { host, title, desc };
+    }
+
+    let fillTimer = null;
+    function tryAutofill() {
+      const u = urlEl.value.trim();
+      if (!urlEl.checkValidity() || !u) {
+        detailsEl.classList.remove('show');
+        statusEl.textContent = '';
+        statusEl.className = 'status';
+        saveBtn.disabled = true;
+        return;
+      }
+      statusEl.textContent = 'Reading the page details…';
+      statusEl.className = 'status';
+      clearTimeout(fillTimer);
+      fillTimer = setTimeout(() => {
+        const m = deriveMeta(u);
+        if (!titleEl.value) titleEl.value = m.title;
+        if (!descEl.value) descEl.value = m.desc;
+        detailsEl.classList.add('show');
+        statusEl.textContent = 'Title and description filled in — edit them if you like.';
+        statusEl.className = 'status filled';
+        saveBtn.disabled = false;
+      }, 500);
+    }
+
+    urlEl.addEventListener('input', tryAutofill);
+    urlEl.addEventListener('paste', () => setTimeout(tryAutofill, 0));
+
+    function faviconEl(host) {
+      const wrap = document.createElement('div');
+      wrap.className = 'favicon';
+      wrap.textContent = (host[0] || '?').toUpperCase();
+      if (host) {
+        const img = document.createElement('img');
+        img.src = 'https://www.google.com/s2/favicons?domain=' + host + '&sz=64';
+        img.alt = '';
+        img.onload = () => { wrap.textContent = ''; wrap.appendChild(img); };
+        img.onerror = () => {};
+      }
+      return wrap;
+    }
+
+    function fmt(ts) {
+      return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function render() {
+      const items = load().sort((a, b) => b.created - a.created);
+      const list = document.getElementById('list');
+      const count = document.getElementById('count');
+      list.innerHTML = '';
+      if (items.length === 0) {
+        count.textContent = '';
+        const li = document.createElement('li');
+        li.className = 'empty';
+        li.textContent = 'No links saved yet. Paste a link above to save your first.';
+        list.appendChild(li);
+        return;
+      }
+      count.textContent = items.length + (items.length === 1 ? ' link saved' : ' links saved');
+      for (const it of items) {
+        const li = document.createElement('li');
+        li.className = 'item';
+        const body = document.createElement('div');
+        body.className = 'body';
+        const a = document.createElement('a');
+        a.href = it.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = it.title;
+        body.appendChild(a);
+        if (it.desc) {
+          const d = document.createElement('div'); d.className = 'desc'; d.textContent = it.desc;
+          body.appendChild(d);
+        }
+        const url = document.createElement('div'); url.className = 'url'; url.textContent = it.url;
+        const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = 'Saved ' + fmt(it.created);
+        body.append(url, meta);
+        li.append(faviconEl(it.host || hostOf(it.url)), body);
+        list.appendChild(li);
+      }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = urlEl.value.trim();
+      const title = titleEl.value.trim() || hostOf(url);
+      const desc = descEl.value.trim();
+      if (!url) return;
+      const items = load();
+      items.push({ id: Date.now(), url, title, desc, host: hostOf(url), created: Date.now() });
+      save(items);
+      e.target.reset();
+      detailsEl.classList.remove('show');
+      statusEl.textContent = ''; statusEl.className = 'status';
+      saveBtn.disabled = true;
+      urlEl.focus();
+      render();
+    });
+
+    render();
+    document.getElementById('app').setAttribute('data-harness-ready', 'true');
+  </script>
+</body>
+</html>

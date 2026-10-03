@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>New-feature edge cases — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; --danger:#c0392b; --warn:#b5791f; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:620px; margin:0 auto; padding:26px 20px 80px; }
+  h1 { font-size:19px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 18px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .bad { background:#fdecea; border:1px solid #f2c4bd; color:var(--danger); border-radius:9px; padding:11px 13px; font-size:13px; display:flex; gap:9px; }
+  .warn { background:#fdf5e6; border:1px solid #f0dcb0; color:var(--warn); border-radius:9px; padding:11px 13px; font-size:13px; display:flex; gap:9px; }
+  .ok { background:#e9f8ef; border:1px solid #bfe3cd; color:#1c7a4d; border-radius:9px; padding:11px 13px; font-size:13px; }
+  .btn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer; margin-top:12px; }
+  .row { font-size:13px; color:#41495a; margin:7px 0; }
+  h3 { font-size:15px; margin:0 0 10px; }
+  .bar { height:10px; background:#eef1f5; border-radius:999px; overflow:hidden; margin:12px 0 6px; }
+  .bar > span { display:block; height:100%; background:var(--accent); border-radius:999px; }
+  .progtext { font-size:13px; color:var(--muted); }
+  .spin { width:14px;height:14px;border:2px solid #cfd6df;border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:spin 1s linear infinite;vertical-align:-2px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h">Edge case</h1>
+  <p class="sub" id="s"></p>
+  <div class="panel" id="app"></div>
+</div>
+<script>
+const k=new URLSearchParams(location.search).get("case")||"import-bad";
+const H=document.getElementById("h"), S=document.getElementById("s"), A=document.getElementById("app");
+if(k==="import-bad"){
+  H.textContent="Import — the file isn't a bookmarks file";
+  S.textContent="Choosing a file that can't be read as bookmarks.";
+  A.innerHTML='<div class="bad"><span>⚠️</span><span>This file doesn\'t look like a bookmarks file, so nothing was imported. '+
+    'Please choose the <b>bookmarks HTML file</b> your browser or app exports. Your library is unchanged.</span></div>'+
+    '<button class="btn">Choose a different file</button>';
+}
+else if(k==="import-partial"){
+  H.textContent="Import — finished with a few skips";
+  S.textContent="Result summary after importing.";
+  A.innerHTML='<div class="ok">✓ Imported 409 bookmarks.</div>'+
+    '<div class="row">• 16 were already in your library (skipped, no duplicates).</div>'+
+    '<div class="row">• 3 lines in the file had no valid web address and were skipped — nothing else was affected.</div>'+
+    '<div class="row" style="color:var(--muted)">Preserved copies are being made in the background.</div>';
+}
+else if(k==="bulk-progress"){
+  H.textContent="Bulk action on many bookmarks";
+  S.textContent="Applying an action to a large selection (e.g. archive 1,284).";
+  A.innerHTML='<h3>Archiving 1,284 bookmarks…</h3>'+
+    '<div class="bar"><span style="width:46%"></span></div>'+
+    '<div class="progtext"><span class="spin"></span> 590 of 1,284 done — you can keep working; this finishes in the background.</div>';
+}
+else if(k==="ia-pending"){
+  H.textContent="Internet Archive — submitting";
+  S.textContent="After you choose to save a copy to the Internet Archive.";
+  A.innerHTML='<div class="warn"><span class="spin"></span><span>Submitting to the Internet Archive… this can take a little while on their side. '+
+    'You can leave this — I\'ll show the archive link here once it\'s done. If archive.org is unavailable, I\'ll let you know so you can retry.</span></div>';
+}
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f1e8">
+  <title>Trove — Your bookmark library</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Trove home"><span class="brand-mark">T</span><span>Trove</span></a>
+      <nav class="primary-nav" aria-label="Bookmark views">
+        <button class="nav-item active" data-view="all"><span><i class="nav-icon grid-icon" aria-hidden="true"></i>All bookmarks</span><span class="count-pill" id="allCount">0</span></button>
+        <button class="nav-item" data-view="later"><span><i class="nav-icon clock-icon" aria-hidden="true"></i>Read later</span><span class="count-pill" id="laterCount">0</span></button>
+      </nav>
+      <div class="sidebar-foot"><span class="privacy-dot"></span>Private to this device</div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <label class="global-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="searchInput" type="search" placeholder="Search titles, notes, or addresses" aria-label="Search saved links">
+          <kbd>/</kbd>
+        </label>
+      </header>
+
+      <main>
+        <section class="save-hero" aria-labelledby="saveHeading">
+          <div class="save-copy">
+            <span class="eyebrow">Your quiet corner of the web</span>
+            <h1 id="saveHeading">Keep the good things you find.</h1>
+            <p>Paste a web address. Trove fills in the useful details, and you decide what to keep.</p>
+          </div>
+          <form class="url-form" id="urlForm" novalidate>
+            <div class="url-control" id="urlControl">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
+              <input id="urlInput" type="text" inputmode="url" aria-label="Web address" placeholder="https://example.com/a-page-worth-keeping" autocomplete="url">
+              <button class="primary-button" id="getDetailsButton" type="submit">Get details</button>
+            </div>
+            <p class="field-message" id="urlMessage" role="alert"></p>
+          </form>
+        </section>
+
+        <section class="library" aria-labelledby="collectionTitle">
+          <div class="library-head">
+            <div><h2 id="collectionTitle">All bookmarks</h2><p id="collectionSubtitle">Everything worth finding again.</p></div>
+            <span class="result-count" id="resultCount">0 links</span>
+          </div>
+          <nav class="label-filters" id="labelFilters" aria-label="Filter by label"></nav>
+          <h3 class="grid-caption" id="gridCaption">Recently saved</h3>
+          <div class="bookmark-grid" id="bookmarkGrid" aria-live="polite"></div>
+          <section class="empty-state" id="emptyState" hidden>
+            <div class="empty-mark" aria-hidden="true">↗</div>
+            <h3 id="emptyTitle">No links yet</h3>
+            <p id="emptyCopy">Your first saved link will appear here.</p>
+          </section>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <dialog class="review-dialog" id="reviewDialog">
+    <form method="dialog" class="dialog-frame" id="reviewForm">
+      <div class="dialog-head">
+        <div><span class="dialog-kicker" id="reviewKicker">Review before saving</span><h2 id="reviewTitle">Make the details yours.</h2></div>
+        <button class="icon-button" value="cancel" aria-label="Close review">×</button>
+      </div>
+      <div class="fetch-warning" id="fetchWarning" hidden><strong>We couldn’t get this page’s details.</strong><span>The link can still be saved. Add the title yourself, and a description if you want one.</span></div>
+      <p class="review-address" id="reviewAddress"></p>
+      <input id="reviewId" type="hidden">
+      <label class="form-field">Title <input id="titleInput" maxlength="500" required></label>
+      <label class="form-field">Description <span class="optional">optional</span><textarea id="descriptionInput" maxlength="4000" rows="3"></textarea></label>
+      <div class="form-field label-editor">
+        <span>Labels</span>
+        <div class="label-input-box" id="selectedLabels"><input id="labelInput" placeholder="Type to add a label" autocomplete="off" aria-label="Add labels"></div>
+        <div class="label-suggestions" id="labelSuggestions" hidden></div>
+      </div>
+      <label class="later-toggle"><span class="later-symbol">◷</span><span><strong>Add to Read later</strong><small>Keep this in your reading list</small></span><input id="readLaterInput" type="checkbox"><i aria-hidden="true"></i></label>
+      <p class="dialog-error" id="reviewError" role="alert"></p>
+      <div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="primary-button" id="saveBookmarkButton" type="submit" value="default">Save bookmark</button></div>
+    </form>
+  </dialog>
+
+  <template id="bookmarkTemplate">
+    <article class="bookmark-card">
+      <div class="card-main">
+        <div class="site-mark"></div>
+        <div class="card-copy">
+          <div class="card-title-row"><h3></h3><span class="later-badge" hidden>◷ Read later</span></div>
+          <p class="description"></p>
+          <a class="domain" target="_blank" rel="noreferrer"></a>
+          <div class="card-labels"></div>
+        </div>
+        <button class="more-button" aria-label="Edit bookmark">Edit</button>
+      </div>
+      <div class="note-display" hidden><div class="note-content"></div><button class="fold-button" hidden>Show full note</button></div>
+      <div class="note-editor" hidden>
+        <span class="note-label">Your note</span>
+        <div class="note-toolbar" role="toolbar" aria-label="Note formatting">
+          <button type="button" data-command="bold" aria-label="Bold"><strong>B</strong></button>
+          <button type="button" data-command="insertUnorderedList" aria-label="Bulleted list">• List</button>
+          <button type="button" data-link aria-label="Add link">Link</button>
+        </div>
+        <div class="note-box" contenteditable="true" role="textbox" aria-label="Personal note"></div>
+        <div class="note-actions"><button class="text-button note-cancel" type="button">Cancel</button><button class="small-primary note-save" type="button">Save note</button></div>
+      </div>
+      <footer class="card-footer"><button class="note-button" type="button">Add note</button><span class="saved-date"></span><button class="done-button" type="button" hidden>✓ Mark done</button></footer>
+    </article>
+  </template>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

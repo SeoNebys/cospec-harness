@@ -1,0 +1,3 @@
+import { useCallback, useEffect, useState } from 'react';
+import { listBookmarks, type BookmarkPage } from './bookmark-api';
+export function useBookmarks(query:string){const[data,setData]=useState<BookmarkPage>({items:[],total:0,limit:50,offset:0});const[loading,setLoading]=useState(true);const[error,setError]=useState('');const reload=useCallback(async()=>{setLoading(true);setError('');try{setData(await listBookmarks(query));}catch(reason){setError(reason instanceof Error?reason.message:'Could not load bookmarks.');}finally{setLoading(false);}},[query]);useEffect(()=>{void reload();},[reload]);return{...data,loading,error,reload};}

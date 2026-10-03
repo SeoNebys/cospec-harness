@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2722;
+      --muted: #647069;
+      --line: #dce2dd;
+      --paper: #fffef9;
+      --wash: #f2f3ec;
+      --green: #245f49;
+      --green-dark: #194735;
+      --accent: #e6a34c;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--wash); color: var(--ink); }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .shell { min-height: 100vh; }
+    header {
+      height: 72px; padding: 0 5vw; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--line); background: rgba(255,254,249,.94);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 780; font-size: 20px; letter-spacing: -.4px; }
+    .brand-mark { width: 28px; height: 34px; border-radius: 4px 4px 10px 10px; background: var(--green); position: relative; }
+    .brand-mark::after { content: ""; position: absolute; left: 8px; bottom: 6px; width: 12px; height: 12px; border: 2px solid var(--paper); border-radius: 50%; }
+    .profile { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #dce9e1; color: var(--green-dark); font-weight: 750; }
+    main { width: min(1080px, 90vw); margin: 0 auto; padding: 46px 0 70px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+    .quick-add { margin-top: 24px; display: flex; gap: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); box-shadow: 0 4px 16px rgba(35,56,45,.06); }
+    .quick-add input { border: 0; min-width: 0; }
+    .quick-add input:focus { outline: none; }
+    .quick-add:focus-within { outline: 3px solid rgba(230,163,76,.45); }
+    h1 { margin: 0; font-family: Georgia, serif; font-size: clamp(34px, 5vw, 50px); font-weight: 500; letter-spacing: -1.4px; }
+    .primary { border: 0; border-radius: 10px; background: var(--green); color: white; padding: 12px 18px; font-weight: 700; box-shadow: 0 2px 0 var(--green-dark); }
+    .primary:hover { background: var(--green-dark); }
+    .primary:focus-visible, .secondary:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(230,163,76,.5); outline-offset: 2px; }
+    .secondary { border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); padding: 11px 16px; font-weight: 650; }
+    .empty { margin-top: 34px; min-height: 430px; border: 1px dashed #bdc8c0; border-radius: 18px; background: rgba(255,254,249,.65); display: grid; place-items: center; text-align: center; padding: 30px; }
+    .empty-inner { max-width: 420px; }
+    .empty-art { width: 92px; height: 92px; margin: 0 auto 24px; border-radius: 50%; background: #e2ebe3; display: grid; place-items: center; font-family: Georgia, serif; color: var(--green); font-size: 38px; }
+    .empty h2 { margin: 0 0 10px; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+    .empty p { margin: 0 0 24px; color: var(--muted); line-height: 1.55; }
+    dialog { width: min(560px, calc(100vw - 28px)); border: 0; border-radius: 18px; padding: 0; box-shadow: 0 24px 70px rgba(25,50,38,.23); background: var(--paper); }
+    dialog::backdrop { background: rgba(19,31,24,.48); backdrop-filter: blur(2px); }
+    .dialog-body { padding: 28px; }
+    .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+    .dialog-head h2 { margin: 0; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+    .dialog-head p { margin: 7px 0 0; color: var(--muted); }
+    .close { border: 0; background: transparent; font-size: 25px; line-height: 1; color: var(--muted); padding: 2px 4px; }
+    label { display: block; margin: 24px 0 8px; font-weight: 720; font-size: 14px; }
+    input, textarea { width: 100%; border: 1px solid #cbd3cd; background: white; border-radius: 9px; padding: 12px 13px; color: var(--ink); }
+    textarea { min-height: 78px; resize: vertical; }
+    .hint { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+    .dialog-actions { margin-top: 24px; display: flex; justify-content: flex-end; gap: 10px; }
+    .fetching { min-height: 250px; display: grid; place-items: center; text-align: center; color: var(--muted); }
+    .spinner { width: 34px; height: 34px; margin: 0 auto 14px; border: 3px solid #dce5de; border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .preview { margin-top: 22px; border: 1px solid var(--line); border-radius: 13px; padding: 16px; background: white; display: grid; grid-template-columns: 46px 1fr; gap: 13px; }
+    .site-icon { width: 46px; height: 46px; border-radius: 11px; background: #f1dfc6; color: #784617; display: grid; place-items: center; font-family: Georgia, serif; font-size: 25px; font-weight: 700; }
+    .preview-title { font-weight: 760; margin-bottom: 5px; }
+    .preview-copy { color: var(--muted); line-height: 1.4; font-size: 14px; }
+    .preview-url { margin-top: 7px; color: var(--green); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .metadata-fields { margin-top: 20px; }
+    .metadata-fields label { margin-top: 15px; }
+    .metadata-fields textarea { min-height: 84px; }
+    .library { margin-top: 30px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: var(--muted); }
+    .card { background: var(--paper); border: 1px solid var(--line); border-radius: 15px; padding: 20px; display: grid; grid-template-columns: 50px 1fr; gap: 15px; box-shadow: 0 5px 18px rgba(35,56,45,.05); }
+    .card h2 { margin: 0 0 6px; font-size: 19px; }
+    .card p { margin: 0 0 10px; color: var(--muted); line-height: 1.45; }
+    .domain { color: var(--green); font-size: 13px; }
+    .reset { border: 0; padding: 6px; background: transparent; color: var(--muted); text-decoration: underline; }
+    .duplicate-callout { margin-top: 20px; padding: 14px 16px; border-radius: 11px; background: #edf4ef; color: var(--green-dark); line-height: 1.45; }
+    .saved-notice { margin: 0 0 16px; padding: 12px 15px; border-radius: 10px; background: #e4f1e8; color: var(--green-dark); font-weight: 680; }
+    .card.updated { animation: glow 1.5s ease-out; }
+    .cards { display: grid; gap: 12px; }
+    .tags, .selected-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .tag { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 9px; background: #e7eee9; color: var(--green-dark); font-size: 12px; font-weight: 680; }
+    .tag-input-wrap { position: relative; }
+    .suggestions { position: absolute; z-index: 2; top: calc(100% + 5px); left: 0; right: 0; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 10px 24px rgba(35,56,45,.13); overflow: hidden; }
+    .suggestion { width: 100%; border: 0; background: white; padding: 11px 13px; text-align: left; color: var(--ink); }
+    .suggestion:hover, .suggestion:focus { background: #edf3ee; }
+    @keyframes glow { 0% { box-shadow: 0 0 0 4px rgba(230,163,76,.55); } 100% { box-shadow: 0 5px 18px rgba(35,56,45,.05); } }
+    [hidden] { display: none !important; }
+    @media (max-width: 620px) {
+      header { padding: 0 18px; }
+      main { width: calc(100vw - 32px); padding-top: 30px; }
+      .topline { align-items: flex-start; }
+      h1 { font-size: 36px; }
+      .topline > .primary { padding: 11px 13px; }
+      .dialog-body { padding: 22px; }
+      .empty { min-height: 390px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span> Keepwell</div>
+      <button class="profile" aria-label="Profile">AM</button>
+    </header>
+    <main>
+      <div class="topline">
+        <h1>Your library</h1>
+      </div>
+      <div class="quick-add"><input id="quickUrl" type="url" required aria-label="Web address" placeholder="Paste a web address"><button class="primary" id="quickContinue">Continue</button></div>
+
+      <section class="empty" id="emptyState">
+        <div class="empty-inner">
+          <div class="empty-art" aria-hidden="true">⌁</div>
+          <h2>Your first good find belongs here</h2>
+          <p>Save articles, guides, and ideas now. They’ll be easier to find when you need them again.</p>
+        </div>
+      </section>
+
+      <section class="library" id="library" hidden>
+        <div class="saved-notice" id="savedNotice" hidden>Changes saved to your existing bookmark.</div>
+        <div class="toolbar"><span id="bookmarkCount">1 bookmark</span><button class="reset" id="resetButton">Reset prototype</button></div>
+        <div class="cards" id="cards"><article class="card" id="savedCard">
+          <div class="site-icon">R</div>
+          <div>
+            <h2 id="savedTitle">A local’s walking guide to Rome</h2>
+            <p id="savedDescription">Quiet streets, timeless landmarks, and neighborhood stops for exploring Rome on foot.</p>
+            <div class="domain">roaming.example · Saved just now</div>
+            <div class="tags" id="savedTags"></div>
+          </div>
+        </article></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="addDialog">
+    <form method="dialog" id="addForm">
+      <div class="dialog-body" id="urlStep">
+        <div class="dialog-head">
+          <div><h2>Save a bookmark</h2><p>Paste a link and we’ll fill in the details.</p></div>
+          <button class="close" value="cancel" aria-label="Close">×</button>
+        </div>
+        <label for="url">Web address</label>
+        <input id="url" name="url" type="url" required placeholder="https://example.com/article" autocomplete="off">
+        <p class="hint">For this prototype, any valid-looking web address will use the same sample page details.</p>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Cancel</button><button class="primary" id="continueButton" type="button">Continue</button></div>
+      </div>
+
+      <div class="dialog-body fetching" id="fetchStep" hidden>
+        <div><div class="spinner"></div><div>Gathering page details…</div></div>
+      </div>
+
+      <div class="dialog-body" id="reviewStep" hidden>
+        <div class="dialog-head">
+          <div><h2>Ready to save</h2><p>We found these details on the page.</p></div>
+          <button class="close" value="cancel" aria-label="Close">×</button>
+        </div>
+        <div class="preview">
+          <div class="site-icon">R</div>
+          <div><div class="preview-title">Page details found</div><div class="preview-copy">You can tidy these up before saving.</div><div class="preview-url" id="previewUrl"></div></div>
+        </div>
+        <div class="metadata-fields">
+          <label for="bookmarkTitle">Title</label>
+          <input id="bookmarkTitle" value="A local’s walking guide to Rome">
+          <label for="bookmarkDescription">Description</label>
+          <textarea id="bookmarkDescription">Quiet streets, timeless landmarks, and neighborhood stops for exploring Rome on foot.</textarea>
+        </div>
+        <label for="notes">Your notes <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <textarea id="notes" placeholder="Why are you saving this?"></textarea>
+        <label for="tagInput">Tags <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <div class="tag-input-wrap">
+          <input id="tagInput" autocomplete="off" placeholder="Start typing a tag">
+          <div class="suggestions" id="tagSuggestions" hidden></div>
+        </div>
+        <div class="selected-tags" id="selectedTags"></div>
+        <div class="dialog-actions"><button class="secondary" id="backButton" type="button">Cancel</button><button class="primary" id="saveButton" type="button">Save bookmark</button></div>
+      </div>
+
+      <div class="dialog-body" id="duplicateStep" hidden>
+        <div class="dialog-head">
+          <div><h2>Already in your library</h2><p>Here’s your existing bookmark, ready to adjust.</p></div>
+          <button class="close" value="cancel" aria-label="Close">×</button>
+        </div>
+        <div class="duplicate-callout">You saved this web address before, so no second copy will be created.</div>
+        <div class="metadata-fields">
+          <label for="existingTitle">Title</label>
+          <input id="existingTitle">
+          <label for="existingDescription">Description</label>
+          <textarea id="existingDescription"></textarea>
+        </div>
+        <label for="existingNotes">Your notes <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <textarea id="existingNotes">Worth revisiting before the autumn trip.</textarea>
+        <div class="dialog-actions"><button class="secondary" value="cancel">Cancel</button><button class="primary" id="saveChangesButton" type="button">Save changes</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const dialog = document.querySelector('#addDialog');
+    const urlStep = document.querySelector('#urlStep');
+    const fetchStep = document.querySelector('#fetchStep');
+    const reviewStep = document.querySelector('#reviewStep');
+    const duplicateStep = document.querySelector('#duplicateStep');
+    const library = document.querySelector('#library');
+    const emptyState = document.querySelector('#emptyState');
+    const quickUrl = document.querySelector('#quickUrl');
+    let knownTags = ['architecture', 'articles', 'books', 'research', 'travel', 'travel planning'];
+    let selectedTags = [];
+    let currentAddress = '';
+    let existingUrls = [];
+    const showStep = (step) => [urlStep, fetchStep, reviewStep, duplicateStep].forEach(el => el.hidden = el !== step);
+    const normalizeAddress = (value) => value.trim().replace(/\/$/, '').toLowerCase();
+    const isSavedAddress = (value) => existingUrls.some(saved => normalizeAddress(saved) === normalizeAddress(value));
+    const setExistingFields = () => {
+      document.querySelector('#existingTitle').value = document.querySelector('#savedTitle').textContent;
+      document.querySelector('#existingDescription').value = document.querySelector('#savedDescription').textContent;
+    };
+    const resetReview = () => {
+      document.querySelector('#bookmarkTitle').value = 'A local’s walking guide to Rome';
+      document.querySelector('#bookmarkDescription').value = 'Quiet streets, timeless landmarks, and neighborhood stops for exploring Rome on foot.';
+      document.querySelector('#notes').value = '';
+      document.querySelector('#tagInput').value = '';
+      selectedTags = [];
+      renderSelectedTags();
+      document.querySelector('#savedNotice').hidden = true;
+    };
+    const beginSave = () => {
+      if (!quickUrl.reportValidity()) return;
+      currentAddress = quickUrl.value;
+      resetReview();
+      dialog.showModal();
+      showStep(fetchStep);
+      setTimeout(() => {
+        document.querySelector('#previewUrl').textContent = currentAddress;
+        if (isSavedAddress(currentAddress)) {
+          setExistingFields();
+          showStep(duplicateStep);
+        } else {
+          showStep(reviewStep);
+        }
+      }, 700);
+    };
+    document.querySelector('#quickContinue').addEventListener('click', beginSave);
+    quickUrl.addEventListener('keydown', event => { if (event.key === 'Enter') beginSave(); });
+    document.querySelector('#backButton').addEventListener('click', () => dialog.close());
+
+    function renderSelectedTags() {
+      const container = document.querySelector('#selectedTags');
+      container.replaceChildren(...selectedTags.map(name => {
+        const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = name; return tag;
+      }));
+    }
+    function chooseTag(name, isNew = false) {
+      if (isNew && !knownTags.includes(name)) knownTags.push(name);
+      if (!selectedTags.includes(name)) selectedTags.push(name);
+      document.querySelector('#tagInput').value = '';
+      document.querySelector('#tagSuggestions').hidden = true;
+      renderSelectedTags();
+    }
+    document.querySelector('#tagInput').addEventListener('input', event => {
+      const query = event.target.value.trim().toLowerCase();
+      const matches = knownTags.filter(tag => query && tag.includes(query) && !selectedTags.includes(tag));
+      const box = document.querySelector('#tagSuggestions');
+      const choices = matches.map(name => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'suggestion'; button.textContent = name;
+        button.addEventListener('click', () => chooseTag(name)); return button;
+      });
+      if (query && !knownTags.includes(query)) {
+        const create = document.createElement('button'); create.type = 'button'; create.className = 'suggestion';
+        create.textContent = `Create new tag “${query}”`;
+        create.addEventListener('click', () => chooseTag(query, true));
+        choices.push(create);
+      }
+      box.replaceChildren(...choices);
+      box.hidden = choices.length === 0;
+    });
+    const renderTagList = (container, tags) => {
+      container.replaceChildren(...tags.map(name => {
+        const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = name; return tag;
+      }));
+    };
+    document.querySelector('#saveButton').addEventListener('click', () => {
+      const title = document.querySelector('#bookmarkTitle').value.trim() || 'Untitled bookmark';
+      const description = document.querySelector('#bookmarkDescription').value.trim();
+      if (existingUrls.length === 0) {
+        document.querySelector('#savedTitle').textContent = title;
+        document.querySelector('#savedDescription').textContent = description;
+        renderTagList(document.querySelector('#savedTags'), selectedTags);
+      } else {
+        const card = document.createElement('article'); card.className = 'card updated';
+        const icon = document.createElement('div'); icon.className = 'site-icon'; icon.textContent = 'R';
+        const body = document.createElement('div');
+        const heading = document.createElement('h2'); heading.textContent = title;
+        const copy = document.createElement('p'); copy.textContent = description;
+        const domain = document.createElement('div'); domain.className = 'domain'; domain.textContent = 'roaming.example · Saved just now';
+        const tags = document.createElement('div'); tags.className = 'tags'; renderTagList(tags, selectedTags);
+        body.append(heading, copy, domain, tags); card.append(icon, body);
+        document.querySelector('#cards').prepend(card);
+      }
+      existingUrls.push(currentAddress);
+      document.querySelector('#bookmarkCount').textContent = `${existingUrls.length} ${existingUrls.length === 1 ? 'bookmark' : 'bookmarks'}`;
+      dialog.close();
+      emptyState.hidden = true;
+      library.hidden = false;
+      quickUrl.value = '';
+    });
+    document.querySelector('#saveChangesButton').addEventListener('click', () => {
+      document.querySelector('#savedTitle').textContent = document.querySelector('#existingTitle').value.trim() || 'Untitled bookmark';
+      document.querySelector('#savedDescription').textContent = document.querySelector('#existingDescription').value.trim();
+      dialog.close();
+      document.querySelector('#savedNotice').hidden = false;
+      const card = document.querySelector('#savedCard');
+      card.classList.remove('updated');
+      void card.offsetWidth;
+      card.classList.add('updated');
+      card.scrollIntoView({behavior: 'smooth', block: 'center'});
+    });
+    document.querySelector('#resetButton').addEventListener('click', () => {
+      location.assign(location.pathname);
+    });
+    const state = new URLSearchParams(location.search).get('state');
+    if (state === 'duplicate') {
+      existingUrls = ['https://roaming.example/rome'];
+      emptyState.hidden = true;
+      library.hidden = false;
+    } else if (state === 'tagging') {
+      existingUrls = ['https://tiles.example/lisbon'];
+      document.querySelector('#savedTitle').textContent = 'A field guide to Lisbon’s tiles';
+      document.querySelector('#savedDescription').textContent = 'Patterns, workshops, and streets for noticing the city’s azulejos.';
+      document.querySelector('#savedCard .site-icon').textContent = 'L';
+      document.querySelector('#savedCard .domain').textContent = 'tiles.example · Saved last week';
+      renderTagList(document.querySelector('#savedTags'), ['travel', 'architecture']);
+      emptyState.hidden = true;
+      library.hidden = false;
+    }
+  </script>
+</body>
+</html>

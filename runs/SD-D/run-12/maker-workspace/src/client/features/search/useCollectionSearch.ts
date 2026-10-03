@@ -1,0 +1,4 @@
+import{useEffect,useState}from'react';
+export type CollectionState={query:string;tags:string[];favorite:boolean|null;unread:boolean|null};
+function fromUrl():CollectionState{const p=new URLSearchParams(location.search);return{query:p.get('q')??'',tags:p.getAll('tag'),favorite:p.has('favorite')?p.get('favorite')==='true':null,unread:p.has('unread')?p.get('unread')==='true':null}}
+export function useCollectionSearch(){const[state,setState]=useState<CollectionState>(fromUrl);useEffect(()=>{const p=new URLSearchParams();if(state.query)p.set('q',state.query);state.tags.forEach(t=>p.append('tag',t));if(state.favorite!==null)p.set('favorite',String(state.favorite));if(state.unread!==null)p.set('unread',String(state.unread));history.replaceState(null,'',`${location.pathname}${p.size?`?${p}`:''}`)},[state]);return{state,setState,reset:()=>setState({query:'',tags:[],favorite:null,unread:null})}}

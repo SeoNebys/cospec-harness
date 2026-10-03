@@ -1,0 +1,2 @@
+import{describe,it,expect}from"vitest";import{normalizeUrl}from"@/lib/url/normalize";
+describe("normalizeUrl",()=>{it("collapses approved trivial differences",()=>{expect(normalizeUrl("HTTPS://Example.COM:443/#part")).toBe("https://example.com/")});it("preserves meaningful paths and queries",()=>{expect(normalizeUrl("https://example.com/A?b=2&a=1")).toBe("https://example.com/A?b=2&a=1")});it("rejects unsafe schemes and credentials",()=>{expect(()=>normalizeUrl("javascript:alert(1)")).toThrow();expect(()=>normalizeUrl("https://user:pass@example.com")).toThrow()})});

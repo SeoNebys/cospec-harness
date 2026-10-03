@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211d;
+      --muted: #68736e;
+      --line: #dce3df;
+      --paper: #fbfcfa;
+      --green: #245c45;
+      --green-soft: #e7f1eb;
+      --cream: #f3f0e8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: rgba(251,252,250,.94);
+    }
+    .shell { width: min(920px, calc(100% - 48px)); margin: 0 auto; }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 750; letter-spacing: -.02em; font-size: 18px; }
+    .mark { width: 29px; height: 34px; border-radius: 4px 4px 9px 9px; background: var(--green); position: relative; }
+    .mark::after { content: ""; position: absolute; bottom: -1px; left: 8px; border: 7px solid transparent; border-bottom-color: var(--paper); transform: rotate(45deg); }
+    main { padding: 72px 0; }
+    .eyebrow { color: var(--green); font-weight: 700; font-size: 12px; letter-spacing: .11em; text-transform: uppercase; }
+    h1 { margin: 8px 0 9px; font: 600 clamp(30px, 5vw, 46px)/1.08 Georgia, serif; letter-spacing: -.03em; }
+    .intro { margin: 0; color: var(--muted); font-size: 17px; }
+    .add-panel { margin-top: 36px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 10px 32px rgba(30,55,43,.06); }
+    label { display: block; margin-bottom: 8px; font-weight: 680; }
+    .row { display: flex; gap: 10px; }
+    input {
+      min-width: 0; flex: 1; height: 48px; padding: 0 15px; border: 1px solid #bdc9c2; border-radius: 9px;
+      color: var(--ink); background: var(--paper); font: inherit; outline: none;
+    }
+    input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(36,92,69,.12); }
+    button { height: 48px; padding: 0 21px; border: 0; border-radius: 9px; background: var(--green); color: white; font: 700 15px inherit; cursor: pointer; }
+    button:hover { background: #194b36; }
+    button:disabled { opacity: .65; cursor: wait; }
+    .hint { margin: 9px 0 0; color: var(--muted); font-size: 13px; }
+    .library { margin-top: 54px; }
+    .library-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 13px; }
+    h2 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+    .count { color: var(--muted); font-size: 13px; }
+    .empty { padding: 42px 8px; color: var(--muted); text-align: center; }
+    .card { display: none; grid-template-columns: 58px 1fr; gap: 16px; padding: 22px 4px; border-bottom: 1px solid var(--line); animation: enter .28s ease-out; }
+    .card.visible { display: grid; }
+    .thumb { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 12px; background: var(--cream); color: var(--green); font: 700 22px Georgia, serif; }
+    .domain { color: var(--green); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+    .title { margin: 3px 0 3px; font: 600 20px/1.25 Georgia, serif; }
+    .summary { margin: 0; color: var(--muted); }
+    .saved-note { margin-top: 9px; color: var(--muted); font-size: 12px; }
+    @keyframes enter { from { opacity: 0; transform: translateY(8px); } }
+    @media (max-width: 620px) { .shell { width: min(100% - 28px, 920px); } main { padding-top: 44px; } .row { flex-direction: column; } button { width: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell brand"><span class="mark" aria-hidden="true"></span><span>Keep</span></div>
+  </header>
+  <main class="shell" data-harness-ready="true">
+    <div class="eyebrow">Your bookmark library</div>
+    <h1>Save it now.<br>Find it when it matters.</h1>
+    <p class="intro">A quiet home for the useful corners of the web.</p>
+
+    <form class="add-panel" id="save-form">
+      <label for="url">Save a new bookmark</label>
+      <div class="row">
+        <input id="url" type="url" value="https://example.com/a-practical-guide-to-design-systems" required aria-describedby="url-hint">
+        <button id="save-button" type="submit">Save bookmark</button>
+      </div>
+      <p class="hint" id="url-hint">Paste a web address. The page details will be filled in for you.</p>
+    </form>
+
+    <section class="library" aria-live="polite">
+      <div class="library-head"><h2>All bookmarks</h2><span class="count" id="count">0 bookmarks</span></div>
+      <div class="empty" id="empty">Your saved bookmarks will appear here.</div>
+      <article class="card" id="card">
+        <div class="thumb" aria-hidden="true">A</div>
+        <div>
+          <div class="domain">example.com</div>
+          <h3 class="title">A practical guide to design systems</h3>
+          <p class="summary">How reusable foundations, components, and shared patterns help teams create consistent digital products.</p>
+          <div class="saved-note">Saved just now</div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const form = document.querySelector('#save-form');
+    const button = document.querySelector('#save-button');
+    const input = document.querySelector('#url');
+    const empty = document.querySelector('#empty');
+    const card = document.querySelector('#card');
+    const count = document.querySelector('#count');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      button.disabled = true;
+      button.textContent = 'Getting page details…';
+      window.setTimeout(() => {
+        empty.hidden = true;
+        card.classList.add('visible');
+        count.textContent = '1 bookmark';
+        button.disabled = false;
+        button.textContent = 'Saved';
+        input.disabled = true;
+      }, 650);
+    });
+  </script>
+</body>
+</html>

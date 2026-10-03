@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>To read vs finished — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:26px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  .variant-name { display:inline-block; font-size:12px; font-weight:700; color:var(--accent); background:#eaf1fe; border-radius:999px; padding:5px 12px; margin-bottom:16px; }
+
+  /* Tabs (A) */
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+  .tabs button { border:none; background:transparent; padding:10px 16px; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; }
+  .tabs button.active { color:var(--accent); border-bottom-color:var(--accent); }
+  /* Segmented + filter (B) */
+  .seg { display:inline-flex; background:#eef1f5; border-radius:9px; padding:3px; margin-bottom:14px; }
+  .seg button { border:none; background:transparent; padding:7px 14px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:7px; }
+  .seg button.active { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  /* Sections (C) */
+  .section-title { font-size:14px; font-weight:700; color:var(--ink); margin:18px 2px 10px; display:flex; align-items:center; gap:8px; }
+  .section-title .n { color:var(--muted); font-weight:600; }
+
+  .list { display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:12px; }
+  .card.done { opacity:.8; }
+  .card .body { flex:1; min-width:0; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .card.done .title { text-decoration:line-through; text-decoration-color:#b7c0cc; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12.5px; }
+  .fav { width:15px; height:15px; border-radius:4px; }
+  .badge { font-size:11px; font-weight:700; border-radius:999px; padding:3px 9px; }
+  .badge.toread { background:#eaf1fe; color:var(--accent); }
+  .badge.finished { background:#e5f6ec; color:var(--green); }
+  .act { border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 12px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--ink); }
+  .act.finish { border-color:#bfe3cd; color:var(--green); }
+  .act.reopen { color:var(--muted); }
+  .empty { color:var(--muted); font-size:13px; padding:18px 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Keep what you still need to read apart from what you've finished.</p>
+  <div class="variant-name" id="vname"></div>
+  <div id="app"></div>
+</div>
+
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site.replace(/^www\./,'')[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`); }
+
+let DATA=[
+  { id:1, title:"The Quiet Art of Reading Later", site:"nytimes.com", status:"toread" },
+  { id:2, title:"CSS Flexbox layout — MDN Web Docs", site:"developer.mozilla.org", status:"finished" },
+  { id:3, title:"How to roast vegetables perfectly", site:"seriouseats.com", status:"toread" },
+  { id:4, title:"A calm approach to focus at work", site:"blog.example.org", status:"finished" },
+  { id:5, title:"A weekend in Rome: what to see", site:"travel.example.com", status:"toread" }
+];
+const variant=(new URLSearchParams(location.search).get("variant")||"tabs").toLowerCase();
+const names={tabs:"Arrangement A · Tabs — one list at a time",
+             segmented:"Arrangement B · One list, switch or show all, status badge on each",
+             sections:"Arrangement C · Two sections stacked on one page"};
+document.getElementById("vname").textContent=names[variant]||names.tabs;
+const app=document.getElementById("app");
+let view = new URLSearchParams(location.search).get("view") || (variant==="tabs"?"toread":"all");
+
+function cardHTML(b,showBadge){
+  const done=b.status==="finished";
+  return '<div class="card'+(done?' done':'')+'">'+
+    '<div class="body"><div class="title">'+b.title+'</div>'+
+      '<div class="meta"><img class="fav" src="'+favSVG(b.site)+'"/> <span>'+b.site+'</span>'+
+        (showBadge?' <span class="badge '+b.status+'">'+(done?'Finished':'To read')+'</span>':'')+'</div>'+
+    '</div>'+
+    (done? '<button class="act reopen" data-id="'+b.id+'">↺ Move to To read</button>'
+         : '<button class="act finish" data-id="'+b.id+'">✓ Mark finished</button>')+
+  '</div>';
+}
+function bindActs(){ app.querySelectorAll("[data-id]").forEach(el=>el.onclick=()=>{
+  const b=DATA.find(x=>x.id==el.dataset.id); b.status=b.status==="finished"?"toread":"finished"; render(); }); }
+
+function render(){
+  const toread=DATA.filter(b=>b.status==="toread");
+  const finished=DATA.filter(b=>b.status==="finished");
+  if(variant==="tabs"){
+    app.innerHTML='<div class="tabs">'+
+      '<button data-v="toread" class="'+(view==="toread"?"active":"")+'">To read ('+toread.length+')</button>'+
+      '<button data-v="finished" class="'+(view==="finished"?"active":"")+'">Finished ('+finished.length+')</button>'+
+    '</div><div class="list" id="list"></div>';
+    const items=view==="toread"?toread:finished;
+    document.getElementById("list").innerHTML=items.length?items.map(b=>cardHTML(b,false)).join(''):'<div class="empty">Nothing here yet.</div>';
+    app.querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{ view=el.dataset.v; render(); });
+  } else if(variant==="segmented"){
+    app.innerHTML='<div class="seg">'+
+      ['toread','finished','all'].map(v=>'<button data-v="'+v+'" class="'+(view===v?"active":"")+'">'+
+        (v==="toread"?"To read":v==="finished"?"Finished":"All")+'</button>').join('')+
+    '</div><div class="list" id="list"></div>';
+    const items = view==="all"?DATA: view==="toread"?toread:finished;
+    document.getElementById("list").innerHTML=items.map(b=>cardHTML(b,true)).join('');
+    app.querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{ view=el.dataset.v; render(); });
+  } else { // sections
+    app.innerHTML=
+      '<div class="section-title">📖 To read <span class="n">('+toread.length+')</span></div>'+
+      '<div class="list">'+(toread.length?toread.map(b=>cardHTML(b,false)).join(''):'<div class="empty">Nothing to read right now.</div>')+'</div>'+
+      '<div class="section-title">✓ Finished <span class="n">('+finished.length+')</span></div>'+
+      '<div class="list">'+(finished.length?finished.map(b=>cardHTML(b,false)).join(''):'<div class="empty">Nothing finished yet.</div>')+'</div>';
+  }
+  bindActs();
+}
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

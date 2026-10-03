@@ -1,0 +1,12 @@
+import { type SearchNode, SearchSyntaxError } from './ast.js';
+import { tokenize, type Token } from './tokenizer.js';
+export function parseSearch(input: string): SearchNode|null {
+  const tokens=tokenize(input), p=new Parser(tokens); return p.parse();
+}
+class Parser { i=0; depth=0; constructor(private t:Token[]){} peek(){return this.t[this.i]!;} take(){return this.t[this.i++]!;}
+  parse(){if(this.peek().type==='eof')return null; const n=this.or(); if(this.peek().type!== 'eof'){const x=this.peek(); throw new SearchSyntaxError({code:x.type==='rparen'?'UNMATCHED_CLOSE_PAREN':'MISSING_OPERAND',message:x.type==='rparen'?'Opening parenthesis is missing.':'Unexpected search token.',position:x.position,length:x.length});} return n;}
+  or():SearchNode{let n=this.and(); while(this.peek().type==='or'){const op=this.take(); if(this.peek().type==='eof'||this.peek().type==='rparen')throw new SearchSyntaxError({code:'MISSING_OPERAND',message:'OR must be followed by a search expression.',position:op.position,length:op.length}); n={type:'or',left:n,right:this.and()};}return n;}
+  and():SearchNode{let n=this.unary(); while(['term','phrase','tag','not','lparen'].includes(this.peek().type))n={type:'and',left:n,right:this.unary()}; return n;}
+  unary():SearchNode{if(this.peek().type==='not'){const x=this.take(); if(['eof','rparen','or'].includes(this.peek().type))throw new SearchSyntaxError({code:'MISSING_OPERAND',message:'NOT must be followed by a search expression.',position:x.position,length:x.length}); return {type:'not',child:this.unary()};}return this.primary();}
+  primary():SearchNode{const x=this.take(); if(['term','phrase','tag'].includes(x.type))return{type:x.type as 'term'|'phrase'|'tag',value:x.value!}; if(x.type==='lparen'){if(++this.depth>16)throw new SearchSyntaxError({code:'NESTING_TOO_DEEP',message:'Search groups cannot be nested more than 16 levels.',position:x.position,length:1}); if(this.peek().type==='rparen')throw new SearchSyntaxError({code:'EMPTY_GROUP',message:'Search group cannot be empty.',position:x.position,length:2}); const n=this.or(); const close=this.take(); this.depth--; if(close.type!=='rparen')throw new SearchSyntaxError({code:'UNMATCHED_OPEN_PAREN',message:'Closing parenthesis is missing.',position:x.position,length:1}); return n;} throw new SearchSyntaxError({code:'MISSING_OPERAND',message:'A search expression is required.',position:x.position,length:x.length});}
+}

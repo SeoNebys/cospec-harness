@@ -1,0 +1,441 @@
+openapi: 3.1.0
+info:
+  title: Personal Bookmark Manager API
+  version: 1.0.0
+  description: Same-origin JSON API for the approved single-user bookmark application.
+  license:
+    name: Unlicensed
+servers:
+  - url: /api
+security: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Report whether the application and database are ready.
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    const: ok
+
+  /bookmarks:
+    get:
+      operationId: listBookmarks
+      summary: List bookmarks in the full library or Read Later view.
+      parameters:
+        - name: view
+          in: query
+          schema:
+            type: string
+            enum: [all, read-later]
+            default: all
+        - name: query
+          in: query
+          schema:
+            type: string
+            maxLength: 300
+        - name: tag
+          in: query
+          description: Repeat to require every selected normalized tag.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              minLength: 1
+              maxLength: 40
+        - name: sort
+          in: query
+          schema:
+            $ref: "#/components/schemas/SortOrder"
+      responses:
+        "200":
+          description: Matching bookmarks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookmarkList"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      operationId: createBookmark
+      summary: Save a bookmark.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkInput"
+      responses:
+        "201":
+          description: Bookmark created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "409":
+          $ref: "#/components/responses/DuplicateUrl"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: "#/components/parameters/BookmarkId"
+    get:
+      operationId: getBookmark
+      summary: Get one bookmark.
+      responses:
+        "200":
+          description: Bookmark found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: replaceBookmark
+      summary: Replace editable bookmark details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkInput"
+      responses:
+        "200":
+          description: Bookmark updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/DuplicateUrl"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      operationId: deleteBookmark
+      summary: Permanently delete a bookmark after UI confirmation.
+      responses:
+        "204":
+          description: Bookmark deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /bookmarks/{bookmarkId}/reading-state:
+    parameters:
+      - $ref: "#/components/parameters/BookmarkId"
+    patch:
+      operationId: updateReadingState
+      summary: Change only the reading state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [readingState]
+              properties:
+                readingState:
+                  $ref: "#/components/schemas/ReadingState"
+      responses:
+        "200":
+          description: Reading state changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tags:
+    get:
+      operationId: listTags
+      summary: List tags currently attached to at least one bookmark.
+      responses:
+        "200":
+          description: Current tags ordered by display name
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Tag"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /page-metadata:
+    post:
+      operationId: previewPageMetadata
+      summary: Retrieve safe, best-effort title and description suggestions.
+      description: >-
+        An unavailable outcome is non-blocking and does not determine whether the
+        bookmark itself may be saved. The endpoint never returns fetched HTML.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+      responses:
+        "200":
+          description: Retrieval completed, partially completed, or safely became unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataPreview"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Metadata concurrency limit reached; manual entry remains available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    ReadingState:
+      type: string
+      enum: [untracked, to_read, read]
+
+    SortOrder:
+      type: string
+      enum: [newest, oldest, title]
+      default: newest
+
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [name, normalizedName, bookmarkCount]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        normalizedName:
+          type: string
+          minLength: 1
+          maxLength: 40
+        bookmarkCount:
+          type: integer
+          minimum: 1
+
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required:
+        [id, url, title, description, tags, readingState, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+          maxLength: 4096
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: string
+          maxLength: 2000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        readingState:
+          $ref: "#/components/schemas/ReadingState"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [url, title]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: string
+          maxLength: 2000
+          default: ""
+        tags:
+          type: array
+          maxItems: 20
+          default: []
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        readingState:
+          allOf:
+            - $ref: "#/components/schemas/ReadingState"
+          default: untracked
+        allowDuplicate:
+          type: boolean
+          default: false
+
+    BookmarkList:
+      type: object
+      additionalProperties: false
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bookmark"
+        total:
+          type: integer
+          minimum: 0
+
+    MetadataPreview:
+      type: object
+      additionalProperties: false
+      required: [requestedUrl, outcome, title, description]
+      properties:
+        requestedUrl:
+          type: string
+          format: uri
+        finalUrl:
+          type: [string, "null"]
+          format: uri
+        outcome:
+          type: string
+          enum: [complete, partial, unavailable]
+        title:
+          type: [string, "null"]
+          maxLength: 300
+        description:
+          type: [string, "null"]
+          maxLength: 1000
+        message:
+          type: string
+          maxLength: 300
+
+    FieldErrors:
+      type: object
+      additionalProperties:
+        type: string
+
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          $ref: "#/components/schemas/FieldErrors"
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+
+    DuplicateErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error, existingBookmark]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              const: DUPLICATE_URL
+            message:
+              type: string
+        existingBookmark:
+          $ref: "#/components/schemas/Bookmark"
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Bookmark not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    DuplicateUrl:
+      description: Another bookmark has the same normalized URL and confirmation is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DuplicateErrorResponse"
+    InternalError:
+      description: The operation failed without discarding previously stored data.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

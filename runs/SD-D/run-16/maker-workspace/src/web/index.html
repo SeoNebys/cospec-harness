@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-text-size="medium">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookmark Manager</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app" data-harness-ready="false">
+      <header class="topbar">
+        <h1>Bookmarks</h1>
+        <nav class="views">
+          <button data-view="normal" class="view-btn active">All</button>
+          <button data-view="unread" class="view-btn">Unread</button>
+          <button data-view="archived" class="view-btn">Archived</button>
+        </nav>
+        <div class="tools">
+          <button id="btn-saved" title="Saved searches">Saved</button>
+          <button id="btn-io" title="Import / Export">Import / Export</button>
+          <button id="btn-prefs" title="Preferences">⚙</button>
+        </div>
+      </header>
+
+      <section class="add-bar">
+        <form id="add-form">
+          <input id="add-address" type="url" placeholder="Paste a web address to save…" autocomplete="off" required />
+          <button type="submit">Save</button>
+        </form>
+        <div id="add-status" class="status"></div>
+      </section>
+
+      <section class="search-bar">
+        <input id="search-input" type="search" placeholder='Search: text, "exact phrase", #tag, AND / OR / NOT ( )' />
+        <select id="sort-select" title="Sort order">
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="title">Title</option>
+          <option value="updated">Recently updated</option>
+        </select>
+        <select id="tag-filter" title="Filter by tag"><option value="">All tags</option></select>
+      </section>
+
+      <section id="active-filter" class="active-filter" hidden></section>
+
+      <section id="bulk-bar" class="bulk-bar" hidden>
+        <span id="bulk-count">0 selected</span>
+        <button id="bulk-select-matching">Select all matching</button>
+        <input id="bulk-tag" type="text" placeholder="tag" list="tag-datalist" />
+        <button data-bulk="addTags">Add tag</button>
+        <button data-bulk="removeTags">Remove tag</button>
+        <button data-bulk="read">Mark read</button>
+        <button data-bulk="unread">Mark unread</button>
+        <button data-bulk="archive">Archive</button>
+        <button data-bulk="restore">Restore</button>
+        <button data-bulk="delete" class="danger">Delete</button>
+        <button id="bulk-clear">Clear</button>
+      </section>
+
+      <main>
+        <ul id="bookmark-list" class="bookmark-list"></ul>
+        <div id="empty-state" class="empty" hidden></div>
+      </main>
+    </div>
+
+    <datalist id="tag-datalist"></datalist>
+
+    <!-- Edit dialog -->
+    <dialog id="edit-dialog">
+      <form id="edit-form" method="dialog">
+        <h2>Edit bookmark</h2>
+        <label>Title <input id="edit-title" type="text" /></label>
+        <label>Address <input id="edit-address" type="url" /></label>
+        <label>Description <textarea id="edit-description" rows="2"></textarea></label>
+        <label>Note (Markdown) <textarea id="edit-note" rows="4"></textarea></label>
+        <label>Tags (comma-separated) <input id="edit-tags" type="text" list="tag-datalist" /></label>
+        <menu>
+          <button value="cancel" type="button" id="edit-cancel">Cancel</button>
+          <button value="save" id="edit-save">Save</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- Preferences dialog -->
+    <dialog id="prefs-dialog">
+      <form id="prefs-form" method="dialog">
+        <h2>Preferences</h2>
+        <label>Default sort
+          <select id="prefs-sort">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="title">Title</option>
+            <option value="updated">Recently updated</option>
+          </select>
+        </label>
+        <label>Items shown <input id="prefs-items" type="number" min="1" max="1000" /></label>
+        <label>Text size
+          <select id="prefs-textsize">
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </label>
+        <menu>
+          <button value="cancel" type="button" id="prefs-cancel">Cancel</button>
+          <button value="save" id="prefs-save">Save</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- Saved searches dialog -->
+    <dialog id="saved-dialog">
+      <h2>Saved searches</h2>
+      <ul id="saved-list" class="saved-list"></ul>
+      <form id="saved-form">
+        <h3>Save the current search</h3>
+        <label>Name <input id="saved-name" type="text" required /></label>
+        <label>Query <input id="saved-query" type="text" placeholder="text / #tag / AND OR NOT" /></label>
+        <label>Include tags (comma-separated) <input id="saved-include" type="text" /></label>
+        <label>Exclude tags (comma-separated) <input id="saved-exclude" type="text" /></label>
+        <menu>
+          <button type="button" id="saved-close">Close</button>
+          <button type="submit">Save search</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- Import / Export dialog -->
+    <dialog id="io-dialog">
+      <h2>Import / Export</h2>
+      <p><button id="export-btn">Download bookmarks file</button></p>
+      <p>
+        <label>Import a browser bookmark file<br /><input id="import-file" type="file" accept=".html,text/html" /></label>
+      </p>
+      <div id="io-status" class="status"></div>
+      <menu><button type="button" id="io-close">Close</button></menu>
+    </dialog>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

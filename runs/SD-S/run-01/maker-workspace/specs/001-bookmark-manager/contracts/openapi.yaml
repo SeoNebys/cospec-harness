@@ -1,0 +1,476 @@
+openapi: 3.1.0
+info:
+  title: Personal Bookmark Manager API
+  version: 1.0.0
+  license:
+    name: Private project
+    identifier: LicenseRef-Proprietary
+  description: >-
+    JSON contract for one personal bookmark collection. Authentication,
+    sharing, imports, and automatic page metadata are outside this version.
+servers:
+  - url: /api
+security: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Report application readiness
+      responses:
+        '200':
+          description: The process and database are ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ready
+  /bookmarks:
+    get:
+      operationId: listBookmarks
+      summary: List bookmarks using the selected view criteria
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Scope'
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive substring search across title, URL, notes, and tags.
+          schema:
+            type: string
+            maxLength: 200
+            default: ''
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 40
+        - name: favorite
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Sort'
+      responses:
+        '200':
+          description: Matching bookmarks and normalized applied criteria.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createBookmark
+      summary: Create an active bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookmarkInput'
+      responses:
+        '201':
+          description: Bookmark created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: An active bookmark already has the normalized address and override was not requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    patch:
+      operationId: updateBookmark
+      summary: Update bookmark content, tags, or favorite state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookmarkInput'
+      responses:
+        '200':
+          description: Bookmark updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: A changed address conflicts with another active bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteBookmark
+      summary: Permanently delete an archived bookmark
+      description: The client must present the confirmation defined by the UI contract before calling this operation.
+      responses:
+        '204':
+          description: Bookmark permanently deleted.
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: The bookmark is active and must be archived before deletion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /bookmarks/{bookmarkId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    post:
+      operationId: archiveBookmark
+      summary: Move an active bookmark to the archive
+      responses:
+        '200':
+          description: Bookmark archived.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Bookmark is already archived.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /bookmarks/{bookmarkId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    post:
+      operationId: restoreBookmark
+      summary: Return an archived bookmark to the active collection
+      responses:
+        '200':
+          description: Bookmark restored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Bookmark is already active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    NotFoundError:
+      description: Bookmark does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+    InternalError:
+      description: The request could not be completed because of an internal failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
+  schemas:
+    Scope:
+      type: string
+      enum: [active, archived]
+      default: active
+    Sort:
+      type: string
+      enum: [newest, oldest, updated, title]
+      default: newest
+    BookmarkStatus:
+      type: string
+      enum: [active, archived]
+    TagName:
+      type: string
+      minLength: 1
+      maxLength: 40
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - url
+        - title
+        - notes
+        - tags
+        - isFavorite
+        - status
+        - createdAt
+        - updatedAt
+        - archivedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        notes:
+          type: string
+          maxLength: 10000
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/TagName'
+        isFavorite:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/BookmarkStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        archivedAt:
+          type: [string, 'null']
+          format: date-time
+    BookmarkEnvelope:
+      type: object
+      additionalProperties: false
+      required: [bookmark]
+      properties:
+        bookmark:
+          $ref: '#/components/schemas/Bookmark'
+    AppliedCriteria:
+      type: object
+      additionalProperties: false
+      required: [scope, q, tag, favorite, sort]
+      properties:
+        scope:
+          $ref: '#/components/schemas/Scope'
+        q:
+          type: string
+          maxLength: 200
+        tag:
+          type: [string, 'null']
+          maxLength: 40
+        favorite:
+          type: [boolean, 'null']
+        sort:
+          $ref: '#/components/schemas/Sort'
+    BookmarkList:
+      type: object
+      additionalProperties: false
+      required: [items, total, availableTags, criteria]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bookmark'
+        total:
+          type: integer
+          minimum: 0
+        availableTags:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/TagName'
+        criteria:
+          $ref: '#/components/schemas/AppliedCriteria'
+    CreateBookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [url, title]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: Must parse as an absolute HTTP or HTTPS URL.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        notes:
+          type: string
+          maxLength: 10000
+          default: ''
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          default: []
+          items:
+            $ref: '#/components/schemas/TagName'
+        allowDuplicate:
+          type: boolean
+          default: false
+          description: True only after the user explicitly chooses to save another copy.
+    UpdateBookmarkInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: Must parse as an absolute HTTP or HTTPS URL.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        notes:
+          type: string
+          maxLength: 10000
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/TagName'
+        isFavorite:
+          type: boolean
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        details:
+          type: object
+          additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                code:
+                  const: VALIDATION_ERROR
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                code:
+                  const: BOOKMARK_NOT_FOUND
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                code:
+                  const: INTERNAL_ERROR
+    StateConflictError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+        - type: object
+          properties:
+            error:
+              type: object
+              properties:
+                code:
+                  type: string
+                  enum:
+                    - BOOKMARK_ALREADY_ACTIVE
+                    - BOOKMARK_ALREADY_ARCHIVED
+                    - BOOKMARK_NOT_ARCHIVED
+    DuplicateError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              const: DUPLICATE_BOOKMARK
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: false
+              required: [existingBookmark]
+              properties:
+                existingBookmark:
+                  $ref: '#/components/schemas/Bookmark'

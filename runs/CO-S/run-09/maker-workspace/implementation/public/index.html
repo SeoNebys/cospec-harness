@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <title>Trove — Your bookmark library</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Trove home"><span class="brand-mark" aria-hidden="true"></span><span>Trove</span></a>
+      <nav class="primary-nav" aria-label="Library">
+        <button class="nav-button active" id="nav-all" type="button">
+          <span class="nav-glyph collection-glyph" aria-hidden="true"></span><span>All bookmarks</span><span class="nav-count" id="all-count">0</span>
+        </button>
+        <button class="nav-button" id="nav-later" type="button">
+          <span class="nav-glyph later-glyph" aria-hidden="true">◷</span><span>Read later</span><span class="nav-count" id="later-count">0</span>
+        </button>
+      </nav>
+      <section class="tag-nav" aria-labelledby="tag-heading">
+        <div class="section-label" id="tag-heading">Tags</div>
+        <div id="tag-list" class="tag-list"></div>
+      </section>
+      <div class="sidebar-foot"><span class="status-dot"></span>Stored in your library</div>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow">Personal library</p>
+          <h1 id="page-title">Everything worth returning to.</h1>
+        </div>
+        <div class="avatar" aria-label="Your library">ME</div>
+      </header>
+
+      <section class="save-panel" aria-labelledby="save-heading">
+        <div class="save-heading-row">
+          <div>
+            <h2 id="save-heading">Save a link</h2>
+            <p>Paste an address and Trove will gather the useful context.</p>
+          </div>
+          <span class="capture-promise">Readable copy included</span>
+        </div>
+        <label class="url-field" for="url-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10.5 13.5a4.2 4.2 0 0 0 5.9 0l2.1-2.1a4.2 4.2 0 0 0-5.9-5.9l-1.2 1.2"/><path d="M13.5 10.5a4.2 4.2 0 0 0-5.9 0l-2.1 2.1a4.2 4.2 0 0 0 5.9 5.9l1.2-1.2"/></svg>
+          <input id="url-input" type="url" autocomplete="off" placeholder="Paste a web address…">
+          <span class="url-status" id="url-status"></span>
+        </label>
+        <div id="save-result" aria-live="polite"></div>
+      </section>
+
+      <div class="notice" id="notice" role="status" aria-live="polite"></div>
+
+      <section class="library-section" aria-labelledby="collection-title">
+        <div class="library-toolbar">
+          <div>
+            <p class="eyebrow" id="collection-kicker">Your library</p>
+            <h2 id="collection-title">All bookmarks</h2>
+          </div>
+          <label class="search-field" for="search-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="search-input" type="search" autocomplete="off" placeholder="Search titles, descriptions, and notes…">
+          </label>
+        </div>
+        <div class="result-meta"><span id="result-count">0 bookmarks</span><button class="clear-filter" id="clear-filter" type="button">Clear filter</button></div>
+        <div class="bookmark-grid" id="bookmark-list"></div>
+        <div class="empty-state" id="empty-state">
+          <span class="empty-mark" aria-hidden="true"></span>
+          <h3 id="empty-title">Your library is ready</h3>
+          <p id="empty-copy">Paste your first link above. Its useful details will appear here.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="drawer-backdrop" id="edit-backdrop" hidden>
+    <section class="edit-drawer" role="dialog" aria-modal="true" aria-labelledby="edit-heading">
+      <div class="drawer-head">
+        <div><p class="eyebrow">Bookmark details</p><h2 id="edit-heading">Edit bookmark</h2></div>
+        <button class="icon-button" id="close-edit" type="button" aria-label="Close edit form">×</button>
+      </div>
+      <p class="edit-context" id="edit-context">Update the original bookmark—no copy will be made.</p>
+      <form id="edit-form">
+        <label class="form-field">Title<input id="edit-title" required></label>
+        <label class="form-field">Description<textarea id="edit-description" rows="4"></textarea></label>
+        <label class="form-field">My note<textarea id="edit-note" rows="4" placeholder="Why did you save this?"></textarea></label>
+        <div class="form-field">
+          <span>Tags</span>
+          <div class="selected-tags" id="selected-tags"></div>
+          <div class="tag-suggestions" id="tag-suggestions"></div>
+          <div class="new-tag-row"><input id="new-tag" placeholder="Create a new tag"><button class="secondary-button" id="add-tag" type="button">Add</button></div>
+          <small id="tag-message">Choose an existing tag, or create a new one.</small>
+        </div>
+        <div class="form-actions"><button class="primary-button" type="submit">Save changes</button></div>
+      </form>
+      <div class="danger-zone"><p><strong>Remove from library</strong><br><span>This also removes its personal note and tags.</span></p><button class="danger-button" id="request-delete" type="button">Delete bookmark</button></div>
+    </section>
+  </div>
+
+  <div class="dialog-backdrop" id="delete-backdrop" hidden>
+    <section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-heading" aria-describedby="delete-copy">
+      <span class="warning-mark" aria-hidden="true">!</span>
+      <h2 id="delete-heading">Delete bookmark?</h2>
+      <p id="delete-copy">This bookmark, its personal note, and its tags will be removed from your library.</p>
+      <div class="dialog-actions"><button class="secondary-button" id="cancel-delete" type="button">Keep bookmark</button><button class="danger-button" id="confirm-delete" type="button">Delete bookmark</button></div>
+    </section>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

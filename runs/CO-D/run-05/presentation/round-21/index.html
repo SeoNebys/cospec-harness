@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --line:#e4e4e7; --muted:#71717a; --accent:#4f46e5; --bg:#fafafa; --warn:#b45309; --warnbg:#fffbeb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         color:#18181b; background:var(--bg); }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); background:#fff; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .topbar { margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ie-msg { font-size:12px; color:#047857; }
+  .wrap { max-width:760px; margin:0 auto; padding:28px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:14px 0 6px; text-transform:uppercase; letter-spacing:.03em; }
+  label:first-child { margin-top:0; }
+  input[type=text], input[type=url], textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .row { display:flex; gap:10px; }
+  .row input { flex:1; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid transparent; }
+  .btn-primary { background:var(--accent); color:#fff; padding:10px 18px; font-weight:600; font-size:14px; }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+  .fetching { color:var(--muted); font-size:13px; margin-top:8px; font-style:italic; }
+  .badurl { color:var(--warn); font-size:13px; margin-top:8px; }
+  .badurl code { background:#fef3c7; padding:1px 5px; border-radius:4px; }
+  .hidden { display:none; }
+  .fetchbox { margin-top:8px; padding:14px; background:var(--bg); border:1px dashed var(--line); border-radius:10px; }
+  .fetchbox.failed { background:var(--warnbg); border-color:#fde68a; }
+  .fetchhead { display:flex; gap:12px; align-items:center; margin-bottom:6px; }
+  .fav { width:36px; height:36px; border-radius:8px; background:var(--accent); color:#fff;
+         display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; font-size:15px; overflow:hidden; }
+  .fav .favimg { width:100%; height:100%; object-fit:contain; background:#fff; }
+  .fav .favletter { width:100%; height:100%; align-items:center; justify-content:center; }
+  .preview-img { margin-top:10px; }
+  .preview-img img { width:100%; max-width:320px; border-radius:8px; border:1px solid var(--line); display:block; }
+  .preview-img .noimg { font-size:12px; color:var(--muted); font-style:italic; }
+  .thumb { width:120px; flex-shrink:0; }
+  .thumb img { width:100%; border-radius:8px; border:1px solid var(--line); display:block; }
+  @media (max-width:560px){ .thumb { display:none; } }
+  .site { color:var(--muted); font-size:12px; }
+  .autofilled { font-size:11px; color:var(--accent); font-weight:600; }
+  .warnmsg { color:var(--warn); font-size:13px; margin-bottom:10px; }
+  .dupmsg { margin-top:10px; padding:10px 14px; border-radius:8px; font-size:13px;
+            background:#eef2ff; color:var(--accent); border:1px solid #c7d2fe; }
+  .tags-input { display:flex; flex-wrap:wrap; gap:6px; padding:8px; border:1px solid var(--line); border-radius:8px; }
+  .chip { background:#eef2ff; color:var(--accent); font-size:12px; font-weight:600; padding:4px 8px; border-radius:6px; display:flex; gap:6px; align-items:center; }
+  .chip button { background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font-size:14px; line-height:1; }
+  .tags-input input { border:none; outline:none; flex:1; min-width:120px; padding:4px; font-size:14px; }
+  .tags-wrap { position:relative; }
+  .tag-suggest { position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:20;
+    background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.08); overflow:hidden; }
+  .tag-suggest .sug { padding:8px 12px; font-size:14px; cursor:pointer; display:flex; justify-content:space-between; gap:8px; }
+  .tag-suggest .sug .used { color:var(--muted); font-size:12px; }
+  .tag-suggest .sug:hover, .tag-suggest .sug.active { background:#eef2ff; color:var(--accent); }
+  .tag-suggest .newnote { padding:8px 12px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); }
+  .list-item { display:flex; gap:14px; align-items:flex-start; padding:16px 0; border-top:1px solid var(--line); }
+  .list-item:first-child { border-top:none; }
+  .list-item .title { font-weight:600; font-size:15px; }
+  .list-item .title a { color:inherit; text-decoration:none; }
+  .list-item .note { color:#3f3f46; font-size:13px; margin-top:6px; background:var(--bg); padding:8px 10px; border-radius:6px; }
+  .note-preview { margin-top:8px; padding:10px 12px; background:var(--bg); border:1px solid var(--line); border-radius:8px; font-size:13px; color:#3f3f46; }
+  .note-preview::before { content:'Preview'; display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px; }
+  .md p { margin:.3em 0; } .md ul { margin:.3em 0; padding-left:1.2em; } .md h1,.md h2,.md h3 { margin:.4em 0; font-size:1.05em; }
+  .md code { background:#eef2ff; padding:1px 5px; border-radius:4px; font-size:.92em; }
+  .md a { color:var(--accent); }
+  .chk { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:#3f3f46; font-weight:400;
+         text-transform:none; letter-spacing:0; margin:6px 0 0; cursor:pointer; }
+  .chk input { margin-top:2px; }
+  .copybadge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:#047857;
+               background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 7px; border-radius:6px; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal.hidden { display:none; }
+  .modal-card { background:#fff; border-radius:12px; max-width:640px; width:100%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; }
+  .modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .modal-title { font-weight:700; font-size:15px; }
+  .modal-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .modal-body { padding:20px; overflow:auto; }
+  .snap-note { font-size:12px; color:var(--warn); background:var(--warnbg); border:1px solid #fde68a; padding:8px 10px; border-radius:8px; margin-bottom:14px; }
+  .snap-page { border:1px solid var(--line); border-radius:8px; padding:16px; background:#fff; }
+  .snap-page h3 { margin:0 0 6px; }
+  .pdfbox { display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:8px; padding:16px; }
+  .pdfbox .pdficon { width:44px; height:54px; background:#fee2e2; color:#b91c1c; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+  .list-item .meta { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .empty { color:var(--muted); text-align:center; padding:30px 0; font-size:14px; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); margin:0 0 4px; }
+  .tabs { display:flex; gap:4px; margin-bottom:8px; border-bottom:1px solid var(--line); }
+  .tab { background:none; border:none; padding:10px 14px; font-size:14px; color:var(--muted); font-weight:600;
+         border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .count { display:inline-block; min-width:18px; padding:0 5px; margin-left:2px; font-size:11px;
+           background:var(--bg); border-radius:9px; color:var(--muted); }
+  .tab.active .count { background:#eef2ff; color:var(--accent); }
+  .selrow { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:4px 0 8px; }
+  .selall { font-size:13px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .bulkbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; }
+  .bulkbar .bcount { font-size:13px; font-weight:700; color:var(--accent); }
+  .bulkbar .blink { font-size:12px; color:var(--accent); cursor:pointer; text-decoration:underline; background:none; border:none; }
+  .bulkbar .sep { width:1px; height:18px; background:#c7d2fe; }
+  .bulkform { display:flex; gap:6px; align-items:center; margin-top:8px; }
+  .bulkform input { padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:14px; }
+  .selbox { margin-top:4px; width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+  .item-actions { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .act { font-size:12px; padding:5px 10px; border:1px solid var(--line); background:#fff; color:#3f3f46; border-radius:6px; }
+  .act:hover { border-color:var(--accent); color:var(--accent); }
+  .act.danger:hover { border-color:#dc2626; color:#dc2626; }
+  .searchrow { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .searchrow input { flex:1; }
+  .searchhint { font-size:13px; color:var(--muted); margin:-4px 0 10px; }
+  .savedsearches { display:none; flex-wrap:wrap; gap:6px; align-items:center; margin:4px 0 10px; }
+  .sschip { display:inline-flex; align-items:center; background:#f4f4f5; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .sschip .ssapply { background:none; border:none; padding:5px 6px 5px 10px; font-size:13px; font-weight:600; color:#3f3f46; cursor:pointer; }
+  .sschip .ssapply:hover { color:var(--accent); }
+  .sschip .ssdel { background:none; border:none; padding:5px 8px; color:var(--muted); cursor:pointer; font-size:14px; }
+  .sschip .ssdel:hover { color:#dc2626; }
+  .ssadd { background:none; border:1px dashed var(--line); border-radius:7px; padding:5px 10px; font-size:12px; color:var(--accent); font-weight:600; cursor:pointer; }
+  .sslabel { font-size:12px; color:var(--muted); font-weight:600; margin-right:2px; }
+  .controls { display:flex; gap:16px; justify-content:flex-end; margin-bottom:6px; flex-wrap:wrap; }
+  .ctl { font-size:12px; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px; }
+  .ctl select { font:inherit; font-size:13px; font-weight:400; color:#18181b; padding:6px 8px; border:1px solid var(--line); border-radius:7px; background:#fff; }
+  .pager { display:flex; align-items:center; justify-content:center; gap:12px; padding:14px 0 2px; margin-top:6px; border-top:1px solid var(--line); }
+  .pager .pinfo { font-size:13px; color:var(--muted); }
+  .pager button { font-size:13px; padding:6px 14px; border:1px solid var(--line); background:#fff; color:#3f3f46; border-radius:7px; }
+  .pager button:disabled { opacity:.4; cursor:not-allowed; }
+  .pager button:not(:disabled):hover { border-color:var(--accent); color:var(--accent); }
+  .list-item .meta .chip { cursor:pointer; }
+  .list-item .meta .chip:hover { background:#e0e7ff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — exploring how saving a link should feel
+     · <button class="act" id="seed" style="margin-left:8px">Add 12 sample bookmarks (prototype helper)</button></p>
+  <div class="topbar">
+    <button class="act" id="import-btn">Import bookmarks…</button>
+    <button class="act" id="export-btn">Export bookmarks</button>
+    <input type="file" id="import-file" accept=".html,text/html" style="display:none">
+    <button class="act" id="import-sample">Import a sample file (prototype helper)</button>
+    <span class="ie-msg" id="ie-msg"></span>
+  </div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <label for="url">Paste a link</label>
+    <div class="row">
+      <input type="url" id="url" placeholder="https://…" autocomplete="off">
+    </div>
+    <div class="fetching hidden" id="fetching">Looking up the page details…</div>
+    <div class="badurl hidden" id="badurl">That doesn't look like a full link yet — a link usually starts with <code>https://</code>.</div>
+
+    <div class="dupmsg hidden" id="dupmsg">You've already saved this link. Here it is — edit it below instead of saving a second copy.</div>
+
+    <div class="fetchbox hidden" id="fetchbox">
+      <div class="warnmsg hidden" id="warnmsg">Couldn't reach that page for details — you can still save it. Add a title yourself below.</div>
+      <div class="fetchhead">
+        <div id="fav-slot"></div>
+        <div class="site" id="p-site"></div>
+        <span class="autofilled hidden" id="autofilled">✓ filled in for you — edit if you like</span>
+      </div>
+      <div class="preview-img" id="preview-img"></div>
+      <label for="p-title">Title</label>
+      <input type="text" id="p-title" placeholder="Give this link a title">
+      <label for="p-desc">Description</label>
+      <textarea id="p-desc" placeholder="A short description of the page"></textarea>
+    </div>
+
+    <label>Tags</label>
+    <div class="tags-wrap">
+      <div class="tags-input" id="tags-input">
+        <input type="text" id="tag-entry" placeholder="Type a tag and press Enter" autocomplete="off">
+      </div>
+      <div class="tag-suggest hidden" id="tag-suggest"></div>
+    </div>
+
+    <label for="note">Note — why are you saving this? <span style="font-weight:400;text-transform:none;letter-spacing:0">(simple Markdown: **bold**, *italic*, `code`, - lists, [links](https://…))</span></label>
+    <textarea id="note" placeholder="A line of context for future you…"></textarea>
+    <div class="note-preview hidden" id="note-preview"></div>
+
+    <label>Preserved copy</label>
+    <label class="chk"><input type="checkbox" id="keepcopy" checked> <span id="keepcopy-label">Keep a copy of this page I can revisit if the original changes or disappears</span></label>
+    <label class="chk"><input type="checkbox" id="iacopy"> Also request a copy on the Internet Archive</label>
+
+    <div style="margin-top:18px;">
+      <button class="btn-primary" id="save" disabled>Save bookmark</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="searchrow">
+      <input type="text" id="search" placeholder='Search this view — e.g. rome (#article OR #book), "exact phrase", NOT #book' autocomplete="off">
+      <button class="act" id="clear-search" style="display:none">Clear</button>
+    </div>
+    <div class="savedsearches" id="savedsearches"></div>
+    <div class="searchhint hidden" id="searchhint"></div>
+    <div class="controls">
+      <label class="ctl">Sort
+        <select id="sort">
+          <option value="added_desc">Date added — newest first</option>
+          <option value="added_asc">Date added — oldest first</option>
+          <option value="title_asc">Title — A to Z</option>
+          <option value="title_desc">Title — Z to A</option>
+        </select>
+      </label>
+      <label class="ctl">Show
+        <select id="pagesize">
+          <option value="10">10 per page</option>
+          <option value="25">25 per page</option>
+          <option value="50">50 per page</option>
+        </select>
+      </label>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-state="toread">To read <span class="count" id="c-toread">0</span></button>
+      <button class="tab" data-state="done">Done <span class="count" id="c-done">0</span></button>
+      <button class="tab" data-state="archived">Archived <span class="count" id="c-archived">0</span></button>
+    </div>
+    <div class="selrow" id="selrow">
+      <label class="selall"><input type="checkbox" id="selpage"> <span>Select</span></label>
+      <div class="bulkbar hidden" id="bulkbar"></div>
+    </div>
+    <div id="list"><div class="empty">Nothing saved yet.</div></div>
+    <div class="pager hidden" id="pager"></div>
+  </div>
+</div>
+
+<div class="modal hidden" id="snap-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="snap-title">Preserved copy</div>
+        <div class="modal-sub" id="snap-sub"></div>
+      </div>
+      <button class="act" id="snap-close">Close</button>
+    </div>
+    <div class="modal-body" id="snap-body"></div>
+  </div>
+</div>
+
+<script>
+// --- Simulated page-detail lookup (prototype only) -------------------------
+// In the real app this comes from the actual page. Here we fake it so the
+// client can experience the behaviour. Hosts containing "timeout" or "nometa"
+// simulate a lookup that fails, so the failure path can be experienced.
+const CANNED = {
+  "example.com": { title:"Example Domain", desc:"This domain is for use in illustrative examples in documents." },
+};
+// A simulated preview-image thumbnail (stands in for the page's real og:image).
+function previewImage(host, letter){
+  const hue=[...host].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' width='320' height='168'>
+    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0' stop-color='hsl(${hue},70%,55%)'/>
+      <stop offset='1' stop-color='hsl(${(hue+40)%360},70%,42%)'/></linearGradient></defs>
+    <rect width='320' height='168' fill='url(#g)'/>
+    <text x='160' y='95' font-size='64' fill='white' font-family='sans-serif' text-anchor='middle' opacity='0.9'>${letter}</text>
+    <text x='160' y='140' font-size='16' fill='white' font-family='sans-serif' text-anchor='middle' opacity='0.85'>${host}</text></svg>`;
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+function fakeLookup(url){
+  let host="";
+  try { host = new URL(url).hostname.replace(/^www\./,''); } catch(e){ return {ok:false, host:""}; }
+  if(/timeout|nometa|unreachable/.test(host)) return {ok:false, host};
+  const known=CANNED[host];
+  const nameGuess=host.split('.')[0].replace(/(^|\W)\w/g,c=>c.toUpperCase());
+  const letter=(host[0]||'?').toUpperCase();
+  const hasImage=!/noimage/.test(host);   // some pages provide no preview image
+  return {
+    ok:true, host,
+    title: known?known.title:(nameGuess+" — page title"),
+    desc:  known?known.desc:"A short description pulled from the page would appear here.",
+    letter,
+    favicon: `https://icons.duckduckgo.com/ip3/${host}.ico`,   // real site icon; falls back to the letter
+    image: hasImage ? previewImage(host, letter) : null
+  };
+}
+// Avatar HTML: real favicon with a letter fallback if the icon can't load.
+function favHtml(b){
+  if(b.favicon) return `<div class="fav"><img class="favimg" src="${b.favicon}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="favletter" style="display:none">${b.letter}</span></div>`;
+  return `<div class="fav"><span class="favletter" style="display:flex">${b.letter}</span></div>`;
+}
+
+// --- Minimal, safe Markdown for notes -------------------------------------
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function mdInline(s){
+  return s
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g,'$1<em>$2</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function renderMarkdown(src){
+  if(!src) return '';
+  const lines=escapeHtml(src).split(/\r?\n/);
+  let html='', inList=false;
+  for(const line of lines){
+    if(/^\s*[-*]\s+/.test(line)){
+      if(!inList){ html+='<ul>'; inList=true; }
+      html+='<li>'+mdInline(line.replace(/^\s*[-*]\s+/,''))+'</li>';
+      continue;
+    }
+    if(inList){ html+='</ul>'; inList=false; }
+    const h=line.match(/^\s*(#{1,3})\s+(.*)$/);
+    if(h) html+=`<h${h[1].length}>`+mdInline(h[2])+`</h${h[1].length}>`;
+    else if(line.trim()!=='') html+='<p>'+mdInline(line)+'</p>';
+  }
+  if(inList) html+='</ul>';
+  return html;
+}
+
+const urlEl=document.getElementById('url');
+const fetching=document.getElementById('fetching');
+const badurl=document.getElementById('badurl');
+const fetchbox=document.getElementById('fetchbox');
+const warnmsg=document.getElementById('warnmsg');
+const autofilled=document.getElementById('autofilled');
+const pTitle=document.getElementById('p-title');
+const pDesc=document.getElementById('p-desc');
+const pSite=document.getElementById('p-site');
+const favSlot=document.getElementById('fav-slot');
+const previewImgEl=document.getElementById('preview-img');
+const saveBtn=document.getElementById('save');
+let currentMeta={favicon:null, image:null};
+// Fill the icon slot and preview-image area from a bookmark-like object.
+function showMeta(m){
+  currentMeta={favicon:m.favicon||null, image:m.image||null};
+  favSlot.innerHTML=favHtml(m);
+  if(m.image) previewImgEl.innerHTML=`<img src="${m.image}" alt="preview">`;
+  else previewImgEl.innerHTML=`<div class="noimg">No preview image available for this page.</div>`;
+}
+const noteEl=document.getElementById('note');
+const notePreview=document.getElementById('note-preview');
+function updateNotePreview(){
+  const v=noteEl.value.trim();
+  if(v){ notePreview.className='note-preview md'; notePreview.innerHTML=renderMarkdown(v); notePreview.classList.remove('hidden'); }
+  else { notePreview.classList.add('hidden'); notePreview.innerHTML=''; }
+}
+noteEl.addEventListener('input', updateNotePreview);
+
+// --- Preserved copy options ------------------------------------------------
+const keepcopyEl=document.getElementById('keepcopy');
+const iacopyEl=document.getElementById('iacopy');
+const keepcopyLabel=document.getElementById('keepcopy-label');
+function isPdf(u){ return /\.pdf($|\?|#)/i.test(u); }
+function iaLink(u){ return `https://web.archive.org/web/*/${u}`; }
+function updateCopyLabel(){
+  keepcopyLabel.textContent = isPdf(urlEl.value.trim())
+    ? 'Keep a copy of this PDF I can revisit if the original changes or disappears'
+    : 'Keep a copy of this page I can revisit if the original changes or disappears';
+}
+urlEl.addEventListener('input', updateCopyLabel);
+function resetCopyOptions(){ keepcopyEl.checked=true; iacopyEl.checked=false; updateCopyLabel(); }
+
+// --- Preserved-copy viewer (modal) ----------------------------------------
+const snapModal=document.getElementById('snap-modal');
+const snapBody=document.getElementById('snap-body');
+document.getElementById('snap-close').onclick=()=>snapModal.classList.add('hidden');
+snapModal.onclick=e=>{ if(e.target===snapModal) snapModal.classList.add('hidden'); };
+function openSnapshot(b){
+  document.getElementById('snap-title').textContent=b.isPdf?'Preserved PDF':'Preserved copy';
+  document.getElementById('snap-sub').textContent=`${b.site} · kept ${b.copyDate?new Date(b.copyDate).toLocaleDateString():''}`;
+  let body=`<div class="snap-note">This is a simulated stand-in for the copy the app keeps of the page. It stays available even if the original changes or disappears.</div>`;
+  if(b.isPdf){
+    body+=`<div class="pdfbox"><div class="pdficon">PDF</div><div><div style="font-weight:600">${b.title}</div><div class="site">${b.url}</div><div style="font-size:13px;margin-top:6px">The original PDF file is preserved and would open here.</div></div></div>`;
+  } else {
+    body+=`<div class="snap-page">${b.image?`<img src="${b.image}" style="width:100%;border-radius:6px;margin-bottom:10px" alt="">`:''}<h3>${b.title}</h3><div class="site">${b.url}</div><p style="margin-top:10px;font-size:14px;color:#3f3f46">${b.desc||'The saved page content would appear here.'}</p></div>`;
+  }
+  snapBody.innerHTML=body;
+  snapModal.classList.remove('hidden');
+}
+const dupmsg=document.getElementById('dupmsg');
+let tags=[], timer=null, editingId=null;
+const saved=[];
+let nextId=1;
+let selected=new Set(), lastFiltered=[], lastPageItems=[];
+
+function normUrl(v){ try{ const u=new URL(v); return (u.hostname.replace(/^www\./,'')+u.pathname.replace(/\/$/,'')+u.search).toLowerCase(); }catch(e){ return v.trim().toLowerCase(); } }
+function findSaved(v){ const n=normUrl(v); return saved.find(b=>normUrl(b.url)===n); }
+function isValidUrl(v){ try{ new URL(v); return true; }catch(e){ return false; } }
+function refreshSave(){
+  // Saveable whenever we have a valid link — never blocked by a failed lookup.
+  saveBtn.disabled = !isValidUrl(urlEl.value.trim());
+}
+
+urlEl.addEventListener('input', ()=>{
+  clearTimeout(timer);
+  const val=urlEl.value.trim();
+  fetchbox.classList.add('hidden');
+  dupmsg.classList.add('hidden');
+  badurl.classList.add('hidden');
+  editingId=null; saveBtn.textContent='Save bookmark';
+  refreshSave();
+  if(!val){ fetching.classList.add('hidden'); return; }
+  if(!isValidUrl(val)){
+    // Not a link yet — don't pretend a page lookup failed.
+    fetching.classList.add('hidden');
+    badurl.classList.remove('hidden');
+    return;
+  }
+  // Already saved? Show the existing one for editing instead of fetching afresh.
+  const existing=isValidUrl(val) && findSaved(val);
+  if(existing){
+    fetching.classList.add('hidden');
+    editingId=existing.id;
+    dupmsg.classList.remove('hidden');
+    fetchbox.classList.remove('hidden'); fetchbox.classList.remove('failed');
+    warnmsg.classList.add('hidden'); autofilled.classList.add('hidden');
+    pTitle.value=existing.title; pDesc.value=existing.desc;
+    pSite.textContent=existing.site; showMeta(existing);
+    tags=[...existing.tags]; renderTags();
+    noteEl.value=existing.note; updateNotePreview();
+    keepcopyEl.checked=existing.keepCopy!==false; iacopyEl.checked=!!existing.ia; updateCopyLabel();
+    saveBtn.textContent='Update bookmark';
+    refreshSave();
+    return;
+  }
+  fetching.classList.remove('hidden');
+  timer=setTimeout(()=>{
+    const data=fakeLookup(val);
+    fetching.classList.add('hidden');
+    fetchbox.classList.remove('hidden');
+    if(data.ok){
+      fetchbox.classList.remove('failed');
+      warnmsg.classList.add('hidden');
+      autofilled.classList.remove('hidden');
+      pTitle.value=data.title; pDesc.value=data.desc;
+      pSite.textContent=data.host;
+      showMeta(data);
+    } else {
+      fetchbox.classList.add('failed');
+      warnmsg.classList.remove('hidden');
+      autofilled.classList.add('hidden');
+      pTitle.value=''; pDesc.value='';
+      pSite.textContent=data.host||'';
+      showMeta({ letter:(data.host[0]||'?').toUpperCase(), favicon:null, image:null });
+    }
+    refreshSave();
+  }, 700);
+});
+
+// --- Tags ------------------------------------------------------------------
+const tagEntry=document.getElementById('tag-entry');
+const tagsInput=document.getElementById('tags-input');
+const tagSuggest=document.getElementById('tag-suggest');
+let sugList=[], sugActive=-1;
+
+function tagCounts(){
+  const m=new Map();
+  saved.forEach(b=>b.tags.forEach(t=>m.set(t,(m.get(t)||0)+1)));
+  return m;
+}
+function computeSuggestions(){
+  const q=tagEntry.value.trim().toLowerCase();
+  const counts=tagCounts();
+  let all=[...counts.keys()].filter(t=>!tags.includes(t));
+  if(q) all=all.filter(t=>t.toLowerCase().includes(q));
+  all.sort((a,b)=> (counts.get(b)-counts.get(a)) || a.localeCompare(b));
+  return all.slice(0,6).map(t=>({t, n:counts.get(t)}));
+}
+function renderSuggest(){
+  sugList=computeSuggestions();
+  const q=tagEntry.value.trim();
+  const exactExists = sugList.some(s=>s.t.toLowerCase()===q.toLowerCase());
+  if(!sugList.length && !(q && !exactExists)){ tagSuggest.classList.add('hidden'); return; }
+  sugActive=-1;
+  let html=sugList.map((s,i)=>`<div class="sug" data-i="${i}">${s.t}<span class="used">used ${s.n}×</span></div>`).join('');
+  if(q && !exactExists) html+=`<div class="newnote">Press Enter to add “${q}” as a new tag</div>`;
+  tagSuggest.innerHTML=html;
+  tagSuggest.classList.remove('hidden');
+  tagSuggest.querySelectorAll('.sug').forEach(el=>el.onmousedown=e=>{ e.preventDefault(); addTag(sugList[+el.dataset.i].t); });
+}
+function addTag(t){
+  t=t.trim(); if(t && !tags.includes(t)){ tags.push(t); renderTags(); }
+  tagEntry.value=''; renderSuggest();
+}
+function highlight(){ tagSuggest.querySelectorAll('.sug').forEach((el,i)=>el.classList.toggle('active', i===sugActive)); }
+
+tagEntry.addEventListener('input', renderSuggest);
+tagEntry.addEventListener('focus', renderSuggest);
+tagEntry.addEventListener('blur', ()=>setTimeout(()=>tagSuggest.classList.add('hidden'), 120));
+tagEntry.addEventListener('keydown', e=>{
+  const open=!tagSuggest.classList.contains('hidden');
+  if(e.key==='ArrowDown' && open){ e.preventDefault(); sugActive=Math.min(sugActive+1, sugList.length-1); highlight(); }
+  else if(e.key==='ArrowUp' && open){ e.preventDefault(); sugActive=Math.max(sugActive-1, 0); highlight(); }
+  else if(e.key==='Enter'){
+    e.preventDefault();
+    if(open && sugActive>=0) addTag(sugList[sugActive].t);
+    else if(tagEntry.value.trim()) addTag(tagEntry.value);
+  }
+  else if(e.key==='Escape' && open){ tagSuggest.classList.add('hidden'); }
+  else if(e.key==='Backspace' && !tagEntry.value && tags.length){ tags.pop(); renderTags(); renderSuggest(); }
+});
+function renderTags(){
+  [...tagsInput.querySelectorAll('.chip')].forEach(c=>c.remove());
+  tags.forEach((t,i)=>{
+    const chip=document.createElement('span');
+    chip.className='chip';
+    chip.innerHTML=`${t} <button aria-label="remove">×</button>`;
+    chip.querySelector('button').onclick=()=>{ tags.splice(i,1); renderTags(); };
+    tagsInput.insertBefore(chip, tagEntry);
+  });
+}
+
+// --- Save ------------------------------------------------------------------
+const list=document.getElementById('list');
+saveBtn.addEventListener('click', ()=>{
+  const url=urlEl.value.trim();
+  if(!isValidUrl(url)) return;
+  let host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+  const title=pTitle.value.trim() || url;
+  const note=document.getElementById('note').value.trim();
+  const keepCopy=keepcopyEl.checked, ia=iacopyEl.checked, pdf=isPdf(url);
+  if(editingId){
+    const b=saved.find(x=>x.id===editingId);
+    if(b){ Object.assign(b, { url, title, desc:pDesc.value.trim(), tags:[...tags], note,
+      keepCopy, isPdf:pdf, copyDate: keepCopy?(b.copyDate||Date.now()):null,
+      ia, iaUrl: ia?(b.iaUrl||iaLink(url)):null }); }
+  } else {
+    saved.unshift({ id:nextId++, url, title, desc:pDesc.value.trim(), site:host,
+                    letter:(host[0]||'?').toUpperCase(), tags:[...tags], note,
+                    favicon:currentMeta.favicon, image:currentMeta.image,
+                    keepCopy, isPdf:pdf, copyDate: keepCopy?Date.now():null, ia, iaUrl: ia?iaLink(url):null,
+                    status:'toread', archived:false, createdAt:Date.now() });
+    currentTab='toread'; setActiveTab();
+  }
+  renderList();
+  urlEl.value=''; noteEl.value=''; updateNotePreview(); tags=[]; renderTags(); resetCopyOptions();
+  pTitle.value=''; pDesc.value=''; fetchbox.classList.add('hidden');
+  dupmsg.classList.add('hidden'); editingId=null; saveBtn.textContent='Save bookmark'; refreshSave();
+});
+// --- States, tabs & per-item actions --------------------------------------
+let currentTab='toread';
+const tabs=document.getElementById('tabs');
+tabs.addEventListener('click', e=>{
+  const t=e.target.closest('.tab'); if(!t) return;
+  currentTab=t.dataset.state; page=1; setActiveTab(); renderList();
+});
+function setActiveTab(){
+  [...tabs.querySelectorAll('.tab')].forEach(t=>t.classList.toggle('active', t.dataset.state===currentTab));
+}
+function inTab(b, tab){
+  if(tab==='archived') return b.archived;         // archived view: any status
+  return !b.archived && b.status===tab;           // normal views: not archived
+}
+function updateCounts(){
+  ['toread','done','archived'].forEach(s=>{
+    document.getElementById('c-'+s).textContent = saved.filter(b=>inTab(b,s)).length;
+  });
+}
+const STATUS_LABEL={toread:'To read', done:'Done'};
+const TAB_LABEL={toread:'To read', done:'Done', archived:'Archived'};
+const EMPTY={
+  toread:'Nothing to read right now. Saved links land here.',
+  done:'Nothing marked done yet.',
+  archived:'Nothing archived. Links you keep but tuck out of the way appear here.'
+};
+function setStatus(id,s){ const b=saved.find(x=>x.id===id); if(b){ b.status=s; renderList(); } }
+function setArchived(id,v){ const b=saved.find(x=>x.id===id); if(b){ b.archived=v; renderList(); } }
+function editSaved(id){
+  const b=saved.find(x=>x.id===id); if(!b) return;
+  urlEl.value=b.url; pTitle.value=b.title; pDesc.value=b.desc;
+  pSite.textContent=b.site; showMeta(b);
+  tags=[...b.tags]; renderTags(); noteEl.value=b.note; updateNotePreview();
+  keepcopyEl.checked=b.keepCopy!==false; iacopyEl.checked=!!b.ia; updateCopyLabel();
+  fetchbox.classList.remove('hidden','failed'); warnmsg.classList.add('hidden');
+  autofilled.classList.add('hidden'); dupmsg.classList.remove('hidden');
+  editingId=b.id; saveBtn.textContent='Update bookmark'; refreshSave();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function deleteSaved(id){ const i=saved.findIndex(x=>x.id===id); if(i>=0){ saved.splice(i,1); renderList(); } }
+
+// --- Search query language ------------------------------------------------
+// Grammar (precedence: NOT > AND > OR; adjacent terms imply AND):
+//   expr   := or
+//   or     := and (OR and)*
+//   and    := not ( (AND)? not )*        // implicit AND between adjacent terms
+//   not    := NOT not | primary
+//   primary:= '(' expr ')' | #tag | "phrase" | word
+// A term is either a #tag (exact tag match) or text (substring in title,
+// link, description, note), case-insensitive.
+function tokenize(s){
+  const toks=[]; let i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(/\s/.test(c)){ i++; continue; }
+    if(c==='('){ toks.push({t:'('}); i++; continue; }
+    if(c===')'){ toks.push({t:')'}); i++; continue; }
+    if(c==='"'){ let j=i+1; let v=''; while(j<s.length && s[j]!=='"'){ v+=s[j++]; } i=j+1; toks.push({t:'term', kind:'text', v:v.toLowerCase()}); continue; }
+    if(c==='#'){ let j=i+1; let v=''; while(j<s.length && /[^\s()]/.test(s[j])){ v+=s[j++]; } i=j; toks.push({t:'term', kind:'tag', v:v.toLowerCase()}); continue; }
+    // bare word (until whitespace or paren)
+    let j=i; let v=''; while(j<s.length && /[^\s()]/.test(s[j])){ v+=s[j++]; } i=j;
+    const up=v.toUpperCase();
+    if(up==='AND'||up==='OR'||up==='NOT'){ toks.push({t:up}); }  // operators are case-insensitive when unquoted
+    else { toks.push({t:'term', kind:'text', v:v.toLowerCase()}); }
+  }
+  return toks;
+}
+function parseQuery(toks){
+  let p=0;
+  const peek=()=>toks[p];
+  const isTermStart=()=>{ const k=peek(); return k && (k.t==='term'||k.t==='('||k.t==='NOT'); };
+  function parseOr(){
+    let node=parseAnd();
+    while(peek() && peek().t==='OR'){ p++; node={op:'or', l:node, r:parseAnd()}; }
+    return node;
+  }
+  function parseAnd(){
+    let node=parseNot();
+    while(peek() && (peek().t==='AND' || (peek().t!=='OR' && peek().t!==')' && isTermStart()))){
+      if(peek().t==='AND') p++;
+      node={op:'and', l:node, r:parseNot()};
+    }
+    return node;
+  }
+  function parseNot(){
+    if(peek() && peek().t==='NOT'){ p++; return {op:'not', c:parseNot()}; }
+    return parsePrimary();
+  }
+  function parsePrimary(){
+    const k=peek();
+    if(!k) throw new Error('unexpected end');
+    if(k.t==='('){ p++; const n=parseOr(); if(!peek()||peek().t!==')') throw new Error('missing )'); p++; return n; }
+    if(k.t==='term'){ p++; return {op:'term', kind:k.kind, v:k.v}; }
+    throw new Error('unexpected '+k.t);
+  }
+  const tree=parseOr();
+  if(p!==toks.length) throw new Error('trailing input');
+  return tree;
+}
+function evalNode(node, b){
+  switch(node.op){
+    case 'or':  return evalNode(node.l,b) || evalNode(node.r,b);
+    case 'and': return evalNode(node.l,b) && evalNode(node.r,b);
+    case 'not': return !evalNode(node.c,b);
+    case 'term':
+      if(node.kind==='tag') return b.tags.some(t=>t.toLowerCase()===node.v);
+      const hay=[b.title, b.url, b.desc, b.note].join(' ').toLowerCase();
+      return hay.includes(node.v);
+  }
+  return false;
+}
+
+const searchEl=document.getElementById('search');
+const clearBtn=document.getElementById('clear-search');
+const searchHint=document.getElementById('searchhint');
+let query='', predicate=null, queryError=false;
+function compileQuery(){
+  queryError=false; predicate=null;
+  const raw=query.trim();
+  if(!raw) return;
+  try { const tree=parseQuery(tokenize(raw)); predicate=b=>evalNode(tree,b); }
+  catch(e){ queryError=true; }
+}
+searchEl.addEventListener('input', ()=>{ query=searchEl.value; page=1;
+  clearBtn.style.display = query.trim()? 'inline-block':'none'; compileQuery(); renderList(); });
+clearBtn.addEventListener('click', ()=>{ searchEl.value=''; query=''; compileQuery(); clearBtn.style.display='none'; searchEl.focus(); renderList(); });
+
+// --- Sorting, paging & remembered preferences -----------------------------
+const sortEl=document.getElementById('sort');
+const sizeEl=document.getElementById('pagesize');
+const pager=document.getElementById('pager');
+let sortKey='added_desc', pageSize=10, page=1;
+// Remember preferred sort and page size across visits.
+try {
+  const p=JSON.parse(localStorage.getItem('bm_prefs')||'{}');
+  if(p.sortKey) sortKey=p.sortKey;
+  if(p.pageSize) pageSize=+p.pageSize;
+} catch(e){}
+sortEl.value=sortKey; sizeEl.value=String(pageSize);
+function savePrefs(){ try{ localStorage.setItem('bm_prefs', JSON.stringify({sortKey, pageSize})); }catch(e){} }
+sortEl.addEventListener('change', ()=>{ sortKey=sortEl.value; page=1; savePrefs(); renderList(); });
+sizeEl.addEventListener('change', ()=>{ pageSize=+sizeEl.value; page=1; savePrefs(); renderList(); });
+function sortItems(arr){
+  const a=[...arr];
+  switch(sortKey){
+    case 'added_asc':  a.sort((x,y)=> x.createdAt-y.createdAt || x.id-y.id); break;
+    case 'title_asc':  a.sort((x,y)=> x.title.localeCompare(y.title, undefined, {sensitivity:'base'})); break;
+    case 'title_desc': a.sort((x,y)=> y.title.localeCompare(x.title, undefined, {sensitivity:'base'})); break;
+    default:           a.sort((x,y)=> y.createdAt-x.createdAt || y.id-x.id); // added_desc
+  }
+  return a;
+}
+
+function renderPager(total, totalPages, start, shown){
+  if(total<=pageSize){ pager.classList.add('hidden'); return; }
+  pager.classList.remove('hidden');
+  pager.innerHTML=`
+    <button ${page<=1?'disabled':''} data-nav="prev">‹ Previous</button>
+    <span class="pinfo">Showing ${start+1}–${start+shown} of ${total} · page ${page} of ${totalPages}</span>
+    <button ${page>=totalPages?'disabled':''} data-nav="next">Next ›</button>`;
+  pager.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    page += btn.dataset.nav==='next'? 1 : -1; renderList();
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+}
+
+// --- Saved searches --------------------------------------------------------
+let savedSearches=[];
+try{ savedSearches=JSON.parse(localStorage.getItem('bm_searches')||'[]'); }catch(e){}
+let ssId = savedSearches.reduce((m,s)=>Math.max(m,s.id),0)+1;
+const ssRow=document.getElementById('savedsearches');
+function persistSearches(){ try{ localStorage.setItem('bm_searches', JSON.stringify(savedSearches)); }catch(e){} }
+function applySavedSearch(s){
+  currentTab=s.view; setActiveTab();
+  searchEl.value=s.query; query=s.query; compileQuery();
+  clearBtn.style.display = s.query.trim()?'inline-block':'none';
+  page=1; renderList();
+}
+function renderSavedSearches(){
+  let html = savedSearches.length ? `<span class="sslabel">Saved searches:</span>` : '';
+  html += savedSearches.map(s=>
+    `<span class="sschip" data-id="${s.id}"><button class="ssapply" title="${s.query} · in ${TAB_LABEL[s.view]}">${s.name}</button><button class="ssdel" aria-label="remove">×</button></span>`).join('');
+  const q=query.trim();
+  const canSave = q!=='' && !queryError && !savedSearches.some(s=>s.query===q && s.view===currentTab);
+  if(canSave) html += `<button class="ssadd" id="ssadd">＋ Save this search</button>`;
+  ssRow.innerHTML=html;
+  ssRow.style.display = html? 'flex':'none';
+  ssRow.querySelectorAll('.sschip').forEach(chip=>{
+    const id=+chip.dataset.id;
+    chip.querySelector('.ssapply').onclick=()=>applySavedSearch(savedSearches.find(s=>s.id===id));
+    chip.querySelector('.ssdel').onclick=()=>{ savedSearches=savedSearches.filter(s=>s.id!==id); persistSearches(); renderSavedSearches(); };
+  });
+  const add=document.getElementById('ssadd');
+  if(add) add.onclick=promptSaveSearch;
+}
+function promptSaveSearch(){
+  const old=ssRow.querySelector('.bulkform'); if(old) old.remove();
+  const form=document.createElement('div'); form.className='bulkform';
+  form.innerHTML=`<input type="text" placeholder="Name this search" value="${query.trim().slice(0,40)}">
+                  <button class="act" data-ok>Save</button><button class="act" data-cancel>Cancel</button>`;
+  ssRow.appendChild(form);
+  const inp=form.querySelector('input'); inp.focus(); inp.select();
+  const ok=()=>{ const name=inp.value.trim(); if(!name){ form.remove(); return; }
+    savedSearches.push({id:ssId++, name, query:query.trim(), view:currentTab});
+    persistSearches(); renderSavedSearches();
+  };
+  form.querySelector('[data-ok]').onclick=ok;
+  form.querySelector('[data-cancel]').onclick=()=>form.remove();
+  inp.onkeydown=e=>{ if(e.key==='Enter') ok(); if(e.key==='Escape') form.remove(); };
+}
+
+function renderList(){
+  updateCounts();
+  renderSavedSearches();
+  const inView=saved.filter(b=>inTab(b,currentTab));   // search stays within the current view
+  const searching=!!query.trim();
+  let items=inView;
+  if(searching){
+    searchHint.classList.remove('hidden');
+    if(queryError){
+      searchHint.textContent='Couldn’t read that search. Check quotes and parentheses.';
+      list.innerHTML=''; pager.classList.add('hidden');
+      lastFiltered=[]; lastPageItems=[]; syncSelPage(); renderBulkBar(); return;
+    }
+    items=inView.filter(predicate);
+    searchHint.textContent = items.length
+      ? `${items.length} match${items.length===1?'':'es'} in ${TAB_LABEL[currentTab]}`
+      : `No matches in ${TAB_LABEL[currentTab]}.`;
+  } else {
+    searchHint.classList.add('hidden');
+    if(!items.length){ list.innerHTML=`<div class="empty">${EMPTY[currentTab]}</div>`; pager.classList.add('hidden');
+      lastFiltered=[]; lastPageItems=[]; syncSelPage(); renderBulkBar(); return; }
+  }
+  if(searching && !items.length){ list.innerHTML=''; pager.classList.add('hidden');
+    lastFiltered=[]; lastPageItems=[]; syncSelPage(); renderBulkBar(); return; }
+  // Sort, then show one page at a time.
+  items=sortItems(items);
+  const totalPages=Math.max(1, Math.ceil(items.length/pageSize));
+  if(page>totalPages) page=totalPages;
+  const start=(page-1)*pageSize;
+  const pageItems=items.slice(start, start+pageSize);
+  lastFiltered=items; lastPageItems=pageItems;
+  renderPager(items.length, totalPages, start, pageItems.length);
+  list.innerHTML='';
+  pageItems.forEach(b=>{
+    const el=document.createElement('div');
+    el.className='list-item';
+    const tagsHtml=b.tags.map(t=>`<span class="chip" data-tag="${t}">${t}</span>`).join('');
+    let moves='';
+    if(currentTab==='archived'){
+      // In archive: show its remembered status, and restore it to that status.
+      moves+=`<span class="chip" style="background:#f4f4f5;color:#71717a">${STATUS_LABEL[b.status]}</span>`;
+      moves+=`<button class="act" data-act="restore">Restore</button>`;
+    } else {
+      if(b.status!=='done')   moves+=`<button class="act" data-act="done">Mark done</button>`;
+      if(b.status!=='toread') moves+=`<button class="act" data-act="toread">Move to To read</button>`;
+      moves+=`<button class="act" data-act="archive">Archive</button>`;
+    }
+    el.innerHTML=`
+      <input type="checkbox" class="selbox" ${selected.has(b.id)?'checked':''}>
+      ${favHtml(b)}
+      <div style="flex:1">
+        <div class="title"><a href="${b.url}" target="_blank" rel="noopener">${b.title}</a></div>
+        <div class="site">${b.site}</div>
+        ${b.note?`<div class="note md">${renderMarkdown(b.note)}</div>`:''}
+        <div class="meta">${tagsHtml}</div>
+        <div class="item-actions">
+          ${moves}
+          ${b.keepCopy?`<button class="act" data-act="copy">${b.isPdf?'Saved PDF':'Saved copy'}</button>`:''}
+          ${b.ia?`<a class="act" href="${b.iaUrl}" target="_blank" rel="noopener">Internet Archive ↗</a>`:''}
+          <button class="act" data-act="edit">Edit</button>
+          <button class="act danger" data-act="delete">Delete</button>
+        </div>
+      </div>
+      ${b.image?`<div class="thumb"><img src="${b.image}" alt=""></div>`:''}`;
+    el.querySelectorAll('.act[data-act]').forEach(btn=>btn.onclick=()=>{
+      const a=btn.dataset.act;
+      if(a==='edit') editSaved(b.id);
+      else if(a==='delete') deleteSaved(b.id);
+      else if(a==='copy') openSnapshot(b);
+      else if(a==='archive') setArchived(b.id, true);
+      else if(a==='restore') setArchived(b.id, false);
+      else setStatus(b.id, a);   // 'toread' | 'done'
+    });
+    el.querySelector('.selbox').onchange=e=>{
+      if(e.target.checked) selected.add(b.id); else selected.delete(b.id);
+      renderBulkBar(); syncSelPage();
+    };
+    el.querySelectorAll('.meta .chip').forEach(chip=>chip.onclick=()=>{
+      searchEl.value='#'+chip.dataset.tag; query=searchEl.value;
+      clearBtn.style.display='inline-block'; compileQuery(); renderList();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    list.appendChild(el);
+  });
+  syncSelPage(); renderBulkBar();
+}
+
+// --- Bulk selection & actions ---------------------------------------------
+const selpage=document.getElementById('selpage');
+const bulkbar=document.getElementById('bulkbar');
+selpage.addEventListener('change', ()=>{
+  const ids=lastPageItems.map(b=>b.id);
+  if(selpage.checked) ids.forEach(id=>selected.add(id));
+  else ids.forEach(id=>selected.delete(id));
+  renderList();
+});
+function syncSelPage(){
+  const ids=lastPageItems.map(b=>b.id);
+  const allSel = ids.length>0 && ids.every(id=>selected.has(id));
+  selpage.checked=allSel;
+  selpage.indeterminate = !allSel && ids.some(id=>selected.has(id));
+}
+function clearSelection(){ selected.clear(); renderList(); }
+function selectedBookmarks(){ return saved.filter(b=>selected.has(b.id)); }
+function renderBulkBar(){
+  if(!selected.size){ bulkbar.classList.add('hidden'); bulkbar.innerHTML=''; return; }
+  bulkbar.classList.remove('hidden');
+  const matching=lastFiltered.length;
+  const canSelectAll = matching>0 && lastFiltered.some(b=>!selected.has(b.id));
+  const archivedView = currentTab==='archived';
+  bulkbar.innerHTML=`
+    <span class="bcount">${selected.size} selected</span>
+    ${canSelectAll?`<button class="blink" data-b="all">Select all ${matching} in this view</button>`:''}
+    <button class="blink" data-b="clear">Clear</button>
+    <span class="sep"></span>
+    <button class="act" data-b="addtag">Add tag…</button>
+    <button class="act" data-b="removetag">Remove tag…</button>
+    <button class="act" data-b="toread">Mark unread</button>
+    <button class="act" data-b="done">Mark read</button>
+    ${archivedView
+      ? `<button class="act" data-b="restore">Restore</button>`
+      : `<button class="act" data-b="archive">Archive</button>`}
+    <button class="act danger" data-b="delete">Delete</button>`;
+  bulkbar.querySelectorAll('[data-b]').forEach(btn=>btn.onclick=()=>bulkAction(btn.dataset.b));
+}
+function bulkAction(a){
+  const sel=selectedBookmarks();
+  switch(a){
+    case 'all': lastFiltered.forEach(b=>selected.add(b.id)); renderList(); return;
+    case 'clear': clearSelection(); return;
+    case 'toread': sel.forEach(b=>b.status='toread'); break;
+    case 'done':   sel.forEach(b=>b.status='done'); break;
+    case 'archive':sel.forEach(b=>b.archived=true); break;
+    case 'restore':sel.forEach(b=>b.archived=false); break;
+    case 'delete':
+      if(!confirm(`Delete ${sel.length} bookmark${sel.length===1?'':'s'} permanently?`)) return;
+      sel.forEach(b=>{ const i=saved.findIndex(x=>x.id===b.id); if(i>=0) saved.splice(i,1); });
+      selected.clear(); break;
+    case 'addtag': return promptBulkTag('add');
+    case 'removetag': return promptBulkTag('remove');
+  }
+  selected.clear();   // reset selection once the action is applied
+  renderList();
+}
+function promptBulkTag(mode){
+  const existing=bulkbar.parentElement.querySelector('.bulkform');
+  if(existing) existing.remove();
+  const form=document.createElement('div');
+  form.className='bulkform';
+  form.innerHTML=`<input type="text" placeholder="${mode==='add'?'Tag to add to':'Tag to remove from'} ${selected.size} selected">
+                  <button class="act" data-ok>${mode==='add'?'Add':'Remove'}</button>
+                  <button class="act" data-cancel>Cancel</button>`;
+  bulkbar.parentElement.appendChild(form);
+  const inp=form.querySelector('input'); inp.focus();
+  const apply=()=>{
+    const t=inp.value.trim(); if(!t){ form.remove(); return; }
+    selectedBookmarks().forEach(b=>{
+      if(mode==='add'){ if(!b.tags.includes(t)) b.tags.push(t); }
+      else { b.tags=b.tags.filter(x=>x!==t); }
+    });
+    selected.clear(); form.remove(); renderList();
+  };
+  form.querySelector('[data-ok]').onclick=apply;
+  form.querySelector('[data-cancel]').onclick=()=>form.remove();
+  inp.onkeydown=e=>{ if(e.key==='Enter') apply(); if(e.key==='Escape') form.remove(); };
+}
+
+// --- Prototype helper: seed sample bookmarks ------------------------------
+document.getElementById('seed').addEventListener('click', ()=>{
+  const words=['rome','venice','recipes','javascript','garden','history','coffee','design','ml','budget','music','hiking'];
+  const tagsets=[['travel','article'],['travel','book'],['cooking'],['dev','article'],['home'],['book'],['article'],['dev','design'],['dev','article'],['finance'],['music'],['travel']];
+  words.forEach((w,i)=>{
+    const L=w[0].toUpperCase();
+    saved.unshift({ id:nextId++, url:`https://example.com/${w}`, title:`${L+w.slice(1)} — a page about ${w}`,
+      desc:`Notes and reference material about ${w}.`, site:'example.com', letter:L,
+      favicon:`https://icons.duckduckgo.com/ip3/example.com.ico`, image: i%5===0?null:previewImage('example.com/'+w, L),
+      tags:tagsets[i], note:i%3===0?`Saved because I want to revisit **${w}** later.`:'',
+      keepCopy:true, isPdf: w==='budget', copyDate:Date.now()-(words.length-i)*86400000,
+      ia: i%6===0, iaUrl: i%6===0?`https://web.archive.org/web/*/https://example.com/${w}`:null,
+      status: i%4===0?'done':'toread', archived:false, createdAt:Date.now()-(words.length-i)*86400000 });
+  });
+  currentTab='toread'; page=1; setActiveTab(); renderList();
+});
+
+// --- Import / export in standard bookmark HTML ----------------------------
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function exportHtml(){
+  let out='<!DOCTYPE NETSCAPE-Bookmark-file-1>\n'+
+    '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n'+
+    '<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n';
+  saved.forEach(b=>{
+    const add=Math.floor((b.createdAt||Date.now())/1000);
+    out+=`    <DT><A HREF="${escAttr(b.url)}" ADD_DATE="${add}"`+
+         `${b.tags.length?` TAGS="${escAttr(b.tags.join(','))}"`:''}>${escAttr(b.title)}</A>\n`;
+    if(b.note) out+=`    <DD>${escAttr(b.note)}\n`;
+  });
+  out+='</DL><p>\n';
+  return out;
+}
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const blob=new Blob([exportHtml()],{type:'text/html'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='bookmarks.html'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+  document.getElementById('ie-msg').textContent=`Exported ${saved.length} bookmark${saved.length===1?'':'s'}.`;
+});
+function importHtml(text){
+  const doc=new DOMParser().parseFromString(text,'text/html');
+  const anchors=[...doc.querySelectorAll('a[href]')];
+  let added=0, skipped=0;
+  anchors.forEach(a=>{
+    const url=a.getAttribute('href'); if(!/^https?:/i.test(url||'')) return;
+    if(findSaved(url)){ skipped++; return; }
+    const addAttr=a.getAttribute('add_date');
+    const created= addAttr? parseInt(addAttr,10)*1000 : Date.now();
+    const tagsAttr=a.getAttribute('tags')||'';
+    const tgs= tagsAttr? tagsAttr.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    const dt=a.closest('dt'); const sib=dt&&dt.nextElementSibling;
+    const note=(sib && sib.tagName==='DD') ? sib.textContent.trim() : '';
+    let host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+    saved.push({ id:nextId++, url, title:(a.textContent.trim()||url), desc:'', site:host,
+      letter:(host[0]||'?').toUpperCase(), favicon:`https://icons.duckduckgo.com/ip3/${host}.ico`, image:null,
+      tags:tgs, note, keepCopy:true, isPdf:isPdf(url), copyDate:Date.now(), ia:false, iaUrl:null,
+      status:'toread', archived:false, createdAt:created });
+    added++;
+  });
+  return {added, skipped};
+}
+document.getElementById('import-btn').addEventListener('click', ()=>document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const {added, skipped}=importHtml(reader.result);
+    currentTab='toread'; page=1; setActiveTab(); renderList();
+    document.getElementById('ie-msg').textContent=
+      `Imported ${added} bookmark${added===1?'':'s'}`+(skipped?`, skipped ${skipped} already saved.`:'.');
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+
+// Prototype helper: import a canned sample bookmark file (new URLs, old dates, tags).
+document.getElementById('import-sample').addEventListener('click', ()=>{
+  const sample=`<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<TITLE>Bookmarks</TITLE><H1>Bookmarks</H1>
+<DL><p>
+  <DT><A HREF="https://en.wikipedia.org/wiki/Roman_Empire" ADD_DATE="1577836800" TAGS="history,reading">Roman Empire — Wikipedia</A>
+  <DD>Imported note about the **Roman Empire**
+  <DT><A HREF="https://developer.mozilla.org/" ADD_DATE="1609459200" TAGS="dev,reference">MDN Web Docs</A>
+  <DT><A HREF="https://example.org/recipes.pdf" ADD_DATE="1640995200" TAGS="cooking">Family Recipes (PDF)</A>
+</DL><p>`;
+  const {added, skipped}=importHtml(sample);
+  currentTab='toread'; page=1; setActiveTab(); renderList();
+  document.getElementById('ie-msg').textContent=
+    `Imported ${added} bookmark${added===1?'':'s'}`+(skipped?`, skipped ${skipped} already saved.`:'.');
+});
+
+renderList();
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>
+</content>

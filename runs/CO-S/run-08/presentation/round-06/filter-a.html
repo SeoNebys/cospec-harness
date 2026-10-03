@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — topic filter A (chips)</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e4e7ec; --text:#1a1d23; --muted:#6b7280; --accent:#2563eb; --accent-soft:#eff4ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:880px; margin:0 auto; padding:24px; }
+  .search-card { margin-bottom:14px; }
+  #search { font-size:15px; padding:12px 14px; border:1px solid var(--line); border-radius:8px; width:100%; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px; }
+  .chip { background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:20px; padding:6px 14px; font-size:13px; cursor:pointer; }
+  .chip:hover { border-color:var(--accent); }
+  .chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .topic-group { margin-bottom:26px; }
+  .topic-head { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+  .topic-count { background:var(--accent-soft); color:var(--accent); border-radius:20px; padding:1px 9px; font-size:11px; font-weight:600; }
+  .bm { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
+  .bm a { color:var(--accent); text-decoration:none; font-weight:600; font-size:15px; } .bm a:hover { text-decoration:underline; }
+  .bm .url { color:var(--muted); font-size:12px; margin-top:2px; word-break:break-all; }
+  .empty { text-align:center; color:var(--muted); padding:50px 20px; background:var(--card); border:1px dashed var(--line); border-radius:12px; }
+</style>
+</head>
+<body>
+<header><h1>My Bookmarks</h1><p>Variant A — pick a topic from the chips.</p></header>
+<div class="wrap">
+  <div class="search-card"><input id="search" type="text" placeholder="Search your links…" /></div>
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+</div>
+<script>
+  const seed = [
+    { url:"https://www.smashingmagazine.com/", title:"Smashing Magazine", topic:"Design" },
+    { url:"https://css-tricks.com/", title:"CSS-Tricks", topic:"Design" },
+    { url:"https://refactoring.guru/", title:"Refactoring Guru", topic:"Development" },
+    { url:"https://www.bbcgoodfood.com/", title:"BBC Good Food", topic:"Recipes" },
+  ];
+  let bookmarks = seed.slice();
+  let activeTopic = "All";
+  function escapeHtml(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+  function escapeAttr(s){return escapeHtml(s).replace(/"/g,"&quot;");}
+  function allTopics(){return [...new Set(bookmarks.map(b=>b.topic||"Untitled topic"))].sort((a,b)=>a.localeCompare(b));}
+  function renderChips(){
+    const c=document.getElementById("chips"); c.innerHTML="";
+    ["All",...allTopics()].forEach(t=>{
+      const el=document.createElement("button");
+      el.className="chip"+(t===activeTopic?" active":""); el.textContent=t;
+      el.onclick=()=>{activeTopic=t; renderChips(); render();};
+      c.appendChild(el);
+    });
+  }
+  function render(){
+    const list=document.getElementById("list"); list.innerHTML="";
+    const q=document.getElementById("search").value.trim().toLowerCase();
+    let matches=bookmarks.filter(b=>activeTopic==="All"||(b.topic||"Untitled topic")===activeTopic);
+    if(q) matches=matches.filter(b=>(b.title||"").toLowerCase().includes(q)||(b.url||"").toLowerCase().includes(q)||(b.topic||"").toLowerCase().includes(q));
+    if(matches.length===0){ list.innerHTML='<div class="empty">No links to show here.</div>'; return; }
+    const topics={}; matches.forEach(b=>{(topics[b.topic||"Untitled topic"]||=[]).push(b);});
+    Object.keys(topics).sort((a,b)=>a.localeCompare(b)).forEach(topic=>{
+      const g=document.createElement("div"); g.className="topic-group";
+      g.innerHTML=`<h2 class="topic-head">${escapeHtml(topic)} <span class="topic-count">${topics[topic].length}</span></h2>`;
+      topics[topic].forEach(b=>{ const el=document.createElement("div"); el.className="bm";
+        el.innerHTML=`<a href="${escapeAttr(b.url)}" target="_blank" rel="noopener">${escapeHtml(b.title||b.url)}</a><div class="url">${escapeHtml(b.url)}</div>`; g.appendChild(el); });
+      list.appendChild(g);
+    });
+  }
+  document.getElementById("search").addEventListener("input",render);
+  renderChips(); render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+import{NextRequest,NextResponse}from"next/server";import{saveSearch,deleteSearch}from"@/server/services/saved-search-service";
+export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){try{return NextResponse.json({id:saveSearch(await req.json(),(await params).id)});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Could not update"},{status:422});}}export async function DELETE(_:NextRequest,{params}:{params:Promise<{id:string}>}){return new NextResponse(null,{status:deleteSearch((await params).id)?204:404});}

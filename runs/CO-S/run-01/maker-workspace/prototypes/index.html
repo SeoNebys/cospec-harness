@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1c2430; --muted: #6b7683;
+    --line: #e3e7ec; --accent: #2f6fed; --accent-soft: #eaf1fe;
+    --chip: #eef1f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.45;
+  }
+  header.app {
+    padding: 18px 20px; border-bottom: 1px solid var(--line); background: var(--card);
+    position: sticky; top: 0; z-index: 5;
+  }
+  header.app h1 { margin: 0; font-size: 20px; }
+  header.app p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px; }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 22px;
+  }
+  .panel h2 { margin: 0 0 14px; font-size: 15px; }
+
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input[type=text], input[type=url], textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row-url { display: flex; gap: 8px; }
+  .row-url input { flex: 1; }
+
+  .fetch-state { font-size: 13px; margin-top: 8px; min-height: 18px; }
+  .fetch-state.loading { color: var(--muted); }
+  .fetch-state.done { color: #2f8a4e; }
+  .fetch-state.error { color: #c0392b; }
+
+  .meta-preview {
+    margin-top: 12px; padding: 12px; border: 1px dashed var(--line);
+    border-radius: 8px; background: #fbfcfd; display: none;
+  }
+  .meta-preview.show { display: block; }
+  .meta-preview .site { font-size: 12px; color: var(--muted); }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid transparent;
+    padding: 10px 16px; font-size: 14px;
+  }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:disabled { background: #b9cdf7; cursor: not-allowed; }
+  button.ghost { background: #fff; border-color: var(--line); color: var(--ink); }
+
+  .actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+  .save-flash { color: #2f8a4e; font-size: 13px; }
+
+  .list-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .count { color: var(--muted); font-size: 13px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 24px 4px; text-align: center; }
+  .search-box { margin: 6px 0 4px; }
+  .sr-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .match { background: #fff3bf; border-radius: 3px; }
+
+  .bm {
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-top: 12px;
+  }
+  .bm .title { font-size: 15px; font-weight: 600; }
+  .bm .url { font-size: 12px; color: var(--muted); word-break: break-all; margin-top: 2px; }
+  .bm .desc { font-size: 13px; color: #45505d; margin-top: 6px; }
+  .bm .note { font-size: 13px; margin-top: 8px; padding: 8px 10px; background: #fffbe9; border-radius: 6px; }
+  .chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: #435; }
+
+  .mode-banner { display: none; margin: 4px 0 6px; padding: 10px 12px; border-radius: 8px;
+    font-size: 13px; background: #fff5e6; border: 1px solid #f2d9a8; color: #7a5b16; }
+  .mode-banner.show { display: block; }
+  .bm.highlight { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .views { display: flex; gap: 6px; margin: 4px 0 10px; }
+  .view-btn { background: #fff; border: 1px solid var(--line); color: var(--muted);
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; }
+  .view-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .vcount { font-size: 12px; opacity: .8; }
+
+  .bm-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .bm-actions button { font-size: 12px; padding: 5px 10px; background: #fff;
+    border: 1px solid var(--line); color: var(--ink); }
+  .bm-actions button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .bm-actions button.danger-ghost { color: #c0392b; }
+  .bm-actions button.danger { background: #c0392b; border-color: #c0392b; color: #fff; }
+  .confirm-text { font-size: 12px; color: #c0392b; align-self: center; margin-right: 2px; }
+  .bm.is-later { border-left: 3px solid var(--accent); }
+  .bm .flag { display: inline-block; font-size: 11px; color: var(--accent);
+    background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<header class="app">
+  <h1>Bookmarks</h1>
+  <p>Prototype — save flow</p>
+</header>
+
+<main>
+  <section class="panel" aria-label="Add a bookmark">
+    <h2 id="formHeading">Save a link</h2>
+    <div class="mode-banner" id="modeBanner"></div>
+
+    <label for="url">Paste a link</label>
+    <div class="row-url">
+      <input id="url" type="url" placeholder="https://…" autocomplete="off" />
+      <button class="ghost" id="fetchBtn" type="button">Get details</button>
+    </div>
+    <div class="fetch-state" id="fetchState"></div>
+
+    <div class="meta-preview" id="metaPreview">
+      <div class="site" id="pSite"></div>
+      <label for="title">Title</label>
+      <input id="title" type="text" />
+      <label for="desc">Description</label>
+      <textarea id="desc"></textarea>
+
+      <label for="tags">Tags (comma separated) — optional</label>
+      <input id="tags" type="text" placeholder="e.g. design, to-read" />
+
+      <label for="note">Note — optional</label>
+      <textarea id="note" placeholder="Why you saved it…"></textarea>
+
+      <div class="actions">
+        <button class="primary" id="saveBtn" type="button">Save bookmark</button>
+        <span class="save-flash" id="saveFlash"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Saved bookmarks">
+    <div class="list-head">
+      <h2>Saved</h2>
+      <span class="count" id="count">0 saved</span>
+    </div>
+    <div class="views" role="tablist" aria-label="Which bookmarks to show">
+      <button class="view-btn active" data-view="all" type="button">All <span class="vcount" id="vc-all"></span></button>
+      <button class="view-btn" data-view="later" type="button">Read later <span class="vcount" id="vc-later"></span></button>
+      <button class="view-btn" data-view="archived" type="button">Archived <span class="vcount" id="vc-archived"></span></button>
+    </div>
+    <label for="search" class="sr-label">Search your bookmarks</label>
+    <input id="search" type="text" class="search-box" placeholder="Search by word, tag, note…" autocomplete="off" />
+    <div id="list">
+      <div class="empty" id="empty">Nothing saved yet. Paste a link above to start.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // --- Simulated metadata lookup (Phase 1 prototype: fakes the "auto-fetch") ---
+  const KNOWN = {
+    "developer.mozilla.org": {
+      site: "MDN Web Docs",
+      title: "Array.prototype.map() - JavaScript | MDN",
+      desc: "The map() method creates a new array populated with the results of calling a function on every element in the calling array."
+    },
+    "www.nytimes.com": {
+      site: "The New York Times",
+      title: "How to Build a Reading Habit That Sticks",
+      desc: "Small, consistent routines beat ambitious plans. Here's what the research says about making reading a daily habit."
+    },
+    "github.com": {
+      site: "GitHub",
+      title: "microsoft/playwright: Fast and reliable end-to-end testing",
+      desc: "Playwright enables reliable end-to-end testing for modern web apps across all browsers."
+    }
+  };
+
+  function hostOf(u) {
+    try { return new URL(u).hostname; } catch (e) { return null; }
+  }
+  function titleCaseFromHost(host) {
+    const core = host.replace(/^www\./, "").split(".")[0];
+    return core.charAt(0).toUpperCase() + core.slice(1);
+  }
+
+  const el = (id) => document.getElementById(id);
+  let lastFetchedFor = null;
+
+  function fetchDetails() {
+    const url = el("url").value.trim();
+    if (!url) return;
+    const host = hostOf(url);
+    if (!host) {
+      el("fetchState").className = "fetch-state";
+      el("fetchState").textContent = "That doesn't look like a link yet.";
+      return;
+    }
+    el("fetchState").className = "fetch-state loading";
+    el("fetchState").textContent = "Getting details…";
+    el("metaPreview").classList.remove("show");
+
+    // Simulate a brief network fetch.
+    setTimeout(() => {
+      // Simulated failure: some pages can't be reached or have no readable details.
+      const unreachable = host.includes("unreachable") || /\/broken/i.test(url);
+      if (unreachable) {
+        el("pSite").textContent = "";
+        el("title").value = "";
+        el("desc").value = "";
+        el("metaPreview").classList.add("show");   // still let the user save manually
+        el("fetchState").className = "fetch-state error";
+        el("fetchState").textContent = "Couldn't get this page's details. You can still add a title yourself and save.";
+        el("title").focus();
+        lastFetchedFor = url;
+        return;
+      }
+      const meta = KNOWN[host] || {
+        site: titleCaseFromHost(host),
+        title: titleCaseFromHost(host) + " — " + host,
+        desc: ""
+      };
+      el("pSite").textContent = meta.site;
+      el("title").value = meta.title;
+      el("desc").value = meta.desc;
+      el("metaPreview").classList.add("show");
+      el("fetchState").className = "fetch-state done";
+      el("fetchState").textContent = "Details picked up — edit anything before saving.";
+      lastFetchedFor = url;
+    }, 550);
+  }
+
+  // Pre-loaded examples so we can focus on FINDING rather than typing a pile first.
+  const bookmarks = [
+    { url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map",
+      title: "Array.prototype.map() - JavaScript | MDN", site: "MDN Web Docs",
+      desc: "Creates a new array with the results of calling a function on every element.",
+      tags: ["reference", "javascript"], note: "handy JS cheatsheet" },
+    { url: "https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
+      title: "A Complete Guide to Flexbox | CSS-Tricks", site: "CSS-Tricks",
+      desc: "A visual guide to CSS flexbox layout properties.",
+      tags: ["reference", "css"], note: "" },
+    { url: "https://www.nytimes.com/2024/01/10/well/reading-habit.html",
+      title: "How to Build a Reading Habit That Sticks", site: "The New York Times",
+      desc: "Small, consistent routines beat ambitious plans.",
+      tags: ["articles", "habits"], note: "read on the weekend" },
+    { url: "https://github.com/microsoft/playwright",
+      title: "microsoft/playwright: end-to-end testing", site: "GitHub",
+      desc: "Reliable end-to-end testing for modern web apps across all browsers.",
+      tags: ["tools", "testing"], note: "" },
+    { url: "https://www.seriouseats.com/the-best-chocolate-chip-cookies",
+      title: "The Best Chocolate Chip Cookies Recipe", site: "Serious Eats",
+      desc: "A tested recipe for chewy chocolate chip cookies.",
+      tags: ["cooking", "recipes"], note: "try this weekend" },
+    { url: "https://www.smashingmagazine.com/2023/design-systems-guide/",
+      title: "A Practical Guide to Design Systems", site: "Smashing Magazine",
+      desc: "How to build and maintain a scalable design system.",
+      tags: ["design", "reference"], note: "" }
+  ].map((b, i) => ({ id: i + 1, readLater: false, archived: false, ...b }));
+
+  // ?empty=1 starts with an empty collection (to view the brand-new-user state).
+  if (new URLSearchParams(location.search).has("empty")) bookmarks.splice(0);
+
+  let nextId = bookmarks.length + 1;
+  let currentView = "all"; // all | later | archived
+  let confirmingDeleteId = null; // bookmark awaiting delete confirmation
+  let query = "";         // current search text
+  let editingId = null;   // when set, Save updates this existing bookmark
+  let highlightId = null; // entry to visually flag after a render
+
+  // Two links are treated as the same page when they share host + path (+ query),
+  // ignoring protocol, "www.", a trailing slash, and capitalisation of the host.
+  function sameKey(u) {
+    try {
+      const x = new URL(u);
+      const host = x.hostname.toLowerCase().replace(/^www\./, "");
+      const path = x.pathname.replace(/\/$/, "");
+      return host + path + x.search;
+    } catch (e) {
+      return u.trim().toLowerCase().replace(/\/$/, "");
+    }
+  }
+  function findExisting(url) {
+    const key = sameKey(url);
+    return bookmarks.find(b => sameKey(b.url) === key) || null;
+  }
+
+  // --- Search query engine ------------------------------------------------
+  // Supports: plain words (substring, case-insensitive), "exact phrases",
+  // #tag (exact tag), and AND / OR / NOT / ( ) combinations.
+  // Adjacent terms are implicitly ANDed. Parsing is lenient so partial input
+  // while typing still narrows sensibly instead of breaking.
+  function haystack(b) {
+    return [b.title, b.desc, b.note, b.url, b.tags.join(" ")].join(" ").toLowerCase();
+  }
+  function tokenize(s) {
+    const toks = []; let i = 0;
+    while (i < s.length) {
+      const c = s[i];
+      if (/\s/.test(c)) { i++; continue; }
+      if (c === "(") { toks.push({ t: "lp" }); i++; continue; }
+      if (c === ")") { toks.push({ t: "rp" }); i++; continue; }
+      if (c === '"') {
+        let j = i + 1, buf = "";
+        while (j < s.length && s[j] !== '"') { buf += s[j]; j++; }
+        toks.push({ t: "phrase", v: buf });
+        i = j < s.length ? j + 1 : j; continue;
+      }
+      if (c === "#") {
+        let j = i + 1, buf = "";
+        while (j < s.length && !/[\s()"]/.test(s[j])) { buf += s[j]; j++; }
+        toks.push({ t: "tag", v: buf }); i = j; continue;
+      }
+      let j = i, buf = "";
+      while (j < s.length && !/[\s()"]/.test(s[j])) { buf += s[j]; j++; }
+      const up = buf.toUpperCase();
+      toks.push((up === "AND" || up === "OR" || up === "NOT")
+        ? { t: "op", v: up } : { t: "word", v: buf });
+      i = j;
+    }
+    return toks;
+  }
+  function buildQuery(input) {
+    const toks = tokenize(input);
+    let pos = 0;
+    const peek = () => toks[pos];
+    const canStartUnary = (tk) => tk && (tk.t === "lp" || tk.t === "word"
+      || tk.t === "phrase" || tk.t === "tag" || (tk.t === "op" && tk.v === "NOT"));
+    const TRUE = () => true;
+
+    function parseExpr() { return parseOr(); }
+    function parseOr() {
+      let left = parseAnd();
+      while (peek() && peek().t === "op" && peek().v === "OR") {
+        pos++; const right = parseAnd(); const l = left; left = (b) => l(b) || right(b);
+      }
+      return left;
+    }
+    function parseAnd() {
+      let left = parseUnary();
+      while (peek()) {
+        if (peek().t === "op" && peek().v === "AND") {
+          pos++; if (!canStartUnary(peek())) break;
+          const r = parseUnary(); const l = left; left = (b) => l(b) && r(b); continue;
+        }
+        if (canStartUnary(peek())) {
+          const r = parseUnary(); const l = left; left = (b) => l(b) && r(b); continue;
+        }
+        break;
+      }
+      return left;
+    }
+    function parseUnary() {
+      if (peek() && peek().t === "op" && peek().v === "NOT") {
+        pos++; const u = parseUnary(); return (b) => !u(b);
+      }
+      return parseAtom();
+    }
+    function parseAtom() {
+      const tk = peek();
+      if (!tk) return TRUE;
+      if (tk.t === "lp") { pos++; const e = parseExpr(); if (peek() && peek().t === "rp") pos++; return e; }
+      if (tk.t === "rp") { pos++; return TRUE; }
+      if (tk.t === "op") { pos++; return parseAtom(); }  // stray leading operator
+      if (tk.t === "word") { pos++; const w = tk.v.toLowerCase(); return w ? (b) => haystack(b).includes(w) : TRUE; }
+      if (tk.t === "phrase") { pos++; const w = tk.v.toLowerCase().trim(); return w ? (b) => haystack(b).includes(w) : TRUE; }
+      if (tk.t === "tag") { pos++; const w = tk.v.toLowerCase(); return w ? (b) => b.tags.some(x => x.toLowerCase() === w) : TRUE; }
+      pos++; return TRUE;
+    }
+    const pred = parseExpr();
+    return pred;
+  }
+
+  function inView(b, view) {
+    if (view === "all") return !b.archived;
+    if (view === "later") return b.readLater && !b.archived;
+    if (view === "archived") return b.archived;
+    return true;
+  }
+  function emptyMessage(view) {
+    if (view === "later") return "No bookmarks marked “Read later” yet.";
+    if (view === "archived") return "Nothing archived.";
+    return "Nothing here yet. Paste a link above to start.";
+  }
+
+  function render() {
+    const list = el("list");
+    const q = query.trim();
+    const pred = q ? buildQuery(q) : null;
+
+    // view counts
+    el("vc-all").textContent = "(" + bookmarks.filter(b => inView(b, "all")).length + ")";
+    el("vc-later").textContent = "(" + bookmarks.filter(b => inView(b, "later")).length + ")";
+    el("vc-archived").textContent = "(" + bookmarks.filter(b => inView(b, "archived")).length + ")";
+
+    const base = bookmarks.filter(b => inView(b, currentView));
+    const visible = pred ? base.filter(pred) : base;
+
+    el("count").textContent = q
+      ? "showing " + visible.length + " of " + base.length
+      : base.length + (base.length === 1 ? " bookmark" : " bookmarks");
+
+    if (base.length === 0) {
+      list.innerHTML = '<div class="empty">' + escapeHtml(emptyMessage(currentView)) + "</div>";
+      return;
+    }
+    if (visible.length === 0) {
+      list.innerHTML = '<div class="empty">No bookmarks match “' + escapeHtml(query.trim()) + '” in this view.</div>';
+      return;
+    }
+    list.innerHTML = visible.map(b => `
+      <div class="bm ${b.id === highlightId ? "highlight" : ""} ${b.readLater && !b.archived ? "is-later" : ""}" id="bm-${b.id}">
+        <div class="title">${escapeHtml(b.title)}${b.readLater && !b.archived ? '<span class="flag">Read later</span>' : ""}</div>
+        <div class="url">${escapeHtml(b.url)}</div>
+        ${b.desc ? `<div class="desc">${escapeHtml(b.desc)}</div>` : ""}
+        ${b.tags.length ? `<div class="chips">${b.tags.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+        ${b.note ? `<div class="note">${escapeHtml(b.note)}</div>` : ""}
+        <div class="bm-actions">
+          ${b.id === confirmingDeleteId
+            ? `<span class="confirm-text">Delete permanently? This can't be undone.</span>
+               <button class="danger" data-confirmdelete="${b.id}" type="button">Delete</button>
+               <button data-canceldelete="${b.id}" type="button">Cancel</button>`
+            : `<button data-edit="${b.id}" type="button">Edit</button>
+               ${b.archived
+                 ? `<button data-archive="${b.id}" type="button">Restore to All</button>`
+                 : `${b.readLater
+                     ? `<button class="on" data-markread="${b.id}" type="button">Mark as read</button>`
+                     : `<button data-later="${b.id}" type="button">Read later</button>`}
+                    <button data-archive="${b.id}" type="button">Archive</button>`}
+               <button class="danger-ghost" data-delete="${b.id}" type="button">Delete</button>`}
+        </div>
+      </div>
+    `).join("");
+    list.querySelectorAll("[data-edit]").forEach(btn =>
+      btn.addEventListener("click", () => enterEditMode(Number(btn.dataset.edit), false)));
+    list.querySelectorAll("[data-later]").forEach(btn =>
+      btn.addEventListener("click", () => setLater(Number(btn.dataset.later), true)));
+    list.querySelectorAll("[data-markread]").forEach(btn =>
+      btn.addEventListener("click", () => setLater(Number(btn.dataset.markread), false)));
+    list.querySelectorAll("[data-archive]").forEach(btn =>
+      btn.addEventListener("click", () => toggleArchive(Number(btn.dataset.archive))));
+    list.querySelectorAll("[data-delete]").forEach(btn =>
+      btn.addEventListener("click", () => { confirmingDeleteId = Number(btn.dataset.delete); render(); }));
+    list.querySelectorAll("[data-canceldelete]").forEach(btn =>
+      btn.addEventListener("click", () => { confirmingDeleteId = null; render(); }));
+    list.querySelectorAll("[data-confirmdelete]").forEach(btn =>
+      btn.addEventListener("click", () => deleteBookmark(Number(btn.dataset.confirmdelete))));
+  }
+
+  function deleteBookmark(id) {
+    const i = bookmarks.findIndex(x => x.id === id);
+    if (i !== -1) bookmarks.splice(i, 1);
+    if (editingId === id) resetForm();
+    confirmingDeleteId = null;
+    render();
+  }
+
+  function setLater(id, val) {
+    const b = bookmarks.find(x => x.id === id);
+    if (b) { b.readLater = val; render(); }
+  }
+  function toggleArchive(id) {
+    const b = bookmarks.find(x => x.id === id);
+    if (b) { b.archived = !b.archived; render(); }
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+  }
+
+  function showForm(b) {
+    el("url").value = b.url;
+    el("title").value = b.title;
+    el("desc").value = b.desc;
+    el("tags").value = b.tags.join(", ");
+    el("note").value = b.note;
+    el("pSite").textContent = b.site || "";
+    el("metaPreview").classList.add("show");
+  }
+
+  function enterEditMode(id, wasDuplicateAttempt) {
+    const b = bookmarks.find(x => x.id === id);
+    if (!b) return;
+    editingId = id;
+    showForm(b);
+    el("formHeading").textContent = "Update this bookmark";
+    el("saveBtn").textContent = "Update bookmark";
+    el("modeBanner").textContent = wasDuplicateAttempt
+      ? "You've already saved this link — here it is. Make your changes and press “Update bookmark”."
+      : "Editing a saved bookmark. Make your changes and press “Update bookmark”.";
+    el("modeBanner").classList.add("show");
+    el("fetchState").className = "fetch-state";
+    el("fetchState").textContent = "";
+    // take the user to the existing entry
+    highlightId = id;
+    render();
+    const node = el("bm-" + id);
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => { highlightId = null; render(); }, 2600);
+  }
+
+  function resetForm() {
+    editingId = null;
+    el("url").value = ""; el("title").value = ""; el("desc").value = "";
+    el("tags").value = ""; el("note").value = ""; el("pSite").textContent = "";
+    el("metaPreview").classList.remove("show");
+    el("fetchState").className = "fetch-state"; el("fetchState").textContent = "";
+    el("formHeading").textContent = "Save a link";
+    el("saveBtn").textContent = "Save bookmark";
+    el("modeBanner").classList.remove("show"); el("modeBanner").textContent = "";
+  }
+
+  function save() {
+    const url = el("url").value.trim();
+    if (!url) return;
+    const tags = el("tags").value.split(",").map(t => t.trim()).filter(Boolean);
+
+    // Editing an existing bookmark -> update it in place.
+    if (editingId !== null) {
+      const b = bookmarks.find(x => x.id === editingId);
+      if (b) {
+        b.url = url; b.title = el("title").value.trim() || url;
+        b.desc = el("desc").value.trim(); b.tags = tags; b.note = el("note").value.trim();
+        b.site = el("pSite").textContent;
+      }
+      resetForm();
+      render();
+      el("saveFlash").textContent = "Updated.";
+      setTimeout(() => el("saveFlash").textContent = "", 1800);
+      return;
+    }
+
+    // New save -> if the link is already in the collection, go update it instead.
+    const existing = findExisting(url);
+    if (existing) {
+      enterEditMode(existing.id, true);
+      return;
+    }
+
+    bookmarks.unshift({
+      id: nextId++,
+      url,
+      title: el("title").value.trim() || url,
+      site: el("pSite").textContent,
+      desc: el("desc").value.trim(),
+      tags,
+      note: el("note").value.trim()
+    });
+    resetForm();
+    render();
+    el("saveFlash").textContent = "Saved.";
+    setTimeout(() => el("saveFlash").textContent = "", 1800);
+  }
+
+  el("fetchBtn").addEventListener("click", fetchDetails);
+  el("url").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); fetchDetails(); } });
+  el("saveBtn").addEventListener("click", save);
+  el("search").addEventListener("input", (e) => { query = e.target.value; render(); });
+  document.querySelectorAll(".view-btn").forEach(btn =>
+    btn.addEventListener("click", () => {
+      currentView = btn.dataset.view;
+      document.querySelectorAll(".view-btn").forEach(x => x.classList.toggle("active", x === btn));
+      render();
+    }));
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

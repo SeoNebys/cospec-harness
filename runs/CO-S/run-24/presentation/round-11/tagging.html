@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmark app — tagging exploration</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --card:#fff; --ink:#1f2430; --muted:#6b7280; --faint:#9aa1ac;
+    --line:#e5e7eb; --accent:#2f6feb; --accent-ink:#fff; --chip:#eef2ff; --chip-ink:#3949ab;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .modebadge { display:inline-block; margin-top:8px; font-size:12px; color:var(--chip-ink); background:var(--chip); padding:3px 10px; border-radius:999px; }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
+
+  ul.links { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  li.link { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; gap:12px; }
+  .favicon { flex:0 0 auto; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:16px; }
+  .body { flex:1; min-width:0; }
+  .body .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .body .desc { font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.4; }
+
+  .tagrow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:999px; background:var(--chip); color:var(--chip-ink); display:inline-flex; align-items:center; gap:5px; }
+  .tag button { border:none; background:none; color:var(--chip-ink); cursor:pointer; font-size:13px; line-height:1; padding:0; opacity:.6; }
+  .tag button:hover { opacity:1; }
+  .none { font-size:12px; color:var(--faint); }
+
+  .taginput { border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:13px; min-width:120px; }
+  .addbtn { font-size:12px; padding:3px 10px; border:1px dashed var(--line); background:none; border-radius:999px; color:var(--muted); cursor:pointer; }
+  .addbtn:hover { border-color:var(--accent); color:var(--accent); }
+  .suggest { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 0; }
+  .suggest .opt { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); background:#fff; color:var(--muted); cursor:pointer; }
+  .suggest .opt.on { background:var(--chip); color:var(--chip-ink); border-color:var(--chip); }
+  .suggest .opt:hover { border-color:var(--accent); }
+  .hintline { font-size:12px; color:var(--faint); margin:4px 0 0; }
+  .body .secondary { font-size:12px; color:var(--faint); word-break:break-all; margin:6px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Tagging exploration — three ways to add tags. This screen shows one of them.</p>
+  <span class="modebadge" id="modebadge"></span>
+</header>
+<main>
+  <ul class="links" id="list"></ul>
+</main>
+
+<script>
+  var params = new URLSearchParams(location.search);
+  var MODE = (params.get("mode") || "a").toLowerCase();
+  var LABELS = { a: "Version A — type a tag, press Enter", b: "Version B — type tags separated by commas", c: "Version C — pick from your existing tags, or add a new one" };
+  document.getElementById("modebadge").textContent = LABELS[MODE] || LABELS.a;
+
+  var KNOWN_TAGS = ["reading", "work", "recipes", "travel", "ai", "finance"];
+
+  var items = [
+    { id:"s1", host:"nytimes.com", color:"hsl(210,55%,48%)", title:"How to Read More Books This Year — Nytimes", desc:"Practical habits for building a steady reading routine that sticks.", tags:["reading"] },
+    { id:"s2", host:"seriouseats.com", color:"hsl(20,55%,48%)", title:"The Best Weeknight Pasta — Seriouseats", desc:"A fast, reliable pasta recipe you can make on a busy evening.", tags:[] }
+  ];
+
+  function allKnown() {
+    var set = {};
+    KNOWN_TAGS.forEach(function(t){ set[t]=1; });
+    items.forEach(function(it){ it.tags.forEach(function(t){ set[t]=1; }); });
+    return Object.keys(set);
+  }
+
+  function addTag(item, raw) {
+    var t = (raw || "").trim().toLowerCase().replace(/^#/, "");
+    if (!t) return;
+    if (item.tags.indexOf(t) === -1) item.tags.push(t);
+  }
+  function removeTag(item, t) {
+    item.tags = item.tags.filter(function(x){ return x !== t; });
+  }
+
+  function renderTags(item, container) {
+    item.tags.forEach(function(t){
+      var chip = document.createElement("span");
+      chip.className = "tag";
+      chip.appendChild(document.createTextNode(t));
+      var x = document.createElement("button");
+      x.type = "button"; x.textContent = "×"; x.title = "Remove tag";
+      x.onclick = function(){ removeTag(item, t); render(); };
+      chip.appendChild(x);
+      container.appendChild(chip);
+    });
+  }
+
+  function editorFor(item) {
+    var wrap = document.createElement("div");
+
+    if (MODE === "a") {
+      var row = document.createElement("div");
+      row.className = "tagrow";
+      renderTags(item, row);
+      var input = document.createElement("input");
+      input.className = "taginput";
+      input.placeholder = item.tags.length ? "Add another…" : "Add a tag…";
+      input.setAttribute("list", "known-" + item.id);
+      input.onkeydown = function(e){
+        if (e.key === "Enter") { e.preventDefault(); addTag(item, input.value); render(); }
+      };
+      row.appendChild(input);
+      var dl = document.createElement("datalist");
+      dl.id = "known-" + item.id;
+      allKnown().forEach(function(t){ var o=document.createElement("option"); o.value=t; dl.appendChild(o); });
+      wrap.appendChild(row);
+      wrap.appendChild(dl);
+      var h = document.createElement("p"); h.className="hintline"; h.textContent="Type a word and press Enter to add it. Suggestions appear as you type.";
+      wrap.appendChild(h);
+
+    } else if (MODE === "b") {
+      var row2 = document.createElement("div");
+      row2.className = "tagrow";
+      renderTags(item, row2);
+      wrap.appendChild(row2);
+      var input2 = document.createElement("input");
+      input2.className = "taginput";
+      input2.style.width = "100%";
+      input2.placeholder = "Type tags separated by commas, e.g. reading, work";
+      var commit = function(){
+        input2.value.split(",").forEach(function(part){ addTag(item, part); });
+        input2.value = ""; render();
+      };
+      input2.onkeydown = function(e){ if (e.key === "Enter") { e.preventDefault(); commit(); } };
+      input2.onblur = commit;
+      wrap.appendChild(input2);
+      var h2 = document.createElement("p"); h2.className="hintline"; h2.textContent="Separate multiple tags with commas; press Enter to apply.";
+      wrap.appendChild(h2);
+
+    } else { // c
+      var row3 = document.createElement("div");
+      row3.className = "tagrow";
+      renderTags(item, row3);
+      if (item.tags.length === 0) { var n=document.createElement("span"); n.className="none"; n.textContent="No tags yet"; row3.appendChild(n); }
+      wrap.appendChild(row3);
+      var sug = document.createElement("div");
+      sug.className = "suggest";
+      allKnown().forEach(function(t){
+        var o = document.createElement("span");
+        o.className = "opt" + (item.tags.indexOf(t) !== -1 ? " on" : "");
+        o.textContent = (item.tags.indexOf(t) !== -1 ? "✓ " : "") + t;
+        o.onclick = function(){ if (item.tags.indexOf(t) !== -1) removeTag(item, t); else addTag(item, t); render(); };
+        sug.appendChild(o);
+      });
+      wrap.appendChild(sug);
+      var newrow = document.createElement("div");
+      newrow.style.marginTop = "8px";
+      var input3 = document.createElement("input");
+      input3.className = "taginput";
+      input3.placeholder = "or add a new tag…";
+      var addNew = document.createElement("button");
+      addNew.className = "addbtn"; addNew.type="button"; addNew.textContent = "Add";
+      addNew.style.marginLeft = "6px";
+      addNew.onclick = function(){ addTag(item, input3.value); input3.value=""; render(); };
+      input3.onkeydown = function(e){ if (e.key==="Enter"){ e.preventDefault(); addNew.onclick(); } };
+      newrow.appendChild(input3); newrow.appendChild(addNew);
+      wrap.appendChild(newrow);
+      var h3 = document.createElement("p"); h3.className="hintline"; h3.textContent="Click any of your existing tags to add or remove it, or type a brand-new one.";
+      wrap.appendChild(h3);
+    }
+    return wrap;
+  }
+
+  function render() {
+    var list = document.getElementById("list");
+    list.innerHTML = "";
+    items.forEach(function(item){
+      var li = document.createElement("li"); li.className = "link";
+      var ic = document.createElement("div"); ic.className="favicon"; ic.style.background=item.color; ic.textContent=item.host[0].toUpperCase();
+      li.appendChild(ic);
+      var body = document.createElement("div"); body.className="body";
+      var t = document.createElement("p"); t.className="title"; t.textContent=item.title; body.appendChild(t);
+      var d = document.createElement("p"); d.className="desc"; d.textContent=item.desc; body.appendChild(d);
+      body.appendChild(editorFor(item));
+      var sec = document.createElement("p"); sec.className="secondary"; sec.textContent = item.host + " · Saved Sep 25, 2026"; body.appendChild(sec);
+      li.appendChild(body);
+      list.appendChild(li);
+    });
+  }
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

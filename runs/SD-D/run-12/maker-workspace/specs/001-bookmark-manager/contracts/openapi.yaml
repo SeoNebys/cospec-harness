@@ -1,0 +1,535 @@
+openapi: 3.1.0
+info:
+  title: Personal Bookmark Manager API
+  version: 1.0.0
+  description: Same-origin API contract for the approved single-user bookmark application.
+  license:
+    name: UNLICENSED
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: /api
+security: []
+paths:
+  /health:
+    get:
+      summary: Check application readiness
+      operationId: getHealth
+      responses:
+        '200':
+          description: Application and database are ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    const: ready
+        '503':
+          description: Application or database is not ready.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Readiness checks are temporarily rate limited.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /metadata:
+    post:
+      summary: Retrieve safe page metadata
+      operationId: retrieveMetadata
+      description: Retrieves page details through the guarded server-side fetcher. Soft retrieval failures return fallbacks; rejected destinations return a validation problem.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [requestId, url]
+              properties:
+                requestId:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                url:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+      responses:
+        '200':
+          description: Successful, partial, or unavailable metadata result. The result remains saveable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataResult'
+        '422':
+          description: Invalid, unsupported, or unsafe destination; saving is blocked.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: Too many concurrent metadata requests.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /bookmarks:
+    get:
+      summary: Search and list bookmarks
+      operationId: listBookmarks
+      parameters:
+        - name: q
+          in: query
+          description: Search expression defined by search-grammar.md. Empty matches all.
+          schema:
+            type: string
+            maxLength: 1000
+        - name: tag
+          in: query
+          description: Exact normalized tag filters. Repetition means every selected tag is required.
+          schema:
+            type: array
+            items:
+              type: string
+            maxItems: 20
+          style: form
+          explode: true
+        - name: favorite
+          in: query
+          schema:
+            type: boolean
+        - name: unread
+          in: query
+          schema:
+            type: boolean
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        '200':
+          description: Stable newest-first page of matching bookmarks.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bookmark'
+                  nextCursor:
+                    type: [string, 'null']
+        '422':
+          description: Invalid search or filter syntax. The original query and error span are retained.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/SearchProblem'
+    post:
+      summary: Create a bookmark
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkWrite'
+      responses:
+        '201':
+          description: Bookmark created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '409':
+          description: Normalized destination already exists.
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Problem'
+                  - type: object
+                    required: [existingBookmarkId]
+                    properties:
+                      existingBookmarkId:
+                        type: integer
+        '422':
+          description: Invalid bookmark data or unsafe address.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      summary: Get one bookmark
+      operationId: getBookmark
+      responses:
+        '200':
+          description: Bookmark found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update a bookmark
+      operationId: updateBookmark
+      description: Updates supplied fields only. Opening a URL never calls this operation and cannot mutate unread state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkPatch'
+      responses:
+        '200':
+          description: Bookmark updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Updated normalized destination conflicts with another bookmark.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Invalid update.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      summary: Delete a bookmark
+      operationId: deleteBookmark
+      responses:
+        '204':
+          description: Bookmark deleted after client-side confirmation.
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tags:
+    get:
+      summary: Suggest existing tags
+      operationId: suggestTags
+      parameters:
+        - name: prefix
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+        - name: exclude
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            maxItems: 50
+          style: form
+          explode: true
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: Existing case-insensitive prefix matches, excluding already selected tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '422':
+          description: Invalid prefix or exclusion list.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /icons/{iconAssetId}:
+    get:
+      summary: Get a cached site icon
+      operationId: getIconAsset
+      parameters:
+        - name: iconAssetId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Verified app-owned favicon bytes. Response includes immutable caching and nosniff headers.
+          headers:
+            X-Content-Type-Options:
+              schema:
+                const: nosniff
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            image/png:
+              schema:
+                type: string
+                contentEncoding: binary
+            image/jpeg:
+              schema:
+                type: string
+                contentEncoding: binary
+            image/gif:
+              schema:
+                type: string
+                contentEncoding: binary
+            image/webp:
+              schema:
+                type: string
+                contentEncoding: binary
+            image/x-icon:
+              schema:
+                type: string
+                contentEncoding: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required: [id, url, title, tags, isFavorite, isUnread, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+        description:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        iconUrl:
+          type: [string, 'null']
+          description: Same-origin `/api/icons/{id}` URL; never a remote destination URL.
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        isFavorite:
+          type: boolean
+        isUnread:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BookmarkWrite:
+      type: object
+      additionalProperties: false
+      required: [url, title]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        title:
+          type: string
+          minLength: 1
+          maxLength: 512
+        description:
+          type: [string, 'null']
+          maxLength: 2000
+        notes:
+          type: [string, 'null']
+          maxLength: 10000
+        tags:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        isFavorite:
+          type: boolean
+          default: false
+        isUnread:
+          type: boolean
+          default: false
+        iconUploadToken:
+          type: [string, 'null']
+          description: Short-lived token returned by metadata retrieval for a validated pending icon.
+    BookmarkPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        title:
+          type: string
+          minLength: 1
+          maxLength: 512
+        description:
+          type: [string, 'null']
+          maxLength: 2000
+        notes:
+          type: [string, 'null']
+          maxLength: 10000
+        tags:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        isFavorite:
+          type: boolean
+        isUnread:
+          type: boolean
+        iconUploadToken:
+          type: [string, 'null']
+    MetadataResult:
+      type: object
+      additionalProperties: false
+      required: [requestId, status, requestedUrl, normalizedUrl, metadata, warnings]
+      properties:
+        requestId:
+          type: string
+        status:
+          enum: [success, partial, unavailable]
+        requestedUrl:
+          type: string
+        normalizedUrl:
+          type: string
+          format: uri
+        finalUrl:
+          type: [string, 'null']
+          format: uri
+        metadata:
+          type: object
+          additionalProperties: false
+          required: [title, description, iconUploadToken]
+          properties:
+            title:
+              $ref: '#/components/schemas/SourcedText'
+            description:
+              oneOf:
+                - $ref: '#/components/schemas/SourcedText'
+                - type: 'null'
+            iconUploadToken:
+              type: [string, 'null']
+        warnings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [code]
+            properties:
+              code:
+                enum: [dns_failure, timeout, tls_error, http_status, unsupported_content_type, response_too_large, parse_error, icon_unavailable]
+              field:
+                enum: [page, title, description, icon]
+    SourcedText:
+      type: object
+      additionalProperties: false
+      required: [value, source]
+      properties:
+        value:
+          type: string
+        source:
+          enum: [html-title, meta-description, open-graph, twitter, fallback]
+    Problem:
+      type: object
+      additionalProperties: true
+      required: [type, title, status, code, detail]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+        detail:
+          type: string
+    SearchProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [query, error]
+          properties:
+            query:
+              type: string
+            error:
+              type: object
+              required: [start, end, message]
+              properties:
+                start:
+                  type: integer
+                  minimum: 0
+                end:
+                  type: integer
+                  minimum: 0
+                message:
+                  type: string

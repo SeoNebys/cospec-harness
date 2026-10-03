@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --ink:#1f2733; --muted:#6b7683; --accent:#2f6feb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { padding:18px 20px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:19px; }
+  main { max-width:720px; margin:0 auto; padding:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 5px; }
+  input[type=text], textarea, input[type=url] {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; font-family:inherit; }
+  textarea { resize:vertical; min-height:60px; }
+  .row { display:flex; gap:10px; }
+  .row input { flex:1; }
+  button { border:0; border-radius:8px; padding:10px 16px; font-size:15px; cursor:pointer; }
+  .primary { background:var(--accent); color:#fff; }
+  .ghost { background:#eef1f5; color:var(--ink); }
+  .hint { font-size:12px; color:var(--muted); margin-top:6px; }
+  .preview { display:flex; gap:12px; align-items:flex-start; margin-top:14px; padding:12px;
+             background:#f2f6ff; border:1px solid #d5e2ff; border-radius:10px; }
+  .preview .fav { width:34px; height:34px; border-radius:7px; background:var(--accent); color:#fff;
+                  display:flex; align-items:center; justify-content:center; font-weight:700; flex:0 0 auto; }
+  .preview .t { font-weight:600; }
+  .preview .d { font-size:13px; color:var(--muted); margin-top:2px; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tag { background:#eef1f5; border-radius:999px; padding:4px 10px; font-size:13px; display:flex; gap:6px; align-items:center; }
+  .tag button { background:none; padding:0; color:var(--muted); font-size:14px; line-height:1; }
+  .list h2 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:0 0 12px; }
+  .item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .item:last-child { border-bottom:0; }
+  .item .fav { width:30px; height:30px; border-radius:7px; background:#dbe4f3; color:var(--accent);
+               display:flex; align-items:center; justify-content:center; font-weight:700; flex:0 0 auto; }
+  .item .t { font-weight:600; }
+  .item .u { font-size:12px; color:var(--muted); word-break:break-all; }
+  .item .note { font-size:13px; margin-top:4px; }
+  .item .tags { margin-top:6px; }
+  .empty { color:var(--muted); text-align:center; padding:26px 0; }
+  .navbtn { background:#eef1f5; color:var(--ink); }
+  .navbtn.active { background:var(--accent); color:#fff; }
+  .item .actions { display:flex; gap:8px; margin-top:8px; }
+  .item .actions button { background:#eef1f5; color:var(--ink); font-size:13px; padding:5px 10px; }
+  .item .actions button.on { background:#ffedb3; color:#7a5a00; }
+  .laterbadge { font-size:12px; color:#a06d00; background:#fff3cf; border-radius:999px; padding:2px 8px; margin-left:8px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#1f2733; color:#fff;
+           padding:10px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  @media (max-width:520px){ .row{ flex-direction:column; } }
+</style>
+</head>
+<body>
+<header><h1>📑 My Bookmarks</h1></header>
+<nav id="nav" style="max-width:720px;margin:0 auto;padding:14px 20px 0;display:flex;gap:8px;">
+  <button class="navbtn" data-view="all">All</button>
+  <button class="navbtn" data-view="later">Read later</button>
+  <button class="navbtn" data-view="archive">Archive</button>
+</nav>
+<main>
+  <div class="card">
+    <label for="url">Paste a link to save</label>
+    <div class="row">
+      <input type="url" id="url" placeholder="https://…" autocomplete="off" />
+      <button class="ghost" id="fetchBtn">Fetch details</button>
+    </div>
+    <div class="hint">Paste a link and its title &amp; description are filled in automatically.</div>
+
+    <div id="dupWarn" style="display:none; margin-top:14px; padding:12px; background:#fff3cf; border:1px solid #f0d98a; border-radius:10px;">
+      <div id="dupMsg" style="margin-bottom:10px;"></div>
+      <button class="primary" id="dupEditBtn">Edit the saved bookmark</button>
+      <button class="ghost" id="dupCancelBtn">Cancel</button>
+    </div>
+
+    <div id="editingBanner" style="display:none; margin-top:14px; font-size:13px; color:#7a5a00; background:#fff3cf; border-radius:8px; padding:8px 12px;">
+      Editing an existing bookmark — your changes will update it in place.
+    </div>
+
+    <div id="preview" style="display:none;">
+      <div class="preview">
+        <div class="fav" id="pvFav">?</div>
+        <div>
+          <div class="t" id="pvTitle"></div>
+          <div class="d" id="pvDesc"></div>
+        </div>
+      </div>
+      <label for="titleEdit">Title</label>
+      <input type="text" id="titleEdit" />
+      <label for="note">Short note (optional)</label>
+      <textarea id="note" placeholder="Why is this worth keeping?"></textarea>
+      <label for="tagInput">Tags (optional) — type a tag and press Enter</label>
+      <input type="text" id="tagInput" placeholder="e.g. design, reference" />
+      <div class="tags" id="tagList"></div>
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button class="primary" id="saveBtn">Save bookmark</button>
+        <button class="ghost" id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label for="search">Find a bookmark</label>
+    <input type="text" id="search" placeholder="Search title, note, link or tag…" autocomplete="off" />
+    <div class="tags" id="filterTags" style="margin-top:10px;"></div>
+    <div class="hint" id="activeFilter" style="display:none;"></div>
+  </div>
+
+  <div class="card list">
+    <h2 id="listHeading">Saved</h2>
+    <div id="items"></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+// --- prototype-only mock of "automatic detail fetching" ---
+const MOCK = {
+  "figma.com": {title:"Figma: The Collaborative Interface Design Tool", desc:"Design, prototype, and gather feedback all in one place."},
+  "developer.mozilla.org": {title:"MDN Web Docs", desc:"Resources for developers, by developers."},
+  "nytimes.com": {title:"The New York Times — Breaking News, US & World", desc:"Live news, investigations, opinion, photos and video."},
+  "github.com": {title:"GitHub · Build and ship software", desc:"The complete developer platform to build, scale, and deliver software."},
+  "stripe.com": {title:"Stripe | Payment Processing Platform", desc:"Online payment processing for internet businesses."}
+};
+function domainOf(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch { return ""; } }
+function lookup(u){
+  const d = domainOf(u);
+  if (MOCK[d]) return MOCK[d];
+  if (!d) return null;
+  const name = d.split(".")[0];
+  return { title: name.charAt(0).toUpperCase()+name.slice(1) + " — " + d, desc: "Saved from " + d };
+}
+
+let pending = null;      // {url, title, desc, tags:[]}
+let editingId = null;    // id of bookmark being edited (duplicate resolution / edit)
+let items = [
+  {id:1, url:"https://developer.mozilla.org/en-US/docs/Web/CSS/grid", title:"CSS Grid Layout — MDN", note:"Reference for the grid shorthand I keep forgetting.", tags:["reference","css"], later:false, archived:false},
+  {id:2, url:"https://figma.com", title:"Figma: The Collaborative Interface Design Tool", note:"", tags:["design","tools"], later:true, archived:false},
+  {id:3, url:"https://stripe.com/docs/payments", title:"Stripe Payments docs", note:"Read before the billing rework.", tags:["reference","payments"], later:true, archived:false},
+  {id:4, url:"https://github.com/features/actions", title:"GitHub Actions", note:"", tags:["tools","ci"], later:false, archived:true}
+];
+let activeTag = null;
+let view = "all"; // all | later | archive
+
+// --- edge-case demo states via ?state= ---
+const demoState = new URLSearchParams(location.search).get("state");
+if(demoState === "empty"){ items = []; }
+if(demoState === "long"){
+  items = [{id:9, url:"https://example.com/an/extremely/long/path/that/keeps/going/and/going/to/test/how/the/layout/wraps",
+    title:"A remarkably long bookmark title that a website might hand back, long enough to test how the heading wraps across lines on both desktop and a narrow phone screen",
+    note:"This note is also intentionally long so we can see how a lengthy piece of context reflows within the card without breaking the surrounding layout or pushing the action buttons off screen.",
+    tags:["reference","design","css","tools","reading","longread","research","archive-candidate"], later:false, archived:false}];
+}
+
+const $ = id => document.getElementById(id);
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
+
+$("fetchBtn").onclick = doFetch;
+$("url").addEventListener("keydown", e => { if(e.key==="Enter") doFetch(); });
+
+function sameUrl(a,b){ return a.trim().replace(/\/+$/,"").toLowerCase() === b.trim().replace(/\/+$/,"").toLowerCase(); }
+
+function doFetch(){
+  const u = $("url").value.trim();
+  if(!u){ toast("Paste a link first"); return; }
+  if(!domainOf(u)){ toast("That doesn't look like a valid link"); return; }
+  // duplicate: same link already saved -> warn and offer to edit the existing one
+  const dup = items.find(it => sameUrl(it.url, u));
+  if(dup){
+    $("preview").style.display="none";
+    $("editingBanner").style.display="none";
+    const where = dup.archived ? "your Archive" : (dup.later ? "your Read later list" : "your bookmarks");
+    $("dupMsg").innerHTML = 'You’ve already saved <b>'+esc(dup.title)+'</b> ('+where+'). Rather than making a copy, you can edit the existing one.';
+    $("dupWarn").dataset.dupid = dup.id;
+    $("dupWarn").style.display="block";
+    return;
+  }
+  // simulate a link whose details cannot be retrieved automatically
+  const failed = u.includes("no-details");
+  const meta = failed ? {title:"", desc:""} : lookup(u);
+  pending = { url:u, title:meta.title, desc:meta.desc, tags:[] };
+  $("pvFav").textContent = domainOf(u).charAt(0).toUpperCase() || "?";
+  if(failed){
+    $("pvTitle").textContent = "Couldn't fetch details automatically";
+    $("pvDesc").textContent = "You can still add a title and save this link.";
+    $("titleEdit").value = "";
+    $("titleEdit").placeholder = "Type a title for this link";
+  } else {
+    $("pvTitle").textContent = meta.title;
+    $("pvDesc").textContent = meta.desc;
+    $("titleEdit").value = meta.title;
+  }
+  $("note").value = "";
+  $("tagInput").value = "";
+  renderTags();
+  $("preview").style.display = "block";
+}
+
+$("tagInput").addEventListener("keydown", e => {
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const v = e.target.value.trim().replace(/,$/,"");
+    if(v && !pending.tags.includes(v)){ pending.tags.push(v); renderTags(); }
+    e.target.value="";
+  }
+});
+function renderTags(){
+  const el = $("tagList"); el.innerHTML="";
+  pending.tags.forEach((t,i)=>{
+    const s=document.createElement("span"); s.className="tag";
+    s.innerHTML = t+' <button title="remove">×</button>';
+    s.querySelector("button").onclick = ()=>{ pending.tags.splice(i,1); renderTags(); };
+    el.appendChild(s);
+  });
+}
+
+$("dupCancelBtn").onclick = ()=>{ $("dupWarn").style.display="none"; $("url").value=""; };
+$("dupEditBtn").onclick = ()=>{
+  const dup = items.find(it=>it.id == $("dupWarn").dataset.dupid);
+  if(dup) startEdit(dup);
+};
+
+function startEdit(it){
+  editingId = it.id;
+  pending = { url:it.url, title:it.title, desc:it.desc||"", tags:[...it.tags] };
+  $("dupWarn").style.display="none";
+  $("pvFav").textContent = domainOf(it.url).charAt(0).toUpperCase() || "?";
+  $("pvTitle").textContent = it.title;
+  $("pvDesc").textContent = it.url;
+  $("titleEdit").value = it.title;
+  $("note").value = it.note||"";
+  $("tagInput").value = "";
+  renderTags();
+  $("editingBanner").style.display="block";
+  $("saveBtn").textContent = "Update bookmark";
+  $("preview").style.display="block";
+}
+
+function resetForm(){
+  pending=null; editingId=null;
+  $("preview").style.display="none";
+  $("dupWarn").style.display="none";
+  $("editingBanner").style.display="none";
+  $("saveBtn").textContent = "Save bookmark";
+  $("url").value="";
+}
+
+$("cancelBtn").onclick = resetForm;
+
+$("saveBtn").onclick = ()=>{
+  if(!pending) return;
+  const title = $("titleEdit").value.trim() || pending.title || pending.url;
+  const note  = $("note").value.trim();
+  if(editingId){
+    const it = items.find(x=>x.id===editingId);
+    if(it){ it.title=title; it.note=note; it.tags=[...pending.tags]; }
+    toast("Updated");
+  } else {
+    items.unshift({...pending, title, note, id:Date.now(), later:false, archived:false});
+    toast("Saved");
+  }
+  resetForm();
+  refresh();
+};
+
+$("search").addEventListener("input", renderItems);
+
+function allTags(){
+  const set=new Set(); items.filter(inView).forEach(it=>it.tags.forEach(t=>set.add(t)));
+  return [...set].sort();
+}
+function renderFilterTags(){
+  const el=$("filterTags"); el.innerHTML="";
+  allTags().forEach(t=>{
+    const s=document.createElement("span"); s.className="tag";
+    s.style.cursor="pointer";
+    if(activeTag===t){ s.style.background="var(--accent)"; s.style.color="#fff"; }
+    s.textContent="#"+t;
+    s.onclick=()=>{ activeTag = (activeTag===t? null : t); renderFilterTags(); renderItems(); };
+    el.appendChild(s);
+  });
+  const af=$("activeFilter");
+  if(activeTag){ af.style.display="block"; af.innerHTML='Filtering by <b>#'+esc(activeTag)+'</b> — click the tag again to clear.'; }
+  else { af.style.display="none"; }
+}
+
+function inView(it){
+  if(view==="archive") return it.archived;
+  if(view==="later")   return it.later && !it.archived;
+  return !it.archived; // all
+}
+function matches(it, q){
+  if(!inView(it)) return false;
+  if(activeTag && !it.tags.includes(activeTag)) return false;
+  if(!q) return true;
+  const hay=(it.title+" "+it.note+" "+it.url+" "+it.tags.join(" ")).toLowerCase();
+  return hay.includes(q);
+}
+const VIEW_LABEL = {all:"Saved", later:"Read later", archive:"Archive"};
+const EMPTY_MSG = {
+  all:"No bookmarks yet — paste a link above to save your first one.",
+  later:"Nothing in your read-later list. Mark a bookmark “Read later” to add it.",
+  archive:"Your archive is empty. Archive a bookmark to keep it here without cluttering the main list."
+};
+
+function renderNav(){
+  document.querySelectorAll(".navbtn").forEach(b=>{
+    b.classList.toggle("active", b.dataset.view===view);
+  });
+}
+
+function renderItems(){
+  const el=$("items");
+  const q=($("search").value||"").trim().toLowerCase();
+  const shown = items.filter(it=>matches(it,q));
+  $("listHeading").textContent = (q||activeTag) ? "Results ("+shown.length+")" : VIEW_LABEL[view];
+  if(shown.length===0){
+    el.innerHTML = (q||activeTag)
+      ? '<div class="empty">No bookmarks match your search.</div>'
+      : '<div class="empty">'+EMPTY_MSG[view]+'</div>';
+    renderFilterTags(); return;
+  }
+  el.innerHTML="";
+  shown.forEach(it=>{
+    const d=domainOf(it.url);
+    const div=document.createElement("div"); div.className="item";
+    const laterBadge = (it.later && !it.archived && view!=="later") ? '<span class="laterbadge">Read later</span>' : '';
+    div.innerHTML =
+      '<div class="fav">'+(d.charAt(0).toUpperCase()||"?")+'</div>'+
+      '<div style="flex:1"><div class="t">'+esc(it.title)+laterBadge+'</div>'+
+      '<div class="u">'+esc(it.url)+'</div>'+
+      (it.note?'<div class="note">'+esc(it.note)+'</div>':'')+
+      (it.tags.length?'<div class="tags">'+it.tags.map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
+      '<div class="actions"></div>'+
+      '</div>';
+    const acts=div.querySelector(".actions");
+    if(it.archived){
+      acts.appendChild(mkBtn("Restore to All", ()=>{ it.archived=false; refresh(); }));
+    } else {
+      const lb=mkBtn(it.later?"★ In read later":"☆ Read later", ()=>{ it.later=!it.later; refresh(); });
+      if(it.later) lb.classList.add("on");
+      acts.appendChild(lb);
+      acts.appendChild(mkBtn("Edit", ()=>{ startEdit(it); window.scrollTo({top:0,behavior:"smooth"}); }));
+      acts.appendChild(mkBtn("Archive", ()=>{ it.archived=true; refresh(); }));
+    }
+    el.appendChild(div);
+  });
+}
+function mkBtn(label, fn){ const b=document.createElement("button"); b.textContent=label; b.onclick=fn; return b; }
+function refresh(){ renderNav(); renderFilterTags(); renderItems(); }
+
+document.querySelectorAll(".navbtn").forEach(b=>{
+  b.onclick=()=>{ view=b.dataset.view; activeTag=null; $("search").value=""; refresh(); };
+});
+function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+refresh();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

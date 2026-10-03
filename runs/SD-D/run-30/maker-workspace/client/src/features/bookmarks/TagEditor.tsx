@@ -1,0 +1,1 @@
+export function TagEditor({value,onChange}:{value:string[];onChange:(tags:string[])=>void}){return <div><label htmlFor="tags">Tags <span className="hint">separate with commas</span></label><input id="tags" value={value.join(', ')} onChange={e=>onChange(e.target.value.split(',').map(x=>x.trim()).filter(Boolean).slice(0,20))} placeholder="research, design" maxLength={820}/></div>}

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link Library — Prototype</title>
+<link rel="stylesheet" href="tags-base.css">
+<style>
+  .saver { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 26px; box-shadow: 0 1px 2px rgba(20,30,60,.04); }
+  .saver label { font-size: 13px; font-weight: 600; color: var(--muted);
+    display: block; margin-bottom: 8px; }
+  .saver .row { display: flex; gap: 10px; }
+  .saver input { flex: 1; padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: 10px; font-size: 15px; outline: none; }
+  .saver input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .saver button { padding: 12px 20px; border: none; background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 600; border-radius: 10px; cursor: pointer; }
+  .saver button:hover { background: #2258d6; }
+  .fetching { font-size: 13px; color: var(--muted); font-style: italic; }
+  .rename { position: absolute; top: 14px; right: 14px; font-size: 12px;
+    color: var(--muted); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 7px; padding: 4px 9px; cursor: pointer; }
+  .rename:hover { color: var(--accent); border-color: var(--accent); }
+  .note-box { margin: 6px 0 8px; }
+  .note-text { font-size: 13px; color: #444b5c; background: #fffdf5; border: 1px solid #f0e6c8;
+    border-left: 3px solid #e6c34d; border-radius: 8px; padding: 8px 11px; white-space: pre-wrap; }
+  .note-edit { width: 100%; font-size: 13px; padding: 8px 11px; border: 1px solid var(--accent);
+    border-radius: 8px; outline: none; resize: vertical; min-height: 54px; font-family: inherit; }
+  .addnote { font-size: 12px; color: var(--muted); background: none; border: none;
+    cursor: pointer; padding: 0; text-decoration: underline; }
+  .addnote:hover { color: var(--accent); }
+  .noterow { display: flex; gap: 12px; margin-top: 2px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Link Library</h1>
+  <span class="tag">Prototype</span>
+</header>
+<main>
+  <div class="saver">
+    <label for="url">Save a link</label>
+    <div class="row">
+      <input id="url" type="text" placeholder="Paste a web address, e.g. https://example.com/article" autocomplete="off">
+      <button id="saveBtn">Save</button>
+    </div>
+  </div>
+  <p class="count" id="count"></p>
+  <ul class="library" id="library"></ul>
+</main>
+<script>
+  // Prototype only — simulates external behaviour. Title/description fetch is simulated.
+  const items = [
+    { id: 1, url: "https://developer.mozilla.org/en-US/docs/Web/API", host: "developer.mozilla.org",
+      title: "Web APIs | MDN", desc: "A reference of all the interfaces available for building web apps.",
+      saved: "Sep 26, 9:02 AM", tags: ["dev", "reference"], note: "Handy when I forget an interface name." }
+  ];
+  let seq = 1, openPop = null;
+
+  const KNOWN = {
+    "en.wikipedia.org": { t: "Bookmark (digital) - Wikipedia", d: "A bookmark is a URI stored for later retrieval." },
+    "developer.mozilla.org": { t: "Web APIs | MDN", d: "A reference of all the interfaces available for building web apps." },
+    "github.com": { t: "GitHub - build and ship software", d: "Where over 100 million developers shape software together." },
+    "nytimes.com": { t: "The New York Times - Breaking News", d: "Live news, investigations, opinion, photos and video." }
+  };
+  function hostOf(url){try{let u=url.trim();if(!/^https?:\/\//i.test(u))u="https://"+u;return new URL(u).hostname.replace(/^www\./,"");}catch(e){return url.trim();}}
+  function normUrl(url){let u=url.trim();if(!/^https?:\/\//i.test(u))u="https://"+u;return u;}
+  function fetchMeta(url){const host=hostOf(url);if(KNOWN[host])return KNOWN[host];
+    const path=url.replace(/^https?:\/\//i,"").split("/").slice(1).join("/");
+    const slug=(path.split(/[?#]/)[0].split("/").filter(Boolean).pop()||"").replace(/[-_]+/g," ").replace(/\.[a-z]+$/i,"").trim();
+    const t=slug?slug.replace(/\b\w/g,c=>c.toUpperCase())+" — "+host:host;
+    return {t,d:"A page on "+host+". A short summary would appear here."};}
+  function timeNow(){return new Date().toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}
+  function allTags(){const s=new Set();items.forEach(i=>i.tags.forEach(t=>s.add(t)));["dev","reference","reading","tools","news"].forEach(t=>s.add(t));return[...s];}
+
+  function render() {
+    const lib = document.getElementById("library");
+    document.getElementById("count").textContent = items.length + (items.length===1?" saved link":" saved links");
+    lib.innerHTML = "";
+    items.forEach(it => {
+      const li = document.createElement("li");
+      li.className = "item";
+      if (it.loading) {
+        li.innerHTML = '<div class="favicon">'+it.host.charAt(0).toUpperCase()+'</div>'+
+          '<div class="body"><div class="fetching">Fetching page details…</div>'+
+          '<div class="meta"><span>'+it.url+'</span></div></div>';
+        lib.appendChild(li); return;
+      }
+      const chips = it.tags.map(t=>'<span class="chip">'+t+' <span class="x" data-id="'+it.id+'" data-tag="'+t+'">×</span></span>').join("");
+      const noteBlock = it.note
+        ? '<div class="note-box"><div class="note-text" data-id="'+it.id+'">'+it.note+'</div>'+
+          '<div class="noterow"><button class="addnote" data-act="editnote" data-id="'+it.id+'">edit note</button></div></div>'
+        : '<div class="noterow"><button class="addnote" data-act="editnote" data-id="'+it.id+'">+ add a note</button></div>';
+      li.innerHTML =
+        '<div class="favicon">'+it.host.charAt(0).toUpperCase()+'</div>'+
+        '<div class="body">'+
+          '<a class="title" href="'+it.url+'" target="_blank" rel="noopener">'+it.title+'</a>'+
+          '<div class="desc">'+it.desc+'</div>'+
+          noteBlock +
+          '<div class="tags" data-id="'+it.id+'">'+chips+'<span class="addtag" data-id="'+it.id+'">+ add tag</span></div>'+
+          '<div class="meta"><a href="'+it.url+'" target="_blank" rel="noopener">'+it.host+'</a><span>Saved '+it.saved+'</span></div>'+
+        '</div>'+
+        '<button class="rename" data-id="'+it.id+'">Rename</button>';
+      lib.appendChild(li);
+    });
+    wire();
+  }
+
+  function showPop(btn){closePop();const id=+btn.dataset.id;const it=items.find(x=>x.id===id);
+    const pop=document.createElement("div");pop.className="pop";
+    const picks=allTags().map(t=>'<span class="pick '+(it.tags.includes(t)?"on":"")+'" data-tag="'+t+'">'+t+'</span>').join("");
+    pop.innerHTML='<p class="lbl">Your tags</p><div class="picklist">'+picks+'</div><input placeholder="Create a new tag, Enter">';
+    btn.parentElement.appendChild(pop);openPop=pop;
+    pop.querySelectorAll(".pick").forEach(p=>p.addEventListener("click",()=>{const t=p.dataset.tag;
+      if(it.tags.includes(t))it.tags=it.tags.filter(x=>x!==t);else it.tags.push(t);render();reopenPop(id);}));
+    const inp=pop.querySelector("input");inp.focus();
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&inp.value.trim()){const v=inp.value.trim().toLowerCase();
+      if(!it.tags.includes(v))it.tags.push(v);render();reopenPop(id);}else if(e.key==="Escape")closePop();});}
+  function reopenPop(id){const b=document.querySelector('.addtag[data-id="'+id+'"]');if(b)showPop(b);}
+  function closePop(){if(openPop){openPop.remove();openPop=null;}}
+
+  function editNote(btn){const id=+btn.dataset.id;const it=items.find(x=>x.id===id);
+    const holder=btn.closest(".note-box")||btn.closest(".noterow").parentElement||btn.parentElement;
+    const box=btn.closest(".note-box")||btn.parentElement;
+    const ta=document.createElement("textarea");ta.className="note-edit";ta.value=it.note||"";
+    ta.placeholder="Why did you save this? (Enter to save, Esc to cancel)";
+    box.replaceWith(ta);ta.focus();
+    ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();it.note=ta.value.trim();render();}
+      else if(e.key==="Escape"){render();}});
+    ta.addEventListener("blur",()=>{it.note=ta.value.trim();render();});}
+
+  function wire(){
+    document.querySelectorAll(".addtag").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();showPop(b);}));
+    document.querySelectorAll(".chip .x").forEach(x=>x.addEventListener("click",()=>{const it=items.find(i=>i.id===+x.dataset.id);it.tags=it.tags.filter(t=>t!==x.dataset.tag);render();}));
+    document.querySelectorAll('[data-act="editnote"]').forEach(b=>b.addEventListener("click",()=>editNote(b)));
+    document.querySelectorAll(".rename").forEach(b=>b.addEventListener("click",()=>{const it=items.find(x=>x.id===+b.dataset.id);const n=prompt("Rename this link:",it.title);if(n!==null&&n.trim()){it.title=n.trim();render();}}));
+  }
+  document.addEventListener("click",e=>{if(openPop&&!e.target.closest(".pop")&&!e.target.classList.contains("addtag"))closePop();});
+
+  function save(){const input=document.getElementById("url");const raw=input.value.trim();if(!raw)return;
+    const url=normUrl(raw);const it={id:++seq,url:url,host:hostOf(url),loading:true,saved:timeNow(),tags:[],note:""};
+    items.unshift(it);input.value="";input.focus();render();
+    setTimeout(()=>{const m=fetchMeta(url);it.loading=false;it.title=m.t;it.desc=m.d;render();},650);}
+  document.getElementById("saveBtn").addEventListener("click",save);
+  document.getElementById("url").addEventListener("keydown",e=>{if(e.key==="Enter")save();});
+
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>
+</content>

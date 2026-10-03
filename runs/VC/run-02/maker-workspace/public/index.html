@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en" data-font="medium">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bookmarks</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app" class="app" data-harness-ready="false">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <span>Bookmarks</span>
+      </div>
+
+      <button id="addBtn" class="btn btn-primary add-btn">+ Add bookmark</button>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="all">
+          <span>All</span><span class="count" data-count="all">0</span>
+        </button>
+        <button class="nav-item" data-view="read_later">
+          <span>Read later</span><span class="count" data-count="read_later">0</span>
+        </button>
+        <button class="nav-item" data-view="archived">
+          <span>Archived</span><span class="count" data-count="archived">0</span>
+        </button>
+      </nav>
+
+      <div class="side-section">
+        <div class="side-head">
+          <span>Saved searches</span>
+          <button id="saveSearchBtn" class="link-btn" title="Save current search">+ save</button>
+        </div>
+        <div id="savedSearches" class="saved-list"></div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-head"><span>Tags</span></div>
+        <div id="tagCloud" class="tag-cloud"></div>
+      </div>
+
+      <div class="side-foot">
+        <button id="prefsBtn" class="link-btn">⚙ Preferences</button>
+        <button id="ioBtn" class="link-btn">⇄ Import / Export</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search-wrap">
+          <input id="search" class="search" type="text" autocomplete="off"
+                 placeholder='Search…  e.g.  tag:work AND "design system" NOT draft' />
+          <button id="searchHelp" class="help-btn" title="Search help">?</button>
+        </div>
+        <select id="sort" class="sort" title="Sort">
+          <option value="created_desc">Newest first</option>
+          <option value="created_asc">Oldest first</option>
+          <option value="updated_desc">Recently updated</option>
+          <option value="title_asc">Title A→Z</option>
+          <option value="title_desc">Title Z→A</option>
+          <option value="domain_asc">Site A→Z</option>
+        </select>
+      </header>
+
+      <div id="searchHelpBox" class="help-box hidden">
+        <strong>Search syntax</strong>
+        <ul>
+          <li><code>word</code> — matches title, description, notes, URL, tags</li>
+          <li><code>"exact phrase"</code> — matches the whole phrase</li>
+          <li><code>tag:work</code> or <code>tag:"machine learning"</code> — exact tag</li>
+          <li><code>is:read_later</code>, <code>is:archived</code>, <code>is:snapshot</code></li>
+          <li><code>AND</code> <code>OR</code> <code>NOT</code> and <code>( … )</code> — combine terms (space = AND)</li>
+        </ul>
+      </div>
+
+      <div id="bulkBar" class="bulk-bar hidden">
+        <span><span id="selCount">0</span> selected</span>
+        <button class="btn" data-bulk="read_later">Read later</button>
+        <button class="btn" data-bulk="clear_read_later">Clear read-later</button>
+        <button class="btn" data-bulk="archive">Archive</button>
+        <button class="btn" data-bulk="unarchive">Unarchive</button>
+        <button class="btn" data-bulk="add_tags">Add tags…</button>
+        <button class="btn btn-danger" data-bulk="delete">Delete</button>
+        <button class="btn btn-ghost" id="selClear">Cancel</button>
+      </div>
+
+      <div class="list-head">
+        <label class="checkall"><input type="checkbox" id="selectAll" /> Select all</label>
+        <span id="resultCount" class="result-count"></span>
+      </div>
+
+      <div id="list" class="list" aria-live="polite"></div>
+      <div id="empty" class="empty hidden"></div>
+    </main>
+  </div>
+
+  <!-- Bookmark editor modal -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="editTitle">Add bookmark</h2>
+        <button class="icon-btn" data-close>✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field">
+          <span>URL</span>
+          <div class="url-row">
+            <input id="f_url" type="text" placeholder="https://example.com/article" />
+            <button id="fetchMetaBtn" class="btn" type="button">Fetch</button>
+          </div>
+          <small id="dupNote" class="hint hidden"></small>
+        </label>
+        <div class="preview-row">
+          <img id="f_preview_img" class="preview-thumb hidden" alt="preview" />
+          <div class="preview-fields">
+            <label class="field">
+              <span>Title</span>
+              <input id="f_title" type="text" />
+            </label>
+            <label class="field">
+              <span>Description</span>
+              <textarea id="f_description" rows="2"></textarea>
+            </label>
+          </div>
+        </div>
+        <label class="field">
+          <span>Notes</span>
+          <textarea id="f_notes" rows="3" placeholder="Your private notes…"></textarea>
+        </label>
+        <label class="field">
+          <span>Tags <small>(comma separated)</small></span>
+          <input id="f_tags" type="text" placeholder="work, reading, ml" />
+        </label>
+        <div class="field-row">
+          <label class="check"><input id="f_read_later" type="checkbox" /> Read later</label>
+          <label class="check"><input id="f_archived" type="checkbox" /> Archived</label>
+        </div>
+        <div class="field-row adv">
+          <label class="field grow">
+            <span>Icon URL</span>
+            <input id="f_icon" type="text" />
+          </label>
+          <label class="field grow">
+            <span>Preview image URL</span>
+            <input id="f_preview_image" type="text" />
+          </label>
+        </div>
+        <div id="snapSection" class="snap-section hidden">
+          <div class="side-head">
+            <span>Snapshots</span>
+            <button id="snapBtn" class="btn" type="button">Capture snapshot</button>
+          </div>
+          <div id="snapList" class="snap-list"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="deleteBtn" class="btn btn-danger hidden" type="button">Delete</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" data-close type="button">Cancel</button>
+        <button id="saveBtn" class="btn btn-primary" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preferences modal -->
+  <div id="prefsModal" class="modal hidden">
+    <div class="modal-card small">
+      <div class="modal-head"><h2>Preferences</h2><button class="icon-btn" data-close>✕</button></div>
+      <div class="modal-body">
+        <label class="field">
+          <span>Default sort</span>
+          <select id="p_sort">
+            <option value="created_desc">Newest first</option>
+            <option value="created_asc">Oldest first</option>
+            <option value="updated_desc">Recently updated</option>
+            <option value="title_asc">Title A→Z</option>
+            <option value="title_desc">Title Z→A</option>
+            <option value="domain_asc">Site A→Z</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Default view</span>
+          <select id="p_view">
+            <option value="all">All</option>
+            <option value="read_later">Read later</option>
+            <option value="archived">Archived</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Font size</span>
+          <select id="p_font">
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-foot">
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button id="savePrefsBtn" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import/Export modal -->
+  <div id="ioModal" class="modal hidden">
+    <div class="modal-card small">
+      <div class="modal-head"><h2>Import / Export</h2><button class="icon-btn" data-close>✕</button></div>
+      <div class="modal-body">
+        <div class="io-block">
+          <h3>Export</h3>
+          <div class="field-row">
+            <a class="btn" href="/api/export?format=json">Download JSON</a>
+            <a class="btn" href="/api/export?format=html">Download HTML</a>
+          </div>
+        </div>
+        <div class="io-block">
+          <h3>Import</h3>
+          <p class="hint">Accepts this app's JSON export or a browser's exported bookmarks HTML. Duplicate URLs are skipped.</p>
+          <input id="importFile" type="file" accept=".json,.html,.htm,application/json,text/html" />
+          <div id="importResult" class="hint"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" data-close>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Snapshot viewer -->
+  <div id="snapViewer" class="modal hidden">
+    <div class="modal-card wide">
+      <div class="modal-head"><h2 id="snapViewerTitle">Snapshot</h2><button class="icon-btn" data-close>✕</button></div>
+      <div class="modal-body snap-viewer-body">
+        <img id="snapViewerImg" alt="snapshot" />
+      </div>
+      <div class="modal-foot">
+        <a id="snapViewerHtml" class="btn" target="_blank" rel="noopener">Open saved HTML</a>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" data-close>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- prompt modal for tag input on bulk -->
+  <script src="/app.js"></script>
+</body>
+</html>

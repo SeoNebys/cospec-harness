@@ -1,0 +1,4 @@
+import type { BookmarkDatabase } from '../../src/server/db/connection.js';
+import { BookmarkRepository } from '../../src/server/db/repositories/bookmark-repository.js';
+import { EMPTY_NOTE } from '../../src/shared/notes/schema.js';
+export function seed1000(db:BookmarkDatabase){const repository=new BookmarkRepository(db,()=>1_700_000_000_000,(()=>{let id=0;return()=>`00000000-0000-4000-8000-${String(++id).padStart(12,'0')}`;})());const insert=db.transaction(()=>{for(let index=0;index<1000;index++)repository.create({url:`https://example.com/${index}`,normalizedUrl:`https://example.com/${index}`,title:`${index%2?'Design':'Research'} reference ${String(index).padStart(4,'0')}`,description:index%5===0?'Accessibility systems':null,notes:EMPTY_NOTE,notesText:index%7===0?'team notes':'',tags:[index%3?'Work':'Machine learning'],favorite:index%10===0,toRead:index%4===0});});insert();}

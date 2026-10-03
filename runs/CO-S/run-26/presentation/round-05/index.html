@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --ink: #1f2430; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2f6feb; --accent-soft: #eaf1fe;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink);
+  }
+  header {
+    background: var(--card); border-bottom: 1px solid var(--line);
+    padding: 18px 24px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px; }
+
+  .saver {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 24px;
+  }
+  .saver label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .row { display: flex; gap: 10px; }
+  .row input[type=url] {
+    flex: 1; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 14px;
+  }
+  button.primary {
+    padding: 11px 18px; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .hint code {
+    background: var(--accent-soft); color: var(--accent); padding: 2px 6px;
+    border-radius: 5px; cursor: pointer;
+  }
+
+  .fetching { font-size: 13px; color: var(--muted); margin-top: 12px; display: none; }
+
+  .listhead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .listhead h2 { font-size: 15px; margin: 0; }
+  .count { color: var(--muted); font-size: 13px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .card .title { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .card .title a { color: var(--ink); text-decoration: none; }
+  .card .site { color: var(--accent); font-size: 12px; margin: 0 0 8px; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: 0 0 12px; line-height: 1.45; }
+  .card .meta { color: var(--muted); font-size: 12px; }
+
+  .empty {
+    text-align: center; color: var(--muted); padding: 40px 20px;
+    border: 1px dashed var(--line); border-radius: 12px; background: var(--card);
+  }
+  .justsaved { box-shadow: 0 0 0 2px var(--accent-soft); }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — for exploring behaviour together</p>
+</header>
+
+<div class="wrap">
+  <div class="saver">
+    <label for="urlInput">Save a link</label>
+    <div class="row">
+      <input id="urlInput" type="url" placeholder="Paste a link here, e.g. https://…" autocomplete="off" />
+      <button id="saveBtn" class="primary">Save</button>
+    </div>
+    <div class="fetching" id="fetching">Reading the page details…</div>
+    <div class="hint">
+      Try one of these sample links:
+      <code data-sample="https://www.nasa.gov/mission/artemis-ii/">nasa.gov/…/artemis-ii</code>
+      <code data-sample="https://reactjs.org/docs/hooks-intro.html">reactjs.org/…/hooks-intro</code>
+      <code data-sample="https://en.wikipedia.org/wiki/Bookmark">wikipedia.org/wiki/Bookmark</code>
+    </div>
+  </div>
+
+  <div class="listhead">
+    <h2>Saved</h2>
+    <span class="count" id="count"></span>
+  </div>
+  <div id="list"></div>
+</div>
+
+<script>
+  // --- Prototype only: simulates the external behaviour of "reading page details".
+  // In the real app this would come from the page itself; here we simulate it.
+  const CATALOG = {
+    "https://www.nasa.gov/mission/artemis-ii/": {
+      title: "Artemis II - NASA",
+      site: "nasa.gov",
+      desc: "Artemis II will be the first crewed mission of NASA's Artemis campaign, sending four astronauts around the Moon."
+    },
+    "https://reactjs.org/docs/hooks-intro.html": {
+      title: "Introducing Hooks - React",
+      site: "reactjs.org",
+      desc: "Hooks are a new addition that let you use state and other React features without writing a class."
+    },
+    "https://en.wikipedia.org/wiki/Bookmark": {
+      title: "Bookmark - Wikipedia",
+      site: "en.wikipedia.org",
+      desc: "A bookmark is a thin marker used to keep a reader's place; in software, a saved reference to a web page."
+    }
+  };
+
+  function simulateReadDetails(url) {
+    if (CATALOG[url]) return { ...CATALOG[url] };
+    // Fallback: derive a readable title and site from the URL itself.
+    let site = url, path = "";
+    try {
+      const u = new URL(url);
+      site = u.hostname.replace(/^www\./, "");
+      path = u.pathname.replace(/\/$/, "").split("/").filter(Boolean).pop() || "";
+    } catch (e) {}
+    const title = path
+      ? path.replace(/[-_]+/g, " ").replace(/\.\w+$/, "").replace(/\b\w/g, c => c.toUpperCase())
+      : site;
+    return { title: title || url, site, desc: "" };
+  }
+
+  const bookmarks = [];
+  const listEl = document.getElementById("list");
+  const countEl = document.getElementById("count");
+  const input = document.getElementById("urlInput");
+  const saveBtn = document.getElementById("saveBtn");
+  const fetching = document.getElementById("fetching");
+
+  function fmtDate(d) {
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function render(justSavedId) {
+    countEl.textContent = bookmarks.length
+      ? bookmarks.length + (bookmarks.length === 1 ? " link" : " links")
+      : "";
+    if (!bookmarks.length) {
+      listEl.innerHTML = '<div class="empty">Nothing saved yet. Paste a link above to save your first bookmark.</div>';
+      return;
+    }
+    listEl.innerHTML = bookmarks.map(b => `
+      <div class="card ${b.id === justSavedId ? "justsaved" : ""}">
+        <p class="title"><a href="${b.url}" target="_blank" rel="noreferrer">${b.title}</a></p>
+        <p class="site">${b.site}</p>
+        ${b.desc ? `<p class="desc">${b.desc}</p>` : ""}
+        <p class="meta">Saved ${fmtDate(b.savedAt)}</p>
+      </div>
+    `).join("");
+  }
+
+  function save() {
+    const url = input.value.trim();
+    if (!url) return;
+    saveBtn.disabled = true;
+    fetching.style.display = "block";
+    // Simulate the brief moment of reading page details.
+    setTimeout(() => {
+      const details = simulateReadDetails(url);
+      const bm = {
+        id: Date.now(),
+        url,
+        title: details.title,
+        site: details.site,
+        desc: details.desc,
+        savedAt: new Date()
+      };
+      bookmarks.unshift(bm);
+      input.value = "";
+      fetching.style.display = "none";
+      saveBtn.disabled = false;
+      render(bm.id);
+    }, 650);
+  }
+
+  saveBtn.addEventListener("click", save);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+  document.querySelectorAll("code[data-sample]").forEach(el => {
+    el.addEventListener("click", () => { input.value = el.getAttribute("data-sample"); input.focus(); });
+  });
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

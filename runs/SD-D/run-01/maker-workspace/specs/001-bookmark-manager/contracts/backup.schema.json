@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bookmark-manager.local/schemas/backup-v1.json",
+  "title": "Bookmark Manager Complete Backup",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "exportedAt",
+    "bookmarks"
+  ],
+  "properties": {
+    "format": {
+      "const": "bookmark-manager-backup"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "bookmarks": {
+      "type": "array",
+      "maxItems": 20000,
+      "items": {
+        "$ref": "#/$defs/bookmark"
+      }
+    }
+  },
+  "$defs": {
+    "bookmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportId",
+        "url",
+        "title",
+        "description",
+        "notes",
+        "tags",
+        "favorite",
+        "readLaterState",
+        "archived",
+        "icon",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "exportId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 4096
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          }
+        },
+        "favorite": {
+          "type": "boolean"
+        },
+        "readLaterState": {
+          "type": "string",
+          "enum": [
+            "none",
+            "unread",
+            "read"
+          ]
+        },
+        "readLaterAddedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "readAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "archivedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "icon": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/icon"
+            }
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "readLaterState": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "readLaterAddedAt": {
+                "type": "null"
+              },
+              "readAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "readLaterState": {
+                "const": "unread"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "readLaterAddedAt",
+              "readAt"
+            ],
+            "properties": {
+              "readLaterAddedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "readAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "readLaterState": {
+                "const": "read"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "readLaterAddedAt",
+              "readAt"
+            ],
+            "properties": {
+              "readLaterAddedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "readAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "archived": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "archivedAt": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "archived": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "archivedAt"
+            ],
+            "properties": {
+              "archivedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "icon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mediaType",
+        "dataBase64",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "mediaType": {
+          "const": "image/png"
+        },
+        "dataBase64": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "maxLength": 349528
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        }
+      }
+    }
+  }
+}

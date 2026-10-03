@@ -1,0 +1,557 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager Application API
+  version: 1.0.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: >-
+    Authenticated bookmark, tag, icon, and health interfaces for the first
+    release. Authentication endpoints are documented in auth.md and mounted
+    under /api/auth by Better Auth.
+servers:
+  - url: /
+security:
+  - cookieSession: []
+tags:
+  - name: Bookmarks
+    description: Save, list, search, organize, update, archive, restore, and delete bookmarks.
+  - name: Tags
+    description: Read the authenticated user's reusable bookmark tags.
+  - name: Icons
+    description: Read safe stored icons referenced by the authenticated user's bookmarks.
+  - name: Operations
+    description: Runtime readiness operations.
+paths:
+  /api/bookmarks:
+    get:
+      summary: List and search bookmarks
+      operationId: listBookmarks
+      tags: [Bookmarks]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Case-insensitive full-text query.
+        - name: tags
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 25
+            items:
+              type: string
+              maxLength: 50
+          description: A bookmark must match every supplied tag.
+        - name: favorite
+          in: query
+          schema:
+            type: boolean
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookmarkStatus'
+          required: false
+          description: Defaults to active.
+      responses:
+        '200':
+          description: A newest-first page scoped to the authenticated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Save a bookmark from an address
+      operationId: createBookmark
+      tags: [Bookmarks]
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkCreateInput'
+      responses:
+        '201':
+          description: Bookmark saved, including a fallback when metadata retrieval failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkMutationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: A duplicate exists and explicit confirmation is required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateWarning'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /api/bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      summary: Get one owned bookmark
+      operationId: getBookmark
+      tags: [Bookmarks]
+      responses:
+        '200':
+          description: Bookmark owned by the current user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update, favorite, archive, or restore a bookmark
+      operationId: updateBookmark
+      tags: [Bookmarks]
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkUpdateInput'
+      responses:
+        '200':
+          description: Updated bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      summary: Permanently delete a bookmark
+      operationId: deleteBookmark
+      tags: [Bookmarks]
+      parameters:
+        - $ref: '#/components/parameters/Origin'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version]
+              properties:
+                version:
+                  type: integer
+                  minimum: 1
+      responses:
+        '204':
+          description: Permanently deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VersionConflict'
+  /api/tags:
+    get:
+      summary: List the current user's tags
+      operationId: listTags
+      tags: [Tags]
+      responses:
+        '200':
+          description: All tags owned by the current user, ordered by display name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 500
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/icons/{iconId}:
+    get:
+      summary: Read an owned bookmark icon
+      operationId: getBookmarkIcon
+      tags: [Icons]
+      description: >-
+        Returns an icon only when the authenticated user owns at least one
+        bookmark that references it.
+      parameters:
+        - name: iconId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-f0-9]{64}$'
+      responses:
+        '200':
+          description: Immutable raster icon bytes.
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+              example: private, max-age=31536000, immutable
+            X-Content-Type-Options:
+              schema:
+                type: string
+              example: nosniff
+          content:
+            image/png:
+              schema: { type: string, contentEncoding: binary }
+            image/jpeg:
+              schema: { type: string, contentEncoding: binary }
+            image/gif:
+              schema: { type: string, contentEncoding: binary }
+            image/webp:
+              schema: { type: string, contentEncoding: binary }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/health:
+    get:
+      summary: Check application readiness
+      operationId: getHealth
+      tags: [Operations]
+      security: []
+      responses:
+        '200':
+          description: Process is ready and the database is accessible.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+        '503':
+          description: Process is running but not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+components:
+  securitySchemes:
+    cookieSession:
+      type: apiKey
+      in: cookie
+      name: bookmark_manager.session_token
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+        maxLength: 500
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uri
+      description: Must exactly match the configured trusted application origin.
+  responses:
+    BadRequest:
+      description: Malformed request or query.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid authenticated session.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource does not exist or is not owned by the current user.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    PayloadTooLarge:
+      description: Request exceeds the accepted body limit.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Too many requests.
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: One or more submitted fields are invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+    VersionConflict:
+      description: Bookmark changed after the client loaded it.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  current:
+                    $ref: '#/components/schemas/Bookmark'
+  schemas:
+    BookmarkStatus:
+      type: string
+      enum: [active, archived]
+    MetadataStatus:
+      type: string
+      enum: [complete, partial, failed]
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - url
+        - title
+        - titleSource
+        - metadataStatus
+        - isFavorite
+        - status
+        - tags
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        titleSource:
+          type: string
+          enum: [metadata, fallback, user]
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+        notes:
+          type: [string, 'null']
+          maxLength: 5000
+        iconUrl:
+          type: [string, 'null']
+          description: Same-origin /api/icons/{iconId} URL.
+        metadataStatus:
+          $ref: '#/components/schemas/MetadataStatus'
+        metadataMessage:
+          type: [string, 'null']
+          description: User-safe explanation when details are partial or unavailable.
+        isFavorite:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/BookmarkStatus'
+        tags:
+          type: array
+          maxItems: 25
+          items:
+            $ref: '#/components/schemas/Tag'
+        version:
+          type: integer
+          minimum: 1
+        archivedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BookmarkCreateInput:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        notes:
+          type: string
+          maxLength: 5000
+        tags:
+          type: array
+          maxItems: 25
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        allowDuplicate:
+          type: boolean
+          default: false
+    BookmarkUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [version]
+      minProperties: 2
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        notes:
+          type: [string, 'null']
+          maxLength: 5000
+        tags:
+          type: array
+          maxItems: 25
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        isFavorite:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/BookmarkStatus'
+    BookmarkMutationResult:
+      type: object
+      additionalProperties: false
+      required: [bookmark, outcome]
+      properties:
+        bookmark:
+          $ref: '#/components/schemas/Bookmark'
+        outcome:
+          type: string
+          enum: [metadata_complete, metadata_partial, metadata_unavailable]
+    BookmarkPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bookmark'
+        nextCursor:
+          type: [string, 'null']
+        appliedFilters:
+          type: object
+          additionalProperties: false
+          properties:
+            q: { type: [string, 'null'] }
+            tags:
+              type: array
+              items: { type: string }
+            favorite: { type: [boolean, 'null'] }
+            status: { $ref: '#/components/schemas/BookmarkStatus' }
+    DuplicateWarning:
+      type: object
+      additionalProperties: false
+      required: [code, message, existing]
+      properties:
+        code:
+          type: string
+          const: DUPLICATE_BOOKMARK
+        message:
+          type: string
+        existing:
+          $ref: '#/components/schemas/Bookmark'
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required: [fields]
+          properties:
+            fields:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

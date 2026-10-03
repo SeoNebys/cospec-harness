@@ -1,0 +1,2 @@
+import fs from "node:fs";import { describe,expect,it } from "vitest";
+const contract=fs.readFileSync("specs/001-manage-bookmarks/contracts/openapi.yaml","utf8");describe("create contract",()=>{it("documents create, duplicate, fallback, and icon behavior",()=>{expect(contract).toContain("operationId: createBookmark");expect(contract).toContain("DUPLICATE_BOOKMARK");expect(contract).toContain("metadata_unavailable");expect(contract).toContain("operationId: getBookmarkIcon");});});

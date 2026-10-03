@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepmark prototype</title>
+  <style>
+    :root { color-scheme: light; --ink:#14251d; --muted:#68756e; --line:#dce4df; --paper:#fbfcfa; --green:#176b47; --soft:#eef5f0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f2f4f0; color:var(--ink); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    button,input { font:inherit; }
+    .shell { min-height:100vh; display:grid; grid-template-columns:220px 1fr; }
+    aside { padding:30px 24px; border-right:1px solid var(--line); background:#f8faf7; }
+    .brand { display:flex; gap:10px; align-items:center; font-size:19px; font-weight:750; letter-spacing:-.4px; margin-bottom:38px; }
+    .brand-mark { width:29px; height:29px; border-radius:9px; display:grid; place-items:center; color:white; background:var(--green); font-size:16px; }
+    nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; margin:3px 0; border-radius:9px; color:#4d5b54; text-decoration:none; }
+    nav a.active { color:var(--ink); background:#e9efe9; font-weight:650; }
+    nav span { width:19px; text-align:center; }
+    main { width:min(930px, calc(100vw - 270px)); margin:0 auto; padding:54px 28px; }
+    .eyebrow { color:var(--green); font-size:13px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { font:700 36px/1.15 Georgia, serif; letter-spacing:-1px; margin:7px 0 8px; }
+    .sub { color:var(--muted); margin:0 0 27px; }
+    form { display:flex; gap:10px; padding:9px; border:1px solid #cbd6cf; background:white; border-radius:14px; box-shadow:0 9px 28px rgba(30,55,42,.07); }
+    input { flex:1; min-width:0; border:0; outline:0; padding:9px 11px; color:var(--ink); }
+    input::placeholder { color:#95a19a; }
+    button { border:0; border-radius:9px; padding:10px 18px; font-weight:700; cursor:pointer; background:var(--green); color:white; }
+    button:disabled { opacity:.7; cursor:wait; }
+    .section-head { display:flex; justify-content:space-between; align-items:center; margin:44px 0 14px; }
+    h2 { font-size:17px; margin:0; }
+    .count { color:var(--muted); font-size:13px; }
+    .empty { padding:56px 24px; border:1px dashed #cbd5cf; border-radius:14px; text-align:center; color:var(--muted); background:rgba(255,255,255,.45); }
+    .empty strong { display:block; color:#425048; margin-bottom:4px; }
+    .card { display:none; grid-template-columns:150px 1fr; overflow:hidden; background:white; border:1px solid var(--line); border-radius:14px; box-shadow:0 5px 18px rgba(30,55,42,.05); }
+    .card.visible { display:grid; animation:up .25s ease-out; }
+    .preview { min-height:145px; display:grid; place-items:center; color:#fff; background:linear-gradient(145deg,#314f88,#6b8ed5); font:700 42px Georgia, serif; }
+    .content { padding:19px 21px 17px; }
+    .site { display:flex; align-items:center; gap:7px; color:#617068; font-size:12px; }
+    .favicon { display:grid; place-items:center; width:19px; height:19px; border-radius:5px; background:#111f3e; color:#fff; font-size:11px; font-weight:800; }
+    h3 { margin:9px 0 5px; font:700 21px/1.25 Georgia, serif; }
+    .description { color:#5d6b64; margin:0; max-width:590px; }
+    .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+    .card-top h3 { flex:1; }
+    .edit-button { background:transparent; color:#536159; padding:6px 9px; border:1px solid var(--line); font-size:12px; }
+    .edit-form { display:none; margin-top:10px; }
+    .edit-form.visible { display:block; }
+    .edit-form label, .dialog label { display:block; margin:10px 0 4px; color:#536159; font-size:12px; font-weight:700; }
+    .edit-form input, .dialog input, .edit-form textarea, .dialog textarea { width:100%; padding:9px 10px; border:1px solid #cbd6cf; border-radius:8px; color:var(--ink); background:white; resize:vertical; }
+    .edit-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+    .cancel { background:white; color:#536159; border:1px solid var(--line); }
+    .overlay { display:none; position:fixed; inset:0; z-index:5; place-items:center; padding:20px; background:rgba(18,31,24,.45); }
+    .overlay.visible { display:grid; }
+    .dialog { width:min(510px,100%); padding:24px; background:white; border-radius:15px; box-shadow:0 22px 70px rgba(0,0,0,.22); }
+    .dialog h2 { font:700 23px Georgia,serif; }
+    .dialog p { color:var(--muted); margin:4px 0 14px; font-size:13px; }
+    .meta { display:flex; gap:8px; align-items:center; margin-top:14px; color:#879189; font-size:12px; }
+    .pill { background:var(--soft); color:#42604e; padding:3px 8px; border-radius:20px; }
+    .toast { position:fixed; right:24px; bottom:24px; padding:11px 15px; border-radius:10px; background:#173e2c; color:white; opacity:0; transform:translateY(8px); transition:.2s; }
+    .toast.show { opacity:1; transform:none; }
+    @keyframes up { from { opacity:0; transform:translateY(8px); } }
+    @media (max-width:700px) { .shell{grid-template-columns:1fr} aside{display:none} main{width:100%;padding:32px 20px}.card{grid-template-columns:1fr}.preview{min-height:105px} }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="brand-mark">K</span> Keepmark</div>
+      <nav>
+        <a class="active" href="#"><span>⌂</span> All bookmarks</a>
+        <a href="#"><span>◷</span> Read later</a>
+        <a href="#"><span>◇</span> Labels</a>
+      </nav>
+    </aside>
+    <main>
+      <div class="eyebrow">Your library</div>
+      <h1>Save something worth returning to.</h1>
+      <p class="sub">Paste a web address. The page details will be gathered for you.</p>
+      <form id="saveForm">
+        <input id="url" type="url" required aria-label="Web address" placeholder="Paste a web address…" autocomplete="off">
+        <button id="saveButton" type="submit">Save bookmark</button>
+      </form>
+
+      <div class="section-head">
+        <h2>Recently saved</h2>
+        <span class="count" id="count">0 bookmarks</span>
+      </div>
+      <div class="empty" id="empty"><strong>Your collection is empty</strong>Your first saved page will appear here.</div>
+      <article class="card" id="card">
+        <div class="preview">CSS</div>
+        <div class="content">
+          <div class="site"><span class="favicon">M</span><span id="host">developer.mozilla.org</span></div>
+          <div id="displayDetails">
+            <div class="card-top"><h3 id="title">CSS grid layout</h3><button class="edit-button" id="editButton" type="button">Edit details</button></div>
+            <p class="description" id="description">CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.</p>
+          </div>
+          <form class="edit-form" id="inlineEdit">
+            <label for="inlineAddress">Web address</label><input id="inlineAddress" type="url" value="https://developer.mozilla.org/en-US/docs/Web/CSS/grid">
+            <label for="inlineTitle">Title</label><input id="inlineTitle" value="CSS grid layout">
+            <label for="inlineDescription">Description</label><textarea id="inlineDescription" rows="3">CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.</textarea>
+            <div class="edit-actions"><button class="cancel" type="button">Cancel</button><button type="submit">Save changes</button></div>
+          </form>
+          <div class="meta"><span class="pill">Saved just now</span><span id="displayUrl">developer.mozilla.org/en-US/docs/Web/CSS/grid</span></div>
+        </div>
+      </article>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status">Bookmark saved</div>
+  <div class="overlay" id="overlay">
+    <form class="dialog" id="dialogEdit">
+      <h2>Edit bookmark details</h2><p>The address and page image stay unchanged.</p>
+      <label for="dialogTitle">Title</label><input id="dialogTitle" value="CSS grid layout">
+      <label for="dialogDescription">Description</label><textarea id="dialogDescription" rows="4">CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.</textarea>
+      <div class="edit-actions"><button class="cancel" type="button">Cancel</button><button type="submit">Save changes</button></div>
+    </form>
+  </div>
+  <script>
+    const form = document.querySelector('#saveForm');
+    const input = document.querySelector('#url');
+    const button = document.querySelector('#saveButton');
+    const params = new URLSearchParams(location.search);
+    const editMode = params.get('edit') || 'inline';
+    if (params.get('state') === 'saved') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#card').classList.add('visible');
+      document.querySelector('#count').textContent = '1 bookmark';
+    }
+    const showToast = (message) => {
+      const toast = document.querySelector('#toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1800);
+    };
+    document.querySelector('#editButton').addEventListener('click', () => {
+      if (editMode === 'dialog') document.querySelector('#overlay').classList.add('visible');
+      else {
+        document.querySelector('#displayDetails').style.display = 'none';
+        document.querySelector('#inlineEdit').classList.add('visible');
+      }
+    });
+    const applyEdit = (title, description, address) => {
+      if (address) {
+        const parsed = new URL(address);
+        const cleanHost = parsed.hostname.replace(/^www\./, '');
+        document.querySelector('#host').textContent = cleanHost;
+        document.querySelector('#displayUrl').textContent = (parsed.hostname + parsed.pathname + parsed.search).replace(/^www\./, '');
+        document.querySelector('.favicon').textContent = cleanHost.slice(0, 1).toUpperCase();
+        document.querySelector('.preview').textContent = cleanHost.slice(0, 2).toUpperCase();
+        if (params.get('address') === 'refetch' && cleanHost === 'web.dev') {
+          title = 'Learn CSS: Flexbox';
+          description = 'Learn how to use flexbox to create flexible layouts that adapt to different screen sizes.';
+          document.querySelector('#inlineTitle').value = title;
+          document.querySelector('#inlineDescription').value = description;
+        }
+      }
+      document.querySelector('#title').textContent = title;
+      document.querySelector('#description').textContent = description;
+      document.querySelector('#displayDetails').style.display = '';
+      document.querySelector('#inlineEdit').classList.remove('visible');
+      document.querySelector('#overlay').classList.remove('visible');
+      showToast('Changes saved');
+    };
+    document.querySelector('#inlineEdit').addEventListener('submit', e => { e.preventDefault(); applyEdit(document.querySelector('#inlineTitle').value, document.querySelector('#inlineDescription').value, document.querySelector('#inlineAddress').value); });
+    document.querySelector('#dialogEdit').addEventListener('submit', e => { e.preventDefault(); applyEdit(document.querySelector('#dialogTitle').value, document.querySelector('#dialogDescription').value); });
+    document.querySelectorAll('.cancel').forEach(el => el.addEventListener('click', () => {
+      document.querySelector('#displayDetails').style.display = '';
+      document.querySelector('#inlineEdit').classList.remove('visible');
+      document.querySelector('#overlay').classList.remove('visible');
+    }));
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const parsed = new URL(input.value);
+      button.disabled = true;
+      button.textContent = 'Getting page details…';
+      setTimeout(() => {
+        const isMdn = parsed.hostname.includes('mozilla.org');
+        document.querySelector('#host').textContent = parsed.hostname.replace(/^www\./, '');
+        document.querySelector('#displayUrl').textContent = (parsed.hostname + parsed.pathname).replace(/^www\./, '');
+        if (!isMdn) {
+          document.querySelector('#title').textContent = 'A saved page from ' + parsed.hostname.replace(/^www\./, '');
+          document.querySelector('#description').textContent = 'A short description gathered from the page will appear here.';
+          document.querySelector('.preview').textContent = parsed.hostname.slice(0, 2).toUpperCase();
+        }
+        document.querySelector('#empty').style.display = 'none';
+        document.querySelector('#card').classList.add('visible');
+        document.querySelector('#count').textContent = '1 bookmark';
+        input.value = '';
+        button.disabled = false;
+        button.textContent = 'Save bookmark';
+        showToast('Bookmark saved');
+      }, 700);
+    });
+  </script>
+</body>
+</html>

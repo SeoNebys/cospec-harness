@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Add a note</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .notes-shell { width: min(900px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 70px; }
+    .notes-header { padding: 65px 0 28px; }
+    .notes-header h1 { font-size: 50px; }
+    .note-card { display: grid; grid-template-columns: 180px 1fr; gap: 22px; padding: 15px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
+    .note-preview { min-height: 170px; border-radius: 10px; background: linear-gradient(145deg, #183d4d, #e79a54); }
+    .note-body h2 { margin: 5px 0 8px; font-family: Georgia, serif; font-size: 24px; font-weight: 500; }
+    .note-description { margin: 0 0 13px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .add-note { border: 1px dashed #9ba89e; border-radius: 8px; padding: 8px 11px; background: transparent; color: var(--green); cursor: pointer; font-size: 12px; font-weight: 750; }
+    .saved-note { margin: 14px 0 0; padding: 11px 13px; border-left: 3px solid #d79555; border-radius: 0 7px 7px 0; background: #f5eee3; color: #485048; font-size: 12px; line-height: 1.5; }
+    .note-editor { margin-top: 13px; }
+    .note-editor label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
+    .note-editor textarea { width: 100%; border: 1px solid #aeb8af; border-radius: 9px; padding: 10px; background: white; color: var(--ink); resize: vertical; }
+    .note-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    .side-backdrop { position: fixed; inset: 0; background: rgba(18,27,22,.38); }
+    .side-backdrop:not([hidden]) { display: flex; justify-content: flex-end; }
+    .note-panel { width: min(420px, 100%); min-height: 100%; padding: 65px 36px; background: var(--paper); }
+    .note-panel h2 { margin: 0 0 9px; font-family: Georgia, serif; font-size: 32px; font-weight: 500; }
+    .note-panel p { margin: 0 0 24px; color: var(--muted); font-size: 13px; }
+    .note-panel textarea { width: 100%; border: 1px solid #aeb8af; border-radius: 9px; padding: 11px; background: white; color: var(--ink); resize: vertical; }
+    @media (max-width: 620px) { .note-card { grid-template-columns: 1fr; } .note-preview { min-height: 150px; } }
+  </style>
+</head>
+<body>
+  <main class="notes-shell" data-harness-ready="true">
+    <header class="topbar"><a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a><span class="prototype-badge">Notes prototype</span></header>
+    <section class="notes-header"><p class="eyebrow">YOUR COLLECTION</p><h1>Remember why it mattered.</h1></section>
+    <article class="note-card">
+      <div class="note-preview"></div>
+      <div class="note-body">
+        <p class="site-line"><span class="site-icon">F</span> Field Notes · Saved today</p>
+        <h2>A calmer way to keep what you discover online</h2>
+        <p class="note-description">A practical guide to building a personal reading collection that stays useful.</p>
+        <button id="add-note" class="add-note" type="button">+ Add a note</button>
+        <p id="saved-note" class="saved-note" hidden></p>
+        <div id="inline-note" class="note-editor" hidden>
+          <label for="inline-note-text">Your note</label><textarea id="inline-note-text" rows="4" placeholder="Why are you saving this?"></textarea>
+          <div class="note-actions"><button id="cancel-inline" class="secondary-button" type="button">Cancel</button><button id="save-inline" class="primary-button" type="button">Save note</button></div>
+        </div>
+      </div>
+    </article>
+  </main>
+  <div id="side-backdrop" class="side-backdrop" hidden><section class="note-panel"><p class="eyebrow">PERSONAL NOTE</p><h2>Add context for later</h2><p>A calmer way to keep what you discover online</p><textarea id="panel-note-text" rows="7" placeholder="Why are you saving this?"></textarea><div class="note-actions"><button id="cancel-panel" class="secondary-button" type="button">Cancel</button><button id="save-panel" class="primary-button" type="button">Save note</button></div></section></div>
+  <script>
+    const mode = new URLSearchParams(location.search).get('mode') || 'inline';
+    const trigger = document.querySelector('#add-note');
+    const inline = document.querySelector('#inline-note');
+    const panel = document.querySelector('#side-backdrop');
+    const saved = document.querySelector('#saved-note');
+    function finish(text) { saved.textContent = text; saved.hidden = false; trigger.textContent = 'Edit note'; inline.hidden = true; panel.hidden = true; }
+    trigger.addEventListener('click', () => {
+      if (mode === 'panel') { panel.hidden = false; document.querySelector('#panel-note-text').focus(); }
+      else { inline.hidden = false; document.querySelector('#inline-note-text').focus(); }
+    });
+    document.querySelector('#cancel-inline').addEventListener('click', () => { inline.hidden = true; });
+    document.querySelector('#cancel-panel').addEventListener('click', () => { panel.hidden = true; });
+    document.querySelector('#save-inline').addEventListener('click', () => finish(document.querySelector('#inline-note-text').value));
+    document.querySelector('#save-panel').addEventListener('click', () => finish(document.querySelector('#panel-note-text').value));
+  </script>
+</body>
+</html>

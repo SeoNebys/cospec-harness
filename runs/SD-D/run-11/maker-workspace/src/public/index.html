@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-text-size="medium">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookmark Manager</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">🔖 Bookmarks</div>
+      <form id="quick-add" class="quick-add">
+        <input
+          id="quick-url"
+          type="text"
+          placeholder="Paste a URL to save…"
+          autocomplete="off"
+        />
+        <button type="submit">Add</button>
+      </form>
+      <nav class="views">
+        <button class="view-tab active" data-view="main">All</button>
+        <button class="view-tab" data-view="unread">Unread</button>
+        <button class="view-tab" data-view="archive">Archive</button>
+        <button class="view-tab" data-view="preferences">Preferences</button>
+      </nav>
+    </header>
+
+    <main id="app" class="app">
+      <!-- Search + controls -->
+      <section id="controls" class="controls">
+        <form id="search-form" class="search-form">
+          <input
+            id="search-input"
+            type="text"
+            placeholder='Search…  e.g.  #travel AND (japan OR korea) NOT flight'
+            autocomplete="off"
+          />
+          <button type="submit">Search</button>
+          <button type="button" id="clear-search" class="ghost">Clear</button>
+        </form>
+        <div class="controls-row">
+          <label>
+            Sort
+            <select id="sort-select">
+              <option value="date_added_desc">Newest first</option>
+              <option value="date_added_asc">Oldest first</option>
+              <option value="title_asc">Title A–Z</option>
+              <option value="title_desc">Title Z–A</option>
+            </select>
+          </label>
+          <div class="saved-searches">
+            <select id="saved-search-select">
+              <option value="">Saved searches…</option>
+            </select>
+            <button type="button" id="save-search-btn" class="ghost">Save current</button>
+            <button type="button" id="delete-search-btn" class="ghost">Delete</button>
+          </div>
+          <button type="button" id="import-btn" class="ghost">Import</button>
+          <button type="button" id="export-btn" class="ghost">Export</button>
+          <input id="import-file" type="file" accept=".html,text/html" hidden />
+        </div>
+        <div id="search-error" class="search-error" hidden></div>
+      </section>
+
+      <!-- Bulk action bar -->
+      <section id="bulk-bar" class="bulk-bar" hidden>
+        <span id="bulk-count">0 selected</span>
+        <input id="bulk-tags" type="text" placeholder="tag1, tag2" />
+        <button data-bulk="addTags">Add tags</button>
+        <button data-bulk="removeTags">Remove tags</button>
+        <button data-bulk="setUnread:1">Mark unread</button>
+        <button data-bulk="setUnread:0">Mark read</button>
+        <button data-bulk="setArchived:1">Archive</button>
+        <button data-bulk="setArchived:0">Restore</button>
+        <button data-bulk="delete" class="danger">Delete</button>
+        <label class="apply-all">
+          <input type="checkbox" id="apply-all-matching" />
+          Apply to all matching this search/filter
+        </label>
+      </section>
+
+      <!-- List -->
+      <section id="list-region" class="list-region">
+        <div id="list" class="list"></div>
+        <div id="empty-state" class="empty-state" hidden></div>
+        <div id="pager" class="pager" hidden></div>
+      </section>
+
+      <!-- Preferences -->
+      <section id="preferences-region" class="preferences-region" hidden>
+        <h2>Display preferences</h2>
+        <label>
+          Default sort
+          <select id="pref-sort">
+            <option value="date_added_desc">Newest first</option>
+            <option value="date_added_asc">Oldest first</option>
+            <option value="title_asc">Title A–Z</option>
+            <option value="title_desc">Title Z–A</option>
+          </select>
+        </label>
+        <label>
+          Items per view
+          <input id="pref-items" type="number" min="1" max="500" />
+        </label>
+        <label>
+          Text size
+          <select id="pref-textsize">
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </label>
+        <button id="pref-save">Save preferences</button>
+        <span id="pref-status" class="pref-status"></span>
+      </section>
+    </main>
+
+    <!-- Editor dialog -->
+    <dialog id="editor">
+      <form id="editor-form" method="dialog">
+        <h2 id="editor-title">Bookmark</h2>
+        <div class="editor-preview">
+          <img id="editor-preview-img" alt="" hidden />
+        </div>
+        <label>Address<input id="f-url" type="text" /></label>
+        <label>Title<input id="f-title" type="text" /></label>
+        <label>Description<textarea id="f-description" rows="2"></textarea></label>
+        <label>Tags
+          <input id="f-tags" type="text" placeholder="comma separated" autocomplete="off" />
+        </label>
+        <div id="tag-suggestions" class="tag-suggestions"></div>
+        <label>Note</label>
+        <div class="note-toolbar">
+          <button type="button" data-cmd="bold"><b>B</b></button>
+          <button type="button" data-cmd="italic"><i>I</i></button>
+          <button type="button" data-cmd="insertUnorderedList">• List</button>
+          <button type="button" data-cmd="insertOrderedList">1. List</button>
+          <button type="button" data-cmd="createLink">Link</button>
+        </div>
+        <div id="f-note" class="note-editor" contenteditable="true"></div>
+        <label class="checkbox">
+          <input id="f-readlater" type="checkbox" /> Read later (unread)
+        </label>
+        <div class="editor-actions">
+          <button type="button" id="editor-save" class="primary">Save</button>
+          <button type="button" id="editor-cancel" class="ghost">Cancel</button>
+          <span class="spacer"></span>
+          <button type="button" id="editor-preserve" class="ghost">Preserve copy</button>
+          <button type="button" id="editor-open-preserved" class="ghost" hidden>Open preserved</button>
+          <button type="button" id="editor-archiveorg" class="ghost">Save to Internet Archive</button>
+          <button type="button" id="editor-delete" class="danger">Delete</button>
+        </div>
+        <div id="editor-status" class="editor-status"></div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

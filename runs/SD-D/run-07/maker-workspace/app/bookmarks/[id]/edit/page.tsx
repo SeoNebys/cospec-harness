@@ -1,0 +1,2 @@
+import { notFound } from "next/navigation";import { BookmarkForm } from "@/components/bookmarks/bookmark-form";import { getBookmark } from "@/lib/bookmarks/service";import { database } from "@/lib/db/connection";import { migrate } from "@/lib/db/migrate";
+export default async function Page({params}:{params:Promise<{id:string}>}){const{id}=await params;const db=database();migrate(db);const bookmark=getBookmark(db,id);if(!bookmark)notFound();return <><div className="eyebrow">Make it yours</div><h1 className="headline">Edit bookmark</h1><BookmarkForm bookmark={bookmark}/></>}

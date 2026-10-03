@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-text-size="medium">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookmark Manager</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="brand">🔖 Bookmarks</h1>
+      <form id="add-form" class="add-form">
+        <input
+          id="add-url"
+          type="text"
+          placeholder="Paste a link to save…"
+          autocomplete="off"
+        />
+        <button type="submit">Save</button>
+      </form>
+      <button id="settings-btn" class="icon-btn" title="Settings">⚙</button>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <nav class="views-nav">
+          <button class="view-link active" data-view="active">All</button>
+          <button class="view-link" data-view="unread">Unread</button>
+          <button class="view-link" data-view="archive">Archive</button>
+        </nav>
+        <div class="sidebar-section">
+          <div class="sidebar-head">
+            <span>Saved views</span>
+          </div>
+          <ul id="saved-views" class="saved-views"></ul>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-head"><span>Tags</span></div>
+          <ul id="tag-cloud" class="tag-cloud"></ul>
+        </div>
+        <div class="sidebar-section io">
+          <button id="import-btn" class="link-btn">Import…</button>
+          <a id="export-btn" class="link-btn" href="/api/export">Export</a>
+          <input id="import-file" type="file" accept=".html,text/html" hidden />
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="toolbar">
+          <input
+            id="search-box"
+            type="search"
+            placeholder='Search — "exact phrase", #tag, AND / OR / NOT, ( )'
+          />
+          <select id="sort-select" title="Sort">
+            <option value="added_desc">Newest</option>
+            <option value="added_asc">Oldest</option>
+            <option value="title">Title A–Z</option>
+            <option value="updated_desc">Recently updated</option>
+            <option value="read_status">Unread first</option>
+          </select>
+        </div>
+
+        <div id="active-filters" class="active-filters"></div>
+
+        <div id="bulk-bar" class="bulk-bar hidden">
+          <label><input type="checkbox" id="select-all-matching" /> Select all matching</label>
+          <span id="bulk-count" class="bulk-count"></span>
+          <input id="bulk-tag" type="text" placeholder="tag…" class="bulk-tag" />
+          <button data-bulk="addTag">Add tag</button>
+          <button data-bulk="read">Mark read</button>
+          <button data-bulk="unread">Mark unread</button>
+          <button data-bulk="archive">Archive</button>
+          <button data-bulk="restore">Restore</button>
+          <button data-bulk="delete" class="danger">Delete</button>
+        </div>
+
+        <ul id="bookmark-list" class="bookmark-list"></ul>
+        <div id="empty-state" class="empty-state hidden"></div>
+        <div id="pager" class="pager"></div>
+      </main>
+    </div>
+
+    <!-- Editor modal -->
+    <div id="editor-modal" class="modal hidden">
+      <div class="modal-card">
+        <h2 id="editor-title">Edit bookmark</h2>
+        <div id="editor-banner" class="banner hidden"></div>
+        <label>Address<input id="edit-url" type="text" /></label>
+        <label>Title<input id="edit-title" type="text" /></label>
+        <label>Description<textarea id="edit-description" rows="2"></textarea></label>
+        <label>Tags
+          <div class="tag-input-wrap">
+            <input id="edit-tags" type="text" placeholder="type a tag, Enter to add" autocomplete="off" />
+            <ul id="tag-suggestions" class="suggestions hidden"></ul>
+          </div>
+        </label>
+        <div id="edit-tag-chips" class="chips"></div>
+        <label>Note</label>
+        <div class="note-toolbar">
+          <button type="button" data-cmd="bold"><b>B</b></button>
+          <button type="button" data-cmd="italic"><i>I</i></button>
+          <button type="button" data-cmd="insertUnorderedList">• List</button>
+          <button type="button" data-cmd="formatBlock" data-arg="h3">H</button>
+          <button type="button" data-cmd="createLink">Link</button>
+        </div>
+        <div id="edit-note" class="note-editor" contenteditable="true"></div>
+        <div class="preserve-row">
+          <button type="button" id="preserve-local">Preserve local copy</button>
+          <button type="button" id="preserve-archive">Save to Internet Archive</button>
+          <span id="preserve-status" class="preserve-status"></span>
+        </div>
+        <div id="preserved-list" class="preserved-list"></div>
+        <div class="modal-actions">
+          <button id="editor-delete" class="danger">Delete</button>
+          <span class="spacer"></span>
+          <button id="editor-cancel">Cancel</button>
+          <button id="editor-save" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-card">
+        <h2>Display preferences</h2>
+        <label>Default sort
+          <select id="pref-sort">
+            <option value="added_desc">Newest</option>
+            <option value="added_asc">Oldest</option>
+            <option value="title">Title A–Z</option>
+            <option value="updated_desc">Recently updated</option>
+            <option value="read_status">Unread first</option>
+          </select>
+        </label>
+        <label>Items per page<input id="pref-per-page" type="number" min="1" max="500" /></label>
+        <label>Text size
+          <select id="pref-text-size">
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </label>
+        <div class="modal-actions">
+          <span class="spacer"></span>
+          <button id="settings-cancel">Cancel</button>
+          <button id="settings-save" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>

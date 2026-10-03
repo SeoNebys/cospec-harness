@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1c2430; --muted:#6b7686;
+    --line:#e6e9ef; --accent:#2f6fed; --accent-soft:#eaf1ff; --chip:#eef1f6;
+    --warn:#8a5a00; --warn-soft:#fff4e0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+
+  .composer{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-bottom:28px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  .composer label{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    margin:0 0 4px;letter-spacing:.02em;text-transform:uppercase}
+  .composer input,.composer textarea{width:100%;border:1px solid var(--line);border-radius:9px;
+    padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
+  .composer input:focus,.composer textarea:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft)}
+  .row{margin-bottom:12px}
+  .two{display:flex;gap:12px}
+  .two>div{flex:1}
+  textarea{resize:vertical;min-height:52px}
+  .readlater{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:14px;color:#37414f;cursor:pointer}
+  .readlater input{width:auto}
+  .readlater em{color:var(--muted);font-style:normal;font-size:13px}
+  .save{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:10px 18px;
+    font-size:15px;font-weight:600;cursor:pointer}
+  .save:hover{background:#255fd6}
+
+  /* auto-fill preview */
+  .preview{display:none;align-items:center;gap:10px;background:#f9fbff;border:1px solid var(--accent-soft);
+    border-radius:10px;padding:8px 10px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+  .preview.show{display:flex}
+  .spinner{width:14px;height:14px;border:2px solid #cdd7ea;border-top-color:var(--accent);
+    border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .fetchnote{background:var(--warn-soft);color:var(--warn);border:1px solid #f0d9a8;border-radius:10px;
+    padding:8px 12px;margin-bottom:12px;font-size:13px}
+  .fields{display:none}
+  .fields.show{display:block}
+
+  .favicon{width:20px;height:20px;border-radius:4px;flex:0 0 20px;display:inline-flex;
+    align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;
+    background:var(--accent);overflow:hidden}
+  .favicon img{width:100%;height:100%;object-fit:cover}
+
+  .previmg{width:100%;height:120px;border-radius:10px;margin-bottom:12px;
+    background-size:cover;background-position:center;border:1px solid var(--line)}
+  .item .previmg{height:150px;margin:10px 0 0}
+
+  /* tag input */
+  .tagwrap{position:relative}
+  .suggest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);
+    border-radius:9px;box-shadow:0 6px 20px rgba(20,30,50,.12);margin-top:4px;z-index:5;overflow:hidden;display:none}
+  .suggest.show{display:block}
+  .suggest div{padding:8px 12px;font-size:14px;cursor:pointer}
+  .suggest div:hover,.suggest div.active{background:var(--accent-soft)}
+
+  .tabs{display:flex;gap:6px;margin-bottom:14px}
+  .tab{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:7px 16px;
+    font-size:14px;color:#41505f;cursor:pointer}
+  .tab:hover{border-color:var(--accent)}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .tab .tc{opacity:.7;font-size:12px;margin-left:4px}
+  .tab.active .tc{opacity:.85}
+
+  .status-pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;
+    border-radius:20px;font-weight:600}
+  .status-pill.unread{background:#eaf1ff;color:#2f6fed}
+  .status-pill.done{background:#e7f6ec;color:#1f8a4c}
+  .status-pill.archived-pill{background:#eef1f6;color:#6b7686}
+  .toggle-btn.danger{color:#c0392b}
+  .toggle-btn.danger:hover{border-color:#c0392b;color:#c0392b}
+  .rowactions{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .toggle-btn{background:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;
+    font-size:13px;color:#41505f;cursor:pointer}
+  .toggle-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  .searchbar{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:11px;padding:4px 12px;margin-bottom:20px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  .searchbar:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .searchbar .mag{font-size:14px;opacity:.6}
+  .searchbar input{flex:1;border:none;outline:none;font-size:15px;padding:8px 0;background:transparent;color:var(--ink)}
+  .clearsearch{border:none;background:none;color:var(--muted);font-size:14px;cursor:pointer;display:none}
+  .clearsearch.show{display:block}
+  mark{background:#fff1a8;color:inherit;border-radius:3px;padding:0 1px}
+  .noteex{font-size:13px;color:#5b6673;background:#f7f8fa;border-left:3px solid var(--line);
+    border-radius:6px;padding:6px 10px;margin:8px 0 0;font-style:italic}
+
+  .listhead{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
+  .listhead h2{font-size:15px;margin:0}
+  .listhead-right{display:flex;align-items:center;gap:14px}
+  .count{color:var(--muted);font-size:13px}
+  .sortlabel{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+  .sortlabel select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:13px;
+    background:#fff;color:var(--ink);cursor:pointer}
+
+  .selectrow{margin:0 0 10px}
+  .selectall{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer}
+  .selectall input{width:auto}
+  .bulkbar{display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#eef4ff;
+    border:1px solid var(--accent-soft);border-radius:11px;padding:10px 14px;margin-bottom:16px}
+  .bulkbar.show{display:flex}
+  .bulkcount{font-size:14px;font-weight:600;color:var(--accent)}
+  .bulkactions{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+  .bulkactions button{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;
+    font-size:13px;color:#41505f;cursor:pointer}
+  .bulkactions button:hover{border-color:var(--accent);color:var(--accent)}
+  .bulkactions button.danger{color:#c0392b}
+  .bulkactions button.danger:hover{border-color:#c0392b}
+  .bulkclear{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline}
+  .bulktagpanel{flex-basis:100%;display:none}
+  .bulktagpanel.show{display:block}
+  .bulktagpanel .pnl{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:6px}
+  .bulktagpanel .pl{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-bottom:6px;display:block}
+  .bulktagpanel input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .chips .tag{cursor:pointer}
+  .chips .tag:hover{background:var(--accent-soft);color:var(--accent)}
+  .pnl-actions{display:flex;gap:8px;margin-top:8px}
+  .pnl-actions .save{padding:7px 14px;font-size:14px}
+  .pnl-actions .cancel{background:none;border:1px solid var(--line);border-radius:8px;padding:7px 14px;font-size:14px;cursor:pointer;color:#41505f}
+  .item .selbox{margin-right:2px}
+  .item.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+
+  .empty{text-align:center;color:var(--muted);padding:48px 16px;border:1px dashed var(--line);
+    border-radius:14px;background:#fff}
+  .empty .big{font-size:15px;color:var(--ink);margin-bottom:4px}
+
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+    margin-bottom:12px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  .item .head{display:flex;gap:10px;align-items:flex-start}
+  .item .favicon{width:28px;height:28px;flex:0 0 28px;border-radius:6px;font-size:14px;margin-top:2px}
+  .item .title{font-size:16px;font-weight:600;margin:0 0 2px}
+  .item .title a{color:var(--ink);text-decoration:none}
+  .item .title a:hover{text-decoration:underline}
+  .item .url{font-size:12px;color:var(--accent);word-break:break-all;margin:0}
+  .item .desc{font-size:14px;color:#37414f;margin:8px 0 10px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px}
+  .tag{background:var(--chip);color:#41505f;font-size:12px;padding:3px 9px;border-radius:20px}
+  .tag.clickable{cursor:pointer}
+  .tag.clickable:hover{background:var(--accent-soft);color:var(--accent)}
+  .edit-btn{background:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;
+    font-size:13px;color:#41505f;cursor:pointer;margin-top:10px}
+  .edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .just-added{animation:flash 1.4s ease}
+  .highlight{box-shadow:0 0 0 3px var(--accent-soft),0 1px 2px rgba(20,30,50,.04);border-color:var(--accent)}
+  @keyframes flash{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+
+  .dupbanner{display:none;align-items:center;gap:8px;background:var(--warn-soft);color:var(--warn);
+    border:1px solid #f0d9a8;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:14px}
+  .dupbanner.show{display:flex}
+
+  /* inline editor */
+  .editor{background:#f9fbff;border:1px dashed var(--accent);border-radius:10px;padding:12px;margin-top:10px}
+  .editor label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px;text-transform:uppercase}
+  .editor input,.editor textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+    font-size:14px;font-family:inherit;margin-bottom:8px}
+  .editor .save{padding:7px 14px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Paste a link — the title, description and site icon fill in for you.</p>
+
+  <div class="dupbanner" id="dupbanner"></div>
+
+  <form class="composer" id="composer">
+    <div class="row">
+      <label for="url">Link</label>
+      <input id="url" type="text" placeholder="Paste or type a web address" autocomplete="off">
+    </div>
+
+    <div class="preview" id="preview">
+      <span class="spinner"></span><span>Fetching page details…</span>
+    </div>
+
+    <div class="fetchnote" id="fetchnote" style="display:none"></div>
+
+    <div class="fields" id="fields">
+      <div class="previmg" id="previmg" style="display:none"></div>
+      <div class="row two" style="align-items:flex-start">
+        <div style="flex:0 0 auto">
+          <label>Icon</label>
+          <span class="favicon" id="favicon" style="width:38px;height:38px;font-size:16px"></span>
+        </div>
+        <div>
+          <label for="title">Title</label>
+          <input id="title" type="text" autocomplete="off">
+        </div>
+      </div>
+      <div class="row">
+        <label for="desc">Description</label>
+        <textarea id="desc"></textarea>
+      </div>
+      <div class="row tagwrap">
+        <label for="tags">Tags</label>
+        <input id="tags" type="text" placeholder="Type a tag, comma to add another" autocomplete="off">
+        <div class="suggest" id="suggest"></div>
+      </div>
+      <div class="row">
+        <label for="note">Note (private)</label>
+        <textarea id="note" placeholder="Optional reminder to yourself"></textarea>
+      </div>
+      <label class="readlater">
+        <input type="checkbox" id="readlater" checked>
+        <span>Save to read later <em>(add it to your “To read” list)</em></span>
+      </label>
+      <button class="save" type="submit">Save bookmark</button>
+    </div>
+  </form>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-f="all">All <span class="tc" id="tc-all"></span></button>
+    <button class="tab" data-f="unread">To read <span class="tc" id="tc-unread"></span></button>
+    <button class="tab" data-f="done">Finished <span class="tc" id="tc-done"></span></button>
+    <button class="tab" data-f="archived">Archived <span class="tc" id="tc-archived"></span></button>
+  </div>
+
+  <div class="searchbar">
+    <span class="mag">🔍</span>
+    <input id="search" type="text" placeholder="Search by title, note, tag, description, or address" autocomplete="off">
+    <button class="clearsearch" id="clearsearch" title="Clear">✕</button>
+  </div>
+
+  <div class="listhead">
+    <h2>Saved</h2>
+    <div class="listhead-right">
+      <span class="count" id="count"></span>
+      <label class="sortlabel">Sort:
+        <select id="sortsel">
+          <option value="added_desc">Newest first</option>
+          <option value="added_asc">Oldest first</option>
+          <option value="title_asc">Title A–Z</option>
+          <option value="title_desc">Title Z–A</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="selectrow">
+    <label class="selectall"><input type="checkbox" id="selectall"> <span>Select all in this view</span></label>
+  </div>
+
+  <div class="bulkbar" id="bulkbar">
+    <span class="bulkcount" id="bulkcount"></span>
+    <div class="bulkactions" id="bulkactions"></div>
+    <button class="bulkclear" id="bulkclear">Clear selection</button>
+    <div class="bulktagpanel" id="bulktagpanel"></div>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script>
+  // ---- simulated page-metadata lookup (a prototype fakes the external fetch) ----
+  var CANNED = {
+    'nytimes.com': {t:'The New York Times — Breaking News', d:'Live coverage of world news, politics, business, and culture.'},
+    'wikipedia.org': {t:'Wikipedia, the free encyclopedia', d:'The free encyclopedia that anyone can edit.'},
+    'seriouseats.com': {t:'Serious Eats: Recipes & Techniques', d:'Tested recipes and the science of great home cooking.'},
+    'github.com': {t:'GitHub', d:'Where the world builds software.'},
+    'youtube.com': {t:'YouTube', d:'Watch, share, and discover videos.'}
+  };
+  function domainOf(url){
+    var u = url.replace(/^https?:\/\//i,'').replace(/^www\./i,'');
+    return u.split('/')[0].toLowerCase();
+  }
+  function isValidUrl(url){
+    if(/\s/.test(url)) return false; // addresses have no spaces
+    return /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/[^\s]*)?$/i.test(url);
+  }
+  function normalize(url){
+    return url.replace(/^https?:\/\//i,'').replace(/^www\./i,'').replace(/\/+$/,'').toLowerCase();
+  }
+  function palette(dom){
+    var colors=['#2f6fed','#e0663a','#2fa36b','#8a4fd0','#d0434f','#1f8a9c','#c78a1a'];
+    var s=0; for(var i=0;i<dom.length;i++) s+=dom.charCodeAt(i);
+    return colors[s%colors.length];
+  }
+  function faviconHTML(dom,cls){
+    var letter = dom.charAt(0).toUpperCase();
+    var color = palette(dom);
+    // try a real favicon, fall back to a colored letter tile
+    return '<span class="favicon'+(cls?' '+cls:'')+'" style="background:'+color+'">'+
+      '<img src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(dom)+'&sz=64" '+
+      'onerror="this.style.display=\'none\'" alt="">'+
+      '<span style="position:absolute">'+letter+'</span></span>';
+  }
+  function previewImg(dom){
+    // simulated preview image: a domain-derived gradient stands in for the page's image
+    var c1=palette(dom); var c2=palette(dom.split('').reverse().join('')+'x');
+    return 'linear-gradient(135deg,'+c1+' 0%,'+c2+' 100%)';
+  }
+  function lookup(url){
+    var dom = domainOf(url);
+    var base = CANNED[dom];
+    if(base) return {title:base.t, desc:base.d, dom:dom, img:previewImg(dom)};
+    var name = dom.split('.')[0];
+    name = name.charAt(0).toUpperCase()+name.slice(1);
+    return {title:name, desc:'A page saved from '+dom+'.', dom:dom, img:previewImg(dom)};
+  }
+
+  var items = [];
+  var usedTags = {};
+  var listEl=document.getElementById('list'), countEl=document.getElementById('count');
+  var urlEl=document.getElementById('url'), previewEl=document.getElementById('preview'),
+      fieldsEl=document.getElementById('fields'), faviconEl=document.getElementById('favicon'),
+      titleEl=document.getElementById('title'), descEl=document.getElementById('desc'),
+      tagsEl=document.getElementById('tags'), noteEl=document.getElementById('note'),
+      suggestEl=document.getElementById('suggest'), dupEl=document.getElementById('dupbanner'),
+      previmgEl=document.getElementById('previmg');
+  var currentDom='', currentImg='';
+  var fetchTimer=null;
+
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  // ---- URL entered -> duplicate check or simulated auto-fill ----
+  urlEl.addEventListener('input', function(){
+    dupEl.classList.remove('show');
+    var url = urlEl.value.trim();
+    clearTimeout(fetchTimer);
+    document.getElementById('fetchnote').style.display='none';
+    if(!url){ previewEl.classList.remove('show'); fieldsEl.classList.remove('show'); return; }
+
+    // not a web address at all?
+    if(!isValidUrl(url)){
+      previewEl.classList.remove('show'); fieldsEl.classList.remove('show');
+      var nEl=document.getElementById('fetchnote');
+      nEl.textContent="That doesn't look like a web address. Please enter a valid address (for example example.com) to save a bookmark.";
+      nEl.style.display='block';
+      return;
+    }
+
+    // duplicate?
+    var existing = items.find(function(b){return normalize(b.url)===normalize(url);});
+    if(existing){
+      previewEl.classList.remove('show'); fieldsEl.classList.remove('show');
+      showDuplicate(existing);
+      return;
+    }
+
+    previewEl.classList.add('show'); fieldsEl.classList.remove('show');
+    fetchTimer = setTimeout(function(){
+      var fetchOK = /\./.test(url) && !/fail|unreachable/i.test(url); // simulated: no dot or "fail" => can't fetch
+      var noteEl2=document.getElementById('fetchnote');
+      var meta = lookup(url);
+      currentDom = meta.dom;
+      if(fetchOK){
+        currentImg = meta.img;
+        titleEl.value = meta.title; descEl.value = meta.desc;
+        previmgEl.style.display='block'; previmgEl.style.background=meta.img;
+        noteEl2.style.display='none';
+      } else {
+        currentImg = '';
+        titleEl.value = ''; descEl.value = '';
+        previmgEl.style.display='none';
+        noteEl2.textContent = "We couldn't fetch this page's details. You can still save it — add a title yourself so it's easy to recognise later.";
+        noteEl2.style.display='block';
+      }
+      faviconEl.outerHTML = faviconHTML(meta.dom).replace('class="favicon','id="favicon" class="favicon');
+      faviconEl = document.getElementById('favicon');
+      faviconEl.style.width='38px'; faviconEl.style.height='38px'; faviconEl.style.fontSize='16px';
+      previewEl.classList.remove('show'); fieldsEl.classList.add('show');
+    }, 700);
+  });
+
+  function showDuplicate(b){
+    dupEl.innerHTML = 'You already saved this link. <a href="#bm-'+b.id+'" style="color:inherit;font-weight:600;margin-left:4px">Go to it to update →</a>';
+    dupEl.classList.add('show');
+    dupEl.querySelector('a').onclick=function(e){e.preventDefault();openEditor(b.id,true);};
+  }
+
+  // ---- tag suggestions ----
+  var activeSug=-1;
+  tagsEl.addEventListener('input', function(){
+    var val=tagsEl.value; var parts=val.split(','); var cur=parts[parts.length-1].trim().toLowerCase();
+    if(!cur){ suggestEl.classList.remove('show'); return; }
+    var chosen = parts.slice(0,-1).map(function(t){return t.trim().toLowerCase();});
+    var matches=Object.keys(usedTags).filter(function(t){
+      return t.indexOf(cur)===0 && chosen.indexOf(t)<0;
+    }).slice(0,6);
+    if(!matches.length){ suggestEl.classList.remove('show'); return; }
+    activeSug=-1;
+    suggestEl.innerHTML=matches.map(function(t){return '<div>'+esc(t)+'</div>';}).join('');
+    Array.prototype.forEach.call(suggestEl.children,function(el){
+      el.onclick=function(){ applyTag(parts,el.textContent); };
+    });
+    suggestEl.classList.add('show');
+  });
+  function applyTag(parts,tag){
+    parts[parts.length-1]=' '+tag;
+    tagsEl.value=parts.join(',')+', ';
+    suggestEl.classList.remove('show'); tagsEl.focus();
+  }
+  tagsEl.addEventListener('keydown',function(e){
+    if(!suggestEl.classList.contains('show')) return;
+    var opts=suggestEl.children;
+    if(e.key==='ArrowDown'){e.preventDefault();activeSug=Math.min(activeSug+1,opts.length-1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeSug=Math.max(activeSug-1,0);}
+    else if(e.key==='Enter'&&activeSug>=0){e.preventDefault();opts[activeSug].click();return;}
+    else return;
+    Array.prototype.forEach.call(opts,function(el,i){el.classList.toggle('active',i===activeSug);});
+  });
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('.tagwrap')) suggestEl.classList.remove('show');
+  });
+
+  function parseTags(raw){
+    return raw ? raw.split(',').map(function(t){return t.trim();}).filter(Boolean) : [];
+  }
+  function rememberTags(tags){ tags.forEach(function(t){usedTags[t.toLowerCase()]=true;}); }
+
+  // ---- save ----
+  document.getElementById('composer').addEventListener('submit',function(e){
+    e.preventDefault();
+    var url=urlEl.value.trim(); if(!url) return;
+    if(!isValidUrl(url)){
+      var nEl=document.getElementById('fetchnote');
+      nEl.textContent="That doesn't look like a web address. Please enter a valid address (for example example.com) to save a bookmark.";
+      nEl.style.display='block'; urlEl.focus(); return;
+    }
+    var existing=items.find(function(b){return normalize(b.url)===normalize(url);});
+    if(existing){ openEditor(existing.id,true); return; }
+    var tags=parseTags(tagsEl.value);
+    var b={id:Date.now(),url:url,title:titleEl.value.trim()||url,desc:descEl.value.trim(),
+      note:noteEl.value.trim(),tags:tags,dom:currentDom||domainOf(url),img:currentImg,
+      status: document.getElementById('readlater').checked ? 'unread' : 'done', archived:false,
+      added: Date.now()};
+    items.unshift(b); rememberTags(tags);
+    urlEl.value='';titleEl.value='';descEl.value='';tagsEl.value='';noteEl.value='';
+    document.getElementById('readlater').checked=true;
+    previmgEl.style.display='none';
+    fieldsEl.classList.remove('show');
+    render(b.id); urlEl.focus();
+  });
+
+  // ---- inline editor on an existing bookmark ----
+  function openEditor(id,scroll){
+    render(null,id);
+    if(scroll){var el=document.getElementById('bm-'+id);
+      if(el){el.scrollIntoView({behavior:'smooth',block:'center'});
+        el.classList.add('highlight');setTimeout(function(){el.classList.remove('highlight');},1600);}}
+  }
+
+  var query='';
+
+  // ---- search query language ----
+  // tokens: ( ) , "phrase" , #tag , AND/OR/NOT (unquoted) , bare words
+  function tokenize(input){
+    var toks=[], i=0, n=input.length;
+    function isSpace(c){return c===' '||c==='\t'||c==='\n';}
+    while(i<n){
+      var c=input[i];
+      if(isSpace(c)){i++;continue;}
+      if(c==='('){toks.push({t:'lp'});i++;continue;}
+      if(c===')'){toks.push({t:'rp'});i++;continue;}
+      if(c==='"'){ // phrase (literal, even if it's AND/OR/NOT)
+        i++; var s='';
+        while(i<n && input[i]!=='"'){s+=input[i++];}
+        i++; // closing quote
+        toks.push({t:'term',kind:'text',v:s.toLowerCase()});
+        continue;
+      }
+      if(c==='#'){ // tag term, allows #"multi word"
+        i++; var tg='';
+        if(input[i]==='"'){ i++; while(i<n && input[i]!=='"'){tg+=input[i++];} i++; }
+        else { while(i<n && !isSpace(input[i]) && input[i]!=='(' && input[i]!==')'){tg+=input[i++];} }
+        toks.push({t:'term',kind:'tag',v:tg.toLowerCase()});
+        continue;
+      }
+      // bare word
+      var w='';
+      while(i<n && !isSpace(input[i]) && input[i]!=='(' && input[i]!==')'){w+=input[i++];}
+      var up=w.toUpperCase();
+      if(up==='AND'||up==='OR'||up==='NOT') toks.push({t:'op',v:up});
+      else toks.push({t:'term',kind:'text',v:w.toLowerCase()});
+    }
+    return toks;
+  }
+
+  function fieldHay(b){return [b.title,b.desc,b.note,b.url].join(' ').toLowerCase();}
+  function leafPred(tok){
+    if(tok.kind==='tag'){
+      return function(b){return (b.tags||[]).some(function(t){return t.toLowerCase()===tok.v;});};
+    }
+    return function(b){return fieldHay(b).indexOf(tok.v)>=0 ||
+      (b.tags||[]).some(function(t){return t.toLowerCase().indexOf(tok.v)>=0;});};
+  }
+
+  // recursive-descent: OR (lowest) -> AND (implicit too) -> NOT -> primary
+  function parse(toks){
+    var pos=0, terms=[];
+    function peek(){return toks[pos];}
+    function eat(){return toks[pos++];}
+    function parseOr(){
+      var left=parseAnd();
+      while(peek() && peek().t==='op' && peek().v==='OR'){ eat();
+        var right=parseAnd(); var l=left,r=right; left=function(b){return l(b)||r(b);}; }
+      return left;
+    }
+    function parseAnd(){
+      var left=parseNot();
+      while(peek() && !(peek().t==='op'&&peek().v==='OR') && peek().t!=='rp'){
+        if(peek().t==='op'&&peek().v==='AND') eat(); // explicit AND
+        var right=parseNot(); var l=left,r=right; left=function(b){return l(b)&&r(b);};
+      }
+      return left;
+    }
+    function parseNot(){
+      if(peek() && peek().t==='op' && peek().v==='NOT'){ eat();
+        var p=parseNot(); return function(b){return !p(b);}; }
+      return parsePrimary();
+    }
+    function parsePrimary(){
+      var tk=peek();
+      if(!tk) return function(){return true;};
+      if(tk.t==='lp'){ eat(); var e=parseOr(); if(peek()&&peek().t==='rp') eat(); return e; }
+      if(tk.t==='term'){ eat(); terms.push(tk.v); return leafPred(tk); }
+      eat(); return function(){return true;}; // stray op/rp
+    }
+    var pred=parseOr();
+    return {pred:pred, terms:terms};
+  }
+
+  function buildSearch(raw){
+    var q=raw.trim();
+    if(!q) return {pred:function(){return true;}, terms:[], active:false};
+    try{ var r=parse(tokenize(q)); return {pred:r.pred, terms:r.terms, active:true}; }
+    catch(e){ var lc=q.toLowerCase();
+      return {pred:function(b){return fieldHay(b).indexOf(lc)>=0;}, terms:[lc], active:true}; }
+  }
+
+  function hlMulti(text,terms){
+    var s=esc(text||'');
+    if(!terms||!terms.length) return s;
+    terms.forEach(function(t){
+      if(!t) return;
+      var re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+      s=s.replace(re,function(m,p1,off,full){
+        // avoid double-wrapping inside an existing tag/mark by simple check
+        return ''+p1+'';
+      });
+    });
+    return s.replace(//g,'<mark>').replace(//g,'</mark>');
+  }
+
+  // note excerpt around the first matching term
+  function noteExcerpt(note,terms){
+    if(!note||!terms||!terms.length) return '';
+    var low=note.toLowerCase(), hit=-1, hitLen=0;
+    terms.forEach(function(t){ if(!t) return; var i=low.indexOf(t); if(i>=0 && (hit<0||i<hit)){hit=i;hitLen=t.length;} });
+    if(hit<0) return '';
+    var pad=50, start=Math.max(0,hit-pad), end=Math.min(note.length,hit+hitLen+pad);
+    var frag=(start>0?'…':'')+note.slice(start,end)+(end<note.length?'…':'');
+    return '<div class="noteex">📝 '+hlMulti(frag,terms)+'</div>';
+  }
+
+  var currentTab='all';
+  var currentSort='added_desc';
+  var selected={};
+  var lastShown=[];
+  function addedOf(b){return b.added||b.id;}
+  function sortShown(arr){
+    var a=arr.slice();
+    a.sort(function(x,y){
+      switch(currentSort){
+        case 'added_asc': return addedOf(x)-addedOf(y);
+        case 'title_asc': return (x.title||x.url).toLowerCase().localeCompare((y.title||y.url).toLowerCase());
+        case 'title_desc': return (y.title||y.url).toLowerCase().localeCompare((x.title||x.url).toLowerCase());
+        default: return addedOf(y)-addedOf(x); // added_desc
+      }
+    });
+    return a;
+  }
+  function selCount(){return Object.keys(selected).length;}
+
+  function render(justAddedId,editId){
+    // tab counts (independent of the search box); archived excluded from normal tabs
+    var live=items.filter(function(b){return !b.archived;});
+    document.getElementById('tc-all').textContent=live.length;
+    document.getElementById('tc-unread').textContent=live.filter(function(b){return b.status!=='done';}).length;
+    document.getElementById('tc-done').textContent=live.filter(function(b){return b.status==='done';}).length;
+    document.getElementById('tc-archived').textContent=items.filter(function(b){return b.archived;}).length;
+
+    var byTab = items.filter(function(b){
+      if(currentTab==='archived') return b.archived;
+      if(b.archived) return false;
+      if(currentTab==='unread') return b.status!=='done';
+      if(currentTab==='done') return b.status==='done';
+      return true;
+    });
+    var srch=buildSearch(query);
+    var q=srch.active?srch.terms:null;
+    var shown = sortShown(srch.active ? byTab.filter(srch.pred) : byTab);
+    lastShown = shown;
+    updateBulkUI();
+
+    if(!items.length){
+      countEl.textContent='';
+      listEl.innerHTML='<div class="empty"><div class="big">No bookmarks yet</div>'+
+        'Paste a link above to save your first one.</div>'; return;
+    }
+    if(srch.active){
+      countEl.textContent = shown.length+' of '+byTab.length+' match';
+    } else {
+      countEl.textContent = byTab.length+(byTab.length===1?' bookmark':' bookmarks');
+    }
+    if(!shown.length){
+      if(srch.active){
+        listEl.innerHTML='<div class="empty"><div class="big">No matches for "'+esc(query.trim())+'"</div>'+
+          'Try a different word, or switch tabs.</div>';
+      } else if(currentTab==='unread'){
+        listEl.innerHTML='<div class="empty"><div class="big">Nothing left to read</div>'+
+          'Links you save appear here until you mark them finished.</div>';
+      } else if(currentTab==='done'){
+        listEl.innerHTML='<div class="empty"><div class="big">Nothing finished yet</div>'+
+          'When you finish with a link, mark it as read and it moves here.</div>';
+      } else if(currentTab==='archived'){
+        listEl.innerHTML='<div class="empty"><div class="big">Archive is empty</div>'+
+          'Archived bookmarks are hidden from your lists and searches, and can be restored from here.</div>';
+      }
+      return;
+    }
+    listEl.innerHTML=shown.map(function(b){
+      if(b.id===editId){
+        return '<div class="item highlight" id="bm-'+b.id+'">'+
+          '<div class="head">'+faviconHTML(b.dom)+
+          '<div><div class="title">'+esc(b.title)+'</div><div class="url">'+esc(b.url)+'</div></div></div>'+
+          (b.img?'<div class="previmg" style="background:'+b.img+';height:120px;margin-top:10px"></div>':'')+
+          '<div class="editor">'+
+            '<label>Link</label><input id="e-url" value="'+esc(b.url)+'">'+
+            '<label>Title</label><input id="e-title" value="'+esc(b.title)+'">'+
+            '<label>Description</label><textarea id="e-desc">'+esc(b.desc)+'</textarea>'+
+            '<label>Tags</label><input id="e-tags" value="'+esc((b.tags||[]).join(', '))+'">'+
+            '<label>Note</label><textarea id="e-note">'+esc(b.note||'')+'</textarea>'+
+            '<button class="save" onclick="saveEdit('+b.id+')">Update bookmark</button>'+
+          '</div></div>';
+      }
+      var tags=(b.tags||[]).map(function(t){
+        return '<span class="tag clickable" onclick="filterByTag('+JSON.stringify(t).replace(/"/g,'&quot;')+')">'+hlMulti(t,q)+'</span>';
+      }).join('');
+      return '<div class="item'+(b.id===justAddedId?' just-added':'')+(selected[b.id]?' selected':'')+'" id="bm-'+b.id+'">'+
+        '<div class="head">'+
+        '<input type="checkbox" class="selbox" '+(selected[b.id]?'checked':'')+' onchange="toggleSelect('+b.id+')">'+
+        faviconHTML(b.dom)+
+        '<div style="flex:1"><div class="title"><a href="'+esc(b.url)+'" target="_blank" rel="noopener">'+hlMulti(b.title,q)+'</a></div>'+
+        '<div class="url">'+hlMulti(b.url,q)+'</div></div></div>'+
+        (b.img?'<div class="previmg" style="background:'+b.img+'"></div>':'')+
+        (b.desc?'<div class="desc">'+hlMulti(b.desc,q)+'</div>':'')+
+        (srch.active?noteExcerpt(b.note,q):'')+
+        (tags?'<div class="tags">'+tags+'</div>':'')+
+        '<div class="rowactions">'+
+          (b.archived
+            ? '<span class="status-pill archived-pill">📦 Archived</span>'+
+              '<button class="toggle-btn" onclick="restoreItem('+b.id+')">Restore</button>'+
+              '<button class="toggle-btn danger" onclick="deleteItem('+b.id+')">Delete permanently</button>'
+            : (b.status==='done'
+                ? '<span class="status-pill done">✓ Finished</span>'+
+                  '<button class="toggle-btn" onclick="toggleStatus('+b.id+')">Move back to “To read”</button>'
+                : '<span class="status-pill unread">● To read</span>'+
+                  '<button class="toggle-btn" onclick="toggleStatus('+b.id+')">Mark as finished</button>')+
+              '<button class="edit-btn" style="margin-top:0" onclick="openEditor('+b.id+',false)">Edit</button>'+
+              '<button class="toggle-btn" onclick="archiveItem('+b.id+')">Archive</button>'+
+              '<button class="toggle-btn danger" onclick="deleteItem('+b.id+')">Delete</button>')+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  window.openEditor=openEditor;
+  window.saveEdit=function(id){
+    var b=items.find(function(x){return x.id===id;}); if(!b) return;
+    var newUrl=document.getElementById('e-url').value.trim();
+    if(newUrl && normalize(newUrl)!==normalize(b.url)){
+      var clash=items.find(function(x){return x.id!==id && normalize(x.url)===normalize(newUrl);});
+      if(clash){
+        dupEl.innerHTML='That link is already saved as another bookmark. '+
+          '<a href="#bm-'+clash.id+'" style="color:inherit;font-weight:600;margin-left:4px">Go to it →</a>';
+        dupEl.classList.add('show');
+        dupEl.querySelector('a').onclick=function(e){e.preventDefault();openEditor(clash.id,true);};
+        openEditor(clash.id,true);
+        return;
+      }
+      b.url=newUrl; b.dom=domainOf(newUrl); b.img=previewImg(b.dom);
+    }
+    b.title=document.getElementById('e-title').value.trim()||b.url;
+    b.desc=document.getElementById('e-desc').value.trim();
+    b.tags=parseTags(document.getElementById('e-tags').value);
+    b.note=document.getElementById('e-note').value.trim();
+    rememberTags(b.tags);
+    render(id);
+    var el=document.getElementById('bm-'+id);
+    if(el){el.classList.add('highlight');setTimeout(function(){el.classList.remove('highlight');},1600);}
+  };
+
+  // ---- bulk selection ----
+  window.toggleSelect=function(id){
+    if(selected[id]) delete selected[id]; else selected[id]=true;
+    render();
+  };
+  function selectedItems(){ return items.filter(function(b){return selected[b.id];}); }
+
+  function updateBulkUI(){
+    var bar=document.getElementById('bulkbar');
+    var saEl=document.getElementById('selectall');
+    var n=selCount();
+    // select-all reflects whether every currently shown item is selected
+    saEl.checked = lastShown.length>0 && lastShown.every(function(b){return selected[b.id];});
+    if(n===0){ bar.classList.remove('show'); return; }
+    bar.classList.add('show');
+    document.getElementById('bulkcount').textContent=n+' selected';
+    var acts=document.getElementById('bulkactions');
+    if(currentTab==='archived'){
+      acts.innerHTML=
+        '<button onclick="bulkRestore()">Restore</button>'+
+        '<button class="danger" onclick="bulkDelete()">Delete permanently</button>';
+    } else {
+      acts.innerHTML=
+        '<button onclick="bulkAddTags()">Add tags…</button>'+
+        '<button onclick="bulkRemoveTags()">Remove tags…</button>'+
+        '<button onclick="bulkMark(\'unread\')">Mark “To read”</button>'+
+        '<button onclick="bulkMark(\'done\')">Mark finished</button>'+
+        '<button onclick="bulkArchive()">Archive</button>'+
+        '<button class="danger" onclick="bulkDelete()">Delete</button>';
+    }
+  }
+
+  document.getElementById('selectall').addEventListener('change',function(){
+    if(this.checked){ lastShown.forEach(function(b){selected[b.id]=true;}); }
+    else { lastShown.forEach(function(b){delete selected[b.id];}); }
+    render();
+  });
+  document.getElementById('bulkclear').addEventListener('click',function(){ selected={}; render(); });
+  document.getElementById('sortsel').addEventListener('change',function(){ currentSort=this.value; render(); });
+
+  function parseTagList(raw){return raw?raw.split(',').map(function(t){return t.trim();}).filter(Boolean):[];}
+
+  // reusable bulk tag panel with suggestions
+  window.bulkAddTags=function(){ openBulkTagPanel('add'); };
+  window.bulkRemoveTags=function(){ openBulkTagPanel('remove'); };
+  function tagsOnSelected(){
+    var seen={}, out=[];
+    selectedItems().forEach(function(b){(b.tags||[]).forEach(function(t){
+      var k=t.toLowerCase(); if(!seen[k]){seen[k]=true; out.push(t);} });});
+    return out.sort();
+  }
+  function openBulkTagPanel(mode){
+    var n=selCount();
+    var pool = mode==='add'
+      ? Object.keys(usedTags).sort()
+      : tagsOnSelected();
+    var label = mode==='add' ? 'Add tags to '+n+' bookmark(s)' : 'Remove tags from '+n+' bookmark(s)';
+    var hint = mode==='add' ? 'Type a tag (suggestions from your existing tags), comma to add another'
+                            : 'Pick tags that appear on the selected bookmarks';
+    var panel=document.getElementById('bulktagpanel');
+    panel.innerHTML='<div class="pnl">'+
+      '<span class="pl">'+label+'</span>'+
+      '<input id="btInput" placeholder="'+esc(hint)+'" autocomplete="off">'+
+      '<div class="chips" id="btChips">'+
+        (pool.length? pool.map(function(t){return '<span class="tag" data-t="'+esc(t)+'">'+(mode==='remove'?'✕ ':'+ ')+esc(t)+'</span>';}).join('')
+                    : '<span style="font-size:13px;color:#6b7686">'+(mode==='remove'?'No tags on the selected bookmarks.':'No existing tags yet — type a new one.')+'</span>')+
+      '</div>'+
+      '<div class="pnl-actions"><button class="save" id="btApply">'+(mode==='add'?'Add':'Remove')+'</button>'+
+      '<button class="cancel" id="btCancel">Cancel</button></div>'+
+    '</div>';
+    panel.classList.add('show');
+    var input=document.getElementById('btInput'); input.focus();
+    // clicking a suggested chip appends it to the input
+    document.getElementById('btChips').querySelectorAll('.tag').forEach(function(el){
+      el.onclick=function(){
+        var parts=input.value.split(','); parts[parts.length-1]=' '+el.getAttribute('data-t');
+        input.value=parts.join(',')+', '; input.focus();
+      };
+    });
+    input.oninput=function(){
+      var cur=(input.value.split(',').pop()||'').trim().toLowerCase();
+      document.getElementById('btChips').querySelectorAll('.tag').forEach(function(el){
+        var t=el.getAttribute('data-t').toLowerCase();
+        el.style.display=(!cur || t.indexOf(cur)>=0)?'':'none';
+      });
+    };
+    document.getElementById('btApply').onclick=function(){ applyBulkTags(mode, input.value); };
+    input.onkeydown=function(e){ if(e.key==='Enter'){e.preventDefault(); applyBulkTags(mode, input.value);} };
+    document.getElementById('btCancel').onclick=function(){ panel.classList.remove('show'); panel.innerHTML=''; };
+  }
+  function applyBulkTags(mode, raw){
+    var list=parseTagList(raw);
+    if(list.length){
+      if(mode==='add'){
+        selectedItems().forEach(function(b){ list.forEach(function(t){
+          if(!(b.tags||[]).some(function(x){return x.toLowerCase()===t.toLowerCase();})) b.tags.push(t); }); });
+        rememberTags(list);
+      } else {
+        var rem=list.map(function(t){return t.toLowerCase();});
+        selectedItems().forEach(function(b){ b.tags=(b.tags||[]).filter(function(t){return rem.indexOf(t.toLowerCase())<0;}); });
+      }
+    }
+    var panel=document.getElementById('bulktagpanel'); panel.classList.remove('show'); panel.innerHTML='';
+    render();
+  }
+  window.bulkMark=function(status){ selectedItems().forEach(function(b){b.status=status;}); render(); };
+  window.bulkArchive=function(){ selectedItems().forEach(function(b){b.archived=true;}); selected={}; render(); };
+  window.bulkRestore=function(){ selectedItems().forEach(function(b){b.archived=false;}); selected={}; render(); };
+  window.bulkDelete=function(){
+    var n=selCount();
+    if(!window.confirm('Delete '+n+' bookmark(s) permanently? This cannot be undone.')) return;
+    items=items.filter(function(b){return !selected[b.id];}); selected={}; render();
+  };
+
+  window.toggleStatus=function(id){
+    var b=items.find(function(x){return x.id===id;}); if(!b) return;
+    b.status = b.status==='done' ? 'unread' : 'done';
+    render();
+  };
+  window.archiveItem=function(id){
+    var b=items.find(function(x){return x.id===id;}); if(!b) return;
+    b.archived=true; render();
+  };
+  window.restoreItem=function(id){
+    var b=items.find(function(x){return x.id===id;}); if(!b) return;
+    b.archived=false; render();
+  };
+  window.deleteItem=function(id){
+    var b=items.find(function(x){return x.id===id;}); if(!b) return;
+    if(!window.confirm('Delete this bookmark permanently? This cannot be undone.\n\n'+(b.title||b.url))) return;
+    items=items.filter(function(x){return x.id!==id;});
+    render();
+  };
+
+  document.getElementById('tabs').addEventListener('click',function(e){
+    var btn=e.target.closest('.tab'); if(!btn) return;
+    currentTab=btn.getAttribute('data-f');
+    Array.prototype.forEach.call(this.children,function(el){el.classList.toggle('active',el===btn);});
+    render();
+  });
+
+  window.filterByTag=function(tag){
+    var q = /\s/.test(tag) ? '#"'+tag+'"' : '#'+tag;
+    query=q; searchEl.value=q; clearEl.classList.add('show'); render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  var searchEl=document.getElementById('search'), clearEl=document.getElementById('clearsearch');
+  searchEl.addEventListener('input',function(){
+    query=searchEl.value;
+    clearEl.classList.toggle('show',!!query);
+    render();
+  });
+  clearEl.addEventListener('click',function(){
+    query=''; searchEl.value=''; clearEl.classList.remove('show'); render(); searchEl.focus();
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

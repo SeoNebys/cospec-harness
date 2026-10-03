@@ -1,0 +1,1 @@
+import{NextRequest,NextResponse}from"next/server";import{previewBulk}from"@/server/services/bulk";export async function POST(req:NextRequest){try{return NextResponse.json(previewBulk(await req.json()));}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Invalid bulk action"},{status:422});}}

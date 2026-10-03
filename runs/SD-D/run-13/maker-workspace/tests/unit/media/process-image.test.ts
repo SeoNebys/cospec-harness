@@ -1,0 +1,4 @@
+import { describe,expect,it } from 'vitest';
+import sharp from 'sharp';
+import { processImage } from '../../../src/server/media/process-image.js';
+describe('safe image processing',()=>{it('creates bounded static formats with digest identities',async()=>{const input=await sharp({create:{width:1800,height:900,channels:3,background:'#b4542a'}}).jpeg().toBuffer();const preview=await processImage(input,'preview');expect(preview.mimeType).toBe('image/webp');expect(preview.width).toBeLessThanOrEqual(1200);expect(preview.height).toBeLessThanOrEqual(630);expect(preview.id).toMatch(/^[a-f0-9]{64}$/u);const icon=await processImage(input,'icon');expect(icon.mimeType).toBe('image/png');expect(icon.width).toBeLessThanOrEqual(128);});it('rejects active vector input',async()=>{await expect(processImage(Buffer.from('<svg><script>alert(1)</script></svg>'),'icon')).rejects.toThrow();});});

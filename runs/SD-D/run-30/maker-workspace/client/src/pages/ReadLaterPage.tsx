@@ -1,0 +1,1 @@
+import { CollectionPage } from './ActiveBookmarksPage';export default function ReadLaterPage(){return <CollectionPage view="read-later" title="Read later" subtitle="Unread pieces waiting for the right moment."/>}

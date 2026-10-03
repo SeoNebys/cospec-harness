@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --ink: #2b2b2b;
+    --muted: #8a8a82;
+    --line: #e7e7e2;
+    --accent: #4a6b57;
+    --accent-soft: #e9f0ec;
+    --chip: #eef0ee;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px 80px; }
+  header h1 { font-size: 22px; font-weight: 600; margin: 0 0 2px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
+
+  .save-bar {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .save-bar input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    background: transparent;
+    color: var(--ink);
+  }
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    white-space: nowrap;
+  }
+  .btn.secondary { background: var(--chip); color: var(--ink); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  .list { margin-top: 26px; display: flex; flex-direction: column; gap: 12px; }
+  .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .item .title { font-size: 16px; font-weight: 600; margin: 0 0 3px; }
+  .item .url { font-size: 12.5px; color: var(--accent); word-break: break-all; margin: 0 0 8px; }
+  .item .desc { font-size: 14px; color: #55554e; margin: 0 0 10px; }
+  .item .note { font-size: 13.5px; color: #55554e; background: #fbfbf9; border-left: 3px solid var(--accent-soft); padding: 6px 10px; border-radius: 4px; margin: 0 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--chip); color: #4a4a44; font-size: 12px; padding: 3px 10px; border-radius: 999px; }
+
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .empty .big { font-size: 15px; color: #6a6a63; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(30,30,28,0.35);
+    display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow:auto;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 16px; width: 100%; max-width: 480px;
+    padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-size: 17px; margin: 0 0 4px; }
+  .modal .hint { font-size: 13px; color: var(--muted); margin: 0 0 18px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    font-size: 14px; font-family: inherit; outline: none; background: #fcfcfa; color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .field .auto { font-size: 11.5px; color: var(--accent); margin-top: 4px; }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+  .spinner { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>My Bookmarks</h1>
+    <p>A calm place to save links and find them again.</p>
+  </header>
+
+  <div class="save-bar">
+    <input id="urlInput" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+    <button class="btn" id="saveBtn">Save</button>
+  </div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<!-- Review / adjust modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2>Save this link</h2>
+    <p class="hint" id="modalHint">We filled in the details from the page. Adjust anything you like.</p>
+    <div class="field">
+      <label>Title</label>
+      <input id="fTitle" type="text" />
+      <div class="auto" id="titleAuto">✓ filled in for you</div>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="fDesc"></textarea>
+      <div class="auto" id="descAuto">✓ filled in for you</div>
+    </div>
+    <div class="field">
+      <label>Your note (optional)</label>
+      <textarea id="fNote" placeholder="Why is this worth keeping?"></textarea>
+    </div>
+    <div class="field">
+      <label>Labels (comma separated)</label>
+      <input id="fTags" type="text" placeholder="e.g. reading, work" />
+    </div>
+    <div class="actions">
+      <button class="btn secondary" id="cancelBtn">Cancel</button>
+      <button class="btn" id="confirmBtn">Save to my list</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- simulated "fetch page details" (prototype only) ---
+  const SAMPLES = {
+    "developer.mozilla.org": { title: "Array.prototype.reduce() - JavaScript | MDN", desc: "The reduce() method executes a reducer function on each element of the array, resulting in a single output value." },
+    "www.nytimes.com": { title: "The Quiet Power of Reading Slowly - The New York Times", desc: "Why unhurried reading may be the antidote to information overload." },
+    "en.wikipedia.org": { title: "Spaced repetition - Wikipedia", desc: "A learning technique that incorporates increasing intervals of time between reviews of previously learned material." },
+    "github.com": { title: "sindresorhus/awesome: Curated list of awesome lists", desc: "A community-driven collection of awesome resources on many topics." },
+    "www.smashingmagazine.com": { title: "Designing Calm Interfaces - Smashing Magazine", desc: "Principles for building software that respects a user's attention." }
+  };
+  function domainOf(url){ try { return new URL(url.match(/^https?:\/\//)? url : "https://"+url).hostname; } catch(e){ return ""; } }
+  function titleCaseFromDomain(d){ const base = d.replace(/^www\./,"").split(".")[0]; return base ? base.charAt(0).toUpperCase()+base.slice(1)+" — saved page" : "Untitled page"; }
+  function fetchDetails(url){
+    const d = domainOf(url);
+    if (SAMPLES[d]) return { ...SAMPLES[d], auto:true };
+    return { title: titleCaseFromDomain(d), desc: "", auto: d ? true : false };
+  }
+
+  // --- state ---
+  let bookmarks = JSON.parse(localStorage.getItem("bm_proto")||"[]");
+  let pendingUrl = "";
+  function save(){ localStorage.setItem("bm_proto", JSON.stringify(bookmarks)); }
+
+  const listEl = document.getElementById("list");
+  function render(){
+    if(!bookmarks.length){
+      listEl.innerHTML = '<div class="empty"><div class="big">Nothing saved yet.</div><div>Paste a link above to keep your first one.</div></div>';
+      return;
+    }
+    listEl.innerHTML = bookmarks.map(b => `
+      <div class="item">
+        <p class="title">${esc(b.title)}</p>
+        <p class="url">${esc(b.url)}</p>
+        ${b.desc? `<p class="desc">${esc(b.desc)}</p>`:""}
+        ${b.note? `<p class="note">${esc(b.note)}</p>`:""}
+        ${b.tags && b.tags.length? `<div class="chips">${b.tags.map(t=>`<span class="chip">${esc(t)}</span>`).join("")}</div>`:""}
+      </div>`).join("");
+  }
+  function esc(s){ return (s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+  // --- save flow ---
+  const overlay = document.getElementById("overlay");
+  const urlInput = document.getElementById("urlInput");
+  document.getElementById("saveBtn").onclick = startSave;
+  urlInput.addEventListener("keydown", e=>{ if(e.key==="Enter") startSave(); });
+
+  function startSave(){
+    const url = urlInput.value.trim();
+    if(!url) return;
+    pendingUrl = url;
+    document.getElementById("fTitle").value = "…";
+    document.getElementById("fDesc").value = "";
+    document.getElementById("fNote").value = "";
+    document.getElementById("fTags").value = "";
+    document.getElementById("modalHint").textContent = "Reading the page…";
+    document.getElementById("titleAuto").style.display="none";
+    document.getElementById("descAuto").style.display="none";
+    overlay.classList.add("open");
+    // simulate fetch latency
+    setTimeout(()=>{
+      const d = fetchDetails(url);
+      document.getElementById("fTitle").value = d.title;
+      document.getElementById("fDesc").value = d.desc;
+      document.getElementById("modalHint").textContent = "We filled in the details from the page. Adjust anything you like.";
+      document.getElementById("titleAuto").style.display = d.auto? "block":"none";
+      document.getElementById("descAuto").style.display = d.desc? "block":"none";
+    }, 650);
+  }
+
+  document.getElementById("cancelBtn").onclick = ()=> overlay.classList.remove("open");
+  document.getElementById("confirmBtn").onclick = ()=>{
+    const tags = document.getElementById("fTags").value.split(",").map(s=>s.trim()).filter(Boolean);
+    bookmarks.unshift({
+      url: pendingUrl,
+      title: document.getElementById("fTitle").value.trim() || pendingUrl,
+      desc: document.getElementById("fDesc").value.trim(),
+      note: document.getElementById("fNote").value.trim(),
+      tags: tags
+    });
+    save(); render();
+    overlay.classList.remove("open");
+    urlInput.value = "";
+  };
+
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

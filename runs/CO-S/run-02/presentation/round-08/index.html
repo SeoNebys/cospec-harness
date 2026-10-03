@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks — prototype</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #18201d; background: #f4f3ed; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 22px 7vw; border-bottom: 1px solid #d8d8cf; background: #fbfaf5; }
+    .brand { font-size: 20px; font-weight: 750; letter-spacing: -.02em; }
+    main { width: min(920px, 86vw); margin: 72px auto; }
+    h1 { margin: 0 0 8px; font-size: clamp(30px, 5vw, 48px); letter-spacing: -.04em; }
+    .lead { margin: 0 0 34px; color: #66706b; font-size: 18px; }
+    .save-box { display: flex; gap: 10px; padding: 10px; border: 1px solid #ccd1ca; border-radius: 14px; background: white; box-shadow: 0 12px 32px rgba(38, 48, 43, .08); }
+    input { flex: 1; min-width: 0; border: 0; padding: 12px 14px; font: inherit; outline: none; }
+    button { border: 0; border-radius: 10px; padding: 12px 18px; background: #175e45; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    .header-action { display: none; }
+    .overlay { display: none; position: fixed; inset: 0; z-index: 5; align-items: center; justify-content: center; padding: 24px; background: rgba(24, 32, 29, .42); }
+    .overlay.open { display: flex; }
+    .dialog { width: min(620px, 94vw); padding: 26px; border-radius: 18px; background: #f4f3ed; box-shadow: 0 24px 70px rgba(20, 26, 23, .25); }
+    .dialog h2, .drawer h2 { margin: 0 0 18px; font-size: 24px; }
+    .drawer { position: fixed; top: 0; right: -520px; z-index: 6; width: min(480px, 92vw); height: 100vh; padding: 34px 28px; background: #f4f3ed; box-shadow: -20px 0 60px rgba(20, 26, 23, .18); transition: right .22s ease; }
+    .drawer.open { right: 0; }
+    .drawer .save-box, .dialog .save-box { flex-direction: column; }
+    #hint { min-height: 24px; margin: 10px 4px 0; color: #66706b; font-size: 14px; }
+    .collection { margin-top: 62px; }
+    .collection h2 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: #66706b; }
+    .empty { margin-top: 18px; padding: 54px 20px; border: 1px dashed #bdc3bc; border-radius: 16px; text-align: center; color: #748079; }
+    .card { display: none; grid-template-columns: 52px 1fr auto; gap: 16px; align-items: center; margin-top: 18px; padding: 18px; border: 1px solid #d8dcd6; border-radius: 16px; background: white; }
+    .favicon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 12px; background: #f1f4f2; color: #175e45; font-weight: 800; }
+    .title { margin: 0 0 5px; font-size: 18px; }
+    .description, .url { margin: 0; color: #66706b; font-size: 14px; }
+    .url { margin-top: 7px; color: #356a58; }
+    .saved { color: #356a58; font-size: 14px; font-weight: 700; }
+    .tags { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .tag { padding: 5px 9px; border-radius: 999px; background: #e1eee8; color: #175e45; font-size: 13px; font-weight: 700; }
+    .tag-action { padding: 5px 9px; border: 1px solid #c9d2cc; background: transparent; color: #356a58; font-size: 13px; }
+    .tag-editor { display: none; gap: 8px; margin-top: 12px; }
+    .tag-editor.open { display: flex; }
+    .tag-editor input { flex: 0 1 220px; padding: 8px 10px; border: 1px solid #c9d2cc; border-radius: 8px; }
+    .tag-editor button { padding: 8px 12px; }
+    @media (max-width: 620px) { .save-box { flex-direction: column; } .card { grid-template-columns: 44px 1fr; } .saved { grid-column: 2; } }
+  </style>
+</head>
+<body>
+  <header><div class="brand">Keepsake</div><div id="header-label">All bookmarks</div><button id="header-action" class="header-action" type="button">+ Save a link</button></header>
+  <main data-harness-ready="true">
+    <h1>Save what matters.</h1>
+    <p class="lead">Paste a link and its details will be filled in for you.</p>
+    <form id="save-form" class="save-box">
+      <input id="url" type="url" required autocomplete="off" placeholder="Paste a web address…" aria-label="Web address">
+      <button id="save" type="submit">Save bookmark</button>
+    </form>
+    <p id="hint" role="status"></p>
+    <section class="collection" aria-labelledby="collection-heading">
+      <h2 id="collection-heading">Your bookmarks</h2>
+      <div id="empty" class="empty">No bookmarks yet. Your first saved link will appear here.</div>
+      <article id="card" class="card">
+        <div class="favicon">MDN</div>
+        <div>
+          <h3 id="title" class="title"></h3>
+          <p id="description" class="description"></p>
+          <p id="display-url" class="url"></p>
+          <div id="tags" class="tags"><button id="tag-action" class="tag-action" type="button">+ Add a tag</button></div>
+          <div id="tag-editor" class="tag-editor"><input id="tag-input" type="text" placeholder="Tag name" aria-label="Tag name"><button id="add-tag" type="button">Add</button></div>
+        </div>
+        <div class="saved">Saved</div>
+      </article>
+    </section>
+  </main>
+  <div id="overlay" class="overlay"><section class="dialog"><h2>Save a bookmark</h2><div id="dialog-target"></div></section></div>
+  <aside id="drawer" class="drawer"><h2>Save a bookmark</h2><div id="drawer-target"></div></aside>
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url');
+    const button = document.querySelector('#save');
+    const hint = document.querySelector('#hint');
+    const method = new URLSearchParams(location.search).get('method') || 'inline';
+    const flow = new URLSearchParams(location.search).get('flow');
+    const headerAction = document.querySelector('#header-action');
+    const overlay = document.querySelector('#overlay');
+    const drawer = document.querySelector('#drawer');
+    if (method === 'dialog') {
+      document.querySelector('#dialog-target').append(form);
+      document.querySelector('#header-label').style.display = 'none';
+      headerAction.style.display = 'block';
+      headerAction.addEventListener('click', () => { overlay.classList.add('open'); input.focus(); });
+      overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.classList.remove('open'); });
+    }
+    if (method === 'drawer') {
+      document.querySelector('#drawer-target').append(form);
+      document.querySelector('#header-label').style.display = 'none';
+      headerAction.style.display = 'block';
+      headerAction.addEventListener('click', () => { drawer.classList.add('open'); input.focus(); });
+    }
+    if (flow === 'tags') {
+      document.querySelector('#empty').style.display = 'none';
+      document.querySelector('#card').style.display = 'grid';
+      document.querySelector('#title').textContent = 'JavaScript | MDN';
+      document.querySelector('#description').textContent = 'JavaScript is a scripting language that enables you to create dynamically updating content.';
+      document.querySelector('#display-url').textContent = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript';
+    }
+    document.querySelector('#tag-action').addEventListener('click', () => {
+      document.querySelector('#tag-editor').classList.add('open');
+      document.querySelector('#tag-input').focus();
+    });
+    document.querySelector('#add-tag').addEventListener('click', () => {
+      const tagInput = document.querySelector('#tag-input');
+      const name = tagInput.value.trim();
+      if (!name) return;
+      const chip = document.createElement('span');
+      chip.className = 'tag';
+      chip.textContent = name;
+      document.querySelector('#tags').prepend(chip);
+      tagInput.value = '';
+      document.querySelector('#tag-editor').classList.remove('open');
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Getting details…';
+      hint.textContent = 'Reading the page details…';
+      window.setTimeout(() => {
+        let host = '';
+        try { host = new URL(input.value).hostname.replace(/^www\./, ''); } catch (_) {}
+        const isMdn = host === 'developer.mozilla.org';
+        document.querySelector('#title').textContent = isMdn ? 'JavaScript | MDN' : `A saved page from ${host || 'the web'}`;
+        document.querySelector('#description').textContent = isMdn
+          ? 'JavaScript is a scripting language that enables you to create dynamically updating content.'
+          : 'Page title and description filled in automatically.';
+        document.querySelector('#display-url').textContent = input.value;
+        document.querySelector('#empty').style.display = 'none';
+        document.querySelector('#card').style.display = 'grid';
+        button.disabled = false;
+        button.textContent = 'Save bookmark';
+        hint.textContent = 'Bookmark saved with its page details.';
+        input.value = '';
+        overlay.classList.remove('open');
+        drawer.classList.remove('open');
+      }, 650);
+    });
+  </script>
+</body>
+</html>

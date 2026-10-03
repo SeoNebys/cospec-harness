@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Delete a bookmark</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .delete-shell { width: min(900px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 70px; }
+    .delete-head { padding: 60px 0 30px; }
+    .delete-head h1 { font-size: 50px; }
+    .delete-card { position: relative; display: grid; grid-template-columns: 150px 1fr auto; gap: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--card); }
+    .delete-image { min-height: 145px; border-radius: 9px; background: linear-gradient(145deg, #183d4d, #e79a54); }
+    .delete-body { align-self: center; }
+    .delete-body h2 { margin: 7px 0 8px; font-family: Georgia, serif; font-size: 23px; font-weight: 500; }
+    .delete-body p { margin: 0; color: var(--muted); font-size: 12px; }
+    .delete-wrap { position: relative; }
+    .delete-more { width: 38px; height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
+    .delete-menu { position: absolute; z-index: 2; top: 41px; right: 0; width: 170px; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 10px 25px rgba(0,0,0,.12); }
+    .delete-menu button { width: 100%; border: 0; border-radius: 7px; padding: 9px; background: transparent; color: #a33d35; cursor: pointer; text-align: left; font-size: 12px; font-weight: 750; }
+    .modal-backdrop { position: fixed; z-index: 4; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(18,27,22,.42); }
+    .confirm-modal { width: min(430px, 100%); padding: 28px; border-radius: 15px; background: var(--paper); box-shadow: 0 20px 60px rgba(0,0,0,.22); }
+    .confirm-modal h2 { margin: 0 0 10px; font-family: Georgia, serif; font-size: 29px; font-weight: 500; }
+    .confirm-modal p { margin: 0 0 9px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .warning { color: #943b33 !important; font-weight: 750; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 25px; }
+    .danger-button { border: 1px solid #a33d35; border-radius: 9px; padding: 10px 14px; background: #a33d35; color: white; cursor: pointer; font-weight: 750; }
+    .undo-toast { position: fixed; right: 24px; bottom: 24px; display: flex; gap: 18px; align-items: center; padding: 12px 16px; border-radius: 11px; background: var(--ink); color: white; font-size: 12px; }
+    .undo-toast button { border: 0; background: transparent; color: #f0b978; cursor: pointer; font-weight: 800; }
+    .empty-delete { padding: 50px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="delete-shell" data-harness-ready="true">
+    <header class="topbar"><a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a><span class="prototype-badge">Delete prototype</span></header>
+    <section class="delete-head"><p class="eyebrow">YOUR COLLECTION</p><h1>Delete only when you mean it.</h1></section>
+    <article id="delete-card" class="delete-card"><div class="delete-image"></div><div class="delete-body"><p class="site-line"><span class="site-icon">F</span> Field Notes</p><h2>A calmer way to keep what you discover online</h2><p>Saved today · Design, Reading</p></div><div class="delete-wrap"><button id="delete-more" class="delete-more">•••</button><div id="delete-menu" class="delete-menu" hidden><button id="delete-choice">Delete permanently…</button></div></div></article>
+    <div id="empty-delete" class="empty-delete" hidden>The bookmark has been permanently deleted.</div>
+  </main>
+  <div id="modal" class="modal-backdrop" hidden><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h2 id="confirm-title">Permanently delete this bookmark?</h2><p>“A calmer way to keep what you discover online”</p><p class="warning">This removes its note, tags, and saved details. It cannot be undone.</p><div class="modal-actions"><button id="cancel-delete" class="secondary-button">Keep bookmark</button><button id="confirm-delete" class="danger-button">Delete permanently</button></div></section></div>
+  <div id="undo-toast" class="undo-toast" hidden><span>Bookmark deleted</span><button id="undo-delete">Undo</button></div>
+  <script>
+    const safety = new URLSearchParams(location.search).get('safety') || 'confirm';
+    const card = document.querySelector('#delete-card');
+    const modal = document.querySelector('#modal');
+    const toast = document.querySelector('#undo-toast');
+    document.querySelector('#delete-more').addEventListener('click', () => { const menu = document.querySelector('#delete-menu'); menu.hidden = !menu.hidden; });
+    function removeCard() { card.hidden = true; document.querySelector('#empty-delete').hidden = false; }
+    document.querySelector('#delete-choice').addEventListener('click', () => {
+      document.querySelector('#delete-menu').hidden = true;
+      if (safety === 'confirm') modal.hidden = false;
+      else { removeCard(); toast.hidden = false; }
+    });
+    document.querySelector('#cancel-delete').addEventListener('click', () => { modal.hidden = true; });
+    document.querySelector('#confirm-delete').addEventListener('click', () => { modal.hidden = true; removeCard(); });
+    document.querySelector('#undo-delete').addEventListener('click', () => { card.hidden = false; document.querySelector('#empty-delete').hidden = true; toast.hidden = true; });
+  </script>
+</body>
+</html>

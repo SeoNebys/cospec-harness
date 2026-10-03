@@ -1,0 +1,4 @@
+let csrfToken='';
+export function setCsrf(value:string){csrfToken=value;}
+export class ApiError extends Error{constructor(message:string,public status:number,public body:any){super(message);}}
+export async function api<T>(path:string,options:RequestInit={}):Promise<T>{const headers=new Headers(options.headers);if(options.body)headers.set('content-type','application/json');if(csrfToken&&!['GET','HEAD'].includes(options.method||'GET'))headers.set('x-csrf-token',csrfToken);const response=await fetch(`/api${path}`,{...options,headers,credentials:'same-origin'});if(response.status===204)return undefined as T;const body=await response.json().catch(()=>({detail:'The server returned an unexpected response.'}));if(!response.ok)throw new ApiError(body.detail||body.title||'Request failed.',response.status,body);return body;}

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2430; --muted:#6b7684; --line:#e4e8ed; --accent:#2f6df0; --accent-soft:#eaf0fe; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:24px; }
+  .panel h2 { margin:0 0 14px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; }
+  input[type=text], input[type=url], textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; background:#fff; }
+  textarea { resize:vertical; min-height:60px; }
+  .row-url { display:flex; gap:8px; }
+  .row-url input { flex:1; }
+  button { cursor:pointer; border:none; border-radius:8px; font-size:14px; padding:10px 16px; font-weight:600; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-ghost { background:var(--accent-soft); color:var(--accent); }
+  .fetch-note { font-size:12px; color:var(--muted); margin-top:6px; min-height:16px; }
+  .fetch-note.filled { color:#1a8a4a; }
+  .save-row { margin-top:18px; display:flex; justify-content:flex-end; }
+  .list-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
+  .count { color:var(--muted); font-size:13px; }
+  .empty { text-align:center; color:var(--muted); padding:40px 12px; }
+  .empty svg { opacity:.4; }
+  ul.bm { list-style:none; margin:0; padding:0; }
+  li.bm-item { border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; background:#fff; }
+  li.bm-item .title { font-size:15px; font-weight:600; margin:0 0 2px; }
+  li.bm-item .title a { color:var(--ink); text-decoration:none; }
+  li.bm-item .site { font-size:12px; color:var(--muted); }
+  li.bm-item .desc { font-size:13px; color:#48525f; margin:8px 0 0; }
+  li.bm-item .tags { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { background:var(--accent-soft); color:var(--accent); font-size:12px; padding:3px 9px; border-radius:20px; }
+  li.bm-item .note { margin-top:8px; font-size:13px; color:#48525f; border-left:3px solid var(--line); padding-left:10px; }
+  .flash { background:#e8f7ee; color:#1a8a4a; border:1px solid #bfe6cd; border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:16px; display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A private place for your links — prototype for review</p>
+</header>
+<main>
+  <div id="flash" class="flash"></div>
+
+  <section class="panel">
+    <h2>Save a link</h2>
+    <label for="url">Web address</label>
+    <div class="row-url">
+      <input id="url" type="url" placeholder="Paste a web address, e.g. https://example.com/article" autocomplete="off" />
+      <button id="fetchBtn" class="btn-ghost" type="button">Get details</button>
+    </div>
+    <div id="fetchNote" class="fetch-note"></div>
+
+    <label for="title">Title</label>
+    <input id="title" type="text" placeholder="The page title will appear here — edit if you like" />
+
+    <label for="desc">Description</label>
+    <textarea id="desc" placeholder="A short summary of the page"></textarea>
+
+    <label for="tags">Tags (comma separated)</label>
+    <input id="tags" type="text" placeholder="e.g. design, reading, work" />
+
+    <label for="note">Your note</label>
+    <textarea id="note" placeholder="Why you saved this, or anything to remember"></textarea>
+
+    <div class="save-row">
+      <button id="saveBtn" class="btn-primary" type="button" disabled>Save bookmark</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="list-head">
+      <h2 style="margin:0">Your bookmarks</h2>
+      <span id="count" class="count"></span>
+    </div>
+    <div id="empty" class="empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1z"/></svg>
+      <p>No bookmarks yet.<br/>Paste a web address above to save your first one.</p>
+    </div>
+    <ul id="list" class="bm"></ul>
+  </section>
+</main>
+
+<script>
+// --- Simulated page-detail lookup (prototype only) ---
+// Stands in for the real "fetch the page's details" behaviour so we can explore
+// the flow without a live server. Returns plausible details from the address.
+const CANNED = {
+  "nytimes.com":   { title:"The Science of a Good Night's Sleep", desc:"How small evening habits change how rested you feel.", site:"The New York Times" },
+  "github.com":    { title:"tldr-pages/tldr: Simplified man pages", desc:"Community-maintained help pages for command-line tools.", site:"GitHub" },
+  "wikipedia.org": { title:"Bookmark (digital) — Wikipedia", desc:"A saved shortcut used to return to a web page later.", site:"Wikipedia" },
+  "medium.com":    { title:"Designing Calm Software", desc:"An essay on interfaces that respect your attention.", site:"Medium" }
+};
+function domainOf(url){
+  try { return new URL(url).hostname.replace(/^www\./,""); } catch(e){ return ""; }
+}
+function lookup(url){
+  const host = domainOf(url);
+  for (const key in CANNED){ if (host.endsWith(key)) return { ...CANNED[key], site: CANNED[key].site }; }
+  // generic fallback derived from the address
+  const path = (function(){ try { return new URL(url).pathname; } catch(e){ return ""; } })();
+  const slug = path.split("/").filter(Boolean).pop() || host;
+  const pretty = slug.replace(/[-_]+/g," ").replace(/\.\w+$/,"").replace(/\b\w/g, c=>c.toUpperCase());
+  return { title: pretty || host, desc:"", site: host };
+}
+
+const bookmarks = [];
+const $ = id => document.getElementById(id);
+
+function refreshSaveState(){
+  const hasUrl = $("url").value.trim() !== "";
+  const hasTitle = $("title").value.trim() !== "";
+  $("saveBtn").disabled = !(hasUrl && hasTitle);
+}
+
+$("fetchBtn").addEventListener("click", () => {
+  const url = $("url").value.trim();
+  const note = $("fetchNote");
+  if (!url){ note.textContent = "Paste a web address first."; note.className="fetch-note"; return; }
+  const d = lookup(url);
+  $("title").value = d.title;
+  $("desc").value = d.desc;
+  note.textContent = d.desc || d.title ? "Details filled in automatically — edit anything you like." : "Couldn't read details; please type them in.";
+  note.className = "fetch-note filled";
+  refreshSaveState();
+});
+
+["url","title"].forEach(id => $(id).addEventListener("input", refreshSaveState));
+
+$("saveBtn").addEventListener("click", () => {
+  const bm = {
+    url: $("url").value.trim(),
+    title: $("title").value.trim(),
+    desc: $("desc").value.trim(),
+    tags: $("tags").value.split(",").map(t=>t.trim()).filter(Boolean),
+    note: $("note").value.trim(),
+    site: domainOf($("url").value.trim())
+  };
+  bookmarks.unshift(bm);
+  render();
+  // reset form
+  ["url","title","desc","tags","note"].forEach(id => $(id).value="");
+  $("fetchNote").textContent=""; $("fetchNote").className="fetch-note";
+  refreshSaveState();
+  const f = $("flash"); f.textContent = "Saved. It's now in your list below."; f.style.display="block";
+  setTimeout(()=>{ f.style.display="none"; }, 3000);
+});
+
+function render(){
+  const list = $("list"); list.innerHTML="";
+  $("count").textContent = bookmarks.length ? bookmarks.length + (bookmarks.length===1?" link":" links") : "";
+  $("empty").style.display = bookmarks.length ? "none" : "block";
+  bookmarks.forEach(bm => {
+    const li = document.createElement("li"); li.className="bm-item";
+    li.innerHTML =
+      '<p class="title"><a href="'+bm.url+'" target="_blank" rel="noopener">'+escapeHtml(bm.title)+'</a></p>'+
+      '<div class="site">'+escapeHtml(bm.site)+'</div>'+
+      (bm.desc ? '<p class="desc">'+escapeHtml(bm.desc)+'</p>' : '')+
+      (bm.tags.length ? '<div class="tags">'+bm.tags.map(t=>'<span class="tag">'+escapeHtml(t)+'</span>').join('')+'</div>' : '')+
+      (bm.note ? '<div class="note">'+escapeHtml(bm.note)+'</div>' : '');
+    list.appendChild(li);
+  });
+}
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

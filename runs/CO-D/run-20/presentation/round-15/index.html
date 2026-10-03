@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e4e7eb; --text:#1c2430; --muted:#6b7684; --accent:#2f6fed; --warn:#b46a00; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 20px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  main { max-width:760px; margin:0 auto; padding:20px; }
+  .save { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:10px; }
+  .save input { flex:1; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .btn { padding:11px 18px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; cursor:pointer; }
+  .btn.secondary { background:#eef0f3; color:var(--text); }
+  .btn.danger { background:#c0392b; color:#fff; }
+  .linkbtn.danger { color:#c0392b; }
+  .confirm { border:1px solid #f0c6c0; background:#fdf3f2; border-radius:12px; padding:14px 16px; }
+  .confirm h4 { margin:0 0 4px; font-size:15px; color:#7d241a; }
+  .confirm p { margin:0 0 12px; font-size:13px; color:#7d241a; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .field { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+  .field label { font-size:12px; color:var(--muted); font-weight:600; }
+  .field input, .field textarea { padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  .field textarea { resize:vertical; min-height:52px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:12px; }
+  .compose-head { font-size:13px; color:var(--muted); margin-bottom:10px; }
+  .preview { display:flex; gap:14px; }
+  .thumb { width:120px; height:80px; border-radius:8px; flex:0 0 auto; background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; text-align:center; }
+  .icon { width:20px; height:20px; border-radius:5px; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:11px; }
+  .segmented { display:inline-flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-top:16px; background:var(--card); }
+  .segmented button { border:0; background:transparent; padding:9px 16px; font-size:14px; cursor:pointer; color:var(--muted); border-right:1px solid var(--line); }
+  .segmented button:last-child { border-right:0; }
+  .segmented button.active { background:var(--accent); color:#fff; }
+  .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; vertical-align:middle; }
+  .badge.toread { background:#fdeccd; color:#8a5a00; }
+  .badge.reference { background:#dfe9ff; color:#274690; }
+  .choice { display:inline-flex; gap:6px; }
+  .choice button { border:1px solid var(--line); background:var(--card); border-radius:8px; padding:7px 12px; font-size:13px; cursor:pointer; color:var(--text); }
+  .choice button.on { border-color:var(--accent); background:#eef3ff; color:var(--accent); font-weight:600; }
+  .tagbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .tagbox input { border:0; outline:none; flex:1; min-width:140px; font-size:14px; padding:4px; }
+  .chip { display:inline-flex; align-items:center; gap:5px; background:#eef3ff; color:#274690; border-radius:999px; padding:3px 5px 3px 10px; font-size:12px; }
+  .chip .chipx { border:0; background:none; color:#274690; cursor:pointer; font-size:14px; line-height:1; padding:0 2px; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .tags .tag { background:#eef3ff; color:#274690; border:0; border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .tags .tag:hover { background:#dde8ff; }
+  .suggest { display:none; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .suggest .sugtag { background:#fff; border:1px solid var(--line); color:#274690; border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .suggest .sugtag:hover { background:#eef3ff; }
+  .suggest .sughint { font-size:11px; color:var(--muted); align-self:center; margin-right:2px; }
+  .searchwrap { margin-top:16px; }
+  .searchwrap input { width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:var(--card); }
+  mark { background:#fff2b0; color:inherit; padding:0 1px; border-radius:2px; }
+  .count { color:var(--muted); font-size:13px; margin:20px 4px 8px; }
+  ul.list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+  li.item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .item-top { display:flex; gap:14px; }
+  .item-body { flex:1; min-width:0; }
+  .item .titlerow { display:flex; align-items:center; gap:8px; }
+  .item a.title { font-size:15px; font-weight:600; color:var(--text); text-decoration:none; }
+  .item a.title:hover { color:var(--accent); text-decoration:underline; }
+  .item .desc { color:#43505f; font-size:13px; margin-top:5px; }
+  .item .note { margin-top:8px; padding:8px 11px; background:#fbfaf4; border-left:3px solid #d9c98a; border-radius:6px; font-size:13px; color:#4a4636; }
+  .note.markdown h3,.note.markdown h4 { margin:4px 0; font-size:14px; }
+  .note.markdown p { margin:4px 0; }
+  .note.markdown ul,.note.markdown ol { margin:4px 0 4px 20px; padding:0; }
+  .note.markdown code { background:#ece8d8; padding:0 3px; border-radius:3px; font-size:12px; }
+  .note.markdown a { color:var(--accent); }
+  .note.collapsed { max-height:6.5em; overflow:hidden; }
+  .item a.link { color:var(--accent); text-decoration:none; font-size:12px; word-break:break-all; display:inline-block; margin-top:7px; }
+  .item a.link:hover { text-decoration:underline; }
+  .item .meta { color:var(--muted); font-size:12px; margin-top:7px; display:flex; gap:12px; align-items:center; }
+  .linkbtn { background:none; border:0; color:var(--accent); font-size:12px; cursor:pointer; padding:0; }
+  .empty { color:var(--muted); font-size:14px; padding:24px 4px; }
+  .flash { animation:flash 1.6s ease; }
+  @keyframes flash { 0%{ background:#fff4e0;} 100%{ background:var(--card);} }
+  .dupnote { color:var(--warn); font-size:13px; margin:10px 4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>One dependable place for every link you save.</p>
+</header>
+<main>
+  <form class="save" id="saveForm">
+    <input id="urlInput" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+    <button id="saveBtn" class="btn" type="submit" disabled>Save</button>
+  </form>
+  <div id="dupnote"></div>
+
+  <div id="composeSlot"></div>
+
+  <div class="segmented" id="segmented">
+    <button data-f="all" class="active">All</button>
+    <button data-f="toread">To read</button>
+    <button data-f="reference">Reference</button>
+    <button data-f="archived">Archived</button>
+  </div>
+
+  <div class="searchwrap">
+    <input id="searchInput" type="search" placeholder="Search your bookmarks by title, description or address…" autocomplete="off" />
+  </div>
+
+  <div class="count" id="count"></div>
+  <ul class="list" id="list"></ul>
+</main>
+
+<script>
+  var query = '';
+  var COLORS = ['#2f6fed','#e0567a','#2fa96b','#8b5cf6','#e08a2f','#0ea5b7'];
+  function mk(url,title,desc,saved){ var h=url.replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];
+    return { id:Math.floor(Math.random()*1e9), url:url, title:title, description:desc, host:h, iconLetter:h.charAt(0).toUpperCase(), color:COLORS[0], saved:saved }; }
+  // Example bookmarks preloaded ONLY to demonstrate searching (not a data decision).
+  var items = [
+    mk('https://developer.mozilla.org/en-US/docs/Web/CSS/grid','CSS grid layout · MDN','Complete reference for the CSS grid layout module with examples.','3 days ago'),
+    mk('https://www.nytimes.com/2026/01/travel/kyoto-guide','A quiet guide to Kyoto · NYTimes','Where to walk, eat and stay away from the crowds in Kyoto.','2 weeks ago'),
+    mk('https://arxiv.org/abs/2401.12345','Retrieval-augmented notes · arXiv','A paper on improving long-term retrieval of saved references.','1 month ago'),
+    mk('https://news.ycombinator.com/item?id=39000000','Ask HN: how do you organise bookmarks?','A discussion thread on tools and habits for keeping links.','5 months ago'),
+    mk('https://www.seriouseats.com/the-food-lab-roast-chicken','The best roast chicken · Serious Eats','A reliable weeknight method for crisp-skinned roast chicken.','8 months ago')
+  ];
+  var seedToRead=[false,true,true,false,false];
+  var seedTags=[['css','reference','webdev'],['travel','japan'],['research','reading'],['discussion','bookmarks'],['recipe','cooking']];
+  var seedNotes=['','Autumn trip — check the **temple** opening hours before going.',
+    '### Why I saved this\nSkim **section 3** for the retrieval evaluation method.\n\nFollow-ups:\n- compare with my notes\n- email the [author page](https://arxiv.org/a/example)','',''];
+  items.forEach(function(it,i){ it.color=COLORS[i%COLORS.length]; it.toRead=seedToRead[i]; it.archived=false; it.tags=seedTags[i]; it.notes=seedNotes[i]; });
+  var statusFilter='all';
+  function colorFor(s){ var h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return COLORS[h%COLORS.length]; }
+  function normalizeUrl(u){ return /^https?:\/\//i.test(u)? u : 'https://'+u; }
+  function hostOf(u){ try{ return new URL(normalizeUrl(u)).hostname.replace(/^www\./,''); }catch(e){ return u; } }
+  function keyOf(u){ // duplicate detection: host is case-insensitive (ignore www + trailing slash),
+    try{ var x=new URL(normalizeUrl(u)); // but the path keeps its original capitalisation.
+      var host=x.hostname.replace(/^www\./,'').toLowerCase();
+      var path=(x.pathname+ (x.search||'')).replace(/\/$/,'');
+      return host+path; }
+    catch(e){ return u; }
+  }
+
+  // ---- simulated metadata fetch (a real app would read the actual page) ----
+  function fetchMeta(url){
+    var host = hostOf(url);
+    var seg='';
+    try{ seg = decodeURIComponent(new URL(normalizeUrl(url)).pathname.split('/').filter(Boolean).pop()||''); }catch(e){}
+    seg = seg.replace(/[-_]+/g,' ').replace(/\.\w+$/,'').trim();
+    var pretty = seg ? seg.replace(/\b\w/g, function(c){return c.toUpperCase();}) : host;
+    var siteName = host.split('.')[0].replace(/\b\w/g,function(c){return c.toUpperCase();});
+    return {
+      title: seg ? (pretty + ' · ' + siteName) : (siteName + ' — homepage'),
+      description: 'A page on ' + host + '. This description is what the app pulled from the page so you can recognise it later.',
+      host: host,
+      iconLetter: host.charAt(0).toUpperCase(),
+      color: colorFor(host)
+    };
+  }
+
+  function esc(s){ return s.replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  var highlights = [];
+  function hl(text){ var t=esc(text||''); if(!highlights.length) return t;
+    var parts=highlights.filter(Boolean).map(function(h){ return h.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); });
+    if(!parts.length) return t;
+    var rx=new RegExp('('+parts.join('|')+')','ig');
+    return t.replace(rx,'<mark>$1</mark>');
+  }
+  // text of an entry that search looks through (notes/tags included once they exist)
+  function textOf(it){ return (it.title+' '+it.description+' '+it.url+' '+(it.notes||'')+' '+((it.tags||[]).join(' '))).toLowerCase(); }
+
+  // --- minimal, safe Markdown for notes (headings, lists, links, emphasis, code) ---
+  function mdInline(s){
+    s=s.replace(/`([^`]+)`/g, function(m,c){ return '<code>'+c+'</code>'; });
+    s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function(m,t,u){ return /^(https?:|mailto:|\/)/i.test(u) ? '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>' : m; });
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>');
+    s=s.replace(/\*([^*]+)\*/g,'<em>$1</em>').replace(/(^|[\s(])_([^_]+)_(?=[\s).,!?]|$)/g,'$1<em>$2</em>');
+    return s;
+  }
+  function renderMarkdown(src){
+    var lines=esc(src).split(/\r?\n/), html='', i=0;
+    var isUL=function(l){return /^\s*[-*]\s+/.test(l);}, isOL=function(l){return /^\s*\d+\.\s+/.test(l);}, isH=function(l){return /^#{1,3}\s+/.test(l);};
+    while(i<lines.length){ var line=lines[i];
+      if(/^\s*$/.test(line)){ i++; continue; }
+      var h=line.match(/^(#{1,3})\s+(.*)$/);
+      if(h){ var lvl=Math.min(h[1].length+2,4); html+='<h'+lvl+'>'+mdInline(h[2])+'</h'+lvl+'>'; i++; continue; }
+      if(isUL(line)){ html+='<ul>'; while(i<lines.length&&isUL(lines[i])){ html+='<li>'+mdInline(lines[i].replace(/^\s*[-*]\s+/,''))+'</li>'; i++; } html+='</ul>'; continue; }
+      if(isOL(line)){ html+='<ol>'; while(i<lines.length&&isOL(lines[i])){ html+='<li>'+mdInline(lines[i].replace(/^\s*\d+\.\s+/,''))+'</li>'; i++; } html+='</ol>'; continue; }
+      var para=[]; while(i<lines.length&&!/^\s*$/.test(lines[i])&&!isH(lines[i])&&!isUL(lines[i])&&!isOL(lines[i])){ para.push(lines[i]); i++; }
+      html+='<p>'+para.map(mdInline).join('<br>')+'</p>';
+    }
+    return html;
+  }
+  function highlightWithin(el){
+    if(!highlights.length) return;
+    var parts=highlights.filter(Boolean).map(function(h){return h.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');});
+    if(!parts.length) return;
+    var rx=new RegExp('('+parts.join('|')+')','ig');
+    var walker=document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null), nodes=[];
+    while(walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function(n){ if(n.parentNode.nodeName==='MARK') return; rx.lastIndex=0; if(!rx.test(n.nodeValue)) return;
+      var span=document.createElement('span'); span.innerHTML=esc(n.nodeValue).replace(rx,'<mark>$1</mark>'); n.parentNode.replaceChild(span,n);
+    });
+  }
+
+  // --- query language: "phrases", AND / OR / NOT, ( ), #tag; operators only when unquoted ---
+  function tokenize(s){ var out=[], i=0, n=s.length;
+    while(i<n){ var c=s[i];
+      if(/\s/.test(c)){ i++; continue; }
+      if(c==='('){ out.push({t:'LP'}); i++; continue; }
+      if(c===')'){ out.push({t:'RP'}); i++; continue; }
+      if(c==='"'){ var j=i+1, buf=''; while(j<n && s[j]!=='"'){ buf+=s[j]; j++; } i=(j<n)?j+1:j; out.push({t:'PHRASE', v:buf}); continue; }
+      var w=''; while(i<n && !/\s/.test(s[i]) && s[i]!=='(' && s[i]!==')' && s[i]!=='"'){ w+=s[i]; i++; }
+      var wu=w.toUpperCase();
+      if(wu==='AND'||wu==='OR'||wu==='NOT') out.push({t:'OP', v:wu});
+      else if(w.charAt(0)==='#' && w.length>1) out.push({t:'TAG', v:w});
+      else out.push({t:'WORD', v:w});
+    }
+    return out;
+  }
+  function buildQuery(str){ var tokens=tokenize(str), pos=0, literals=[];
+    function peek(){ return tokens[pos]; }
+    function parseOr(){ var left=parseAnd(); while(peek()&&peek().t==='OP'&&peek().v==='OR'){ pos++; var r=parseAnd(), l=left; left=function(it){return l(it)||r(it);}; } return left; }
+    function parseAnd(){ var left=parseNot(); while(peek() && !(peek().t==='OP'&&peek().v==='OR') && peek().t!=='RP'){ if(peek().t==='OP'&&peek().v==='AND') pos++; var r=parseNot(), l=left; left=function(it){return l(it)&&r(it);}; } return left; }
+    function parseNot(){ if(peek()&&peek().t==='OP'&&peek().v==='NOT'){ pos++; var op=parseNot(); return function(it){return !op(it);}; } return parseTerm(); }
+    function parseTerm(){ var tk=peek();
+      if(!tk) return function(){return true;};
+      if(tk.t==='LP'){ pos++; var e=parseOr(); if(peek()&&peek().t==='RP') pos++; return e; }
+      if(tk.t==='RP'){ pos++; return function(){return true;}; }
+      pos++;
+      if(tk.t==='TAG'){ var tag=tk.v.slice(1).toLowerCase(); return function(it){ return (it.tags||[]).some(function(x){return x.toLowerCase()===tag;}); }; }
+      var needle=(tk.v||'').toLowerCase(); if(needle) literals.push(needle);
+      return function(it){ return needle==='' ? true : textOf(it).indexOf(needle)!==-1; };
+    }
+    var pred = tokens.length ? parseOr() : function(){return true;};
+    return { pred:pred, literals:literals };
+  }
+
+  function render(){
+    var list=document.getElementById('list'), count=document.getElementById('count');
+    list.innerHTML='';
+    if(items.length===0){ count.textContent=''; var d=document.createElement('div'); d.className='empty'; d.textContent='Nothing saved yet. Paste a link above to get started.'; list.appendChild(d); return; }
+    var q=query.trim();
+    var compiled=buildQuery(q); highlights=compiled.literals;
+    function inView(it){
+      if(statusFilter==='archived') return it.archived;
+      if(it.archived) return false;               // archived hidden from all normal views
+      if(statusFilter==='toread') return it.toRead;
+      if(statusFilter==='reference') return !it.toRead;
+      return true;                                 // all (non-archived)
+    }
+    var inScope=items.filter(inView);
+    var visible=inScope.filter(compiled.pred);
+    var scopeWord = statusFilter==='toread' ? ' to read' : (statusFilter==='reference' ? ' for reference' : (statusFilter==='archived' ? ' archived' : ''));
+    if(q){ count.textContent = visible.length + ' of ' + inScope.length + ' match “'+q+'”'+scopeWord; }
+    else { count.textContent = inScope.length + (inScope.length===1?' bookmark':' bookmarks') + scopeWord; }
+    if(visible.length===0){ var e=document.createElement('div'); e.className='empty';
+      e.textContent = q ? ('No bookmarks match “'+q+'”'+scopeWord+'. Try a different word or combination.')
+                        : (statusFilter==='toread' ? 'Nothing on your reading list yet.'
+                        : (statusFilter==='archived' ? 'No archived bookmarks.'
+                        : (statusFilter==='reference' ? 'Nothing here — everything is on your reading list.'
+                        : 'Nothing saved yet. Paste a link above to get started.')));
+      list.appendChild(e); return; }
+    visible.forEach(function(it){
+      if(it._confirmDelete){
+        var cli=document.createElement('li'); cli.className='item'; cli.id='item-'+it.id;
+        var cbox=document.createElement('div'); cbox.className='confirm';
+        var h=document.createElement('h4'); h.textContent='Permanently delete “'+it.title+'”?';
+        var pp=document.createElement('p'); pp.textContent='This deletes the bookmark for good and cannot be undone — unlike Archive, which only hides it and keeps it restorable.';
+        var crow=document.createElement('div'); crow.style.display='flex'; crow.style.gap='8px';
+        var del=document.createElement('button'); del.className='btn danger'; del.textContent='Delete permanently';
+        var can=document.createElement('button'); can.className='btn secondary'; can.textContent='Cancel';
+        del.onclick=function(){ items=items.filter(function(x){return x!==it;}); render(); };
+        can.onclick=function(){ it._confirmDelete=false; render(); };
+        crow.appendChild(del); crow.appendChild(can);
+        cbox.appendChild(h); cbox.appendChild(pp); cbox.appendChild(crow);
+        cli.appendChild(cbox); list.appendChild(cli); return;
+      }
+      var li=document.createElement('li'); li.className='item'+(it._new?' flash':''); li.id='item-'+it.id; it._new=false;
+      var top=document.createElement('div'); top.className='item-top';
+      var thumb=document.createElement('div'); thumb.className='thumb'; thumb.style.background='linear-gradient(135deg,'+it.color+',#0d1b3a)'; thumb.textContent=it.host;
+      var body=document.createElement('div'); body.className='item-body';
+      if(it._editing){
+        body.innerHTML='';
+        var f1=field('Title', 'input', it.title), f2=field('Description','textarea', it.description), f3=field('Address (link)','input', it.url), f4=toReadToggle(it.toRead), f5=tagEditor(it.tags), f6=field('Notes (Markdown supported)','textarea', it.notes);
+        var row=document.createElement('div'); row.style.display='flex'; row.style.gap='8px';
+        var save=document.createElement('button'); save.className='btn'; save.textContent='Save changes';
+        var cancel=document.createElement('button'); cancel.className='btn secondary'; cancel.textContent='Cancel';
+        save.onclick=function(){
+          it.title=f1.querySelector('input').value.trim()||it.title;
+          it.description=f2.querySelector('textarea').value.trim();
+          it.toRead=f4.querySelector('.choice').getAttribute('data-value')==='1';
+          it.tags=f5.getTags();
+          it.notes=f6.querySelector('textarea').value;
+          var newUrl=f3.querySelector('input').value.trim();
+          if(newUrl){ it.url=normalizeUrl(newUrl); it.host=hostOf(newUrl); it.iconLetter=it.host.charAt(0).toUpperCase(); it.color=colorFor(it.host); }
+          it._editing=false; render();
+        };
+        cancel.onclick=function(){ it._editing=false; render(); };
+        row.appendChild(save); row.appendChild(cancel);
+        body.appendChild(f1); body.appendChild(f2); body.appendChild(f3); body.appendChild(f4); body.appendChild(f5); body.appendChild(f6); body.appendChild(row);
+      } else {
+        var titlerow=document.createElement('div'); titlerow.className='titlerow';
+        var ic=document.createElement('span'); ic.className='icon'; ic.style.background=it.color; ic.textContent=it.iconLetter;
+        var a=document.createElement('a'); a.className='title'; a.href=it.url; a.target='_blank'; a.rel='noopener'; a.innerHTML=hl(it.title);
+        titlerow.appendChild(ic); titlerow.appendChild(a);
+        if(it.toRead){ var badge=document.createElement('span'); badge.className='badge toread'; badge.textContent='To read'; titlerow.appendChild(badge); }
+        if(it.archived){ var abadge=document.createElement('span'); abadge.className='badge reference'; abadge.textContent='Archived'; titlerow.appendChild(abadge); }
+        var desc=document.createElement('div'); desc.className='desc'; desc.innerHTML=hl(it.description);
+        var link=document.createElement('a'); link.className='link'; link.href=it.url; link.target='_blank'; link.rel='noopener'; link.innerHTML=hl(it.url);
+        var meta=document.createElement('div'); meta.className='meta';
+        var when=document.createElement('span'); when.textContent='Saved '+it.saved;
+        var edit=document.createElement('button'); edit.className='linkbtn'; edit.textContent='Edit'; edit.onclick=function(){ it._editing=true; render(); };
+        meta.appendChild(when); meta.appendChild(edit);
+        if(!it.archived){
+          var rd=document.createElement('button'); rd.className='linkbtn';
+          rd.textContent = it.toRead ? 'Mark as read' : 'Mark to read';
+          rd.onclick=function(){ it.toRead=!it.toRead; render(); };
+          meta.appendChild(rd);
+          var ar=document.createElement('button'); ar.className='linkbtn'; ar.textContent='Archive';
+          ar.onclick=function(){ it.archived=true; render(); };
+          meta.appendChild(ar);
+        } else {
+          var rs=document.createElement('button'); rs.className='linkbtn'; rs.textContent='Restore';
+          rs.onclick=function(){ it.archived=false; render(); };
+          meta.appendChild(rs);
+        }
+        var dl=document.createElement('button'); dl.className='linkbtn danger'; dl.textContent='Delete';
+        dl.onclick=function(){ it._confirmDelete=true; render(); };
+        meta.appendChild(dl);
+        body.appendChild(titlerow); body.appendChild(desc);
+        if(it.tags && it.tags.length){ var tg=document.createElement('div'); tg.className='tags';
+          it.tags.forEach(function(t){ var tb=document.createElement('button'); tb.className='tag'; tb.textContent='#'+t;
+            tb.onclick=function(){ var si=document.getElementById('searchInput'); si.value='#'+t; query='#'+t; render(); };
+            tg.appendChild(tb); });
+          body.appendChild(tg);
+        }
+        if(it.notes && it.notes.trim()){
+          var nt=document.createElement('div'); nt.className='note markdown'; nt.innerHTML=renderMarkdown(it.notes); highlightWithin(nt);
+          var longNote=it.notes.length>280;
+          if(longNote && !it._noteOpen) nt.classList.add('collapsed');
+          body.appendChild(nt);
+          if(longNote){ var tgl=document.createElement('button'); tgl.className='linkbtn'; tgl.style.marginTop='4px'; tgl.textContent=it._noteOpen?'Show less':'Show more';
+            tgl.onclick=function(){ it._noteOpen=!it._noteOpen; render(); }; body.appendChild(tgl); }
+        }
+        body.appendChild(link); body.appendChild(meta);
+      }
+      top.appendChild(thumb); top.appendChild(body); li.appendChild(top); list.appendChild(li);
+    });
+  }
+
+  function normTag(raw){ return raw.trim().replace(/^#/,'').toLowerCase().replace(/\s+/g,'-'); }
+  function allTags(){ var set={}; items.forEach(function(it){ (it.tags||[]).forEach(function(t){ set[t]=1; }); }); return Object.keys(set).sort(); }
+  function tagEditor(tags){
+    var current=(tags||[]).slice();
+    var w=document.createElement('div'); w.className='field';
+    var l=document.createElement('label'); l.textContent='Tags';
+    var box=document.createElement('div'); box.className='tagbox';
+    var inp=document.createElement('input'); inp.type='text'; inp.placeholder='Add a tag, press Enter';
+    var sug=document.createElement('div'); sug.className='suggest';
+    function draw(){
+      Array.prototype.slice.call(box.querySelectorAll('.chip')).forEach(function(c){ c.remove(); });
+      current.forEach(function(t){
+        var chip=document.createElement('span'); chip.className='chip'; chip.appendChild(document.createTextNode(t));
+        var x=document.createElement('button'); x.type='button'; x.className='chipx'; x.textContent='×';
+        x.onclick=function(){ current=current.filter(function(y){return y!==t;}); draw(); updateSug(); };
+        chip.appendChild(x); box.insertBefore(chip, inp);
+      });
+    }
+    function updateSug(){
+      sug.innerHTML=''; var v=normTag(inp.value);
+      if(!inp.value.trim()){ sug.style.display='none'; return; }
+      var matches=allTags().filter(function(t){ return current.indexOf(t)===-1 && t.indexOf(v)!==-1; }).slice(0,8);
+      if(!matches.length){ sug.style.display='none'; return; }
+      sug.style.display='flex';
+      var hint=document.createElement('span'); hint.className='sughint'; hint.textContent='Existing:'; sug.appendChild(hint);
+      matches.forEach(function(t){ var s=document.createElement('button'); s.type='button'; s.className='sugtag'; s.textContent='#'+t;
+        s.onclick=function(){ addTag(t); inp.focus(); }; sug.appendChild(s); });
+    }
+    function addTag(raw){ var t=normTag(raw); if(t && current.indexOf(t)===-1) current.push(t); inp.value=''; draw(); updateSug(); }
+    inp.addEventListener('input', updateSug);
+    inp.addEventListener('keydown', function(e){
+      if(e.key==='Enter'||e.key===','){ e.preventDefault(); addTag(inp.value); }
+      else if(e.key==='Backspace' && inp.value==='' && current.length){ current.pop(); draw(); updateSug(); }
+    });
+    box.appendChild(inp); draw();
+    w.appendChild(l); w.appendChild(box); w.appendChild(sug);
+    w.getTags=function(){ if(inp.value.trim()) addTag(inp.value); return current.slice(); };
+    return w;
+  }
+  function toReadToggle(current){
+    var w=document.createElement('div'); w.className='field';
+    var l=document.createElement('label'); l.textContent='Reading list';
+    var c=document.createElement('div'); c.className='choice'; c.setAttribute('data-value', current?'1':'0');
+    var b=document.createElement('button'); b.type='button';
+    function paint(){ var on=c.getAttribute('data-value')==='1'; b.className=on?'on':''; b.textContent=on?'✓ Marked to read':'Mark to read'; }
+    b.onclick=function(){ c.setAttribute('data-value', c.getAttribute('data-value')==='1'?'0':'1'); paint(); };
+    paint(); c.appendChild(b); w.appendChild(l); w.appendChild(c); return w;
+  }
+  function field(label, kind, value){
+    var w=document.createElement('div'); w.className='field';
+    var l=document.createElement('label'); l.textContent=label;
+    var el=document.createElement(kind==='textarea'?'textarea':'input'); el.value=value||'';
+    w.appendChild(l); w.appendChild(el); return w;
+  }
+
+  function goToExisting(it){
+    var el=document.getElementById('item-'+it.id);
+    document.getElementById('dupnote').innerHTML='<div class="dupnote">You already saved this link — here it is, ready to edit.</div>';
+    it._editing=true; render();
+    setTimeout(function(){ var e=document.getElementById('item-'+it.id); if(e){ e.classList.add('flash'); e.scrollIntoView({behavior:'smooth',block:'center'}); } },30);
+  }
+
+  function openCompose(url){
+    var meta=fetchMeta(url);
+    var slot=document.getElementById('composeSlot');
+    slot.innerHTML='';
+    var card=document.createElement('div'); card.className='card';
+    var head=document.createElement('div'); head.className='compose-head'; head.textContent='We pulled these details from the page — adjust anything before saving:';
+    var preview=document.createElement('div'); preview.className='preview';
+    var thumb=document.createElement('div'); thumb.className='thumb'; thumb.style.background='linear-gradient(135deg,'+meta.color+',#0d1b3a)'; thumb.textContent=meta.host;
+    var right=document.createElement('div'); right.style.flex='1'; right.style.minWidth='0';
+    var f1=field('Title','input',meta.title), f2=field('Description','textarea',meta.description), cf=toReadToggle(false), tf=tagEditor([]), nf=field('Notes (Markdown supported)','textarea','');
+    var alink=document.createElement('a'); alink.className='link'; alink.href=normalizeUrl(url); alink.target='_blank'; alink.rel='noopener'; alink.textContent=normalizeUrl(url); alink.style.marginTop='0';
+    right.appendChild(f1); right.appendChild(f2); right.appendChild(cf); right.appendChild(tf); right.appendChild(nf); right.appendChild(alink);
+    preview.appendChild(thumb); preview.appendChild(right);
+    var actions=document.createElement('div'); actions.style.display='flex'; actions.style.gap='8px'; actions.style.marginTop='14px';
+    var add=document.createElement('button'); add.className='btn'; add.textContent='Add to bookmarks';
+    var cancel=document.createElement('button'); cancel.className='btn secondary'; cancel.textContent='Cancel';
+    add.onclick=function(){
+      items.unshift({ id:Date.now(), url:normalizeUrl(url), title:f1.querySelector('input').value.trim()||meta.title,
+        description:f2.querySelector('textarea').value.trim(), host:meta.host, iconLetter:meta.iconLetter, color:meta.color,
+        toRead:cf.querySelector('.choice').getAttribute('data-value')==='1', archived:false, tags:tf.getTags(),
+        notes:nf.querySelector('textarea').value, saved:'just now', _new:true });
+      slot.innerHTML=''; render();
+    };
+    cancel.onclick=function(){ slot.innerHTML=''; };
+    actions.appendChild(add); actions.appendChild(cancel);
+    card.appendChild(head); card.appendChild(preview); card.appendChild(actions);
+    slot.appendChild(card);
+  }
+
+  var input=document.getElementById('urlInput'), btn=document.getElementById('saveBtn');
+  input.addEventListener('input', function(){ btn.disabled=input.value.trim()===''; document.getElementById('dupnote').innerHTML=''; });
+  document.getElementById('saveForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var raw=input.value.trim(); if(!raw) return;
+    document.getElementById('dupnote').innerHTML='';
+    var k=keyOf(raw);
+    var existing=null; for(var i=0;i<items.length;i++){ if(keyOf(items[i].url)===k){ existing=items[i]; break; } }
+    input.value=''; btn.disabled=true;
+    if(existing){ document.getElementById('composeSlot').innerHTML=''; goToExisting(existing); return; }
+    openCompose(raw);
+  });
+
+  document.getElementById('searchInput').addEventListener('input', function(e){ query=e.target.value; render(); });
+  document.getElementById('segmented').addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    statusFilter=b.getAttribute('data-f');
+    Array.prototype.forEach.call(this.children,function(x){ x.className = x===b ? 'active' : ''; });
+    render();
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

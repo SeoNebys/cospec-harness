@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; background: #f5f6f8; color: #1c2330;
+  }
+  header {
+    background: #fff; border-bottom: 1px solid #e3e6ea;
+    padding: 18px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: #6b7480; font-size: 13px; }
+  li.card .titlerow { display: flex; align-items: center; gap: 8px; }
+  li.card .editbtn {
+    border: 1px solid #cfd4da; background: #fff; color: #56606d;
+    border-radius: 6px; font-size: 12px; padding: 3px 9px; cursor: pointer;
+  }
+  li.card .editbtn:hover { background: #f0f2f5; }
+  li.card .titleedit {
+    flex: 1; font-size: 15px; padding: 6px 8px; border: 1px solid #2f6fed;
+    border-radius: 6px;
+  }
+  .fetching { color: #94a0ad; font-style: italic; }
+  .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .tag {
+    background: #eef3ff; color: #2f5fd0; border-radius: 999px;
+    font-size: 12px; padding: 3px 10px 3px 11px; display: inline-flex; gap: 6px; align-items: center;
+  }
+  .tag .x { cursor: pointer; color: #7a92c7; font-weight: 700; }
+  .tag .x:hover { color: #c0392b; }
+  .tagadd {
+    border: 1px dashed #cfd4da; background: #fff; color: #56606d;
+    border-radius: 999px; font-size: 12px; padding: 3px 12px; cursor: pointer;
+  }
+  .tagadd:hover { background: #f0f2f5; }
+  .taginput {
+    font-size: 12px; padding: 3px 8px; border: 1px solid #2f6fed;
+    border-radius: 999px; width: 120px;
+  }
+  .tagwrap { position: relative; display: inline-block; }
+  .suggest {
+    position: absolute; top: 26px; left: 0; z-index: 5; min-width: 130px;
+    background: #fff; border: 1px solid #cfd4da; border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(20,30,50,.12); padding: 4px; margin: 0;
+  }
+  .suggest li {
+    list-style: none; padding: 5px 10px; font-size: 12px; border-radius: 6px;
+    cursor: pointer; color: #2f5fd0; background: #fff; border: none; margin: 0;
+  }
+  .suggest li:hover, .suggest li.active { background: #eef3ff; }
+  .suggest .none { color: #94a0ad; cursor: default; }
+  main { max-width: 720px; margin: 0 auto; padding: 20px; }
+  .save-box {
+    background: #fff; border: 1px solid #e3e6ea; border-radius: 10px;
+    padding: 16px; display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .save-box input {
+    flex: 1 1 260px; min-width: 0; padding: 11px 12px; font-size: 15px;
+    border: 1px solid #cfd4da; border-radius: 8px;
+  }
+  .save-box button {
+    padding: 11px 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: #2f6fed; color: #fff; border: none; border-radius: 8px;
+  }
+  .save-box button:hover { background: #2258c9; }
+  .search-box { display: flex; gap: 8px; margin-top: 18px; }
+  .search-box input {
+    flex: 1; padding: 10px 12px; font-size: 14px;
+    border: 1px solid #cfd4da; border-radius: 8px;
+  }
+  .search-box button {
+    padding: 10px 14px; font-size: 14px; cursor: pointer;
+    background: #fff; color: #56606d; border: 1px solid #cfd4da; border-radius: 8px;
+  }
+  .search-box button:hover { background: #f0f2f5; }
+  .active-filter {
+    margin-top: 10px; font-size: 13px; color: #56606d;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .active-filter .chip {
+    background: #eef3ff; color: #2f5fd0; border-radius: 999px; padding: 3px 10px;
+    font-size: 12px;
+  }
+  .active-filter .clearf { color: #2f6fed; cursor: pointer; text-decoration: underline; }
+  .tag.clickable { cursor: pointer; }
+  .tag.clickable:hover { background: #dde8ff; }
+  .views { display: flex; gap: 6px; margin-top: 16px; }
+  .views .view {
+    padding: 7px 14px; font-size: 13px; cursor: pointer;
+    background: #fff; color: #56606d; border: 1px solid #cfd4da; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .views .view:hover { background: #f0f2f5; }
+  .views .view.active { background: #2f6fed; color: #fff; border-color: #2f6fed; }
+  .badge {
+    background: #eef3ff; color: #2f5fd0; border-radius: 999px;
+    font-size: 11px; padding: 1px 7px; font-weight: 600;
+  }
+  .views .view.active .badge { background: rgba(255,255,255,.25); color: #fff; }
+  li.card.read { opacity: .72; }
+  li.card .status {
+    margin-top: 10px; display: flex; align-items: center; gap: 10px;
+  }
+  li.card .readtoggle {
+    border: 1px solid #cfd4da; background: #fff; color: #2f6fed;
+    border-radius: 6px; font-size: 12px; padding: 4px 11px; cursor: pointer;
+  }
+  li.card .readtoggle:hover { background: #f0f2f5; }
+  li.card .statuslabel { font-size: 12px; font-weight: 600; }
+  li.card .statuslabel.unread { color: #b26a00; }
+  li.card .statuslabel.isread { color: #2e7d46; }
+  .hint { color: #6b7480; font-size: 12px; margin: 8px 2px 0; }
+  .readlater-choice {
+    display: flex; align-items: center; gap: 8px; margin: 10px 2px 0;
+    font-size: 13px; color: #56606d; cursor: pointer;
+  }
+  .readlater-choice input { width: 16px; height: 16px; }
+  li.card .addlater {
+    border: 1px dashed #cfd4da; background: #fff; color: #56606d;
+    border-radius: 6px; font-size: 12px; padding: 4px 11px; cursor: pointer;
+  }
+  li.card .addlater:hover { background: #f0f2f5; }
+  li.card .removelater {
+    border: none; background: none; color: #94a0ad; font-size: 12px;
+    cursor: pointer; text-decoration: underline;
+  }
+  li.card .removelater:hover { color: #c0392b; }
+  li.card.flash { animation: flash 1.6s ease; border-color: #2f6fed; }
+  @keyframes flash {
+    0% { background: #fff6df; } 40% { background: #fff6df; } 100% { background: #fff; }
+  }
+  .notice {
+    display: none; margin-top: 10px; padding: 10px 12px; font-size: 13px;
+    background: #fff6df; border: 1px solid #e7cf8f; border-radius: 8px; color: #7a5a00;
+  }
+  .err { color: #c0392b; font-size: 13px; margin: 8px 2px 0; display: none; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+       color: #6b7480; margin: 26px 2px 10px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li.card {
+    background: #fff; border: 1px solid #e3e6ea; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  li.card .title { font-size: 16px; font-weight: 600; }
+  li.card a { color: #2f6fed; text-decoration: none; word-break: break-all;
+              font-size: 13px; }
+  li.card .meta { color: #94a0ad; font-size: 12px; margin-top: 6px; }
+  .empty {
+    text-align: center; color: #94a0ad; padding: 40px 20px;
+    border: 1px dashed #cfd4da; border-radius: 10px; background: #fff;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and it will appear in your list below.</p>
+</header>
+<main>
+  <div class="save-box">
+    <input id="url" type="text" placeholder="Paste or type a link (e.g. https://example.com/article)" />
+    <button id="saveBtn">Save link</button>
+  </div>
+  <label class="readlater-choice">
+    <input type="checkbox" id="readLaterChoice" />
+    Add this to my read-later list (it's something I want to read)
+  </label>
+  <div class="err" id="err"></div>
+  <div class="notice" id="notice"></div>
+  <p class="hint">Tip: paste a web address and press Save. We'll show its name so you can recognise it later.</p>
+
+  <div class="search-box">
+    <input id="search" type="text" placeholder="Search by title, address, or tag" />
+    <button id="clearSearch" title="Clear search">Clear</button>
+  </div>
+  <div id="activeFilter" class="active-filter" style="display:none;"></div>
+
+  <div class="views" id="views">
+    <button class="view active" data-view="all">All</button>
+    <button class="view" data-view="unread">To read <span class="badge" id="unreadCount">0</span></button>
+    <button class="view" data-view="read">Read</button>
+  </div>
+
+  <h2>Saved links (<span id="count">0</span>)</h2>
+  <ul id="list"></ul>
+  <div class="empty" id="empty">No links saved yet. Paste a link above to get started.</div>
+  <div class="empty" id="noresults" style="display:none;">No links match your search. Try different words, or clear the search.</div>
+</main>
+
+<script>
+  var links = [];
+  var nextId = 1;
+  var searchText = '';
+  var tagFilter = null;
+  var view = 'all'; // all | unread | read
+
+  function visibleLinks() {
+    var q = searchText.trim().toLowerCase();
+    return links.filter(function (l) {
+      if (view === 'unread' && !(l.readLater && !l.read)) return false;
+      if (view === 'read' && !(l.readLater && l.read)) return false;
+      if (tagFilter && l.tags.indexOf(tagFilter) === -1) return false;
+      if (!q) return true;
+      var hay = (l.title + ' ' + l.url + ' ' + l.tags.join(' ')).toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+  }
+
+  // PROTOTYPE ONLY: simulate fetching the page's real <title>.
+  // The real app will fetch the actual page title. Here we return a
+  // plausible title so the client can experience the flow.
+  var knownTitles = {
+    'example.com': 'Example Domain',
+    'developer.mozilla.org': 'MDN Web Docs',
+    'en.wikipedia.org': 'Wikipedia, the free encyclopedia',
+    'github.com': 'GitHub',
+    'news.ycombinator.com': 'Hacker News'
+  };
+  function fetchTitle(raw, cb) {
+    // Simulate network latency of fetching the page title.
+    setTimeout(function () {
+      var title;
+      try {
+        var u = new URL(raw);
+        var host = u.hostname.replace(/^www\./, '');
+        // PROTOTYPE ONLY: simulate a page whose title cannot be fetched.
+        if (host.indexOf('notitle') !== -1 || /\.invalid$/.test(host)) {
+          cb(raw, true); // failed: fall back to the address
+          return;
+        }
+        if (knownTitles[host]) {
+          title = knownTitles[host];
+        } else {
+          var seg = u.pathname.split('/').filter(Boolean).pop();
+          if (seg) {
+            seg = decodeURIComponent(seg).replace(/[-_]+/g, ' ').replace(/\.[a-z0-9]+$/i, '');
+            title = seg.trim().replace(/\b\w/g, function(c){ return c.toUpperCase(); }) +
+                    ' — ' + host;
+          } else {
+            title = host;
+          }
+        }
+      } catch (e) { title = raw; }
+      cb(title, false);
+    }, 600);
+  }
+
+  function normalise(raw) {
+    var v = raw.trim();
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try { new URL(v); } catch (e) { return null; }
+    return v;
+  }
+
+  function render() {
+    var list = document.getElementById('list');
+    var empty = document.getElementById('empty');
+    var noresults = document.getElementById('noresults');
+    var filtering = !!(searchText.trim() || tagFilter || view !== 'all');
+
+    // View tabs
+    var unread = links.filter(function (l) { return l.readLater && !l.read; }).length;
+    document.getElementById('unreadCount').textContent = unread;
+    var viewBtns = document.querySelectorAll('#views .view');
+    for (var vi = 0; vi < viewBtns.length; vi++) {
+      viewBtns[vi].classList.toggle('active', viewBtns[vi].getAttribute('data-view') === view);
+    }
+
+    // Active tag-filter banner
+    var af = document.getElementById('activeFilter');
+    if (tagFilter) {
+      af.style.display = 'flex';
+      af.innerHTML = 'Filtered by tag <span class="chip">' + tagFilter +
+        '</span> <span class="clearf">show all</span>';
+      af.querySelector('.clearf').addEventListener('click', function () {
+        tagFilter = null; render();
+      });
+    } else { af.style.display = 'none'; }
+
+    var shown = visibleLinks();
+    document.getElementById('count').textContent = filtering
+      ? (shown.length + ' of ' + links.length) : links.length;
+    list.innerHTML = '';
+    empty.style.display = 'none';
+    noresults.style.display = 'none';
+    if (links.length === 0) { empty.style.display = 'block'; return; }
+    if (shown.length === 0) {
+      if (searchText.trim() || tagFilter) {
+        noresults.textContent = 'No links match your search. Try different words, or clear the search.';
+      } else if (view === 'unread') {
+        noresults.textContent = 'Your read-later list is empty. Tick "Add to my read-later list" when saving, or use "+ Add to read-later" on a link.';
+      } else if (view === 'read') {
+        noresults.textContent = 'Nothing marked read yet. Links you finish reading will show up here.';
+      } else {
+        noresults.textContent = 'No links to show.';
+      }
+      noresults.style.display = 'block';
+      return;
+    }
+    shown.forEach(function (item) {
+      var host = '';
+      try { host = new URL(item.url).hostname.replace(/^www\./, ''); } catch (e) {}
+      var li = document.createElement('li');
+      li.className = 'card' + (item.read ? ' read' : '');
+      li.setAttribute('data-id', item.id);
+      if (item.editing) {
+        li.innerHTML =
+          '<div class="titlerow">' +
+            '<input class="titleedit" type="text" />' +
+            '<button class="editbtn savename">Save name</button>' +
+          '</div>' +
+          '<a href="' + item.url + '" target="_blank" rel="noopener"></a>' +
+          '<div class="meta">' + host + ' · saved just now</div>';
+        var field = li.querySelector('.titleedit');
+        field.value = item.title;
+        li.querySelector('.savename').addEventListener('click', function () {
+          var v = field.value.trim();
+          if (v) item.title = v;
+          item.editing = false; render();
+        });
+        field.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') { var v = field.value.trim(); if (v) item.title = v; item.editing = false; render(); }
+        });
+      } else {
+        li.innerHTML =
+          '<div class="titlerow">' +
+            '<div class="title' + (item.fetching ? ' fetching' : '') + '"></div>' +
+            (item.fetching ? '' : '<button class="editbtn">Rename</button>') +
+          '</div>' +
+          '<a href="' + item.url + '" target="_blank" rel="noopener"></a>' +
+          '<div class="meta">' + host + ' · saved just now</div>';
+        li.querySelector('.title').textContent = item.fetching ? 'Fetching page title…' : item.title;
+        li.querySelector('a').textContent = item.url;
+        if (item.titleFailed) {
+          var note = document.createElement('div');
+          note.className = 'meta';
+          note.style.color = '#b26a00';
+          note.textContent = 'Couldn\'t fetch the page title — showing the address instead. You can Rename it.';
+          li.querySelector('.titlerow').insertAdjacentElement('afterend', note);
+        }
+        var eb = li.querySelector('.editbtn');
+        if (eb) eb.addEventListener('click', function () { item.editing = true; render();
+          var f = document.querySelector('.titleedit'); if (f) { f.focus(); f.select(); } });
+      }
+      if (!item.editing) {
+        li.appendChild(buildTags(item));
+        if (!item.fetching) li.appendChild(buildStatus(item));
+      }
+      list.appendChild(li);
+    });
+  }
+
+  function allTags() {
+    var set = {};
+    links.forEach(function (l) { l.tags.forEach(function (t) { set[t] = true; }); });
+    return Object.keys(set).sort();
+  }
+
+  function buildStatus(item) {
+    var row = document.createElement('div');
+    row.className = 'status';
+    if (!item.readLater) {
+      // Not part of the read-later list (e.g. a tool or reference link).
+      var add = document.createElement('button');
+      add.className = 'addlater';
+      add.textContent = '+ Add to read-later';
+      add.addEventListener('click', function () { item.readLater = true; item.read = false; render(); });
+      row.appendChild(add);
+      return row;
+    }
+    var label = document.createElement('span');
+    label.className = 'statuslabel ' + (item.read ? 'isread' : 'unread');
+    label.textContent = item.read ? '✓ Read' : '● To read';
+    var btn = document.createElement('button');
+    btn.className = 'readtoggle';
+    btn.textContent = item.read ? 'Mark as to read' : 'Mark as read';
+    btn.addEventListener('click', function () { item.read = !item.read; render(); });
+    var remove = document.createElement('button');
+    remove.className = 'removelater';
+    remove.textContent = 'Remove from read-later';
+    remove.addEventListener('click', function () { item.readLater = false; render(); });
+    row.appendChild(label);
+    row.appendChild(btn);
+    row.appendChild(remove);
+    return row;
+  }
+
+  function buildTags(item) {
+    var wrap = document.createElement('div');
+    wrap.className = 'tags';
+    item.tags.forEach(function (t) {
+      var chip = document.createElement('span');
+      chip.className = 'tag clickable';
+      var label = document.createElement('span');
+      label.textContent = t;
+      label.title = 'Filter by this tag';
+      label.addEventListener('click', function () { tagFilter = t; searchText = ''; document.getElementById('search').value = ''; render(); });
+      var x = document.createElement('span');
+      x.className = 'x'; x.textContent = '×'; x.title = 'Remove tag';
+      x.addEventListener('click', function () {
+        item.tags = item.tags.filter(function (v) { return v !== t; });
+        render();
+      });
+      chip.appendChild(label); chip.appendChild(x);
+      wrap.appendChild(chip);
+    });
+    if (item.addingTag) {
+      var box = document.createElement('span');
+      box.className = 'tagwrap';
+      var inp = document.createElement('input');
+      inp.className = 'taginput'; inp.placeholder = 'tag name';
+      var sug = document.createElement('ul');
+      sug.className = 'suggest'; sug.style.display = 'none';
+
+      var addTag = function (v) {
+        v = (v || '').trim().toLowerCase();
+        if (v && item.tags.indexOf(v) === -1) item.tags.push(v);
+      };
+      var refreshSuggest = function () {
+        var q = inp.value.trim().toLowerCase();
+        sug.innerHTML = '';
+        if (!q) { sug.style.display = 'none'; return; }
+        // Existing tags across all links that match what is being typed
+        // and are not already on this item.
+        var matches = allTags().filter(function (t) {
+          return t.indexOf(q) !== -1 && item.tags.indexOf(t) === -1;
+        });
+        if (matches.length === 0) { sug.style.display = 'none'; return; }
+        matches.slice(0, 6).forEach(function (t) {
+          var li2 = document.createElement('li');
+          li2.textContent = t;
+          li2.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            addTag(t); inp.value = ''; item._suppressBlur = true; render();
+          });
+          sug.appendChild(li2);
+        });
+        sug.style.display = 'block';
+      };
+      inp.addEventListener('input', refreshSuggest);
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { addTag(inp.value); item._suppressBlur = true; render(); }
+        else if (e.key === 'Escape') { item.addingTag = false; item._suppressBlur = true; render(); }
+      });
+      inp.addEventListener('blur', function () {
+        if (item._suppressBlur) { item._suppressBlur = false; return; }
+        addTag(inp.value); item.addingTag = false; render();
+      });
+      box.appendChild(inp); box.appendChild(sug);
+      wrap.appendChild(box);
+      setTimeout(function () { inp.focus(); }, 0);
+    } else {
+      var add = document.createElement('button');
+      add.className = 'tagadd';
+      add.textContent = item.tags.length ? '+ tag' : '+ add tag';
+      add.addEventListener('click', function () { item.addingTag = true; render(); });
+      wrap.appendChild(add);
+    }
+    return wrap;
+  }
+
+  function save() {
+    var input = document.getElementById('url');
+    var err = document.getElementById('err');
+    var url = normalise(input.value);
+    if (!url) {
+      err.textContent = 'That doesn\'t look like a valid link. Try something like example.com/page.';
+      err.style.display = 'block';
+      return;
+    }
+    err.style.display = 'none';
+
+    // Duplicate check: same normalised address already saved -> don't copy,
+    // take the client to the existing bookmark to edit it.
+    var existing = links.filter(function (l) { return l.url === url; })[0];
+    if (existing) {
+      // Clear any active filters/search so the existing item is visible.
+      searchText = ''; document.getElementById('search').value = '';
+      tagFilter = null; view = 'all';
+      existing.editing = true; // open it for editing (rename)
+      render();
+      var notice = document.getElementById('notice');
+      notice.textContent = 'This link is already saved — here it is, ready to edit.';
+      notice.style.display = 'block';
+      var card = document.querySelector('[data-id="' + existing.id + '"]');
+      if (card) {
+        card.classList.add('flash');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var f = card.querySelector('.titleedit'); if (f) { f.focus(); f.select(); }
+      }
+      input.value = '';
+      return;
+    }
+
+    document.getElementById('notice').style.display = 'none';
+    var readLater = document.getElementById('readLaterChoice').checked;
+    var item = { id: nextId++, url: url, title: '', fetching: true, editing: false,
+                 tags: [], readLater: readLater, read: false };
+    links.unshift(item);
+    input.value = '';
+    document.getElementById('readLaterChoice').checked = false;
+    input.focus();
+    render();
+    fetchTitle(url, function (title, failed) {
+      item.title = title;
+      item.fetching = false;
+      item.titleFailed = failed;
+      render();
+    });
+  }
+
+  document.getElementById('search').addEventListener('input', function (e) {
+    searchText = e.target.value; render();
+  });
+  document.getElementById('clearSearch').addEventListener('click', function () {
+    searchText = ''; document.getElementById('search').value = ''; render();
+  });
+  var viewButtons = document.querySelectorAll('#views .view');
+  for (var b = 0; b < viewButtons.length; b++) {
+    viewButtons[b].addEventListener('click', function () {
+      view = this.getAttribute('data-view'); render();
+    });
+  }
+  document.getElementById('saveBtn').addEventListener('click', save);
+  document.getElementById('url').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') save();
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready', 'true');
+</script>
+</body>
+</html>

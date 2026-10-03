@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Lattice — Your useful corner of the web</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="loading-screen" id="loading-screen">
+    <div class="loading-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <p>Opening your collection…</p>
+  </div>
+
+  <div class="shell" id="app" hidden>
+    <aside class="sidebar">
+      <a class="wordmark" href="/" aria-label="Lattice home">
+        <span class="wordmark-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>Lattice</span>
+      </a>
+
+      <nav class="view-nav" aria-label="Collection views">
+        <button class="nav-button active" data-view="all" type="button">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>All bookmarks</span>
+          <span class="nav-count" id="all-count">0</span>
+        </button>
+        <button class="nav-button" data-view="read-later" type="button">
+          <span class="nav-icon" aria-hidden="true">◷</span>
+          <span>Read later</span>
+          <span class="nav-count" id="read-later-count"></span>
+        </button>
+        <button class="nav-button" data-view="archive" type="button">
+          <span class="nav-icon" aria-hidden="true">□</span>
+          <span>Archive</span>
+          <span class="nav-count" id="archive-count"></span>
+        </button>
+      </nav>
+
+      <section class="tag-section" aria-labelledby="tag-heading">
+        <div class="sidebar-heading" id="tag-heading"><span>Tags</span><span id="tag-total"></span></div>
+        <div class="tag-nav" id="tag-nav"></div>
+        <p class="sidebar-empty" id="tag-empty">Tags you create will live here.</p>
+      </section>
+
+      <footer class="sidebar-footer">
+        <span class="profile-mark">YOU</span>
+        <span><strong>Personal collection</strong><small>Saved on this app</small></span>
+      </footer>
+    </aside>
+
+    <main class="workspace">
+      <header class="app-header">
+        <label class="search-field" for="search-input">
+          <span aria-hidden="true">⌕</span>
+          <input id="search-input" type="search" placeholder="Search titles, sites, descriptions, and notes" autocomplete="off">
+          <kbd>⌘ K</kbd>
+        </label>
+        <button class="primary-button" id="open-add" type="button"><span>＋</span> Save a link</button>
+      </header>
+
+      <div class="workspace-inner" id="workspace" tabindex="-1">
+        <div class="title-row">
+          <div>
+            <p class="overline">Your collection</p>
+            <h1 id="view-title">All bookmarks</h1>
+          </div>
+          <span class="collection-total" id="collection-total">0 bookmarks</span>
+        </div>
+
+        <section class="filter-summary" id="filter-summary" aria-live="polite" hidden>
+          <div><strong id="result-count">0 results</strong><span id="filter-description"></span></div>
+          <button id="clear-filters" type="button">Clear filters</button>
+        </section>
+
+        <section class="empty-state" id="empty-collection" hidden>
+          <div class="empty-constellation" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <p class="overline">A fresh start</p>
+          <h2>Build a collection worth returning to</h2>
+          <p>Save your first link and Lattice will capture the page details that make it recognizable later.</p>
+          <button class="secondary-button" id="empty-add" type="button">Save your first link</button>
+        </section>
+
+        <section class="empty-state compact-empty" id="empty-results" hidden>
+          <div class="empty-symbol" aria-hidden="true">⌕</div>
+          <h2>No bookmarks found</h2>
+          <p>Your links are still safely saved. Try another phrase or clear the filters.</p>
+          <button class="secondary-button" data-clear-filters type="button">Clear filters</button>
+        </section>
+
+        <section class="empty-state compact-empty" id="empty-view" hidden>
+          <div class="empty-symbol" id="empty-view-symbol" aria-hidden="true">◷</div>
+          <h2 id="empty-view-title">Nothing waiting to be read</h2>
+          <p id="empty-view-copy">Use Read later on a card and it will wait here without leaving your collection.</p>
+        </section>
+
+        <section class="bookmark-list" id="bookmark-list" aria-live="polite"></section>
+        <nav class="pagination" id="pagination" aria-label="Collection pages" hidden></nav>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-layer" id="add-modal" role="dialog" aria-modal="true" aria-labelledby="add-title" hidden>
+    <form class="dialog" id="add-form" novalidate>
+      <div class="dialog-heading">
+        <div><p class="overline">New bookmark</p><h2 id="add-title">Save something useful</h2></div>
+        <button class="icon-button" data-close-add type="button" aria-label="Close">×</button>
+      </div>
+      <label class="form-label" for="bookmark-url">Web address</label>
+      <div class="input-shell" id="url-shell"><span aria-hidden="true">↗</span><input id="bookmark-url" name="url" type="url" placeholder="https://example.com/article" autocomplete="url" required></div>
+      <p class="form-help">We’ll capture the title, preview, description, and reading time.</p>
+      <div class="form-alert error" id="url-error" role="alert" hidden>
+        <span>!</span><div><strong>Enter a complete web address</strong><small>For example: https://example.com/article</small></div>
+      </div>
+      <div class="form-alert duplicate" id="duplicate-alert" role="status" hidden>
+        <span>✓</span><div><strong>This link is already saved</strong><small id="duplicate-title"></small></div><button id="view-existing" type="button">View existing</button>
+      </div>
+      <div class="dialog-actions">
+        <button class="quiet-button" data-close-add type="button">Cancel</button>
+        <button class="primary-button" id="save-bookmark" type="submit">Save bookmark</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-layer" id="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title" hidden>
+    <form class="dialog editor-dialog" id="editor-form">
+      <div class="dialog-heading">
+        <div><p class="overline" id="editor-overline">Personal note</p><h2 id="editor-title">Add a note</h2></div>
+        <button class="icon-button" data-close-editor type="button" aria-label="Close">×</button>
+      </div>
+      <p class="editing-bookmark" id="editing-bookmark"></p>
+      <label class="form-label" id="editor-label" for="editor-value">Your note</label>
+      <textarea id="editor-value" rows="5" placeholder="Why did you save this?"></textarea>
+      <input id="editor-title-value" type="text" hidden>
+      <p class="form-help" id="editor-help">This stays with the bookmark and becomes searchable.</p>
+      <div class="dialog-actions">
+        <button class="quiet-button" data-close-editor type="button">Cancel</button>
+        <button class="primary-button" id="save-editor" type="submit">Save note</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="toast-icon">✓</span>
+    <div><strong id="toast-title">Saved</strong><small id="toast-detail"></small></div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

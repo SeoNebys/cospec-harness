@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #19231f;
+      --muted: #63706a;
+      --paper: #f4f0e6;
+      --card: #fffdf7;
+      --line: #d9d3c5;
+      --accent: #176b51;
+      --accent-dark: #0e513c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 80% 5%, rgba(239, 181, 82, .17), transparent 26rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header, main { width: min(980px, calc(100% - 40px)); margin-inline: auto; }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 32px 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { font: 700 1.55rem Georgia, serif; letter-spacing: -.02em; }
+    .count { color: var(--muted); font-size: .9rem; }
+    main { padding: 56px 0 100px; }
+    h1 { max-width: 600px; margin: 0 0 10px; font: 700 clamp(2rem, 5vw, 3.25rem)/1.04 Georgia, serif; letter-spacing: -.035em; }
+    .lede { margin: 0 0 28px; color: var(--muted); font-size: 1.05rem; }
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      max-width: 760px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: 0 10px 35px rgba(38, 47, 42, .07);
+    }
+    input {
+      min-width: 0;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--ink);
+      padding: 12px 13px;
+      font: inherit;
+    }
+    button {
+      border: 0;
+      border-radius: 9px;
+      background: var(--accent);
+      color: white;
+      padding: 0 21px;
+      min-height: 46px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-dark); }
+    .status { min-height: 24px; margin: 12px 4px; color: var(--muted); font-size: .91rem; }
+    .status.success { color: var(--accent-dark); }
+    .collection { margin-top: 54px; }
+    .search-wrap { max-width: 520px; margin: 34px 0 0; }
+    .search-wrap label { display: block; margin-bottom: 8px; color: var(--muted); font-size: .86rem; font-weight: 700; }
+    .search-box { width: 100%; border: 1px solid var(--line); border-radius: 11px; background: var(--card); padding: 13px 15px; box-shadow: 0 7px 22px rgba(38, 47, 42, .045); }
+    .collection-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+    h2 { margin: 0; font: 700 1.25rem Georgia, serif; }
+    .empty {
+      border: 1px dashed #c7c0b2;
+      border-radius: 14px;
+      padding: 44px 24px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255, 253, 247, .45);
+    }
+    .bookmark {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 22px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 21px 22px;
+      background: var(--card);
+      box-shadow: 0 8px 25px rgba(38, 47, 42, .055);
+    }
+    .bookmark h3 { margin: 5px 0 7px; font: 700 1.18rem Georgia, serif; }
+    .bookmark p { max-width: 650px; margin: 0; color: var(--muted); line-height: 1.45; }
+    .domain { color: var(--accent); font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .saved { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+    .bookmark + .bookmark { margin-top: 10px; }
+    .no-results { border: 1px dashed #c7c0b2; border-radius: 14px; padding: 38px 24px; color: var(--muted); text-align: center; }
+    .tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
+    .tag {
+      min-height: 0;
+      padding: 6px 9px;
+      border: 1px solid #c9d7d1;
+      border-radius: 999px;
+      background: #edf5f1;
+      color: var(--accent-dark);
+      font-size: .78rem;
+      font-weight: 750;
+    }
+    .tag:hover { background: #deede6; }
+    .filter-note { color: var(--muted); font-size: .9rem; }
+    .clear-filter { min-height: 0; padding: 7px 11px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: .82rem; }
+    .clear-filter:hover { background: #ebe6da; }
+    @media (max-width: 620px) {
+      main { padding-top: 38px; }
+      form { grid-template-columns: 1fr; }
+      button { min-height: 48px; }
+      .bookmark { grid-template-columns: 1fr; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Trove</div>
+    <div class="count" id="count">0 bookmarks</div>
+  </header>
+  <main data-harness-ready="true">
+    <h1>Keep what’s worth finding again.</h1>
+    <p class="lede">Save a page now. We’ll fill in the useful details.</p>
+
+    <form id="save-form">
+      <input id="url" type="url" aria-label="Web address" value="https://example.com/articles/calm-reading-habit" required>
+      <button type="submit">Save bookmark</button>
+    </form>
+    <div class="status" id="status" aria-live="polite">The sample address is ready to save.</div>
+
+    <div class="search-wrap" id="search-wrap" hidden>
+      <label for="search">Find a saved page</label>
+      <input class="search-box" id="search" type="search" placeholder="Search titles and page details">
+    </div>
+
+    <section class="collection" aria-labelledby="collection-title">
+      <div class="collection-head">
+        <h2 id="collection-title">Your bookmarks</h2>
+        <div id="filter-state"></div>
+      </div>
+      <div id="bookmarks">
+        <div class="empty">Your saved pages will appear here.</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url');
+    const status = document.querySelector('#status');
+    const list = document.querySelector('#bookmarks');
+    const count = document.querySelector('#count');
+    const collectionTitle = document.querySelector('#collection-title');
+    const filterState = document.querySelector('#filter-state');
+    const searchWrap = document.querySelector('#search-wrap');
+    const search = document.querySelector('#search');
+    const mode = new URLSearchParams(location.search).get('flow') || 'save';
+
+    const sampleBookmarks = [
+      { domain: 'alistapart.com', title: 'Designing for understanding', description: 'How thoughtful structure and language help people make sense of complex interfaces.', saved: 'Saved today', tags: ['Design', 'UX'] },
+      { domain: 'nesslabs.com', title: 'A calmer way to build a reading habit', description: 'A practical guide to choosing what to read and retaining the ideas that matter.', saved: 'Saved yesterday', tags: ['Reading', 'Habits'] },
+      { domain: 'hbr.org', title: 'How to focus on meaningful work', description: 'A field guide to protecting attention and making room for deep, focused work.', saved: 'Saved 3 days ago', tags: ['Productivity'] },
+      { domain: 'every-layout.dev', title: 'Rethinking flexible page layouts', description: 'Resilient layout patterns for interfaces that work across different screen sizes.', saved: 'Saved last week', tags: ['Design', 'CSS'] }
+    ];
+
+    function bookmarkMarkup(bookmark) {
+      return `<article class="bookmark">
+        <div>
+          <div class="domain">${bookmark.domain}</div>
+          <h3>${bookmark.title}</h3>
+          <p>${bookmark.description}</p>
+          ${bookmark.tags ? `<div class="tags">${bookmark.tags.map(tag => `<button class="tag" type="button" data-tag="${tag}">${tag}</button>`).join('')}</div>` : ''}
+        </div>
+        <div class="saved">${bookmark.saved}</div>
+      </article>`;
+    }
+
+    function renderSearchResults(query = '') {
+      const normalized = query.trim().toLocaleLowerCase();
+      const matches = sampleBookmarks.filter((bookmark) =>
+        [bookmark.title, bookmark.description, bookmark.domain]
+          .some((value) => value.toLocaleLowerCase().includes(normalized))
+      );
+      count.textContent = `${matches.length} of ${sampleBookmarks.length} bookmarks`;
+      list.innerHTML = matches.length
+        ? matches.map(bookmarkMarkup).join('')
+        : '<div class="no-results">No saved pages match that search.</div>';
+    }
+
+    if (mode === 'search') {
+      document.querySelector('h1').textContent = 'Find what you saved.';
+      document.querySelector('.lede').textContent = 'Search the details you can remember — capitalization doesn’t matter.';
+      form.hidden = true;
+      status.hidden = true;
+      searchWrap.hidden = false;
+      renderSearchResults();
+      search.addEventListener('input', () => renderSearchResults(search.value));
+    }
+
+    if (mode === 'tags') {
+      document.querySelector('h1').textContent = 'Browse by what matters.';
+      document.querySelector('.lede').textContent = 'Choose a tag on any bookmark to focus the collection on that topic.';
+      form.hidden = true;
+      status.hidden = true;
+      renderTagResults();
+      list.addEventListener('click', (event) => {
+        const tagButton = event.target.closest('[data-tag]');
+        if (tagButton) renderTagResults(tagButton.dataset.tag);
+      });
+      filterState.addEventListener('click', (event) => {
+        if (event.target.closest('.clear-filter')) renderTagResults();
+      });
+    }
+
+    function renderTagResults(activeTag = '') {
+      const matches = activeTag
+        ? sampleBookmarks.filter(bookmark => bookmark.tags.includes(activeTag))
+        : sampleBookmarks;
+      collectionTitle.textContent = activeTag ? activeTag : 'Your bookmarks';
+      count.textContent = activeTag ? `${matches.length} tagged ${activeTag}` : `${matches.length} bookmarks`;
+      filterState.innerHTML = activeTag
+        ? '<button class="clear-filter" type="button">Show all</button>'
+        : '<span class="filter-note">All topics</span>';
+      list.innerHTML = matches.map(bookmarkMarkup).join('');
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const parsed = new URL(input.value);
+      const title = parsed.hostname === 'example.com'
+        ? 'A calmer way to build a reading habit'
+        : `Saved page from ${parsed.hostname.replace(/^www\\./, '')}`;
+      const description = parsed.hostname === 'example.com'
+        ? 'A practical guide to choosing what to read, making time for it, and retaining the ideas that matter.'
+        : 'Page details were collected automatically so this bookmark is easy to recognize later.';
+      list.innerHTML = bookmarkMarkup({ domain: parsed.hostname.replace(/^www\\./, ''), title, description, saved: 'Saved just now' });
+      count.textContent = '1 bookmark';
+      status.textContent = 'Saved — title and description added automatically.';
+      status.className = 'status success';
+      input.value = '';
+    });
+  </script>
+</body>
+</html>

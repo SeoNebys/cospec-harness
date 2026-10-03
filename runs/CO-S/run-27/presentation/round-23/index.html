@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmark flow prototype</title>
+  <style>
+    :root { color-scheme: light; --ink:#17231d; --muted:#66736c; --line:#dfe6e1; --green:#176b47; --wash:#f4f7f4; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:#fbfcfb; }
+    .shell { min-height:100vh; display:grid; grid-template-columns:240px 1fr; }
+    aside { padding:30px 22px; background:#eef3ef; border-right:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:760; font-size:19px; margin-bottom:38px; }
+    .mark { width:30px; height:30px; display:grid; place-items:center; border-radius:9px; color:#fff; background:var(--green); }
+    nav a { display:flex; gap:12px; align-items:center; padding:11px 12px; color:#536159; text-decoration:none; border-radius:9px; margin:5px 0; }
+    nav a.active { background:#fff; color:var(--ink); font-weight:650; box-shadow:0 1px 2px #1c382520; }
+    main { width:min(880px, calc(100vw - 290px)); margin:0 auto; padding:62px 0; }
+    h1 { margin:0; font-family:Georgia, serif; font-size:42px; letter-spacing:-1.2px; }
+    .lede { color:var(--muted); font-size:17px; margin:10px 0 34px; }
+    .savebox { background:#fff; padding:18px; border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px #223d2c0a; }
+    .searchbox { display:none; margin-bottom:24px; }
+    .searchbox input { width:100%; background:#fff; padding-left:44px; }
+    .search-wrap { position:relative; }
+    .search-wrap::before { content:'⌕'; position:absolute; left:16px; top:9px; z-index:1; color:var(--muted); font-size:25px; }
+    .row { display:flex; gap:10px; }
+    input { flex:1; font:inherit; padding:14px 15px; border:1px solid #cbd5ce; border-radius:9px; outline:none; }
+    input:focus { border-color:var(--green); box-shadow:0 0 0 3px #176b4718; }
+    button { font:inherit; font-weight:700; border:0; border-radius:9px; padding:0 20px; color:#fff; background:var(--green); cursor:pointer; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .status { min-height:20px; margin-top:10px; color:var(--muted); font-size:14px; }
+    .preview { display:none; margin-top:14px; padding:14px; border-radius:10px; background:var(--wash); }
+    .preview.show { display:block; }
+    .preview strong { display:block; margin-bottom:5px; }
+    .preview p { margin:0; color:var(--muted); line-height:1.45; }
+    .tag-panel { border-top:1px solid #dfe6e1; margin-top:13px; padding-top:13px; position:relative; }
+    .tag-label { display:block; font-size:13px; font-weight:700; margin-bottom:8px; }
+    .tag-input-wrap { display:flex; align-items:center; gap:6px; padding:7px; min-height:45px; background:#fff; border:1px solid #cbd5ce; border-radius:9px; }
+    .tag-input-wrap input { min-width:90px; border:0; padding:5px; box-shadow:none; }
+    .chip { display:inline-flex; align-items:center; border-radius:99px; padding:5px 9px; background:#dfeee5; color:#165c40; font-size:13px; }
+    button.chip { border:0; font-weight:600; cursor:pointer; }
+    button.chip:hover { background:#cfe4d7; }
+    .tag-suggestions { display:none; position:absolute; left:0; right:0; top:76px; z-index:2; padding:5px; background:#fff; border:1px solid #cbd5ce; border-radius:9px; box-shadow:0 8px 24px #1f332628; }
+    .tag-suggestions.show { display:block; }
+    .tag-suggestion { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 11px; color:var(--ink); background:#edf5f0; font-weight:650; text-align:left; }
+    .tag-suggestion small { color:var(--muted); font-weight:500; }
+    .section-head { display:flex; justify-content:space-between; align-items:center; margin-top:48px; }
+    h2 { font-size:17px; margin:0; }
+    .count { font-size:13px; color:var(--muted); }
+    .empty { margin-top:14px; padding:58px 20px; text-align:center; color:var(--muted); border:1px dashed #cbd5ce; border-radius:13px; background:#fff; }
+    .empty strong { display:block; color:var(--ink); font-size:17px; margin-bottom:7px; }
+    .empty a { display:inline-block; margin-top:15px; color:var(--green); font-weight:700; }
+    .card { margin-top:14px; padding:19px 20px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+    .card a { color:var(--ink); font-weight:730; font-size:18px; text-decoration:none; }
+    .card p { color:var(--muted); line-height:1.5; margin:8px 0; }
+    .domain { color:var(--green); font-size:13px; }
+    .saved-tags { display:flex; gap:6px; margin-top:13px; }
+    .filter-note { display:none; align-items:center; justify-content:space-between; margin-top:10px; padding:10px 12px; border-radius:9px; background:#e7f1eb; color:#24573f; font-size:14px; }
+    .filter-note.show { display:flex; }
+    .filter-note button { padding:4px 7px; color:#24573f; background:transparent; font-size:18px; }
+    .later-variants { display:none; align-items:center; gap:8px; margin-bottom:22px; padding:12px 14px; background:#eef3ef; border-radius:11px; }
+    .later-variants span { color:var(--muted); font-size:14px; margin-right:4px; }
+    .later-variants button { width:34px; height:32px; padding:0; color:var(--muted); background:#fff; border:1px solid var(--line); }
+    .later-variants button.active { color:#fff; background:var(--green); }
+    .later-card { position:relative; }
+    .later-control { position:absolute; right:18px; top:18px; }
+    .icon-later { width:42px; height:42px; padding:0; color:#526158; background:#f0f4f1; font-size:22px; }
+    .icon-later.marked { color:#fff; background:var(--green); }
+    .label-later { height:38px; padding:0 13px; color:#345744; background:#e5efe9; }
+    .label-later.marked { color:#fff; background:var(--green); }
+    .menu-later { width:38px; height:38px; padding:0; color:#526158; background:#f0f4f1; font-size:21px; }
+    .later-feedback { margin-top:14px; padding:11px 13px; color:#1e6546; background:#e8f3ec; border-radius:9px; font-size:14px; }
+    .manage-variants { display:none; align-items:center; gap:8px; margin-bottom:22px; padding:12px 14px; background:#eef3ef; border-radius:11px; }
+    .manage-variants span { color:var(--muted); font-size:14px; margin-right:4px; }
+    .manage-variants button { width:34px; height:32px; padding:0; color:var(--muted); background:#fff; border:1px solid var(--line); }
+    .manage-variants button.active { color:#fff; background:var(--green); }
+    .card-actions { display:flex; gap:8px; margin-top:15px; padding-top:14px; border-top:1px solid var(--line); }
+    .card-actions button, .edit-actions button { height:36px; padding:0 13px; color:#345744; background:#edf3ef; }
+    .card-actions .danger { color:#913d35; background:#f8ecea; }
+    .card-menu { position:absolute; right:18px; top:60px; width:150px; padding:6px; background:#fff; border:1px solid var(--line); border-radius:9px; box-shadow:0 8px 24px #1f332628; }
+    .card-menu button { display:block; width:100%; height:36px; padding:0 10px; color:var(--ink); background:transparent; text-align:left; }
+    .open-details { width:100%; margin-top:14px; height:38px; color:#345744; background:#edf3ef; }
+    .edit-form label { display:block; margin:12px 0 6px; font-size:13px; font-weight:700; }
+    .edit-form input, .edit-form textarea { width:100%; font:inherit; padding:11px 12px; border:1px solid #cbd5ce; border-radius:8px; }
+    .edit-form textarea { min-height:90px; resize:vertical; }
+    .edit-actions { display:flex; gap:8px; margin-top:14px; }
+    .edit-actions .primary { color:#fff; background:var(--green); }
+    .delete-confirm { margin-top:14px; padding:14px; border:1px solid #edc6c2; border-radius:9px; background:#fff5f4; }
+    .delete-confirm strong { display:block; color:#762f29; margin-bottom:5px; }
+    .delete-confirm p { margin:0 0 12px; }
+    .delete-confirm .danger { height:36px; color:#fff; background:#a94339; }
+    .delete-confirm .cancel { height:36px; color:#4d5a53; background:#edf1ee; }
+    @media (max-width:720px) { .shell{grid-template-columns:1fr} aside{display:none} main{width:auto;padding:32px 20px} .row{flex-direction:column} button{height:48px} h1{font-size:34px} }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="mark">⌑</span> Keepsake</div>
+      <nav>
+        <a class="active" href="?view=search">▤ &nbsp;All bookmarks</a>
+        <a id="later-link" href="?view=laterlist">◷ &nbsp;Read later</a>
+        <a href="#"># &nbsp;Tags</a>
+      </nav>
+    </aside>
+    <main>
+      <h1>Your bookmarks</h1>
+      <p class="lede">Save the useful corners of the web.</p>
+      <div id="later-variants" class="later-variants"><span>Compare marking controls:</span><button class="later-variant active" data-later="1">1</button><button class="later-variant" data-later="2">2</button><button class="later-variant" data-later="3">3</button></div>
+      <div id="manage-variants" class="manage-variants"><span>Compare bookmark controls:</span><button class="manage-variant active" data-manage="1">1</button><button class="manage-variant" data-manage="2">2</button><button class="manage-variant" data-manage="3">3</button></div>
+      <section id="searchbox" class="searchbox" aria-label="Search bookmarks">
+        <div class="search-wrap"><input id="search" aria-label="Search bookmarks" placeholder="Search bookmarks…" autocomplete="off"></div>
+        <div id="filter-note" class="filter-note"><span>Showing tag: <strong id="filter-tag"></strong></span><button id="clear-filter" aria-label="Clear tag filter">×</button></div>
+      </section>
+      <section class="savebox" aria-label="Save a bookmark">
+        <div class="row">
+          <input id="url" aria-label="Web address" placeholder="Paste a web address…" autocomplete="off">
+          <button id="save" disabled>Save bookmark</button>
+        </div>
+        <div id="status" class="status">Paste an address to get started.</div>
+        <div id="preview" class="preview">
+          <strong id="preview-title"></strong>
+          <p id="preview-description"></p>
+          <div class="tag-panel">
+            <label class="tag-label" for="chip-input">Tags</label>
+            <div class="tag-input-wrap"><span class="chip">web design ×</span><input id="chip-input" placeholder="Add a tag…"></div>
+            <div id="tag-suggestions" class="tag-suggestions">
+              <button id="tag-suggestion" class="tag-suggestion"><span>reference</span><small>Existing tag · Enter ↵</small></button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="section-head"><h2>All bookmarks</h2><span id="count" class="count">0 bookmarks</span></div>
+      <div id="list"><div class="empty">Your saved links will appear here.</div></div>
+    </main>
+  </div>
+  <script>
+    const url = document.querySelector('#url');
+    const save = document.querySelector('#save');
+    const status = document.querySelector('#status');
+    const preview = document.querySelector('#preview');
+    const list = document.querySelector('#list');
+    const count = document.querySelector('#count');
+    const search = document.querySelector('#search');
+    let timer;
+    let details = null;
+    const chipInput=document.querySelector('#chip-input');
+    const tagSuggestions=document.querySelector('#tag-suggestions');
+    function addChip(value) {
+        if (!value.trim()) return;
+        const chip=document.createElement('span'); chip.className='chip'; chip.textContent=value.trim().toLowerCase()+' ×';
+        chipInput.before(chip); chipInput.value=''; tagSuggestions.classList.remove('show');
+    }
+    chipInput.addEventListener('input', event => {
+      const typed=event.target.value.trim().toLowerCase();
+      tagSuggestions.classList.toggle('show', typed.length > 0 && 'reference'.startsWith(typed));
+    });
+    chipInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && event.target.value.trim()) {
+        event.preventDefault();
+        addChip(tagSuggestions.classList.contains('show') ? 'reference' : event.target.value);
+      }
+    });
+    document.querySelector('#tag-suggestion').addEventListener('click', event => { event.preventDefault(); addChip('reference'); });
+    const known = {
+      'developer.mozilla.org': ['CSS grid layout - CSS | MDN', 'CSS grid layout is a two-dimensional layout system for the web. It lets you arrange content in rows and columns.'],
+      'www.nationalgeographic.com': ['National Geographic', 'Explore the world through science, history, nature, and culture.'],
+      'en.wikipedia.org': ['Wikipedia, the free encyclopedia', 'The free encyclopedia that anyone can edit.']
+    };
+    const exampleBookmarks = [
+      { title:'CSS grid layout - CSS | MDN', url:'https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout', description:'A complete guide to two-dimensional layouts with rows and columns.', site:'developer.mozilla.org', tags:['web design','reference'] },
+      { title:'The Marginalian', url:'https://www.themarginalian.org/', description:'Long-form reflections on books, art, philosophy, and what makes a meaningful life.', site:'themarginalian.org', tags:['reading','essays'] },
+      { title:'A guide to better sourdough bread', url:'https://example.com/sourdough', description:'Practical notes on starters, fermentation, shaping, and baking.', site:'example.com', tags:['cooking','read later'] },
+      { title:'Inclusive Components', url:'https://inclusive-components.design/', description:'Accessible interface patterns, with practical examples and thoughtful explanations.', site:'inclusive-components.design', tags:['accessibility','web design'] }
+    ];
+    function renderLaterChoice(variant, marked=false) {
+      const controls={
+        '1': `<button class="later-control icon-later ${marked ? 'marked' : ''}" aria-label="${marked ? 'Remove from' : 'Add to'} read later">${marked ? '★' : '☆'}</button>`,
+        '2': `<button class="later-control label-later ${marked ? 'marked' : ''}">${marked ? '✓ In read later' : '+ Read later'}</button>`,
+        '3': `<button class="later-control menu-later" aria-label="Bookmark actions">•••</button>`
+      };
+      list.innerHTML=`<article class="card later-card">${controls[variant]}<a href="#">The Marginalian</a><p>Long-form reflections on books, art, philosophy, and what makes a meaningful life.</p><span class="domain">themarginalian.org</span><div class="saved-tags"><button class="chip">reading</button><button class="chip">essays</button></div>${marked ? '<div class="later-feedback">Added to Read later</div>' : ''}</article>`;
+      count.textContent='1 bookmark';
+    }
+    function renderManageChoice(variant, menu=false) {
+      const controls={
+        '1':'<div class="card-actions"><button data-edit>Edit</button><button class="danger" data-delete>Delete</button></div>',
+        '2':`<button class="later-control menu-later" data-menu aria-label="Bookmark actions">•••</button>${menu ? '<div class="card-menu"><button data-edit>Edit</button><button data-delete>Delete</button></div>' : ''}`,
+        '3':'<button class="open-details" data-edit>Open bookmark details</button>'
+      };
+      list.innerHTML=`<article class="card later-card"><a href="#">Inclusive Components</a><p>Accessible interface patterns, with practical examples and thoughtful explanations.</p><span class="domain">inclusive-components.design</span><div class="saved-tags"><button class="chip">accessibility</button><button class="chip">web design</button></div>${controls[variant]}</article>`;
+      count.textContent='1 bookmark';
+    }
+    function renderEditForm() {
+      list.innerHTML='<article class="card edit-form"><h2>Edit bookmark</h2><label for="edit-url">Web address</label><input id="edit-url" value="https://inclusive-components.design/"><label for="edit-title">Title</label><input id="edit-title" value="Inclusive Components"><label for="edit-description">Description</label><textarea id="edit-description">Accessible interface patterns, with practical examples and thoughtful explanations.</textarea><span class="tag-label" style="margin-top:12px">Tags</span><div class="tag-input-wrap"><span class="chip">accessibility ×</span><span class="chip">web design ×</span><input aria-label="Add a tag" placeholder="Add a tag…"></div><div class="edit-actions"><button class="primary" data-save-edit>Save changes</button><button data-cancel-edit>Cancel</button></div></article>';
+    }
+    function renderDuplicateEditForm() {
+      list.innerHTML='<article class="card edit-form"><div class="later-feedback" style="margin-top:0">This address is already saved. Editing the existing bookmark.</div><h2 style="margin-top:18px">Edit bookmark</h2><label for="edit-url">Web address</label><input id="edit-url" value="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout"><label for="edit-title">Title</label><input id="edit-title" value="CSS grid layout - CSS | MDN"><label for="edit-description">Description</label><textarea id="edit-description">A complete guide to two-dimensional layouts with rows and columns.</textarea><span class="tag-label" style="margin-top:12px">Tags</span><div class="tag-input-wrap"><span class="chip">web design ×</span><span class="chip">reference ×</span><input aria-label="Add a tag" placeholder="Add a tag…"></div><div class="edit-actions"><button class="primary">Save changes</button><button>Cancel</button></div></article>';
+      count.textContent='1 existing bookmark';
+    }
+    function showDeleteConfirmation() {
+      const card=document.querySelector('.later-card');
+      card.querySelector('.card-actions')?.remove();
+      const confirmation=document.createElement('div'); confirmation.className='delete-confirm';
+      confirmation.innerHTML='<strong>Delete this bookmark?</strong><p>This will remove “Inclusive Components” from your bookmarks.</p><button class="danger" data-confirm-delete>Delete bookmark</button> <button class="cancel" data-cancel-delete>Cancel</button>';
+      card.append(confirmation);
+    }
+    function renderExamples(items) {
+      list.innerHTML=items.length ? items.map(item => `<article class="card"><a href="${item.url}" target="_blank" rel="noreferrer">${item.title}</a><p>${item.description}</p><span class="domain">${item.site}</span><div class="saved-tags">${item.tags.map(tag => `<button class="chip" data-tag="${tag}">${tag}</button>`).join('')}</div></article>`).join('') : '<div class="empty">No bookmarks match your search.</div>';
+      count.textContent=`${items.length} bookmark${items.length === 1 ? '' : 's'}`;
+    }
+    const prototypeView=new URLSearchParams(location.search).get('view');
+    if (prototypeView === 'search') {
+      document.querySelector('.savebox').style.display='none';
+      document.querySelector('#searchbox').style.display='block';
+      document.querySelector('.lede').textContent='Find anything you saved.';
+      renderExamples(exampleBookmarks);
+      search.addEventListener('input', () => {
+        document.querySelector('#filter-note').classList.remove('show');
+        const term=search.value.trim().toLowerCase();
+        renderExamples(exampleBookmarks.filter(item => [item.title, item.description, ...item.tags].some(value => value.toLowerCase().includes(term))));
+      });
+      list.addEventListener('click', event => {
+        const tag=event.target.closest('[data-tag]')?.dataset.tag;
+        if (!tag) return;
+        search.value=''; document.querySelector('#filter-tag').textContent=tag;
+        document.querySelector('#filter-note').classList.add('show');
+        renderExamples(exampleBookmarks.filter(item => item.tags.includes(tag)));
+      });
+      document.querySelector('#clear-filter').addEventListener('click', () => {
+        document.querySelector('#filter-note').classList.remove('show'); renderExamples(exampleBookmarks);
+      });
+    } else if (prototypeView === 'readlater') {
+      document.querySelector('.savebox').style.display='none';
+      document.querySelector('#later-variants').style.display='flex';
+      document.querySelector('.lede').textContent='Keep something close for when you have time.';
+      renderLaterChoice('1');
+      document.querySelectorAll('.later-variant').forEach(button => button.addEventListener('click', () => {
+        document.querySelectorAll('.later-variant').forEach(item => item.classList.toggle('active', item === button));
+        renderLaterChoice(button.dataset.later);
+      }));
+      list.addEventListener('click', event => {
+        const control=event.target.closest('.later-control');
+        if (!control) return;
+        const variant=document.querySelector('.later-variant.active').dataset.later;
+        if (variant === '3') {
+          if (control.classList.contains('label-later')) { renderLaterChoice(variant, true); return; }
+          control.outerHTML='<button class="later-control label-later">Add to Read later</button>';
+          return;
+        }
+        renderLaterChoice(variant, true);
+      });
+    } else if (prototypeView === 'laterlist') {
+      document.querySelector('.savebox').style.display='none';
+      document.querySelector('h1').textContent='Read later';
+      document.querySelector('.lede').textContent='The links you set aside for later.';
+      document.querySelector('.section-head h2').textContent='Saved for later';
+      document.querySelectorAll('nav a').forEach(item => item.classList.remove('active'));
+      document.querySelector('#later-link').classList.add('active');
+      list.innerHTML='<article class="card later-card"><button class="later-control icon-later marked" aria-label="Remove from read later">★</button><a href="https://www.themarginalian.org/" target="_blank" rel="noreferrer">The Marginalian</a><p>Long-form reflections on books, art, philosophy, and what makes a meaningful life.</p><span class="domain">themarginalian.org</span><div class="saved-tags"><button class="chip">reading</button><button class="chip">essays</button></div></article>';
+      count.textContent='1 bookmark';
+      list.addEventListener('click', event => {
+        if (!event.target.closest('.icon-later')) return;
+        list.innerHTML='<div class="empty"><strong>Removed from Read later</strong>There is nothing else saved for later.<br><a href="?view=search">Browse all bookmarks</a></div>';
+        count.textContent='0 bookmarks';
+      });
+    } else if (prototypeView === 'laterempty') {
+      document.querySelector('.savebox').style.display='none';
+      document.querySelector('h1').textContent='Read later';
+      document.querySelector('.lede').textContent='The links you set aside for later.';
+      document.querySelector('.section-head h2').textContent='Saved for later';
+      document.querySelectorAll('nav a').forEach(item => item.classList.remove('active'));
+      document.querySelector('#later-link').classList.add('active');
+      list.innerHTML='<div class="empty"><strong>Nothing saved for later yet</strong>Use the star on any bookmark to add it here.<br><a href="?view=search">Browse all bookmarks</a></div>';
+      count.textContent='0 bookmarks';
+    } else if (prototypeView === 'manage') {
+      document.querySelector('.savebox').style.display='none';
+      document.querySelector('#manage-variants').style.display='flex';
+      document.querySelector('.lede').textContent='Keep saved details accurate and useful.';
+      renderManageChoice('1');
+      document.querySelectorAll('.manage-variant').forEach(button => button.addEventListener('click', () => {
+        document.querySelectorAll('.manage-variant').forEach(item => item.classList.toggle('active', item === button));
+        renderManageChoice(button.dataset.manage);
+      }));
+      list.addEventListener('click', event => {
+        const variant=document.querySelector('.manage-variant.active').dataset.manage;
+        if (event.target.closest('[data-menu]')) { renderManageChoice(variant, true); return; }
+        if (event.target.closest('[data-edit]')) { renderEditForm(); return; }
+        if (event.target.closest('[data-delete]')) { showDeleteConfirmation(); return; }
+        if (event.target.closest('[data-cancel-delete]')) { renderManageChoice(variant); return; }
+        if (event.target.closest('[data-confirm-delete]')) {
+          list.innerHTML='<div class="empty"><strong>Bookmark deleted.</strong><br>There are no bookmarks in this example.</div>'; count.textContent='0 bookmarks'; return;
+        }
+        if (event.target.closest('[data-cancel-edit]')) { renderManageChoice(variant); return; }
+        if (event.target.closest('[data-save-edit]')) {
+          const title=document.querySelector('#edit-title').value;
+          renderManageChoice(variant); document.querySelector('.later-card > a').textContent=title;
+          const note=document.createElement('div'); note.className='later-feedback'; note.textContent='Bookmark updated'; document.querySelector('.later-card').append(note);
+        }
+      });
+    } else if (prototypeView === 'duplicate') {
+      document.querySelector('.lede').textContent='Paste a link to save it or update one you already have.';
+      renderExamples([exampleBookmarks[0]]);
+    }
+    url.addEventListener('input', () => {
+      clearTimeout(timer); details=null; preview.classList.remove('show'); save.disabled=true;
+      const value=url.value.trim();
+      if (!value) { status.textContent='Paste an address to get started.'; return; }
+      status.textContent='Getting page details…';
+      timer=setTimeout(() => {
+        try {
+          const parsed=new URL(value);
+          if (prototypeView === 'duplicate' && parsed.hostname === 'developer.mozilla.org' && parsed.pathname.includes('CSS')) {
+            status.textContent='Already in your bookmarks.'; preview.classList.remove('show');
+            renderDuplicateEditForm(); return;
+          }
+          if (prototypeView === 'fetcherror') {
+            details=[parsed.hostname.replace(/^www\./,''), ''];
+            status.textContent='We couldn’t get this page’s details. You can add them yourself and still save the link.';
+            preview.innerHTML=`<div class="edit-form"><label for="manual-title">Title</label><input id="manual-title" value="${details[0]}"><label for="manual-description">Description <span style="font-weight:400;color:var(--muted)">(optional)</span></label><textarea id="manual-description" placeholder="Add a short description…"></textarea></div><div class="tag-panel"><span class="tag-label">Tags</span><div class="tag-input-wrap"><input aria-label="Add a tag" placeholder="Add a tag…"></div></div>`;
+            preview.classList.add('show'); save.disabled=false; return;
+          }
+          const fallback=[parsed.hostname.replace(/^www\./,''), 'Saved from '+parsed.hostname+'.'];
+          details=known[parsed.hostname] || fallback;
+          document.querySelector('#preview-title').textContent=details[0];
+          document.querySelector('#preview-description').textContent=details[1];
+          preview.classList.add('show'); status.textContent='Page details found.'; save.disabled=false;
+        } catch { status.textContent='That doesn’t look like a complete web address.'; }
+      }, 550);
+    });
+    save.addEventListener('click', () => {
+      if (!details) return;
+      const parsed=new URL(url.value.trim());
+      if (prototypeView === 'fetcherror') details=[document.querySelector('#manual-title').value, document.querySelector('#manual-description').value];
+      const tags=[...document.querySelectorAll('.tag-input-wrap .chip')].map(chip => chip.textContent.replace(/\s*×$/, ''));
+      const tagMarkup=tags.map(tag => `<button class="chip" data-tag="${tag}">${tag}</button>`).join('');
+      list.innerHTML=`<article class="card"><a href="${parsed.href}" target="_blank" rel="noreferrer">${details[0]}</a><p>${details[1]}</p><span class="domain">${parsed.hostname}</span><div class="saved-tags">${tagMarkup}</div></article>`;
+      count.textContent='1 bookmark'; status.textContent='Bookmark saved.'; preview.classList.remove('show');
+      url.value=''; save.disabled=true; details=null;
+    });
+  </script>
+</body>
+</html>

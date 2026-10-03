@@ -1,0 +1,1 @@
+- [node:sqlite over better-sqlite3](node-sqlite-over-better-sqlite3.md) — better-sqlite3 crashes on exit in Node 24.21; use built-in node:sqlite

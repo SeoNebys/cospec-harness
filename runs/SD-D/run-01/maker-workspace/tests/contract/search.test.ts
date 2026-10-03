@@ -1,0 +1,2 @@
+import{afterEach,describe,expect,it}from'vitest';import{testApp,register}from'../helpers/app.js';
+describe('search contract',()=>{let close:undefined|(()=>Promise<void>);afterEach(async()=>close?.());it('explains unmatched quotation marks',async()=>{const ctx=await testApp();close=ctx.close;const{cookie}=await register(ctx.app);const response=await ctx.app.inject({url:'/api/v1/bookmarks?q=%22unfinished',headers:{cookie}});expect(response.statusCode).toBe(400);expect(response.json().error.code).toBe('INVALID_SEARCH');});});

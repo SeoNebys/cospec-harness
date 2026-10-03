@@ -1,0 +1,2 @@
+import type { ReactNode } from 'react';
+export function AppShell({children,ready}:{children:ReactNode;ready:boolean}){return <div className="app" {...(ready?{'data-harness-ready':'true'}:{})}><header className="masthead"><a className="brand" href="/" aria-label="Keepmark home"><span className="brand-mark">K</span><span>Keepmark</span></a><span className="privacy">Private library</span></header>{children}<footer>Saved here. Kept close.</footer></div>}

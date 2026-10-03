@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Duplicate handling — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:720px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; gap:10px; }
+  .saver input { flex:1; border:1px solid var(--line); border-radius:8px; padding:11px 13px; font-size:15px; outline:none; }
+  .saver input:focus { border-color:var(--accent); }
+  .saver button { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:11px 20px; font-size:15px; font-weight:600; cursor:pointer; }
+  .notice { margin-top:14px; border-radius:10px; padding:12px 15px; font-size:13.5px; display:none; }
+  .notice.dup { background:#fff6e6; border:1px solid #f0d9a8; color:#7a5a12; display:block; }
+  .notice.arch { background:#eef4ff; border:1px solid #cfe0ff; color:#294; display:block; }
+  .notice.added { background:#e9f8ef; border:1px solid #bfe3cd; color:#1c7a4d; display:block; }
+  .notice b { font-weight:700; }
+  .notice .mini { border:1px solid currentColor; background:transparent; color:inherit; border-radius:7px; padding:5px 11px; font-size:12.5px; cursor:pointer; margin-left:8px; font-weight:600; }
+  .list { margin-top:20px; display:flex; flex-direction:column; gap:11px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; transition:box-shadow .2s, border-color .2s; }
+  .card.hit { border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,109,246,.18); }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 4px; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12.5px; margin-bottom:6px; }
+  .fav { width:15px; height:15px; border-radius:4px; }
+  .card .url { color:var(--muted); font-size:12px; word-break:break-all; }
+  .badge { font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; }
+  .badge.toread { background:#eaf1fe; color:var(--accent); }
+  .badge.finished { background:#e5f6ec; color:var(--green); }
+  .badge.archived { background:#efeadd; color:#8a7726; }
+  .taglist { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+  .chip { background:#e7f0ff; color:#245; border-radius:999px; padding:2px 9px; font-size:11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Saving a link you already have takes you to it — no duplicates.</p>
+  <div class="saver">
+    <input id="url" type="text" placeholder="Paste a link and press Save…" autocomplete="off" />
+    <button id="save">Save</button>
+  </div>
+  <div class="notice" id="notice"></div>
+  <div class="list" id="list"></div>
+</div>
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site.replace(/^www\./,'')[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`); }
+
+let DATA=[
+  { id:1, title:"The Quiet Art of Reading Later", url:"https://www.nytimes.com/2026/01/12/technology/reading-later.html",
+    site:"nytimes.com", status:"toread", archived:false, tags:["reading","focus"], savedOn:"12 Jan 2026",
+    desc:"Why saving articles to read later can make you a calmer reader.", note:"Read before my weekend post." },
+  { id:2, title:"CSS Flexbox layout — MDN Web Docs", url:"https://developer.mozilla.org/en-US/docs/Web/CSS/Flexbox",
+    site:"developer.mozilla.org", status:"finished", archived:false, tags:["css","reference"], savedOn:"3 Feb 2026",
+    desc:"A one-dimensional layout method.", note:"Reference for the settings screen." },
+  { id:3, title:"Old tax guidance 2019", url:"https://gov.example/tax/2019/guidance",
+    site:"gov.example", status:"finished", archived:true, tags:["tax"], savedOn:"9 Nov 2025",
+    desc:"Superseded tax guidance.", note:"Keep for reference." }
+];
+let nextId=4;
+let editingId=null;
+
+// What counts as "the same link": ignore http/https, a leading www., a trailing
+// slash, letter case in the host, common tracking parameters, and the #fragment.
+function normalize(raw){
+  let u=raw.trim(); if(!u) return null;
+  if(!/^https?:\/\//i.test(u)) u="https://"+u;
+  let url; try{ url=new URL(u); }catch{ return null; }
+  const host=url.host.toLowerCase().replace(/^www\./,"");
+  const params=new URLSearchParams(url.search);
+  ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid","ref"].forEach(p=>params.delete(p));
+  const qs=[...params.entries()].sort().map(([k,v])=>k+"="+v).join("&");
+  let path=url.pathname.replace(/\/+$/,"");
+  return host+path+(qs?("?"+qs):"");
+}
+const notice=document.getElementById("notice");
+const listEl=document.getElementById("list");
+const urlEl=document.getElementById("url");
+
+function cardHTML(b){
+  const badge = b.archived? '<span class="badge archived">Archived</span>'
+              : '<span class="badge '+b.status+'">'+(b.status==="finished"?"Finished":"To read")+'</span>';
+  return '<div class="card" id="card-'+b.id+'">'+
+    '<div class="title">'+b.title+'</div>'+
+    '<div class="meta"><img class="fav" src="'+favSVG(b.site)+'"/> <span>'+b.site+'</span> '+badge+
+      ' <span>· saved '+b.savedOn+'</span></div>'+
+    '<div class="url">'+b.url+'</div>'+
+    '<div class="taglist">'+b.tags.map(t=>'<span class="chip">'+t+'</span>').join('')+'</div>'+
+  '</div>';
+}
+function editHTML(b){
+  return '<div class="card hit" id="editcard"><div class="title" style="color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:.04em;">Editing existing bookmark</div>'+
+    '<label style="font-size:12px;color:var(--muted);display:block;margin:10px 0 4px;">Title</label>'+
+    '<input id="eTitle" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;" value="'+(b.title.replace(/"/g,"&quot;"))+'"/>'+
+    '<label style="font-size:12px;color:var(--muted);display:block;margin:10px 0 4px;">Link (web address)</label>'+
+    '<input id="eUrl" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;" value="'+(b.url.replace(/"/g,"&quot;"))+'"/>'+
+    '<label style="font-size:12px;color:var(--muted);display:block;margin:10px 0 4px;">Description</label>'+
+    '<input id="eDesc" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;" value="'+((b.desc||"").replace(/"/g,"&quot;"))+'"/>'+
+    '<label style="font-size:12px;color:var(--muted);display:block;margin:10px 0 4px;">Tags (comma separated)</label>'+
+    '<input id="eTags" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;" value="'+b.tags.join(", ")+'"/>'+
+    '<label style="font-size:12px;color:var(--muted);display:block;margin:10px 0 4px;">Your note</label>'+
+    '<textarea id="eNote" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;min-height:52px;font-family:inherit;">'+(b.note||"")+'</textarea>'+
+    '<label style="font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;">Reading status</label>'+
+    '<div style="display:flex;gap:8px;">'+
+      '<button class="mini estat" data-s="toread" style="border-color:'+(b.status==="toread"?"var(--accent)":"var(--line)")+';color:'+(b.status==="toread"?"var(--accent)":"var(--muted)")+';margin:0;">📖 To read</button>'+
+      '<button class="mini estat" data-s="finished" style="border-color:'+(b.status==="finished"?"var(--green)":"var(--line)")+';color:'+(b.status==="finished"?"var(--green)":"var(--muted)")+';margin:0;">✓ Finished</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:10px;margin-top:14px;">'+
+      '<button id="eSave" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;">Save changes</button>'+
+      '<button id="eCancel" style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;">Cancel</button>'+
+    '</div></div>';
+}
+function render(hitId){
+  if(editingId){
+    const b=DATA.find(x=>x.id===editingId);
+    listEl.innerHTML=DATA.map(x=> x.id===editingId? editHTML(x) : cardHTML(x)).join('');
+    let chosen=b.status;
+    listEl.querySelectorAll(".estat").forEach(el=>el.onclick=()=>{ chosen=el.dataset.s;
+      listEl.querySelectorAll(".estat").forEach(x=>{ const on=x.dataset.s===chosen;
+        x.style.borderColor=on?(chosen==="toread"?"var(--accent)":"var(--green)"):"var(--line)";
+        x.style.color=on?(chosen==="toread"?"var(--accent)":"var(--green)"):"var(--muted)"; }); });
+    document.getElementById("eCancel").onclick=()=>{ editingId=null; notice.style.display="none"; render(); };
+    document.getElementById("eSave").onclick=()=>{
+      b.title=document.getElementById("eTitle").value.trim()||b.title;
+      b.url=document.getElementById("eUrl").value.trim()||b.url;
+      b.desc=document.getElementById("eDesc").value.trim();
+      b.tags=document.getElementById("eTags").value.split(",").map(s=>s.trim()).filter(Boolean);
+      b.note=document.getElementById("eNote").value;
+      b.status=chosen;
+      editingId=null;
+      notice.className="notice added"; notice.style.display="block";
+      notice.innerHTML='Updated <b>“'+b.title+'”</b> — the existing bookmark was edited, not duplicated.';
+      render(b.id);
+    };
+    document.getElementById("editcard").scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+  listEl.innerHTML=DATA.map(cardHTML).join('');
+  if(hitId){ const el=document.getElementById("card-"+hitId); if(el){ el.classList.add("hit"); el.scrollIntoView({behavior:"smooth",block:"center"}); } }
+}
+function openEdit(id){ editingId=id; render(); }
+function save(){
+  const key=normalize(urlEl.value);
+  if(!key){ notice.className="notice dup"; notice.textContent="That doesn't look like a link — please check it."; return; }
+  const existing=DATA.find(b=>normalize(b.url)===key);
+  if(existing){
+    if(existing.archived){
+      notice.className="notice arch";
+      notice.innerHTML='You already saved <b>“'+existing.title+'”</b> — it\'s currently in your <b>Archive</b> (saved '+existing.savedOn+'). '+
+        'No duplicate was created. <button class="mini" data-edit="'+existing.id+'">Edit existing</button>'+
+        '<button class="mini" id="restoreBtn">Restore it</button>';
+      render(existing.id);
+      const rb=document.getElementById("restoreBtn"); if(rb) rb.onclick=()=>{ existing.archived=false; existing.status="toread"; save2note(existing); };
+    } else {
+      notice.className="notice dup";
+      notice.innerHTML='You already saved this as <b>“'+existing.title+'”</b> (saved '+existing.savedOn+', '+
+        (existing.status==="finished"?"Finished":"To read")+'). No duplicate created. '+
+        '<button class="mini" data-edit="'+existing.id+'">Edit existing</button>';
+      render(existing.id);
+    }
+    const eb=notice.querySelector("[data-edit]"); if(eb) eb.onclick=()=>openEdit(existing.id);
+    urlEl.value="";
+    return;
+  }
+  // genuinely new
+  const host=key.split("/")[0];
+  const b={ id:nextId++, title:key.split("/").filter(Boolean).pop().replace(/[-_]/g," ").replace(/\b\w/g,c=>c.toUpperCase())||host,
+            url:(/^https?:/.test(urlEl.value)?urlEl.value.trim():"https://"+urlEl.value.trim()),
+            site:host, status:"toread", archived:false, tags:[], savedOn:"today" };
+  DATA.unshift(b);
+  notice.className="notice added"; notice.innerHTML='Saved as a new bookmark. Its details would now be filled in for review.';
+  urlEl.value=""; render(b.id);
+}
+function save2note(b){ notice.className="notice added"; notice.innerHTML='Restored <b>“'+b.title+'”</b> to your To read list.'; render(b.id); }
+document.getElementById("save").onclick=save;
+urlEl.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); });
+
+// presets for screenshots: ?try=dupe | tracking | archived
+const t=new URLSearchParams(location.search).get("try");
+render();
+if(t==="dupe"){ urlEl.value="https://www.nytimes.com/2026/01/12/technology/reading-later.html"; save(); }
+if(t==="tracking"){ urlEl.value="nytimes.com/2026/01/12/technology/reading-later.html?utm_source=twitter&utm_campaign=x#top"; save(); }
+if(t==="archived"){ urlEl.value="https://gov.example/tax/2019/guidance/"; save(); }
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

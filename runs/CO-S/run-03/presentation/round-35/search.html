@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Search prototype</title>
+  <style>
+    :root { color-scheme:light; --ink:#17211d; --muted:#68736e; --line:#dce3df; --paper:#fbfcfa; --green:#245c45; --green-soft:#e7f1eb; --cream:#f3f0e8; --note:#f5f1df; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { height:68px; display:flex; align-items:center; border-bottom:1px solid var(--line); }
+    .shell { width:min(920px,calc(100% - 48px)); margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; font-size:18px; }
+    .mark { width:29px; height:34px; border-radius:4px 4px 9px 9px; background:var(--green); }
+    main { padding:52px 0; }
+    .eyebrow { color:var(--green); font-weight:700; font-size:12px; letter-spacing:.11em; text-transform:uppercase; }
+    h1 { margin:8px 0 24px; font:600 40px/1.08 Georgia,serif; letter-spacing:-.03em; }
+    .search-wrap { position:relative; margin-bottom:14px; }
+    .search-icon { position:absolute; left:15px; top:14px; color:var(--muted); font-size:18px; }
+    .search { width:100%; height:50px; padding:0 44px; border:1px solid #bdc9c2; border-radius:11px; background:white; color:var(--ink); font:inherit; outline:none; box-shadow:0 6px 20px rgba(30,55,43,.04); }
+    .search:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(36,92,69,.12); }
+    .clear-search { display:none; position:absolute; right:10px; top:9px; width:32px; height:32px; border:0; background:transparent; color:var(--muted); font-size:20px; cursor:pointer; }
+    .clear-search.visible { display:block; }
+    .tag-bar { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-bottom:22px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:white; }
+    .tag-bar strong { margin-right:5px; font-size:13px; }
+    .tag { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:999px; background:var(--green-soft); color:var(--green); font-size:12px; font-weight:680; }
+    .library-head { display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:13px; }
+    h2 { margin:0; font-size:17px; }
+    .count { color:var(--muted); font-size:13px; }
+    .card { display:grid; grid-template-columns:52px 1fr; gap:15px; padding:20px 4px; border-bottom:1px solid var(--line); }
+    .card[hidden] { display:none; }
+    .thumb { width:52px; height:52px; display:grid; place-items:center; border-radius:11px; background:var(--cream); color:var(--green); font:700 19px Georgia,serif; }
+    .domain { color:var(--green); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .title { margin:2px 0; font:600 19px/1.25 Georgia,serif; }
+    .summary { margin:0; color:var(--muted); font-size:14px; }
+    .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+    .note { margin:11px 0 0; padding:8px 10px; border-left:3px solid #c8b86c; border-radius:0 7px 7px 0; background:var(--note); font-size:13px; }
+    .note strong { display:block; color:#6d5f22; font-size:10px; text-transform:uppercase; letter-spacing:.07em; }
+    .empty { display:none; padding:44px 0; color:var(--muted); text-align:center; }
+    .empty.visible { display:block; }
+    @media(max-width:620px){.shell{width:min(100% - 28px,920px)}}
+  </style>
+</head>
+<body>
+  <header><div class="shell brand"><span class="mark" aria-hidden="true"></span><span>Keep</span></div></header>
+  <main class="shell" data-harness-ready="true">
+    <div class="eyebrow">Your bookmark library</div><h1>Find a bookmark</h1>
+    <div class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input class="search" id="search" type="search" placeholder="Search titles, notes, summaries, websites, or tags" aria-label="Search bookmarks"><button class="clear-search" id="clear-search" type="button" aria-label="Clear search">×</button></div>
+    <nav class="tag-bar" aria-label="Filter by tag"><strong>Filter by tag</strong><span class="tag">design</span><span class="tag">work</span><span class="tag">cooking</span><span class="tag">research</span></nav>
+    <section>
+      <div class="library-head"><h2 id="list-title">All bookmarks</h2><span class="count" id="count">4 bookmarks</span></div>
+      <div id="cards">
+        <article class="card" data-search="design systems without jargon example.com practical guide reusable foundations shared patterns design work use this for the redesign kickoff"><div class="thumb">D</div><div><div class="domain">example.com</div><h3 class="title">Design systems, without the jargon</h3><p class="summary">A practical guide to reusable foundations and shared patterns.</p><div class="tags"><span class="tag">design</span><span class="tag">work</span></div><div class="note"><strong>Your note</strong>Use this for the redesign kickoff</div></div></article>
+        <article class="card" data-search="colour that works alistapart.com accessible palettes digital products design inspiration"><div class="thumb">C</div><div><div class="domain">alistapart.com</div><h3 class="title">Colour that works</h3><p class="summary">Building accessible palettes for digital products.</p><div class="tags"><span class="tag">design</span></div></div></article>
+        <article class="card" data-search="simple sourdough saturday kitchen.example forgiving bread overnight rise cooking weekend try half the salt next time"><div class="thumb">S</div><div><div class="domain">kitchen.example</div><h3 class="title">Simple sourdough for Saturday</h3><p class="summary">A forgiving bread recipe with an overnight rise.</p><div class="tags"><span class="tag">cooking</span></div><div class="note"><strong>Your note</strong>Try half the salt next time</div></div></article>
+        <article class="card" data-search="planning useful customer interviews research.example questions prompts learning people need work research"><div class="thumb">R</div><div><div class="domain">research.example</div><h3 class="title">Planning useful customer interviews</h3><p class="summary">Questions and prompts for learning what people need.</p><div class="tags"><span class="tag">work</span><span class="tag">research</span></div></div></article>
+      </div>
+      <div class="empty" id="empty">No bookmarks match that search.</div>
+    </section>
+  </main>
+  <script>
+    const input=document.querySelector('#search'); const cards=[...document.querySelectorAll('.card')]; const clear=document.querySelector('#clear-search');
+    function search(){const query=input.value.trim().toLowerCase();const matches=cards.filter(card=>card.dataset.search.includes(query));cards.forEach(card=>card.hidden=query&&!matches.includes(card));document.querySelector('#count').textContent=query?`${matches.length} ${matches.length===1?'result':'results'}`:'4 bookmarks';document.querySelector('#list-title').textContent=query?`Results for “${input.value.trim()}”`:'All bookmarks';document.querySelector('#empty').classList.toggle('visible',Boolean(query)&&matches.length===0);clear.classList.toggle('visible',Boolean(query));}
+    input.addEventListener('input',search); clear.addEventListener('click',()=>{input.value='';search();input.focus()});
+  </script>
+</body>
+</html>

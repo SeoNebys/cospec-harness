@@ -1,0 +1,1 @@
+export function NoResults({onClear}:{onClear:()=>void}){return <section className="empty compact"><h2>No bookmarks found</h2><p>Try a different search or clear your filters.</p><button className="button ghost" onClick={onClear}>Clear search and filters</button></section>}

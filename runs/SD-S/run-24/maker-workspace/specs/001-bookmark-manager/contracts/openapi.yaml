@@ -1,0 +1,356 @@
+openapi: 3.1.0
+info:
+  title: Personal Bookmark Manager API
+  version: 1.0.0
+  description: Same-origin JSON contract for the approved single-user bookmark manager.
+servers:
+  - url: /api
+
+paths:
+  /bookmarks:
+    get:
+      summary: List bookmarks using the current collection view
+      operationId: listBookmarks
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Literal, case-insensitive search across title, URL, notes, and tags.
+        - name: tags
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              maxLength: 40
+          description: Comma-separated tags; every selected tag must match.
+        - name: favorite
+          in: query
+          schema:
+            type: boolean
+          description: When supplied, filters to bookmarks with this favorite state.
+        - name: archived
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: False selects active bookmarks; true selects archived bookmarks.
+        - name: sort
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookmarkSort'
+      responses:
+        '200':
+          description: Matching bookmarks in deterministic order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bookmark'
+                  total:
+                    type: integer
+                    minimum: 0
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+    post:
+      summary: Create a bookmark
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookmark'
+      responses:
+        '201':
+          description: Bookmark created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '409':
+          $ref: '#/components/responses/DuplicateUrl'
+
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      summary: Get one bookmark
+      operationId: getBookmark
+      responses:
+        '200':
+          description: Bookmark found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Update bookmark details or state
+      operationId: updateBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookmark'
+      responses:
+        '200':
+          description: Updated bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/DuplicateUrl'
+    delete:
+      summary: Permanently delete a bookmark
+      description: The client must obtain explicit confirmation before invoking this operation.
+      operationId: deleteBookmark
+      responses:
+        '204':
+          description: Bookmark permanently removed.
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tags:
+    get:
+      summary: List tags available for filtering
+      operationId: listTags
+      parameters:
+        - name: archived
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Return tags and counts from active or archived bookmarks.
+      responses:
+        '200':
+          description: Tags ordered case-insensitively by display name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TagSummary'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    BookmarkSort:
+      type: string
+      enum: [newest, oldest, title, updated]
+      default: newest
+
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - url
+        - notes
+        - tags
+        - isFavorite
+        - isArchived
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        notes:
+          type: string
+          maxLength: 5000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        isFavorite:
+          type: boolean
+        isArchived:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateBookmark:
+      type: object
+      additionalProperties: false
+      required: [title, url]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: Must parse as an HTTP or HTTPS URL.
+        notes:
+          type: string
+          maxLength: 5000
+          default: ''
+        tags:
+          type: array
+          maxItems: 20
+          default: []
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+
+    UpdateBookmark:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          description: Must parse as an HTTP or HTTPS URL.
+        notes:
+          type: string
+          maxLength: 5000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        isFavorite:
+          type: boolean
+        isArchived:
+          type: boolean
+
+    TagSummary:
+      type: object
+      additionalProperties: false
+      required: [name, bookmarkCount]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        bookmarkCount:
+          type: integer
+          minimum: 1
+
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - INVALID_QUERY
+                - DUPLICATE_URL
+                - NOT_FOUND
+                - INTERNAL_ERROR
+            message:
+              type: string
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+            existingBookmarkId:
+              type: integer
+              minimum: 1
+
+  responses:
+    InvalidRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          examples:
+            invalidUrl:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: Check the highlighted fields.
+                  fieldErrors:
+                    url: [Enter a valid HTTP or HTTPS address.]
+    DuplicateUrl:
+      description: Another bookmark has the same normalized URL.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: DUPLICATE_URL
+              message: This link is already saved.
+              existingBookmarkId: 42
+    NotFound:
+      description: No bookmark exists with the supplied identifier.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: NOT_FOUND
+              message: The bookmark could not be found.

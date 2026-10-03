@@ -1,0 +1,2 @@
+import { getDb } from "@/lib/db/client";import { migrate } from "@/lib/db/migrate";
+const db=getDb();migrate(db);const count=(db.prepare("SELECT count(*) count FROM icon_assets i WHERE NOT EXISTS(SELECT 1 FROM bookmarks b WHERE b.icon_asset_id=i.id)").get() as {count:number}).count;if(process.argv.includes("--dry-run")){console.log(`${count} orphan icons would be removed.`);}else{const result=db.prepare("DELETE FROM icon_assets WHERE NOT EXISTS(SELECT 1 FROM bookmarks b WHERE b.icon_asset_id=icon_assets.id)").run();console.log(`Removed ${result.changes} orphan icons.`);}

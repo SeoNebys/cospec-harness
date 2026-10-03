@@ -1,0 +1,759 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager API
+  version: 1.0.0
+  description: Same-origin JSON API for the approved single-user bookmark manager.
+security: []
+servers:
+  - url: /api
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Report application readiness
+      responses:
+        '200':
+          description: Database migrations are complete and the application is ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    const: ready
+        '503':
+          description: The application has not completed startup or cannot reach its database.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /metadata-previews:
+    post:
+      operationId: createMetadataPreview
+      summary: Retrieve safe, editable page details for a pasted address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  minLength: 1
+                  maxLength: 2048
+      responses:
+        '200':
+          description: Complete, partial, skipped, or fallback preview; recoverable retrieval failures also use this response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataPreview'
+        '409':
+          description: A bookmark already uses the normalized address.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    required: [existingBookmarkId]
+                    properties:
+                      existingBookmarkId:
+                        type: string
+                        format: uuid
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookmarks:
+    get:
+      operationId: listBookmarks
+      summary: Search, filter, sort, and page through bookmarks
+      parameters:
+        - name: view
+          in: query
+          schema:
+            type: string
+            enum: [active, unread, archived]
+            default: active
+        - name: q
+          in: query
+          description: Query conforming to search-grammar.md; preserved unchanged on syntax error.
+          schema:
+            type: string
+            maxLength: 500
+        - name: tag
+          in: query
+          description: Repeat for exact tag filters. Every supplied tag must match.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              minLength: 1
+              maxLength: 30
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [savedAt, title]
+            default: savedAt
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Matching bookmark page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkPage'
+        '422':
+          description: Invalid filter or search syntax.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Error'
+                  - $ref: '#/components/schemas/SearchError'
+    post:
+      operationId: createBookmark
+      summary: Save a bookmark from a valid address and optional metadata preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookmarkInput'
+      responses:
+        '201':
+          description: Bookmark created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '409':
+          description: A bookmark already uses the normalized address.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    required: [existingBookmarkId]
+                    properties:
+                      existingBookmarkId:
+                        type: string
+                        format: uuid
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      operationId: getBookmark
+      summary: Get one bookmark
+      responses:
+        '200':
+          description: Bookmark found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateBookmark
+      summary: Edit bookmark details, tags, reading state, or lifecycle state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookmarkInput'
+      responses:
+        '200':
+          description: Updated bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The new normalized address belongs to another bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookmarks/bulk-actions:
+    post:
+      operationId: applyBulkBookmarkAction
+      summary: Apply one action to one or more explicit bookmark IDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkActionInput'
+      responses:
+        '200':
+          description: Per-item completion summary. Expected item ineligibility is reported rather than hidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionResult'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tags:
+    get:
+      operationId: suggestTags
+      summary: Suggest existing normalized tags while the user types
+      parameters:
+        - name: suggest
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 30
+        - name: excludeBookmarkId
+          in: query
+          description: Exclude tags already attached to this bookmark.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: At most eight prefix-first, then substring, stable suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 8
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /media/{assetId}:
+    get:
+      operationId: getMediaAsset
+      summary: Return one verified locally cached icon or preview image
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Image bytes with the stored allowlisted content type, immutable caching, and nosniff.
+          content:
+            image/png:
+              schema: { type: string, contentEncoding: binary }
+            image/jpeg:
+              schema: { type: string, contentEncoding: binary }
+            image/webp:
+              schema: { type: string, contentEncoding: binary }
+            image/gif:
+              schema: { type: string, contentEncoding: binary }
+            image/avif:
+              schema: { type: string, contentEncoding: binary }
+            image/x-icon:
+              schema: { type: string, contentEncoding: binary }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    ValidationError:
+      description: Request data failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        field:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [message]
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    SearchError:
+      type: object
+      additionalProperties: false
+      required: [code, message, query, offset, length]
+      properties:
+        code:
+          const: INVALID_SEARCH_QUERY
+        message:
+          type: string
+        query:
+          type: string
+        offset:
+          type: integer
+          minimum: 0
+        length:
+          type: integer
+          minimum: 1
+        expected:
+          type: array
+          items: { type: string }
+
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, label]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          minLength: 1
+          maxLength: 30
+
+    MetadataWarning:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - TITLE_FALLBACK
+            - DESCRIPTION_UNAVAILABLE
+            - ICON_UNAVAILABLE
+            - IMAGE_UNAVAILABLE
+            - FETCH_TIMEOUT
+            - FETCH_BLOCKED
+            - CONTENT_UNSUPPORTED
+            - RESPONSE_TOO_LARGE
+            - FETCH_FAILED
+        message:
+          type: string
+
+    MetadataPreview:
+      type: object
+      additionalProperties: false
+      required: [id, url, normalizedUrl, title, status, warnings, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        normalizedUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: [string, 'null']
+          maxLength: 500
+        iconUrl:
+          type: [string, 'null']
+          format: uri-reference
+          description: Same-origin `/api/media/{assetId}` URL when an icon was safely cached.
+        previewImageUrl:
+          type: [string, 'null']
+          format: uri-reference
+          description: Same-origin `/api/media/{assetId}` URL when an image was safely cached.
+        status:
+          type: string
+          enum: [complete, partial, failed, skipped, fallback]
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataWarning'
+        expiresAt:
+          type: string
+          format: date-time
+
+    LinkMark:
+      type: object
+      additionalProperties: false
+      required: [type, attrs]
+      properties:
+        type: { const: link }
+        attrs:
+          type: object
+          additionalProperties: false
+          required: [href]
+          properties:
+            href:
+              type: string
+              format: uri
+              maxLength: 2048
+
+    SimpleMark:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [bold, italic]
+
+    TextNode:
+      type: object
+      additionalProperties: false
+      required: [type, text]
+      properties:
+        type: { const: text }
+        text: { type: string }
+        marks:
+          type: array
+          uniqueItems: true
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/SimpleMark'
+              - $ref: '#/components/schemas/LinkMark'
+
+    ParagraphNode:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type: { const: paragraph }
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TextNode'
+
+    ListItemNode:
+      type: object
+      additionalProperties: false
+      required: [type, content]
+      properties:
+        type: { const: listItem }
+        content:
+          type: array
+          minItems: 1
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ParagraphNode'
+              - $ref: '#/components/schemas/ListNode'
+
+    ListNode:
+      type: object
+      additionalProperties: false
+      required: [type, content]
+      properties:
+        type:
+          type: string
+          enum: [bulletList, orderedList]
+        content:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ListItemNode'
+
+    NoteDocument:
+      type: object
+      additionalProperties: false
+      required: [type, content]
+      properties:
+        type: { const: doc }
+        content:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ParagraphNode'
+              - $ref: '#/components/schemas/ListNode'
+
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - url
+        - normalizedUrl
+        - title
+        - tags
+        - lifecycleState
+        - readingState
+        - metadataStatus
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        normalizedUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: [string, 'null']
+          maxLength: 500
+        noteDocument:
+          oneOf:
+            - $ref: '#/components/schemas/NoteDocument'
+            - type: 'null'
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/Tag'
+        lifecycleState:
+          type: string
+          enum: [active, archived]
+        readingState:
+          type: string
+          enum: [none, unread, read]
+        metadataStatus:
+          type: string
+          enum: [complete, partial, failed, skipped, fallback]
+        iconUrl:
+          type: [string, 'null']
+          format: uri-reference
+        previewImageUrl:
+          type: [string, 'null']
+          format: uri-reference
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        archivedAt:
+          type: [string, 'null']
+          format: date-time
+
+    BookmarkPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bookmark'
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+
+    CreateBookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        metadataPreviewId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Optional user override; the server uses preview or fallback title when omitted.
+        description:
+          type: [string, 'null']
+          maxLength: 500
+        noteDocument:
+          oneOf:
+            - $ref: '#/components/schemas/NoteDocument'
+            - type: 'null'
+        tagLabels:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+        readingState:
+          type: string
+          enum: [none, unread, read]
+          default: none
+
+    UpdateBookmarkInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        metadataPreviewId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: [string, 'null']
+          maxLength: 500
+        noteDocument:
+          oneOf:
+            - $ref: '#/components/schemas/NoteDocument'
+            - type: 'null'
+        tagLabels:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+        readingState:
+          type: string
+          enum: [none, unread, read]
+        lifecycleState:
+          type: string
+          enum: [active, archived]
+
+    BulkActionInput:
+      type: object
+      additionalProperties: false
+      required: [bookmarkIds, action]
+      properties:
+        bookmarkIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        action:
+          type: string
+          enum: [addTags, removeTags, markRead, markUnread, archive, restore, delete]
+        tagLabels:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          description: Required only for addTags and removeTags.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+        confirmed:
+          type: boolean
+          description: Must be true only for delete; delete also requires every affected bookmark to be archived.
+
+    BulkFailure:
+      type: object
+      additionalProperties: false
+      required: [bookmarkId, code, message]
+      properties:
+        bookmarkId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        message:
+          type: string
+
+    BulkActionResult:
+      type: object
+      additionalProperties: false
+      required: [requestedCount, changedIds, unchangedIds, failures]
+      properties:
+        requestedCount:
+          type: integer
+          minimum: 1
+          maximum: 100
+        changedIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        unchangedIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkFailure'

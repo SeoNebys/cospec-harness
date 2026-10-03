@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f4ec">
+  <title>Kept — your bookmark library</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell" id="app">
+    <aside class="sidebar">
+      <a class="brand" href="#" data-view="all" aria-label="Kept home"><span class="brand-mark">K</span><span>Kept</span></a>
+      <nav aria-label="Library">
+        <button class="nav-item active" data-view="all"><span>Library</span><span class="count" id="allCount">0</span></button>
+        <button class="nav-item" data-view="read-later"><span>Read later</span><span class="count" id="readCount">0</span></button>
+        <button class="nav-item" data-view="put-away"><span>Put away</span><span class="count" id="awayCount">0</span></button>
+      </nav>
+      <section class="side-section">
+        <div class="side-heading"><span>Saved searches</span><button class="icon-button" id="saveSearchSide" title="Save current search">+</button></div>
+        <div id="savedSearches" class="saved-searches"></div>
+      </section>
+      <div class="sidebar-spacer"></div>
+      <nav aria-label="Tools">
+        <button class="nav-item" id="importButton"><span>Import</span></button>
+        <button class="nav-item" id="exportButton"><span>Export</span></button>
+        <button class="nav-item" id="settingsButton"><span>Settings</span></button>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="main-header">
+        <div><p class="eyebrow">PERSONAL LIBRARY</p><h1 id="viewTitle">Your bookmarks</h1></div>
+        <p class="header-note" id="viewNote">A calm place for everything worth keeping.</p>
+      </header>
+
+      <form id="saveForm" class="save-panel">
+        <label for="urlInput">Save something worth keeping</label>
+        <div class="save-row"><input id="urlInput" name="url" type="text" inputmode="url" autocomplete="url" placeholder="Paste a web address…" required><button class="primary" type="submit">Save bookmark</button></div>
+        <div class="save-options"><label><input id="saveReadLater" type="checkbox"> Read later</label><span>We’ll gather the title, description, icon, and a saved copy.</span></div>
+        <p class="field-error" id="saveError" role="alert"></p>
+      </form>
+
+      <section class="find-panel" aria-label="Find bookmarks">
+        <div class="search-row"><span class="search-icon">⌕</span><input id="searchInput" type="search" placeholder="Search titles, descriptions, and addresses…"><button class="quiet" id="filtersButton" type="button" aria-expanded="false">Refine</button></div>
+        <div class="filters" id="filters" hidden>
+          <label>Exact phrase<input id="exactInput" type="text" placeholder="Words in this exact order"></label>
+          <label>Exclude a site<input id="excludeInput" type="text" placeholder="example.com"></label>
+          <fieldset><legend>Label is</legend><div id="filterLabels" class="label-options"></div></fieldset>
+          <label>For selected labels<select id="labelMode"><option value="any">Match any selected</option><option value="all">Match all selected</option></select></label>
+          <div class="filter-footer"><button id="clearFilters" class="text-button" type="button">Clear search</button><button id="saveSearch" class="secondary" type="button">Save this search</button></div>
+        </div>
+      </section>
+
+      <section class="list-toolbar">
+        <div><strong id="resultCount">0 bookmarks</strong><span id="activeSearchName" class="active-search"></span></div>
+        <div class="toolbar-actions"><button class="secondary" id="selectionToggle" type="button">Select bookmarks</button><label class="sort-control">Sort<select id="sortSelect"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></label></div>
+      </section>
+
+      <section class="bulk-bar" id="bulkBar" hidden aria-label="Batch actions">
+        <label><input type="checkbox" id="selectAll"> <span id="selectAllText">Select all results</span></label>
+        <strong id="selectedCount">0 selected</strong>
+        <div class="bulk-actions">
+          <button class="secondary" id="bulkLabels">Labels</button>
+          <button class="secondary" id="bulkReading">Reading</button>
+          <button class="secondary" id="bulkAway">Put away</button>
+          <button class="danger-quiet" id="bulkDelete">Delete</button>
+        </div>
+      </section>
+
+      <section id="bookmarkList" class="bookmark-list" aria-live="polite"></section>
+      <nav id="pagination" class="pagination" aria-label="Pages"></nav>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="editDialog"><form method="dialog" id="editForm"><div class="dialog-head"><div><p class="eyebrow">BOOKMARK DETAILS</p><h2>Edit bookmark</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><input type="hidden" id="editId"><label>Title<input id="editTitle" required></label><label>Description<textarea id="editDescription" rows="4"></textarea></label><label>Web address<input id="editUrl" type="url" required></label><p class="field-error" id="editError"></p><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="default" id="editSubmit" class="primary">Save changes</button></div></form></dialog>
+
+  <dialog id="confirmDialog"><form method="dialog"><div class="dialog-head"><div><p class="eyebrow">PERMANENT ACTION</p><h2 id="confirmTitle">Delete bookmark?</h2></div></div><p id="confirmText"></p><ul id="confirmNames" class="confirm-names"></ul><p class="warning">Saved page copies and original PDFs will be permanently removed too.</p><div class="dialog-actions"><button value="cancel" class="secondary">Keep bookmark</button><button value="confirm" class="danger">Delete permanently</button></div></form></dialog>
+
+  <dialog id="labelDialog"><form method="dialog"><div class="dialog-head"><div><p class="eyebrow">BATCH ACTION</p><h2>Update labels</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><div class="segmented"><label><input type="radio" name="labelDirection" value="add" checked> Add label</label><label><input type="radio" name="labelDirection" value="remove"> Remove label</label></div><label>Label<input id="bulkLabelInput" list="labelSuggestions" autocomplete="off" placeholder="Choose or type a label"></label><datalist id="labelSuggestions"></datalist><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="apply" class="primary">Apply to selected</button></div></form></dialog>
+
+  <dialog id="readingDialog"><form method="dialog"><div class="dialog-head"><div><p class="eyebrow">BATCH ACTION</p><h2>Reading status</h2></div></div><p>Choose how the selected bookmarks should appear in Read later.</p><div class="choice-stack"><button value="unread" class="secondary">Mark unread — add to Read later</button><button value="read" class="secondary">Mark read — clear from Read later</button></div><div class="dialog-actions"><button value="cancel" class="text-button">Cancel</button></div></form></dialog>
+
+  <dialog id="importDialog"><form method="dialog"><div class="dialog-head"><div><p class="eyebrow">BRING YOUR BOOKMARKS IN</p><h2>Import bookmarks</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><div id="importChoose"><p>Choose a browser bookmark HTML file or a Kept full backup. Nothing changes until you review and confirm.</p><label class="file-picker">Choose file<input id="importFile" type="file" accept=".html,.htm,.json"></label></div><div id="importPreview" hidden></div><p class="field-error" id="importError"></p><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button type="button" id="importCommit" class="primary" hidden>Import bookmarks</button></div></form></dialog>
+
+  <dialog id="exportDialog"><form method="dialog"><div class="dialog-head"><div><p class="eyebrow">YOUR DATA, YOUR COPY</p><h2>Export your library</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><div class="export-choice"><div><h3>Full, restorable backup</h3><p>Everything: details, labels, dates, reading and put-away states, saved pages, and original PDFs.</p><button type="button" id="fullBackup" class="primary">Download full backup</button></div><div><h3>Portable browser file</h3><p>Names and addresses, with labels as folders. Saved copies and PDFs are not included.</p><button type="button" id="browserExport" class="secondary">Download browser file</button></div></div><p class="field-error" id="exportError"></p></form></dialog>
+
+  <dialog id="settingsDialog"><form method="dialog" id="settingsForm"><div class="dialog-head"><div><p class="eyebrow">MAKE KEPT YOURS</p><h2>Comfort settings</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><label>Bookmarks per page<select id="settingPageSize"><option>25</option><option>50</option><option>100</option></select></label><label>Text size<select id="settingTextSize"><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="large">Larger</option></select></label><label>Default order<select id="settingSort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></label><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="save" class="primary">Save settings</button></div></form></dialog>
+
+  <dialog id="saveSearchDialog"><form method="dialog"><div class="dialog-head"><div><p class="eyebrow">QUICK WAY BACK</p><h2>Save this search</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div><label>Name<input id="savedSearchName" placeholder="e.g. Accessible design" required></label><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="save" class="primary">Save search</button></div></form></dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

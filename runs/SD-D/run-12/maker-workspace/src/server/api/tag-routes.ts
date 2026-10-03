@@ -1,0 +1,3 @@
+import{Router}from'express';import{z}from'zod';import type{TagRepository}from'../repositories/tag-repository.js';
+const querySchema=z.object({prefix:z.string().max(64).default(''),exclude:z.union([z.string(),z.array(z.string())]).optional(),limit:z.coerce.number().int().min(1).max(20).default(10)});
+export function tagRouter(repository:TagRepository){const router=Router();router.get('/',(req,res,next)=>{try{const query=querySchema.parse(req.query);const exclude=query.exclude===undefined?[]:Array.isArray(query.exclude)?query.exclude:[query.exclude];if(exclude.length>50)throw new Error('Too many exclusions');res.json({items:repository.suggest(query.prefix,exclude,query.limit)})}catch(error){next(error)}});return router}

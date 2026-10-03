@@ -1,0 +1,1 @@
+- [better-sqlite3 on Node 24](better-sqlite3-node24.md) — pin v13+ or it core-dumps on exit

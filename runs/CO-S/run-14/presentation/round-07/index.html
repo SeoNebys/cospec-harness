@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --muted:#6b7280; --faint:#9aa1ac; --accent:#2563eb; --accent-soft:#eff4ff; --chip:#eef2f7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:#1f2430; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .saver .row { display:flex; gap:10px; }
+  .saver input.url { flex:1; padding:11px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  input:focus, textarea:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .btn { padding:11px 18px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  .btn.sm { padding:6px 12px; font-size:13px; }
+  .savefields { margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--faint); margin-bottom:5px; }
+  .noteinput { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:13px; font-family:inherit; resize:vertical; }
+  .hint { color:var(--muted); font-size:12px; margin:10px 2px 0; }
+  .listhead { margin:26px 2px 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; }
+  .card.justadded { animation: pop 1s ease; border-color:var(--accent); }
+  @keyframes pop { 0%{background:var(--accent-soft);} 100%{background:var(--card);} }
+  .thumb { flex:0 0 96px; width:96px; height:72px; border-radius:8px; overflow:hidden; background:#eef1f5; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb.none { display:none; }
+  .body { flex:1; min-width:0; }
+  .titlerow { display:flex; align-items:center; gap:8px; }
+  .favi { flex:0 0 18px; width:18px; height:18px; border-radius:4px; }
+  .title { font-size:15px; font-weight:600; color:#111827; text-decoration:none; }
+  .title:hover { text-decoration:underline; }
+  .desc { color:#3f4653; font-size:13px; margin-top:5px; line-height:1.45; }
+  .note { color:#5b4636; background:#fff8ec; border:1px solid #f1e2c4; border-radius:7px; padding:6px 9px; font-size:12.5px; margin-top:8px; }
+  .tags { position:relative; margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chip { background:var(--chip); color:#374151; border-radius:999px; padding:3px 10px; font-size:12px; display:inline-flex; align-items:center; gap:6px; }
+  .chip .x { cursor:pointer; color:var(--faint); font-weight:700; }
+  .addtag, .addnote, .editnote { background:none; border:1px dashed var(--line); color:var(--muted); border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .taginput { border:1px solid var(--accent); border-radius:999px; padding:4px 11px; font-size:12px; width:150px; }
+  .suggest { position:absolute; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.08); margin-top:4px; min-width:150px; overflow:hidden; }
+  .suggest div { padding:7px 12px; font-size:13px; cursor:pointer; }
+  .suggest div.act, .suggest div:hover { background:var(--accent-soft); color:var(--accent); }
+  .suggest .new { color:var(--muted); }
+  .sub { color:var(--faint); font-size:12px; margin-top:9px; }
+  .sub .site { color:var(--muted); }
+  .filling { color:var(--accent); font-size:14px; font-weight:500; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A personal place to save links and find them again.</p>
+</header>
+<div class="wrap">
+  <div class="saver">
+    <div class="row">
+      <input class="url" id="url" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+      <button class="btn" id="save">Save</button>
+    </div>
+    <div class="savefields">
+      <div>
+        <div class="lbl">Tags (optional)</div>
+        <div class="tags" id="saveTags"></div>
+      </div>
+      <div>
+        <div class="lbl">Note (optional)</div>
+        <textarea class="noteinput" id="saveNote" rows="2" placeholder="Why are you saving this?"></textarea>
+      </div>
+    </div>
+    <div class="hint">Paste a link, optionally add tags and a note, then press Save. Tags suggest ones you already use.</div>
+  </div>
+
+  <div class="listhead">Saved</div>
+  <div id="list"></div>
+</div>
+
+<script>
+function ico(bg,g){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="'+bg+'"/><text x="16" y="22" font-family="Arial" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">'+g+'</text></svg>'); }
+function prev(c1,c2,l){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 144"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient></defs><rect width="192" height="144" fill="url(#g)"/><text x="96" y="80" font-family="Arial" font-size="16" fill="#fff" opacity="0.9" text-anchor="middle">'+l+'</text></svg>'); }
+const CANNED={
+  "github.com":{title:"torvalds/linux: Linux kernel source tree",site:"GitHub",desc:"The official mirror of the Linux kernel source, maintained by Linus Torvalds and contributors.",icon:ico('#24292f','G'),preview:prev('#2b3137','#57606a','GitHub')},
+  "nytimes.com":{title:"How Cities Are Rethinking Public Space",site:"The New York Times",desc:"Planners are turning parking lots and empty lots into parks, plazas and community gardens.",icon:ico('#000','T'),preview:prev('#4b6cb7','#182848','NYT')},
+  "en.wikipedia.org":{title:"Photosynthesis — Wikipedia",site:"Wikipedia",desc:"The process by which green plants convert light energy into chemical energy stored in glucose.",icon:ico('#111','W'),preview:null},
+  "medium.com":{title:"The Quiet Power of Note-Taking",site:"Medium",desc:"Why writing things down changes how you think, not just what you remember.",icon:ico('#000','M'),preview:prev('#3a3a3a','#111','Medium')},
+};
+function domainOf(raw){ try{ let u=new URL(raw.includes("://")?raw:"https://"+raw); return u.hostname.replace(/^www\./,""); }catch(e){ return null; } }
+function titleCase(s){ return s.replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase()); }
+function guessMeta(raw){ const h=domainOf(raw); if(!h) return null; if(CANNED[h]) return CANNED[h];
+  let site=titleCase(h.split(".")[0]); let title;
+  try{ const u=new URL(raw.includes("://")?raw:"https://"+raw); const seg=u.pathname.split("/").filter(Boolean).pop(); title=seg?titleCase(decodeURIComponent(seg).replace(/\.\w+$/,""))+" — "+site:site+" — Home"; }catch(e){ title=site; }
+  return {title,site,desc:"A page on "+site+". A short description is pulled from the page when available.",icon:ico('#2563eb',site.charAt(0).toUpperCase()),preview:null}; }
+
+let items=[
+  { id:2, title:"A Field Guide to Getting Lost", site:"Longreads", desc:"Rebecca Solnit on wandering, uncertainty, and the value of not knowing where you are headed.", url:"https://longreads.com/field-guide", icon:ico('#e2574c','L'), preview:prev('#e2574c','#8a2b24','Longreads'), when:"2 days ago", tags:["reading","essays"], note:"" },
+  { id:1, title:"CSS Grid: A Complete Guide", site:"CSS-Tricks", desc:"A comprehensive reference to every property in the CSS Grid layout module, with visual examples.", url:"https://css-tricks.com/snippets/css/complete-guide-grid", icon:ico('#ff7f50','C'), preview:null, when:"5 days ago", tags:["dev","reference"], note:"Bookmark for the grid layout at work." },
+];
+let nextId=3;
+const listEl=document.getElementById("list");
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function allTags(){ const s=new Set(); items.forEach(it=>(it.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+
+// ---- reusable tag chip-input with suggestions ----
+// container: element; getList: ()=>array; onchange: ()=>render
+function mountTagInput(container, arr){
+  container.innerHTML="";
+  arr.forEach((t,i)=>{ const s=document.createElement("span"); s.className="chip"; s.innerHTML=esc(t)+' <span class="x">×</span>'; s.querySelector(".x").onclick=()=>{ arr.splice(i,1); mountTagInput(container,arr); }; container.appendChild(s); });
+  const inp=document.createElement("input"); inp.className="taginput"; inp.placeholder="add tag…"; container.appendChild(inp);
+  let sug=null, act=-1;
+  function closeSug(){ if(sug){ sug.remove(); sug=null; act=-1; } }
+  function add(t){ t=t.trim().replace(/,$/,""); if(t && !arr.includes(t)){ arr.push(t); } mountTagInput(container,arr); const ni=container.querySelector(".taginput"); if(ni) ni.focus(); }
+  function showSug(){
+    closeSug();
+    const q=inp.value.trim().toLowerCase(); if(!q) return;
+    const matches=allTags().filter(t=>t.toLowerCase().includes(q) && !arr.includes(t));
+    sug=document.createElement("div"); sug.className="suggest";
+    matches.slice(0,6).forEach((m,i)=>{ const d=document.createElement("div"); d.textContent=m; d.onmousedown=e=>{ e.preventDefault(); add(m); }; sug.appendChild(d); });
+    const exact=allTags().some(t=>t.toLowerCase()===q);
+    if(!exact){ const d=document.createElement("div"); d.className="new"; d.textContent='Create “'+inp.value.trim()+'”'; d.onmousedown=e=>{ e.preventDefault(); add(inp.value); }; sug.appendChild(d); }
+    if(sug.children.length){ container.appendChild(sug); } else { closeSug(); }
+  }
+  inp.addEventListener("input", showSug);
+  inp.addEventListener("keydown", e=>{
+    const opts=sug?[...sug.children]:[];
+    if(e.key==="ArrowDown"){ if(opts.length){ e.preventDefault(); act=(act+1)%opts.length; opts.forEach((o,i)=>o.classList.toggle("act",i===act)); } }
+    else if(e.key==="ArrowUp"){ if(opts.length){ e.preventDefault(); act=(act-1+opts.length)%opts.length; opts.forEach((o,i)=>o.classList.toggle("act",i===act)); } }
+    else if(e.key==="Enter"||e.key===","){ e.preventDefault(); if(act>=0&&opts[act]){ opts[act].dispatchEvent(new MouseEvent("mousedown")); } else if(inp.value.trim()){ add(inp.value); } }
+    else if(e.key==="Escape"){ closeSug(); }
+  });
+  inp.addEventListener("blur", ()=>setTimeout(closeSug,120));
+}
+
+let saveTags=[];
+mountTagInput(document.getElementById("saveTags"), saveTags);
+
+function render(justId){
+  listEl.innerHTML="";
+  items.forEach(it=>{
+    const card=document.createElement("div"); card.className="card"+(it.id===justId?" justadded":"");
+    if(it.filling){ card.innerHTML='<div class="thumb none"></div><div class="body"><div class="filling">Getting details…</div></div>'; listEl.appendChild(card); return; }
+    const thumb=it.preview?'<div class="thumb"><img alt="" src="'+it.preview+'"></div>':'<div class="thumb none"></div>';
+    const body=document.createElement("div"); body.className="body";
+    body.innerHTML='<div class="titlerow"><img class="favi" alt="" src="'+it.icon+'"><a class="title" href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></div>'+
+      '<div class="desc">'+esc(it.desc)+'</div>';
+    // note
+    const noteWrap=document.createElement("div");
+    if(it._noteediting){ noteWrap.innerHTML='<div style="margin-top:8px;"><textarea class="noteinput" rows="2" placeholder="Why did you save this?">'+esc(it.note||"")+'</textarea><button class="btn sm" style="margin-top:6px;">Save note</button></div>';
+      noteWrap.querySelector(".btn").onclick=()=>{ it.note=noteWrap.querySelector("textarea").value.trim(); it._noteediting=false; render(); }; }
+    else if(it.note){ noteWrap.innerHTML='<div class="note">📝 '+esc(it.note)+' <span class="editnote" style="margin-left:6px;">edit</span></div>'; noteWrap.querySelector(".editnote").onclick=()=>{ it._noteediting=true; render(); }; }
+    else { noteWrap.innerHTML='<div style="margin-top:8px;"><button class="addnote">＋ Note</button></div>'; noteWrap.querySelector(".addnote").onclick=()=>{ it._noteediting=true; render(); }; }
+    body.appendChild(noteWrap);
+    // tags (editable, with suggestions)
+    const tagsWrap=document.createElement("div"); tagsWrap.className="tags";
+    body.appendChild(tagsWrap);
+    mountTagInput(tagsWrap, it.tags);
+    const sub=document.createElement("div"); sub.className="sub"; sub.innerHTML='<span class="site">'+esc(it.site)+'</span> · saved '+(it.when||"just now");
+    body.appendChild(sub);
+    card.innerHTML=thumb; card.appendChild(body);
+    listEl.appendChild(card);
+  });
+}
+
+const input=document.getElementById("url"), saveBtn=document.getElementById("save");
+function doSave(){
+  const raw=input.value.trim(); if(!raw) return; const meta=guessMeta(raw); if(!meta){ input.focus(); return; }
+  saveBtn.disabled=true;
+  const full=raw.includes("://")?raw:"https://"+raw;
+  const item={ id:nextId++, url:full, when:"just now", filling:true, tags:saveTags.slice(), note:document.getElementById("saveNote").value.trim() };
+  items.unshift(item); render();
+  setTimeout(()=>{
+    item.title=meta.title; item.site=meta.site; item.desc=meta.desc; item.icon=meta.icon; item.preview=meta.preview; item.filling=false;
+    render(item.id);
+    input.value=""; saveBtn.disabled=false;
+    saveTags=[]; mountTagInput(document.getElementById("saveTags"), saveTags);
+    document.getElementById("saveNote").value="";
+  },700);
+}
+saveBtn.addEventListener("click",doSave);
+input.addEventListener("keydown",e=>{ if(e.key==="Enter") doSave(); });
+
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

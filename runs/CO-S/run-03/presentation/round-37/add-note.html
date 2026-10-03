@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Notes prototype</title>
+  <style>
+    :root { color-scheme:light; --ink:#17211d; --muted:#68736e; --line:#dce3df; --paper:#fbfcfa; --green:#245c45; --green-soft:#e7f1eb; --cream:#f3f0e8; --note:#f5f1df; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { height:68px; display:flex; align-items:center; border-bottom:1px solid var(--line); }
+    .shell { width:min(920px,calc(100% - 48px)); margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; font-size:18px; }
+    .mark { width:29px; height:34px; border-radius:4px 4px 9px 9px; background:var(--green); }
+    main { padding:58px 0; }
+    .eyebrow { color:var(--green); font-weight:700; font-size:12px; letter-spacing:.11em; text-transform:uppercase; }
+    h1 { margin:8px 0 28px; font:600 40px/1.08 Georgia,serif; letter-spacing:-.03em; }
+    .tag-bar { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-bottom:22px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:white; }
+    .tag-bar strong { margin-right:5px; font-size:13px; }
+    .tag { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:999px; background:var(--green-soft); color:var(--green); font-size:12px; font-weight:680; }
+    .library-head { display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:13px; }
+    h2 { margin:0; font-size:17px; }
+    .count { color:var(--muted); font-size:13px; }
+    .card { display:grid; grid-template-columns:58px 1fr auto; gap:16px; padding:22px 4px; border-bottom:1px solid var(--line); align-items:start; }
+    .thumb { width:58px; height:58px; display:grid; place-items:center; border-radius:12px; background:var(--cream); color:var(--green); font:700 22px Georgia,serif; }
+    .domain { color:var(--green); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .title { margin:3px 0; font:600 20px/1.25 Georgia,serif; }
+    .summary { margin:0; color:var(--muted); }
+    .card-tags { display:flex; gap:6px; margin-top:10px; }
+    .note { display:none; margin:13px 0 0; padding:10px 12px; border-left:3px solid #c8b86c; border-radius:0 7px 7px 0; background:var(--note); }
+    .note.visible { display:block; }
+    .note strong { display:block; margin-bottom:2px; color:#6d5f22; font-size:11px; text-transform:uppercase; letter-spacing:.07em; }
+    button { height:40px; padding:0 15px; border:1px solid #bdc9c2; border-radius:8px; background:white; color:var(--ink); font:650 14px inherit; cursor:pointer; }
+    button.primary { border-color:var(--green); background:var(--green); color:white; }
+    .editor { display:none; grid-column:2 / 4; padding:18px; border-radius:11px; background:#f3f6f4; }
+    .editor.visible { display:block; }
+    label { display:block; margin:0 0 6px; font-weight:680; }
+    input,textarea { width:100%; padding:10px 12px; border:1px solid #bdc9c2; border-radius:8px; background:white; color:var(--ink); font:inherit; }
+    input.invalid { border-color:#a33a31; box-shadow:0 0 0 3px rgba(163,58,49,.1); }
+    .field-error { display:none; margin:5px 0 0; color:#a33a31; font-size:12px; }
+    .field-error.visible { display:block; }
+    textarea { min-height:72px; resize:vertical; }
+    .field + .field { margin-top:14px; }
+    .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+    @media(max-width:620px){.shell{width:min(100% - 28px,920px)}.card{grid-template-columns:48px 1fr}.thumb{width:48px;height:48px}.edit-button{grid-column:2}.editor{grid-column:1 / 3}}
+  </style>
+</head>
+<body>
+  <header><div class="shell brand"><span class="mark" aria-hidden="true"></span><span>Keep</span></div></header>
+  <main class="shell" data-harness-ready="true">
+    <div class="eyebrow">Your bookmark library</div><h1>All bookmarks</h1>
+    <nav class="tag-bar" aria-label="Filter by tag"><strong>Filter by tag</strong><span class="tag">design</span><span class="tag">work</span></nav>
+    <section>
+      <div class="library-head"><h2>Saved</h2><span class="count">1 bookmark</span></div>
+      <article class="card">
+        <div class="thumb">D</div>
+        <div><div class="domain">example.com</div><h3 class="title">Design systems, without the jargon</h3><p class="summary">A practical guide to reusable foundations and shared patterns.</p><div class="card-tags"><span class="tag">design</span><span class="tag">work</span></div><div class="note" id="shown-note"><strong>Your note</strong><span id="note-text"></span></div></div>
+        <button class="edit-button" id="edit-button" type="button">Edit details</button>
+        <form class="editor" id="editor">
+          <div class="field"><label for="title">Title</label><input id="title" value="Design systems, without the jargon"><p class="field-error" id="title-error" role="alert">Add a title so you can recognize this bookmark later.</p></div>
+          <div class="field"><label for="summary">Summary</label><textarea id="summary">A practical guide to reusable foundations and shared patterns.</textarea></div>
+          <div class="field"><label for="note">Your note</label><textarea id="note" placeholder="Add a reminder or thought about this bookmark"></textarea></div>
+          <div class="actions"><button id="cancel" type="button">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+        </form>
+      </article>
+    </section>
+  </main>
+  <script>
+    const editor = document.querySelector('#editor'); const edit = document.querySelector('#edit-button');
+    edit.addEventListener('click',()=>{editor.classList.add('visible');edit.hidden=true;document.querySelector('#note').focus()});
+    document.querySelector('#cancel').addEventListener('click',()=>{editor.classList.remove('visible');edit.hidden=false});
+    editor.addEventListener('submit',(event)=>{event.preventDefault();const title=document.querySelector('#title');const error=document.querySelector('#title-error');if(!title.value.trim()){title.classList.add('invalid');error.classList.add('visible');title.focus();return}title.classList.remove('invalid');error.classList.remove('visible');document.querySelector('.title').textContent=title.value.trim();document.querySelector('.summary').textContent=document.querySelector('#summary').value.trim();const note=document.querySelector('#note').value.trim();document.querySelector('#note-text').textContent=note;document.querySelector('#shown-note').classList.toggle('visible',Boolean(note));editor.classList.remove('visible');edit.hidden=false});
+  </script>
+</body>
+</html>

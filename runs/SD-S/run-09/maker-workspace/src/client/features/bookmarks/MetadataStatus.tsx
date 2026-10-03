@@ -1,0 +1,2 @@
+import type { Bookmark } from "../../../shared/contracts/bookmarks.js";
+export function MetadataStatus({bookmark,onRetry}:{bookmark:Bookmark;onRetry:()=>void}){if(bookmark.metadataStatus==="ready")return null;return <span className={`metadata-status ${bookmark.metadataStatus}`}>{bookmark.metadataStatus==="pending"?"Fetching details…":bookmark.metadataStatus==="partial"?"Some details unavailable":"Details unavailable"}{bookmark.metadataStatus!=="pending"&&<button onClick={onRetry}>Retry</button>}</span>;}

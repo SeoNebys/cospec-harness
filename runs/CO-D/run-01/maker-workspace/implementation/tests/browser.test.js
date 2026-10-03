@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { createApp, normalizeUrl } from '../server.js';
+
+test('approved core browser journey', async t => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'keep-browser-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const metadataFetcher = async url => ({ url: normalizeUrl(url), title: 'The PARA Method', description: 'A system for organizing digital information.', siteName: 'example.com', icon: '', image: '', fetched: true });
+  const server = createApp({ dataFile: path.join(directory, 'data.json'), metadataFetcher }).listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const executablePath = '/opt/playwright-browsers/chromium-1228/chrome-linux64/chrome';
+  const browser = await chromium.launch({ headless: true, executablePath });
+  t.after(async () => { await browser.close(); server.closeAllConnections(); server.close(); });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  page.setDefaultTimeout(7000);
+  await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await page.locator('#addButton').click(); await page.locator('#urlInput').fill('https://example.com/para'); await page.locator('#fetchButton').click();
+  await page.locator('#reviewTitle').fill('My PARA reference'); await page.locator('#saveNew').click();
+  await assert.doesNotReject(() => page.getByText('My PARA reference').waitFor());
+  await page.locator('[data-menu]').click(); await page.getByText('Edit details').click();
+  await page.locator('#noteEditor').fill('Use this when I reorganize research.'); await page.locator('#labelSearch').fill('Research'); await page.locator('#createLabel').click(); await page.getByText('Save changes').click(); await page.getByText('Changes saved').waitFor();
+  await page.locator('#search').fill('REORGANIZE'); assert.equal(await page.locator('.bookmark-card').count(), 1);
+  await page.locator('#search').fill('does not exist'); await page.locator('#emptyState:not([hidden])').waitFor(); assert.equal(await page.locator('#emptyTitle').textContent(), 'No bookmarks match that search');
+  await page.locator('#search').fill(''); await page.locator('[data-later]').click(); await page.locator('[data-view="later"]').click(); assert.equal(await page.locator('.bookmark-card').count(), 1);
+  await page.locator('[data-later]').click(); await assert.doesNotReject(() => page.getByText('You’re all caught up').waitFor());
+  await page.locator('[data-view="all"]').click(); await page.locator('[data-menu]').click(); await page.getByText('Archive', { exact: true }).last().click();
+  await page.locator('[data-view="archive"]').click(); assert.equal(await page.locator('.bookmark-card').count(), 1);
+  await page.locator('[data-menu]').click(); await page.getByText('Restore to All bookmarks').click(); await page.locator('[data-view="all"]').click();
+  await page.locator('[data-menu]').click(); await page.getByText('Delete', { exact: true }).click(); await page.getByText('Delete bookmark').click();
+  await assert.doesNotReject(() => page.getByText('Nothing saved yet').waitFor());
+});

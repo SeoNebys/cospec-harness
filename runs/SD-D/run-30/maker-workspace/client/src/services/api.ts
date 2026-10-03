@@ -1,0 +1,3 @@
+import type { ApiProblem } from '@bookmarks/shared';
+export class ApiError extends Error{constructor(public problem:ApiProblem,public status:number){super(problem.message)}}
+export async function api<T>(path:string,init?:RequestInit):Promise<T>{const response=await fetch(`/api${path}`,{...init,headers:{'content-type':'application/json',...init?.headers}});if(!response.ok){let problem:ApiProblem;try{problem=await response.json()}catch{problem={code:'REQUEST_FAILED',message:'The request could not be completed'}}throw new ApiError(problem,response.status)}if(response.status===204)return undefined as T;return response.json()}

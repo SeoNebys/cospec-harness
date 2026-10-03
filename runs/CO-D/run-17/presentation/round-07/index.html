@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Link Library — prototype</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --card: #ffffff; --ink: #2b2b2b; --muted: #8a8a83; --line: #e7e5df;
+    --accent: #5b6cff; --accent-soft: #eef0ff; --danger: #c0392b;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.5; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
+  header h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -.01em; }
+  header p { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+
+  .saver { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+    box-shadow: var(--shadow); display: flex; gap: 10px; align-items: center; transition: border-color .15s; }
+  .saver.invalid { border-color: var(--danger); }
+  .saver input { flex: 1; border: none; outline: none; font-size: 15px; background: transparent; color: var(--ink); padding: 8px 6px; }
+  .saver input::placeholder { color: #b6b4ac; }
+  .saver button { border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+    padding: 10px 18px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+
+  .status { min-height: 20px; margin: 12px 2px 0; font-size: 13px; color: var(--muted); }
+  .status.error { color: var(--danger); }
+  .status.info { color: var(--accent); }
+
+  .draft { margin-top: 16px; background: var(--card); border: 1px solid var(--accent); border-radius: 16px;
+    box-shadow: var(--shadow); overflow: hidden; animation: rise .22s ease; }
+  .draft .banner { background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; padding: 8px 18px; }
+  .draft .body { padding: 18px; }
+  .preview { height: 150px; border-radius: 12px; margin-bottom: 16px; display: flex; align-items: flex-end; padding: 10px 12px; color: #fff; font-size: 11px; }
+  .preview .tag { background: rgba(0,0,0,.28); padding: 3px 8px; border-radius: 20px; }
+
+  .pills { display: flex; gap: 8px; margin-bottom: 16px; }
+  .pill { border: 1px solid var(--line); background: #fff; color: #5f5e57; font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+  .pill.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .pilllabel { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: .02em; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; letter-spacing: .02em; }
+  .field input, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; font-family: inherit; color: var(--ink); background: #fcfcfb; outline: none; resize: vertical; }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .field input.err { border-color: var(--danger); }
+  .fielderr { color: var(--danger); font-size: 12px; margin-top: 5px; }
+  .suggest { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .suggest b { color: #5f5e57; font-weight: 600; }
+  .suggest button { background: none; border: none; color: var(--accent); font-weight: 600; font-size: 12px; cursor: pointer; padding: 0 0 0 2px; }
+  .rowbtn { display: flex; gap: 8px; align-items: center; }
+  .srcline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 14px 0 16px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 10px; }
+  .btn-primary { border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; padding: 10px 18px; border-radius: 10px; cursor: pointer; }
+  .btn-ghost { border: 1px solid var(--line); background: #fff; color: #5f5e57; font-weight: 500; font-size: 14px; padding: 10px 16px; border-radius: 10px; cursor: pointer; }
+  .btn-small { border: 1px solid var(--line); background: #fff; color: var(--accent); font-weight: 600; font-size: 13px; padding: 9px 14px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+
+  .favicon { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700; flex: none; }
+
+  .filters { display: flex; gap: 6px; margin: 30px 0 0; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+  .filter { border: none; background: none; color: var(--muted); font-size: 13px; font-weight: 600; padding: 10px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .filter.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .filter .n { color: var(--muted); font-weight: 500; }
+
+  .count { margin: 18px 2px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .empty { margin-top: 30px; text-align: center; color: var(--muted); font-size: 14px; padding: 40px 20px; }
+  .empty .big { font-size: 15px; color: #6f6d66; margin-bottom: 6px; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  li.item { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0; box-shadow: var(--shadow); animation: rise .25s ease; overflow: hidden; }
+  li.item.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .item .thumb { height: 120px; }
+  .item .content { padding: 15px 18px; }
+  .item .title { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .item .title a { color: var(--ink); text-decoration: none; }
+  .item .title a:hover { text-decoration: underline; }
+  .item.isread .title a { color: #6f6d66; }
+  .item .desc { font-size: 14px; color: #5f5e57; margin: 0 0 10px; }
+  .item .meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .item .meta .dot { opacity: .5; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .badge.toread { background: #fff4e5; color: #b9791f; }
+  .badge.reference { background: #e9f3ee; color: #2f7d54; }
+  .badge.read { background: #efefec; color: #8a8a83; }
+  .item .act { margin-left: auto; display: flex; gap: 4px; }
+  .item .linkbtn { color: var(--accent); font-size: 12px; font-weight: 600; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  .item .linkbtn.plain { color: var(--muted); }
+  .item .linkbtn:hover { background: var(--accent-soft); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>My Link Library</h1>
+      <p>A calm place for links worth keeping.</p>
+    </header>
+
+    <form class="saver" id="saver" autocomplete="off">
+      <input id="url" type="text" placeholder="Paste a link and press Save…" aria-label="Link address" />
+      <button id="saveBtn" type="submit">Save</button>
+    </form>
+    <div class="status" id="status"></div>
+
+    <div id="draftMount"></div>
+
+    <div class="filters" id="filters"></div>
+    <div class="count" id="count" hidden></div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty"></div>
+  </div>
+
+<script>
+  const TODAY = "Sep 24, 2026";
+  const KNOWN = {
+    "nytimes.com":     { site: "The New York Times", title: "How Deep-Sea Cables Quietly Run the Internet", desc: "A look at the fragile undersea network carrying nearly all of the world's data traffic.", image: true },
+    "wikipedia.org":   { site: "Wikipedia", title: "Zettelkasten — the note-taking method", desc: "A system of interconnected notes used by researchers and writers to develop ideas over time.", image: false },
+    "github.com":      { site: "GitHub", title: "sqlite/sqlite: the most-deployed database engine", desc: "Source mirror of SQLite, a small, fast, self-contained SQL database engine.", image: false },
+    "css-tricks.com":  { site: "CSS-Tricks", title: "A Complete Guide to Flexbox", desc: "Everything you need to lay out elements along a row or column, with clear diagrams.", image: true },
+    "arstechnica.com": { site: "Ars Technica", title: "The Quiet Revival of the RSS Reader", desc: "Why a decades-old technology is finding new life among readers tired of algorithms.", image: true }
+  };
+  function colorFor(s){ let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))%360; return h; }
+  function grad(d){ const h=colorFor(d||"x"); return `linear-gradient(135deg, hsl(${h} 60% 55%), hsl(${(h+40)%360} 55% 42%))`; }
+  function normalize(raw){
+    raw = (raw||"").trim();
+    if(!raw || /\s/.test(raw)) return { ok:false };
+    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : "https://" + raw;
+    let u; try { u = new URL(withScheme); } catch(e){ return { ok:false }; }
+    if(!/^https?:$/.test(u.protocol)) return { ok:false };
+    if(!u.hostname.includes(".") || u.hostname.split(".").some(p => p.length === 0)) return { ok:false };
+    return { ok:true, url:u.href, domain:u.hostname.replace(/^www\./,"") };
+  }
+  function lookup(domain){
+    if(KNOWN[domain]) return { ...KNOWN[domain], domain };
+    const name = domain.split(".")[0];
+    return { site: domain, title: name.charAt(0).toUpperCase()+name.slice(1)+" — saved page", desc:"", image:false, domain };
+  }
+
+  let items = [];
+  let draft = null;
+  let filter = "all";                 // all | toread | reference
+  const listEl = document.getElementById("list");
+  const emptyEl = document.getElementById("empty");
+  const countEl = document.getElementById("count");
+  const statusEl = document.getElementById("status");
+  const urlEl = document.getElementById("url");
+  const saverEl = document.getElementById("saver");
+  const draftMount = document.getElementById("draftMount");
+  const filtersEl = document.getElementById("filters");
+
+  function setStatus(msg, kind){ statusEl.textContent = msg || ""; statusEl.className = "status" + (kind ? " "+kind : ""); }
+  function esc(s){ return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function favEl(o){ return `<span class="favicon" style="background:${grad(o.domain)}">${esc((o.site||"?").charAt(0).toUpperCase())}</span>`; }
+
+  const inToRead = it => it.shelf === "toread" && !it.read;
+  const counts = () => ({
+    all: items.length,
+    toread: items.filter(inToRead).length,
+    reference: items.filter(it => it.shelf === "reference").length
+  });
+  function visible(){
+    if(filter === "toread") return items.filter(inToRead);
+    if(filter === "reference") return items.filter(it => it.shelf === "reference");
+    return items;
+  }
+
+  // ---------- Save flow ----------
+  saverEl.addEventListener("submit", function(e){
+    e.preventDefault();
+    const n = normalize(urlEl.value);
+    if(!n.ok){ saverEl.classList.add("invalid");
+      setStatus("That doesn't look like a usable web address. Try something like nytimes.com or https://example.com/article.", "error"); return; }
+    saverEl.classList.remove("invalid");
+    const existing = items.find(it => it.url === n.url);
+    if(existing){ setStatus("This link is already in your library — opening it so you can edit it.", "info");
+      urlEl.value = ""; draft = null; renderDraft(); startEdit(existing.id, true); return; }
+    setStatus("Looking up the page details…"); urlEl.value = "";
+    draft = { url:n.url, domain:n.domain, loading:true }; renderDraft();
+    setTimeout(() => {
+      const meta = lookup(n.domain);
+      draft = { url:n.url, domain:n.domain, loading:false, title:meta.title, desc:meta.desc, site:meta.site, image:meta.image, savedAt:TODAY, shelf:"toread" };
+      setStatus(""); renderDraft();
+      const t = document.getElementById("draftTitle"); if(t) t.focus();
+    }, 800);
+  });
+
+  function shelfPills(current, kind){
+    return `<div class="pilllabel">Add to</div><div class="pills">
+      <button type="button" class="pill ${current==='toread'?'active':''}" data-shelf="toread" data-kind="${kind}">📖 To read</button>
+      <button type="button" class="pill ${current==='reference'?'active':''}" data-shelf="reference" data-kind="${kind}">🔖 Reference</button></div>`;
+  }
+
+  function renderDraft(){
+    draftMount.innerHTML = "";
+    if(!draft) return;
+    const d = document.createElement("div"); d.className = "draft";
+    if(draft.loading){
+      d.innerHTML = `<div class="banner">Reviewing before saving</div><div class="body">
+        <div class="favicon" style="display:none"></div>
+        <div style="height:150px;border-radius:12px;margin-bottom:16px;background:#f0efec"></div></div>`;
+    } else {
+      d.innerHTML = `<div class="banner">Review &amp; adjust before saving</div><div class="body">
+        ${draft.image ? `<div class="preview" style="background:${grad(draft.domain)}"><span class="tag">Preview image from the page</span></div>` : ``}
+        ${shelfPills(draft.shelf, "draft")}
+        <div class="field"><label for="draftTitle">Title</label><input id="draftTitle" type="text" value="${esc(draft.title)}" /></div>
+        <div class="field"><label for="draftDesc">Description</label><textarea id="draftDesc" rows="2">${esc(draft.desc)}</textarea></div>
+        <div class="srcline">${favEl(draft)}<span>${esc(draft.site)}</span><span class="dot">·</span><span>${esc(draft.domain)}</span><span class="dot">·</span><span>Saved ${draft.savedAt}</span></div>
+        <div class="actions"><button class="btn-primary" id="draftSave">Save to library</button><button class="btn-ghost" id="draftCancel">Cancel</button></div></div>`;
+    }
+    draftMount.appendChild(d);
+    wireShelfPills();
+    const s = document.getElementById("draftSave"), c = document.getElementById("draftCancel");
+    if(s) s.onclick = confirmDraft;
+    if(c) c.onclick = () => { draft = null; renderDraft(); setStatus(""); };
+  }
+  function wireShelfPills(){
+    document.querySelectorAll("[data-shelf]").forEach(b => b.onclick = () => {
+      const kind = b.dataset.kind, shelf = b.dataset.shelf;
+      if(kind === "draft"){ draft.shelf = shelf; }
+      else { const it = items.find(x => x.id === kind); if(it){ stashFields(it); it.editShelf = shelf; } }
+      // toggle sibling active states
+      b.parentElement.querySelectorAll(".pill").forEach(p => p.classList.toggle("active", p === b));
+    });
+  }
+
+  function confirmDraft(){
+    const title = document.getElementById("draftTitle").value.trim() || draft.domain;
+    const desc = document.getElementById("draftDesc").value.trim();
+    const item = { id: Date.now()+"-"+Math.random().toString(36).slice(2,6),
+      url:draft.url, domain:draft.domain, site:draft.site, title, desc, image:draft.image, savedAt:draft.savedAt,
+      shelf: draft.shelf, read:false };
+    items.unshift(item);
+    draft = null; renderDraft();
+    setStatus("Saved to your library.", "info"); render(item.id);
+    setTimeout(() => { if(statusEl.textContent === "Saved to your library.") setStatus(""); }, 2600);
+  }
+
+  // ---------- Reading status ----------
+  function markRead(id){ const it = items.find(x=>x.id===id); if(it){ it.read = true; render(); } }
+  function markUnread(id){ const it = items.find(x=>x.id===id); if(it){ it.read = false; it.shelf = "toread"; render(); } }
+
+  // ---------- Edit later ----------
+  function startEdit(id, flash){
+    const it = items.find(x => x.id === id); if(!it) return;
+    if(filter === "toread" && !inToRead(it)) filter = "all"; // keep it visible while editing
+    it.editing = true; it.editAddr = it.url; it.fetchedFor = it.url; it.suggest = null; it.addrErr = ""; it.editShelf = it.shelf;
+    render(flash ? id : null);
+    const t = document.getElementById("edit-title-"+id); if(t) t.focus({preventScroll:true});
+    const card = document.getElementById("card-"+id); if(card) card.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+  function fetchNewAddress(id){
+    const it = items.find(x => x.id === id); if(!it) return; stashFields(it);
+    const n = normalize(it.editAddr);
+    if(!n.ok){ it.addrErr = "That doesn't look like a usable web address."; render(); return; }
+    if(n.url !== it.url && items.some(o => o.id !== it.id && o.url === n.url)){ it.addrErr = "Another saved link already uses that address."; render(); return; }
+    it.addrErr = "";
+    if(n.url === it.url){ it.fetchedFor = it.url; it.suggest = null; render(); return; }
+    it.suggest = lookup(n.domain); it.fetchedFor = n.url; render();
+  }
+  function stashFields(it){
+    const t = document.getElementById("edit-title-"+it.id), d = document.getElementById("edit-desc-"+it.id), a = document.getElementById("edit-addr-"+it.id);
+    if(t) it.tmpTitle = t.value; if(d) it.tmpDesc = d.value; if(a) it.editAddr = a.value;
+  }
+  function saveEdit(id){
+    const it = items.find(x => x.id === id); if(!it) return; stashFields(it);
+    const n = normalize(it.editAddr);
+    if(!n.ok){ it.addrErr = "That doesn't look like a usable web address."; render(); return; }
+    if(n.url !== it.url && items.some(o => o.id !== it.id && o.url === n.url)){ it.addrErr = "Another saved link already uses that address."; render(); return; }
+    if(n.url !== it.url && it.fetchedFor !== n.url){ it.addrErr = "You changed the address — press “Fetch page details” to review the new page first."; render(); return; }
+    it.title = (it.tmpTitle ?? it.title).trim() || n.domain;
+    it.desc = (it.tmpDesc ?? it.desc).trim();
+    if(n.url !== it.url && it.suggest){ it.site = it.suggest.site; it.image = it.suggest.image; }
+    it.url = n.url; it.domain = n.domain;
+    if(it.editShelf && it.editShelf !== it.shelf){ it.shelf = it.editShelf; if(it.shelf === "reference") it.read = false; }
+    it.editing = false; it.suggest = null; it.tmpTitle = it.tmpDesc = undefined; it.addrErr = "";
+    render(id);
+  }
+
+  function renderFilters(){
+    const c = counts();
+    const defs = [["all","All",c.all],["toread","To read",c.toread],["reference","Reference",c.reference]];
+    filtersEl.innerHTML = defs.map(([k,label,n]) =>
+      `<button class="filter ${filter===k?'active':''}" data-filter="${k}">${label} <span class="n">${n}</span></button>`).join("");
+    filtersEl.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { filter = b.dataset.filter; render(); });
+    filtersEl.hidden = items.length === 0;
+  }
+
+  function render(flashId){
+    renderFilters();
+    const vis = visible();
+    countEl.hidden = items.length === 0;
+    listEl.innerHTML = "";
+    if(items.length === 0){
+      emptyEl.innerHTML = `<div class="big">Your library is empty.</div><div>Paste a link above to save your first one.</div>`;
+    } else if(vis.length === 0){
+      const msg = filter === "toread" ? ["Nothing left to read.","Links you mark “To read” show up here."]
+        : filter === "reference" ? ["No reference links yet.","Keep pages here for looking up later."]
+        : ["Nothing here.",""];
+      emptyEl.innerHTML = `<div class="big">${msg[0]}</div><div>${msg[1]}</div>`;
+    } else emptyEl.innerHTML = "";
+    countEl.textContent = vis.length + (vis.length === 1 ? " link" : " links");
+
+    vis.forEach(it => {
+      const li = document.createElement("li");
+      li.id = "card-"+it.id;
+      li.className = "item" + (it.id === flashId ? " flash" : "") + (it.read ? " isread" : "");
+      if(it.editing){
+        const src = it.suggest || it; const titleVal = it.tmpTitle ?? it.title; const descVal = it.tmpDesc ?? it.desc;
+        li.innerHTML = `<div class="content">
+          <div class="field"><label>Web address</label><div class="rowbtn">
+            <input id="edit-addr-${it.id}" class="${it.addrErr?'err':''}" type="text" value="${esc(it.editAddr)}" />
+            <button class="btn-small" data-fetch="${it.id}">Fetch page details</button></div>
+            ${it.addrErr ? `<div class="fielderr">${esc(it.addrErr)}</div>` : ``}</div>
+          ${src.image ? `<div class="preview" style="background:${grad(src.domain)}"><span class="tag">Preview image from the page</span></div>` : ``}
+          ${shelfPills(it.editShelf, it.id)}
+          <div class="field"><label>Title</label><input id="edit-title-${it.id}" type="text" value="${esc(titleVal)}" />
+            ${it.suggest ? `<div class="suggest">This page suggests: <b>${esc(it.suggest.title)}</b> <button data-usetitle="${it.id}">Use this</button></div>` : ``}</div>
+          <div class="field"><label>Description</label><textarea id="edit-desc-${it.id}" rows="2">${esc(descVal)}</textarea>
+            ${it.suggest && it.suggest.desc ? `<div class="suggest">This page suggests: <b>${esc(it.suggest.desc)}</b> <button data-usedesc="${it.id}">Use this</button></div>` : ``}</div>
+          <div class="srcline">${favEl(src)}<span>${esc(src.site)}</span><span class="dot">·</span><span>${esc(src.domain)}</span><span class="dot">·</span><span>Saved ${it.savedAt}</span></div>
+          <div class="actions"><button class="btn-primary" data-save="${it.id}">Save changes</button><button class="btn-ghost" data-cancel="${it.id}">Cancel</button></div></div>`;
+      } else {
+        const badge = it.read ? `<span class="badge read">Read</span>`
+          : it.shelf === "toread" ? `<span class="badge toread">To read</span>` : `<span class="badge reference">Reference</span>`;
+        const act = inToRead(it) ? `<button class="linkbtn" data-read="${it.id}">Mark as read</button>`
+          : it.read ? `<button class="linkbtn plain" data-unread="${it.id}">Move back to “To read”</button>` : ``;
+        li.innerHTML = `${it.image ? `<div class="thumb" style="background:${grad(it.domain)}"></div>` : ``}
+          <div class="content">
+            <div class="title"><a href="${it.url}" target="_blank" rel="noopener">${esc(it.title)}</a></div>
+            ${it.desc ? `<div class="desc">${esc(it.desc)}</div>` : ``}
+            <div class="meta">${favEl(it)}<span>${esc(it.site)}</span><span class="dot">·</span><span>Saved ${it.savedAt}</span>${badge}
+              <span class="act">${act}<button class="linkbtn" data-edit="${it.id}">Edit</button></span></div>
+          </div>`;
+      }
+      listEl.appendChild(li);
+    });
+
+    wireShelfPills();
+    listEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => startEdit(b.dataset.edit));
+    listEl.querySelectorAll("[data-read]").forEach(b => b.onclick = () => markRead(b.dataset.read));
+    listEl.querySelectorAll("[data-unread]").forEach(b => b.onclick = () => markUnread(b.dataset.unread));
+    listEl.querySelectorAll("[data-fetch]").forEach(b => b.onclick = () => fetchNewAddress(b.dataset.fetch));
+    listEl.querySelectorAll("[data-save]").forEach(b => b.onclick = () => saveEdit(b.dataset.save));
+    listEl.querySelectorAll("[data-cancel]").forEach(b => b.onclick = () => {
+      const it = items.find(x => x.id === b.dataset.cancel);
+      it.editing = false; it.suggest = null; it.tmpTitle = it.tmpDesc = undefined; it.addrErr = ""; it.editShelf = undefined; render(); });
+    listEl.querySelectorAll("[data-usetitle]").forEach(b => b.onclick = () => {
+      const it = items.find(x => x.id === b.dataset.usetitle); stashFields(it); it.tmpTitle = it.suggest.title;
+      document.getElementById("edit-title-"+it.id).value = it.suggest.title; b.parentElement.remove(); });
+    listEl.querySelectorAll("[data-usedesc]").forEach(b => b.onclick = () => {
+      const it = items.find(x => x.id === b.dataset.usedesc); stashFields(it); it.tmpDesc = it.suggest.desc;
+      document.getElementById("edit-desc-"+it.id).value = it.suggest.desc; b.parentElement.remove(); });
+    items.filter(it => it.editing).forEach(it => {
+      const a = document.getElementById("edit-addr-"+it.id), t = document.getElementById("edit-title-"+it.id), d = document.getElementById("edit-desc-"+it.id);
+      if(a) a.addEventListener("input", () => { it.editAddr = a.value; if(it.addrErr){ it.addrErr=""; a.classList.remove("err"); const fe=a.closest(".field").querySelector(".fielderr"); if(fe) fe.remove(); } });
+      if(t) t.addEventListener("input", () => it.tmpTitle = t.value);
+      if(d) d.addEventListener("input", () => it.tmpDesc = d.value);
+    });
+  }
+
+  urlEl.addEventListener("input", () => { if(saverEl.classList.contains("invalid")){ saverEl.classList.remove("invalid"); setStatus(""); } });
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

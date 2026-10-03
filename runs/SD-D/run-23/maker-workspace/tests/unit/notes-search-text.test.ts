@@ -1,0 +1,2 @@
+import{describe,expect,it}from'vitest';import{normalizeName,plainTextFromMarkdown}from'../../src/shared/normalization';
+describe('text normalization',()=>{it('extracts searchable note text',()=>expect(plainTextFromMarkdown('## Idea\n- Read [the paper](https://example.com) **soon**')).toBe('Idea Read the paper soon'));it('normalizes label case and whitespace',()=>expect(normalizeName('  Résearch   Notes ').key).toBe('résearch notes'));});

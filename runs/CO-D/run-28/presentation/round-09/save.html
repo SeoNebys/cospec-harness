@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — save flow alternatives</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e2e5ea; --ink:#1c2330; --muted:#6b7280; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  header h1 { margin:0; font-size:18px; }
+  header .mode { margin-top:6px; font-size:13px; color:var(--muted); }
+  header .mode b { color:var(--accent); }
+  main { max-width:760px; margin:0 auto; padding:22px 16px 64px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:8px; }
+  .saver input { flex:1; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .btn { padding:11px 18px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+  .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .status { min-height:20px; margin:10px 2px 0; font-size:13px; color:var(--muted); }
+  .list { margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+  .empty { text-align:center; color:var(--muted); padding:48px 12px; border:1px dashed var(--line); border-radius:12px; }
+  .bm { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; gap:12px; animation:pop .25s ease; }
+  @keyframes pop { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  .fav { flex:0 0 34px; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; margin-top:2px; }
+  .body { flex:1; min-width:0; }
+  .title a { font-size:15px; font-weight:600; color:var(--ink); text-decoration:none; }
+  .title a:hover { text-decoration:underline; }
+  .desc { font-size:13px; color:#4b5563; margin:5px 0 0; }
+  .note { font-size:13px; color:#374151; margin:8px 0 0; background:#fafafa; border:1px solid var(--line); border-radius:7px; padding:8px 10px; }
+  .note :first-child{margin-top:0;} .note :last-child{margin-bottom:0;} .note ul{margin:4px 0; padding-left:18px;} .note a{color:var(--accent);}
+  .note-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:3px; }
+  .url { font-size:11.5px; color:var(--muted); word-break:break-all; margin-top:7px; }
+  .actions { margin-top:9px; } .actions button { background:none; border:0; color:var(--accent); font-size:12.5px; cursor:pointer; padding:0; }
+  /* draft editor (shared) */
+  .draft { display:flex; flex-direction:column; gap:10px; }
+  .draft label { font-size:12px; color:var(--muted); }
+  .draft input, .draft textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  .draft textarea { resize:vertical; min-height:60px; }
+  .draft .hint { font-size:11.5px; color:var(--muted); margin-top:-4px; }
+  .draft .row { display:flex; gap:8px; margin-top:2px; }
+  .draft .fetchline { font-size:12.5px; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .card.flash { border-color:#c7dbff; background:#f4f8ff; }
+  /* modal */
+  .overlay { position:fixed; inset:0; background:rgba(20,25,35,.45); display:flex; align-items:center; justify-content:center; padding:16px; }
+  .overlay .card { width:100%; max-width:520px; }
+  .hidden { display:none; }
+  .previewbox { border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#fafafa; min-height:20px; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <div class="mode" id="modeline"></div>
+</header>
+<main>
+  <div id="entry"></div>
+  <div class="status" id="status"></div>
+  <div class="list" id="list"></div>
+</main>
+
+<script>
+const MODE = new URLSearchParams(location.search).get('mode') || 'inline';
+const MODE_LABEL = {
+  inline: "Option A — after pressing Save, a draft opens right here to review, correct, and confirm.",
+  modal:  "Option B — after pressing Save, a pop-up shows the details to review, correct, and confirm.",
+  panel:  "Option C — one expanding panel: paste the link, it auto-fills in place, adjust, then confirm."
+};
+document.getElementById('modeline').innerHTML = "<b>" + MODE.toUpperCase() + "</b> — " + (MODE_LABEL[MODE]||'');
+
+const KNOWN = {
+  "developer.mozilla.org": { title: "MDN Web Docs", desc: "Resources for developers, by developers." },
+  "github.com": { title: "GitHub", desc: "Let's build from here — the world's largest developer platform." },
+  "en.wikipedia.org": { title: "Wikipedia, the free encyclopedia", desc: "The free encyclopedia anyone can edit." },
+  "news.ycombinator.com": { title: "Hacker News", desc: "News and discussion for the tech community." }
+};
+function normalizeUrl(raw){ let s=raw.trim(); if(!s) return null; if(!/^https?:\/\//i.test(s)) s="https://"+s; try{return new URL(s);}catch(e){return null;} }
+function fakeFetchInfo(u){
+  const host=u.hostname.replace(/^www\./,''); const k=KNOWN[u.hostname]||KNOWN[host]; if(k) return {...k};
+  const path=u.pathname.replace(/\/$/,'').split('/').filter(Boolean).pop()||host;
+  const pretty=decodeURIComponent(path).replace(/[-_]/g,' ').replace(/\.\w+$/,'');
+  return { title: pretty.charAt(0).toUpperCase()+pretty.slice(1)+" — "+host, desc:"" };
+}
+const FAV_COLORS=["#2f6df6","#e2528b","#12a150","#f59e0b","#8b5cf6","#0891b2","#dc2626"];
+function faviconFor(u){ const host=u.hostname.replace(/^www\./,''); let s=0; for(const c of host)s+=c.charCodeAt(0); return {letter:host.charAt(0).toUpperCase(), color:FAV_COLORS[s%FAV_COLORS.length]}; }
+// minimal note formatting: "- " bullet lines, [text](url) links, blank-line paragraphs
+function renderNote(txt){
+  const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const link=s=>esc(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const blocks=txt.split(/\n{2,}/); let out='';
+  for(const b of blocks){ const lines=b.split('\n');
+    if(lines.every(l=>/^\s*-\s+/.test(l))) out+='<ul>'+lines.map(l=>'<li>'+link(l.replace(/^\s*-\s+/,''))+'</li>').join('')+'</ul>';
+    else out+='<p>'+lines.map(link).join('<br>')+'</p>';
+  }
+  return out;
+}
+
+const bookmarks=[];
+const listEl=document.getElementById('list'), statusEl=document.getElementById('status'), entryEl=document.getElementById('entry');
+
+function commit(draft){
+  bookmarks.unshift({ ...draft, flash:true });
+  statusEl.textContent="Saved.";
+  render(); buildEntry();
+}
+function render(){
+  if(bookmarks.length===0){ listEl.innerHTML='<div class="empty">No bookmarks yet. Save your first link above.</div>'; return; }
+  listEl.innerHTML='';
+  bookmarks.forEach(b=>{
+    const el=document.createElement('div'); el.className='bm'+(b.flash?' ':'');
+    const fav=document.createElement('div'); fav.className='fav'; fav.style.background=b.fav.color; fav.textContent=b.fav.letter; el.appendChild(fav);
+    const body=document.createElement('div'); body.className='body'; el.appendChild(body);
+    body.innerHTML=`<p class="title"><a target="_blank" rel="noopener"></a></p>`+
+      (b.desc?`<p class="desc"></p>`:``)+
+      (b.note?`<div class="note"><div class="note-label">My note</div><div class="note-body"></div></div>`:``)+
+      `<div class="url"></div><div class="actions"><button class="edit">Edit details</button></div>`;
+    const a=body.querySelector('.title a'); a.textContent=b.title; a.href=b.url;
+    if(b.desc) body.querySelector('.desc').textContent=b.desc;
+    if(b.note) body.querySelector('.note-body').innerHTML=renderNote(b.note);
+    body.querySelector('.url').textContent=b.url;
+    body.querySelector('.edit').addEventListener('click',()=>openEditor(b, body));
+    listEl.appendChild(el); b.flash=false;
+  });
+}
+
+// Shared draft editor markup used before-save and after-save
+function draftFields(d){
+  const wrap=document.createElement('div'); wrap.className='draft';
+  wrap.innerHTML=`
+    <div class="fetchline" ${d.fetched?'':'style="display:none"'}>✓ Title and description picked up automatically — adjust if needed.</div>
+    <div><label>Title</label><input class="d-title" type="text"></div>
+    <div><label>Description (the site's summary)</label><textarea class="d-desc"></textarea></div>
+    <div><label>My note (optional)</label><textarea class="d-note" placeholder="Your own note. Use - for a list, [text](https://…) for a link."></textarea>
+      <div class="hint">Preview:</div><div class="previewbox d-prev"></div></div>
+    <div class="row"><button class="btn d-save">Save bookmark</button><button class="btn ghost d-cancel">Cancel</button></div>`;
+  wrap.querySelector('.d-title').value=d.title||'';
+  wrap.querySelector('.d-desc').value=d.desc||'';
+  wrap.querySelector('.d-note').value=d.note||'';
+  const prev=wrap.querySelector('.d-prev'); const noteEl=wrap.querySelector('.d-note');
+  const upd=()=>prev.innerHTML=noteEl.value.trim()?renderNote(noteEl.value):'<span style="color:#9ca3af">Nothing yet</span>';
+  noteEl.addEventListener('input',upd); upd();
+  return wrap;
+}
+function readDraft(wrap, base){
+  return { url:base.url, fav:base.fav,
+    title:wrap.querySelector('.d-title').value.trim()||base.title,
+    desc:wrap.querySelector('.d-desc').value.trim(),
+    note:wrap.querySelector('.d-note').value.trim() };
+}
+
+function openEditor(b, body){ // edit AFTER save (same editor)
+  const wrap=draftFields(b); body.innerHTML=''; body.appendChild(wrap);
+  wrap.querySelector('.d-save').textContent='Save changes';
+  wrap.querySelector('.d-save').addEventListener('click',()=>{ Object.assign(b, readDraft(wrap,b)); statusEl.textContent="Your changes are saved."; render(); });
+  wrap.querySelector('.d-cancel').addEventListener('click',render);
+}
+
+// ---- entry (varies by MODE) ----
+function buildEntry(){
+  entryEl.innerHTML='';
+  if(MODE==='panel'){ buildPanel(); return; }
+  const bar=document.createElement('div'); bar.className='saver';
+  bar.innerHTML=`<input id="url" type="text" placeholder="Paste a link, e.g. https://…"><button class="btn" id="save">Save</button>`;
+  entryEl.appendChild(bar);
+  const urlEl=bar.querySelector('#url'), saveBtn=bar.querySelector('#save');
+  const go=()=>{ const u=normalizeUrl(urlEl.value); if(!u){statusEl.textContent="That doesn't look like a valid link yet.";return;}
+    saveBtn.disabled=true; statusEl.textContent="Fetching page details…";
+    setTimeout(()=>{ const info=fakeFetchInfo(u); saveBtn.disabled=false; urlEl.value='';
+      const base={url:u.href,fav:faviconFor(u),title:info.title,desc:info.desc,note:'',fetched:true};
+      if(MODE==='inline') showInlineDraft(base); else showModalDraft(base);
+    },550); };
+  saveBtn.addEventListener('click',go); urlEl.addEventListener('keydown',e=>{if(e.key==='Enter')go();}); urlEl.focus();
+}
+function showInlineDraft(base){
+  const card=document.createElement('div'); card.className='card flash'; card.style.marginTop='12px';
+  const wrap=draftFields(base); card.appendChild(wrap); entryEl.appendChild(card);
+  statusEl.textContent="Review the details, then confirm.";
+  wrap.querySelector('.d-save').addEventListener('click',()=>{ commit(readDraft(wrap,base)); });
+  wrap.querySelector('.d-cancel').addEventListener('click',()=>{ card.remove(); statusEl.textContent=''; });
+  wrap.querySelector('.d-title').focus();
+}
+function showModalDraft(base){
+  const ov=document.createElement('div'); ov.className='overlay';
+  const card=document.createElement('div'); card.className='card';
+  const h=document.createElement('div'); h.style.fontWeight='600'; h.style.marginBottom='10px'; h.textContent='Review before saving';
+  const wrap=draftFields(base); card.appendChild(h); card.appendChild(wrap); ov.appendChild(card); document.body.appendChild(ov);
+  wrap.querySelector('.d-save').addEventListener('click',()=>{ commit(readDraft(wrap,base)); ov.remove(); });
+  wrap.querySelector('.d-cancel').addEventListener('click',()=>{ ov.remove(); statusEl.textContent=''; });
+  wrap.querySelector('.d-title').focus();
+}
+function buildPanel(){
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML=`<div style="display:flex;gap:8px"><input id="url" type="text" placeholder="Paste a link, e.g. https://…" style="flex:1;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:14px"><button class="btn" id="fetch">Add</button></div><div id="slot"></div>`;
+  entryEl.appendChild(card);
+  const urlEl=card.querySelector('#url'), fetchBtn=card.querySelector('#fetch'), slot=card.querySelector('#slot');
+  const go=()=>{ const u=normalizeUrl(urlEl.value); if(!u){statusEl.textContent="That doesn't look like a valid link yet.";return;}
+    fetchBtn.disabled=true; statusEl.textContent="Fetching page details…";
+    setTimeout(()=>{ const info=fakeFetchInfo(u); fetchBtn.disabled=false;
+      const base={url:u.href,fav:faviconFor(u),title:info.title,desc:info.desc,note:'',fetched:true};
+      const wrap=draftFields(base); wrap.style.marginTop='12px'; slot.innerHTML=''; slot.appendChild(wrap);
+      statusEl.textContent="Adjust in place, then confirm.";
+      wrap.querySelector('.d-save').addEventListener('click',()=>{ commit(readDraft(wrap,base)); urlEl.value=''; slot.innerHTML=''; urlEl.focus(); });
+      wrap.querySelector('.d-cancel').addEventListener('click',()=>{ slot.innerHTML=''; statusEl.textContent=''; });
+      wrap.querySelector('.d-title').focus();
+    },550); };
+  fetchBtn.addEventListener('click',go); urlEl.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+}
+
+buildEntry(); render();
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

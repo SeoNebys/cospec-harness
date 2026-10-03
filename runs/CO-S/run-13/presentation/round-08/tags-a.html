@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — tag suggestions (Version A)</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2430; --muted:#6b7684; --line:#e4e8ed; --accent:#2f6df0; --accent-soft:#eaf0fe; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .variant { background:#fff7e6; border-bottom:1px solid #ffe0a3; padding:8px 24px; font-size:13px; color:#8a5a00; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:24px; }
+  .panel h2 { margin:0 0 14px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; }
+  input[type=text], input[type=url], textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; background:#fff; }
+  textarea { resize:vertical; min-height:60px; }
+  .row-url { display:flex; gap:8px; }
+  .row-url input { flex:1; }
+  button { cursor:pointer; border:none; border-radius:8px; font-size:14px; padding:10px 16px; font-weight:600; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-ghost { background:var(--accent-soft); color:var(--accent); }
+  .fetch-note { font-size:12px; color:var(--muted); margin-top:6px; min-height:16px; }
+  .fetch-note.filled { color:#1a8a4a; }
+  .save-row { margin-top:18px; display:flex; justify-content:flex-end; }
+  .list-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
+  .count { color:var(--muted); font-size:13px; }
+  .empty { text-align:center; color:var(--muted); padding:40px 12px; }
+  ul.bm { list-style:none; margin:0; padding:0; }
+  .favicon { width:18px; height:18px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:700; flex:0 0 auto; }
+  .site-row { display:flex; align-items:center; gap:6px; }
+  .auto { margin-top:14px; border:1px dashed var(--line); border-radius:10px; padding:12px; background:#fbfcfe; display:none; }
+  .auto .auto-label { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:8px; }
+  .auto .auto-body { display:flex; gap:12px; align-items:center; }
+  .auto .preview { width:120px; height:68px; border-radius:8px; object-fit:cover; border:1px solid var(--line); flex:0 0 auto; }
+  .auto .preview-none { width:120px; height:68px; border-radius:8px; border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; text-align:center; flex:0 0 auto; padding:4px; }
+  li.bm-item { border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:10px; background:#fff; display:flex; gap:14px; }
+  li.bm-item .thumb { width:96px; height:64px; border-radius:8px; object-fit:cover; border:1px solid var(--line); flex:0 0 auto; }
+  li.bm-item .thumb-none { width:96px; height:64px; border-radius:8px; border:1px dashed var(--line); flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:10px; text-align:center; padding:3px; }
+  li.bm-item .body { flex:1; min-width:0; }
+  li.bm-item .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  li.bm-item .title a { color:var(--ink); text-decoration:none; }
+  li.bm-item .site { font-size:12px; color:var(--muted); }
+  li.bm-item .desc { font-size:13px; color:#48525f; margin:8px 0 0; }
+  li.bm-item .tags { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { background:var(--accent-soft); color:var(--accent); font-size:12px; padding:3px 9px; border-radius:20px; }
+  li.bm-item .note { margin-top:8px; font-size:13px; color:#48525f; border-left:3px solid var(--line); padding-left:10px; }
+  .flash { background:#e8f7ee; color:#1a8a4a; border:1px solid #bfe6cd; border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:16px; display:none; }
+
+  /* Version A: dropdown of matching existing tags */
+  .tagwrap { position:relative; }
+  .tagsuggest { position:absolute; left:0; right:0; top:calc(100% + 4px); background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.08); z-index:20; overflow:hidden; display:none; }
+  .tagsuggest .opt { padding:9px 12px; font-size:14px; cursor:pointer; display:flex; align-items:center; gap:8px; }
+  .tagsuggest .opt:hover, .tagsuggest .opt.active { background:var(--accent-soft); }
+  .tagsuggest .opt .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  .tagsuggest .opt small { color:var(--muted); margin-left:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A private place for your links — prototype for review</p>
+</header>
+<div class="variant"><strong>Version A — suggestion dropdown.</strong> As you type a tag, matching existing tags drop down below the field; click one to add it. (Switch to <a href="tags-b.html">Version B</a>.)</div>
+<main>
+  <div id="flash" class="flash"></div>
+
+  <section class="panel">
+    <h2>Save a link</h2>
+    <label for="url">Web address</label>
+    <div class="row-url">
+      <input id="url" type="url" placeholder="Paste a web address, e.g. https://example.com/article" autocomplete="off" />
+      <button id="fetchBtn" class="btn-ghost" type="button">Get details</button>
+    </div>
+    <div id="fetchNote" class="fetch-note"></div>
+
+    <div id="auto" class="auto">
+      <div class="auto-label">Collected automatically</div>
+      <div class="auto-body">
+        <div id="autoPreview"></div>
+        <div class="site-row"><span id="autoFavicon"></span><span id="autoSite" class="site"></span></div>
+      </div>
+    </div>
+
+    <label for="title">Title</label>
+    <input id="title" type="text" placeholder="The page title will appear here — edit if you like" />
+
+    <label for="desc">Description</label>
+    <textarea id="desc" placeholder="A short summary of the page"></textarea>
+
+    <label for="tags">Tags (comma separated)</label>
+    <div class="tagwrap">
+      <input id="tags" type="text" placeholder="Start typing — e.g. re…" autocomplete="off" />
+      <div id="tagSuggest" class="tagsuggest"></div>
+    </div>
+
+    <label for="note">Your note</label>
+    <textarea id="note" placeholder="Why you saved this, or anything to remember"></textarea>
+
+    <div class="save-row">
+      <button id="saveBtn" class="btn-primary" type="button" disabled>Save bookmark</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="list-head">
+      <h2 style="margin:0">Your bookmarks</h2>
+      <span id="count" class="count"></span>
+    </div>
+    <div id="empty" class="empty" style="display:none"></div>
+    <ul id="list" class="bm"></ul>
+  </section>
+</main>
+
+<script src="tags-shared.js"></script>
+<script>
+// ---- Version A: dropdown suggestion interaction ----
+const suggestBox = $("tagSuggest");
+let activeIdx = -1;
+
+function segmentInfo(){
+  const val = $("tags").value;
+  const lastComma = val.lastIndexOf(",");
+  const prefix = lastComma >= 0 ? val.slice(0, lastComma+1) + " " : "";
+  const seg = (lastComma >= 0 ? val.slice(lastComma+1) : val).trim();
+  const already = val.split(",").map(t=>t.trim().toLowerCase()).filter(Boolean);
+  return { prefix, seg, already };
+}
+function matches(seg, already){
+  const s = seg.toLowerCase();
+  return existingTags().filter(t => t.toLowerCase().includes(s) && already.indexOf(t.toLowerCase()) < 0).slice(0,6);
+}
+function showSuggest(){
+  const { seg, already } = segmentInfo();
+  if (!seg){ suggestBox.style.display="none"; return; }
+  const opts = matches(seg, already);
+  if (!opts.length){ suggestBox.style.display="none"; return; }
+  activeIdx = -1;
+  suggestBox.innerHTML = opts.map((t,i)=>'<div class="opt" data-tag="'+escapeHtml(t)+'"><span class="dot"></span>'+escapeHtml(t)+'<small>existing tag</small></div>').join("");
+  suggestBox.style.display="block";
+  suggestBox.querySelectorAll(".opt").forEach(el => {
+    el.addEventListener("mousedown", e => { e.preventDefault(); addTag(el.getAttribute("data-tag")); });
+  });
+}
+function addTag(tag){
+  const { prefix } = segmentInfo();
+  $("tags").value = prefix + tag + ", ";
+  suggestBox.style.display="none";
+  $("tags").focus();
+}
+$("tags").addEventListener("input", showSuggest);
+$("tags").addEventListener("keydown", e => {
+  if (suggestBox.style.display!=="block") return;
+  const opts = [...suggestBox.querySelectorAll(".opt")];
+  if (e.key==="ArrowDown"){ e.preventDefault(); activeIdx=(activeIdx+1)%opts.length; }
+  else if (e.key==="ArrowUp"){ e.preventDefault(); activeIdx=(activeIdx-1+opts.length)%opts.length; }
+  else if (e.key==="Enter" && activeIdx>=0){ e.preventDefault(); addTag(opts[activeIdx].getAttribute("data-tag")); return; }
+  else return;
+  opts.forEach((o,i)=>o.classList.toggle("active", i===activeIdx));
+});
+$("tags").addEventListener("blur", ()=> setTimeout(()=>suggestBox.style.display="none", 120));
+
+initApp();
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Read later collection</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .app { width: min(1100px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 70px; }
+    .layout { display: grid; grid-template-columns: 190px 1fr; gap: 42px; }
+    .side-nav { padding-top: 58px; }
+    .side-nav button, .top-nav button { border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 750; }
+    .side-nav button { width: 100%; margin-bottom: 5px; padding: 11px 12px; text-align: left; }
+    .side-nav button.active, .top-nav button.active { background: var(--green-light); color: var(--green); }
+    .side-nav .nav-count { float: right; }
+    .top-nav { display: flex; gap: 6px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+    .top-nav button { padding: 10px 14px; border-radius: 9px 9px 0 0; }
+    .view { padding-top: 58px; }
+    .view h1 { font-size: 50px; }
+    .view-intro { margin: 12px 0 30px; color: var(--muted); }
+    .later-list { display: grid; gap: 13px; }
+    .list-card { display: grid; grid-template-columns: 100px 1fr auto; gap: 16px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .list-image { min-height: 100px; border-radius: 9px; background: linear-gradient(145deg, #183d4d, #e79a54); }
+    .list-card:nth-child(2) .list-image { background: linear-gradient(145deg, #514475, #d9b7d7); }
+    .list-card:nth-child(3) .list-image { background: linear-gradient(145deg, #43644d, #e9d69f); }
+    .list-body { align-self: center; }
+    .list-body h2 { margin: 0 0 5px; font-family: Georgia, serif; font-size: 20px; font-weight: 500; }
+    .list-body p { margin: 0; color: var(--muted); font-size: 12px; }
+    .queue-label { display: inline-block; margin-top: 9px; color: #8a5633; font-size: 10px; font-weight: 750; }
+    .read-action { align-self: center; border: 1px solid #aab5ac; border-radius: 8px; padding: 8px 10px; background: transparent; color: var(--green); cursor: pointer; font-size: 11px; font-weight: 750; }
+    .read-check { align-self: center; display: flex; align-items: center; gap: 7px; color: var(--green); cursor: pointer; font-size: 11px; font-weight: 750; }
+    .read-check input { width: 17px; height: 17px; accent-color: var(--green); }
+    .removed-toast { position: fixed; right: 24px; bottom: 24px; padding: 12px 16px; border-radius: 11px; background: var(--ink); color: white; font-size: 12px; }
+    .empty-later { padding: 52px 24px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; }
+    .empty-later strong { display: block; margin-bottom: 7px; font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+    .empty-later span { color: var(--muted); font-size: 13px; }
+    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; gap: 0; } .side-nav { display: flex; gap: 6px; padding-top: 24px; } .side-nav button { width: auto; } }
+  </style>
+</head>
+<body>
+  <main class="app" data-harness-ready="true">
+    <header class="topbar"><a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a><span class="prototype-badge">Read-later collection prototype</span></header>
+    <div class="layout">
+      <nav id="side-nav" class="side-nav" aria-label="Bookmark views"><button class="active" data-view="all">All bookmarks <span class="nav-count">3</span></button><button data-view="later">◷ Read later <span class="nav-count">2</span></button></nav>
+      <section class="view">
+        <nav id="top-nav" class="top-nav" aria-label="Bookmark views" hidden><button class="active" data-view="all">All bookmarks · 3</button><button data-view="later">Read later · 2</button></nav>
+        <p class="eyebrow">YOUR COLLECTION</p><h1 id="view-title">All bookmarks</h1><p id="view-intro" class="view-intro">Everything you’ve saved, newest first.</p>
+        <div class="later-list">
+          <article class="list-card" data-later="true"><div class="list-image"></div><div class="list-body"><h2>A calmer way to keep what you discover online</h2><p>Field Notes · Added today</p><span class="queue-label">◷ IN READ LATER</span></div><button class="read-action" hidden>✓ Mark as read</button><label class="read-check" hidden><input type="checkbox"> Read</label></article>
+          <article class="list-card" data-later="false"><div class="list-image"></div><div class="list-body"><h2>How small teams make better product decisions</h2><p>Workbench · Added yesterday</p></div></article>
+          <article class="list-card" data-later="true"><div class="list-image"></div><div class="list-body"><h2>Designing systems that age gracefully</h2><p>Common Practice · Added last week</p><span class="queue-label">◷ IN READ LATER</span></div><button class="read-action" hidden>✓ Mark as read</button><label class="read-check" hidden><input type="checkbox"> Read</label></article>
+        </div>
+        <div id="empty-later" class="empty-later" hidden><strong>You’re all caught up.</strong><span>There’s nothing waiting in Read later. Your bookmarks are still in All bookmarks.</span></div>
+      </section>
+    </div>
+  </main>
+  <div id="removed-toast" class="removed-toast" hidden>Marked as read · Bookmark remains in All bookmarks</div>
+  <script>
+    const navMode = new URLSearchParams(location.search).get('nav') || 'side';
+    const readMode = new URLSearchParams(location.search).get('read') || 'button';
+    const emptyMode = new URLSearchParams(location.search).get('empty') === 'true';
+    if (navMode === 'top') { document.querySelector('#side-nav').hidden = true; document.querySelector('#top-nav').hidden = false; document.querySelector('.layout').style.gridTemplateColumns = '1fr'; }
+    const cards = [...document.querySelectorAll('.list-card')];
+    if (emptyMode) {
+      cards.filter((card) => card.dataset.later === 'true').slice(1).forEach((card) => { card.dataset.later = 'false'; });
+      document.querySelectorAll('[data-view="later"] .nav-count').forEach((count) => { count.textContent = '1'; });
+    }
+    document.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => {
+      const later = button.dataset.view === 'later';
+      cards.forEach((card) => {
+        card.hidden = later && card.dataset.later !== 'true';
+        card.querySelectorAll('.read-action, .read-check').forEach((action) => { action.hidden = !later || action.classList.contains(readMode === 'button' ? 'read-check' : 'read-action'); });
+      });
+      document.querySelectorAll('[data-view]').forEach((item) => item.classList.toggle('active', item.dataset.view === button.dataset.view));
+      document.querySelector('#view-title').textContent = later ? 'Read later' : 'All bookmarks';
+      const waiting = cards.filter((card) => card.dataset.later === 'true').length;
+      document.querySelector('#view-intro').textContent = later ? `${waiting === 1 ? 'One link' : waiting + ' links'} waiting for you.` : 'Everything you’ve saved, newest first.';
+    }));
+    function markRead(card) {
+      card.dataset.later = 'false';
+      card.hidden = true;
+      const remaining = cards.filter((item) => item.dataset.later === 'true').length;
+      document.querySelectorAll('[data-view="later"] .nav-count').forEach((count) => { count.textContent = String(remaining); });
+      document.querySelector('#view-intro').textContent = remaining === 0 ? 'No links waiting.' : `${remaining === 1 ? 'One link' : remaining + ' links'} waiting for you.`;
+      document.querySelector('#empty-later').hidden = remaining !== 0;
+      const toast = document.querySelector('#removed-toast'); toast.hidden = false; setTimeout(() => { toast.hidden = true; }, 3000);
+    }
+    document.querySelectorAll('.read-action').forEach((button) => button.addEventListener('click', () => markRead(button.closest('.list-card'))));
+    document.querySelectorAll('.read-check input').forEach((input) => input.addEventListener('change', () => markRead(input.closest('.list-card'))));
+  </script>
+</body>
+</html>

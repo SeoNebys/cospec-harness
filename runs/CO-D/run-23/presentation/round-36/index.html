@@ -1,0 +1,2097 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — your bookmarks, findable</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1e2a26;
+      --muted: #68746f;
+      --line: #dfe6e1;
+      --paper: #f5f4ee;
+      --card: #fffefa;
+      --green: #255d48;
+      --green-dark: #194534;
+      --mint: #dcebe3;
+      --shadow: 0 16px 40px rgba(35, 55, 46, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 16% 0%, rgba(219, 232, 220, .8), transparent 34rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 232px 1fr;
+    }
+
+    aside {
+      padding: 30px 22px;
+      border-right: 1px solid rgba(37, 93, 72, .12);
+      background: rgba(249, 249, 244, .68);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 0 10px 44px;
+      font-family: Georgia, serif;
+      font-size: 24px;
+      letter-spacing: -.6px;
+    }
+
+    .brand-mark {
+      width: 33px;
+      height: 33px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px 11px 11px 3px;
+      background: var(--green);
+      color: white;
+      font: 700 18px Georgia, serif;
+      transform: rotate(-3deg);
+    }
+
+    nav { display: grid; gap: 6px; }
+    .saved-searches { display: none; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(37,93,72,.12); }
+    .saved-searches.show { display: block; }
+    .saved-searches h3 { margin: 0 11px 9px; color: #87918d; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+    .saved-search-link { display: none; width: 100%; padding: 9px 11px; border: 0; border-radius: 9px; background: transparent; color: #4f5e57; text-align: left; font-size: 12px; font-weight: 700; }
+    .saved-search-link.show { display: block; }
+    .saved-search-link:hover { background: var(--mint); color: var(--green-dark); }
+    .settings-nav { margin-top: 22px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 11px 13px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #56625d;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .nav-item.active { background: var(--mint); color: var(--green-dark); }
+    .nav-icon { width: 20px; text-align: center; font-size: 16px; }
+    .count {
+      margin-left: auto;
+      min-width: 24px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      background: rgba(37, 93, 72, .1);
+      text-align: center;
+      font-size: 11px;
+    }
+
+    main { padding: 31px 48px 64px; }
+    .topbar {
+      display: flex;
+      justify-content: flex-end;
+      min-height: 42px;
+    }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #d8dfda;
+      border-radius: 50%;
+      background: var(--card);
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .content { max-width: 900px; margin: 10px auto 0; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(36px, 4vw, 51px);
+      font-weight: 500;
+      letter-spacing: -1.7px;
+      line-height: 1.08;
+    }
+    .lede { margin: 12px 0 30px; color: var(--muted); font-size: 16px; }
+
+    .save-panel {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid rgba(37, 93, 72, .16);
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .read-later-choice {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      border-left: 1px solid var(--line);
+      color: #56625d;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .read-later-mode .read-later-choice { display: flex; }
+    .read-later-choice input { width: 17px; height: 17px; accent-color: var(--green); }
+    .read-later-action {
+      display: none;
+      margin-top: 15px;
+      padding: 7px 11px;
+      border: 1px solid #b7c8bf;
+      border-radius: 9px;
+      background: #f5faf7;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .read-later-view .read-later-action { display: inline-flex; }
+    .set-aside-action {
+      display: none;
+      margin-top: 15px;
+      padding: 7px 11px;
+      border: 1px solid #b7c8bf;
+      border-radius: 9px;
+      background: #f5faf7;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .add-existing-state .set-aside-action { display: inline-flex; }
+    .set-aside-action:disabled { opacity: .7; cursor: default; }
+    .put-away-action, .restore-action {
+      display: none;
+      margin-top: 15px;
+      padding: 7px 11px;
+      border: 1px solid #b7c8bf;
+      border-radius: 9px;
+      background: #f5faf7;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .put-away-mode:not(.put-away-view) .put-away-action { display: inline-flex; }
+    .put-away-view .restore-action { display: inline-flex; }
+    .manage-actions { display: none; margin-top: 15px; }
+    .manage-mode .manage-actions { display: flex; gap: 8px; }
+    .edit-details {
+      padding: 7px 11px;
+      border: 1px solid #b7c8bf;
+      border-radius: 9px;
+      background: #f5faf7;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .delete-bookmark {
+      padding: 7px 11px;
+      border: 1px solid #dfb8b1;
+      border-radius: 9px;
+      background: #fff8f6;
+      color: #9a3f35;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .inline-edit {
+      display: none;
+      gap: 10px;
+      margin-top: 5px;
+      padding: 15px;
+      border: 1px solid #d7e1db;
+      border-radius: 12px;
+      background: #f7faf8;
+    }
+    .inline-edit.show { display: grid; }
+    .inline-edit label { color: var(--muted); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+    .inline-edit input, .inline-edit textarea {
+      width: 100%;
+      margin-top: 5px;
+      padding: 9px 10px;
+      border: 1px solid #c9d5ce;
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+    }
+    .inline-edit textarea { min-height: 74px; resize: vertical; line-height: 1.45; }
+    .edit-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+    .cancel-edit, .save-edit { padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 750; }
+    .cancel-edit { border: 1px solid #c8d2cc; background: white; color: var(--muted); }
+    .save-edit { border: 0; background: var(--green); color: white; }
+    .confirm-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(24, 35, 30, .62);
+      backdrop-filter: blur(4px);
+    }
+    .confirm-backdrop.show { display: grid; }
+    .confirm-dialog {
+      width: min(440px, 100%);
+      padding: 27px;
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: 0 24px 70px rgba(10, 22, 16, .28);
+    }
+    .confirm-symbol {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #f5dfdb;
+      color: #9a3f35;
+      font-size: 18px;
+    }
+    .confirm-dialog h2 { margin: 18px 0 8px; font: 500 25px Georgia, serif; }
+    .confirm-dialog p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .confirm-title { color: var(--ink); font-weight: 750; }
+    .confirm-buttons { display: flex; justify-content: flex-end; gap: 9px; margin-top: 25px; }
+    .confirm-buttons button { padding: 9px 14px; border-radius: 9px; font-weight: 750; }
+    .keep-bookmark { border: 1px solid #cbd5cf; background: white; color: var(--ink); }
+    .confirm-delete { border: 0; background: #a3463c; color: white; }
+    .view-copy-action {
+      display: none;
+      margin-top: 15px;
+      padding: 7px 11px;
+      border: 1px solid #b7c8bf;
+      border-radius: 9px;
+      background: #f5faf7;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .archive-mode .view-copy-action { display: inline-flex; }
+    .copy-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      overflow-y: auto;
+      padding: 42px 24px;
+      background: rgba(24, 35, 30, .66);
+      backdrop-filter: blur(5px);
+    }
+    .copy-viewer.show { display: block; }
+    .reader-copy {
+      width: min(760px, 100%);
+      min-height: 720px;
+      margin: 0 auto;
+      padding: 30px clamp(30px, 7vw, 76px) 70px;
+      border-radius: 18px;
+      background: #fffefa;
+      box-shadow: 0 30px 80px rgba(10, 22, 16, .28);
+    }
+    .copy-topline { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+    .copy-status { color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+    .close-copy { border: 0; background: transparent; color: var(--muted); font-size: 13px; }
+    .copy-kicker { margin: 50px 0 11px; color: #916246; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .reader-copy h2 { margin: 0 0 15px; font: 500 38px/1.12 Georgia, serif; letter-spacing: -.8px; }
+    .copy-byline { padding-bottom: 22px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .copy-illustration {
+      height: 190px;
+      margin: 28px 0;
+      border-radius: 13px;
+      background:
+        linear-gradient(135deg, transparent 45%, rgba(255,255,255,.32) 45% 54%, transparent 54%),
+        linear-gradient(135deg, #315e4c, #9db89c);
+    }
+    .copy-article p { color: #3f4b46; font: 16px/1.75 Georgia, serif; }
+    .pdf-copy {
+      display: none;
+      width: min(980px, 100%);
+      min-height: 760px;
+      margin: 0 auto;
+      overflow: hidden;
+      border-radius: 15px;
+      background: #404744;
+      box-shadow: 0 30px 80px rgba(10, 22, 16, .32);
+    }
+    .archive-pdf .reader-copy { display: none; }
+    .archive-pdf .pdf-copy { display: block; }
+    .pdf-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 17px;
+      background: #262c29;
+      color: #f5f6f5;
+      font-size: 12px;
+    }
+    .pdf-name { flex: 1; font-weight: 700; }
+    .pdf-saved { color: #b9d8c9; }
+    .pdf-tool {
+      padding: 7px 10px;
+      border: 1px solid #65706a;
+      border-radius: 7px;
+      background: #343c38;
+      color: white;
+      font-size: 12px;
+    }
+    .pdf-stage { display: grid; place-items: start center; padding: 32px; }
+    .pdf-page {
+      width: min(610px, 100%);
+      min-height: 700px;
+      padding: 58px 62px;
+      background: white;
+      color: #1f2925;
+      box-shadow: 0 5px 20px rgba(0,0,0,.3);
+    }
+    .report-brand { color: #29735a; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+    .pdf-page h2 { margin: 58px 0 18px; font: 500 35px/1.12 Georgia, serif; }
+    .report-rule { width: 62px; height: 5px; margin: 26px 0; background: #e1a94d; }
+    .pdf-page p { color: #53605b; line-height: 1.6; }
+    .report-meta { margin-top: 150px; padding-top: 20px; border-top: 1px solid #dce2df; color: #66736d; font-size: 12px; }
+    .read-later-empty {
+      display: none;
+      min-height: 205px;
+      place-items: center;
+      border: 1px dashed #cbd5cf;
+      border-radius: 18px;
+      background: rgba(255, 254, 250, .47);
+      color: var(--muted);
+      text-align: center;
+    }
+    .read-later-empty.show { display: grid; }
+    .url-wrap { position: relative; flex: 1; }
+    .link-symbol {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      color: #8b9691;
+      transform: translateY(-50%);
+    }
+    #url-input {
+      width: 100%;
+      height: 50px;
+      padding: 0 16px 0 43px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: 15px;
+    }
+    #url-input::placeholder { color: #98a19d; }
+    #save-button {
+      min-width: 113px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--green);
+      color: white;
+      font-weight: 750;
+      transition: transform .15s ease, background .15s ease;
+    }
+    #save-button:hover { background: var(--green-dark); transform: translateY(-1px); }
+    #save-button:disabled { cursor: wait; opacity: .78; transform: none; }
+
+    .hint { margin: 10px 4px 0; color: #87918d; font-size: 12px; }
+    .save-error {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid #e0b9ae;
+      border-radius: 11px;
+      background: #fff4f1;
+      color: #7e3d34;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .save-error.show { display: flex; }
+    .retry-details { display: none; margin-top: 14px; padding: 7px 10px; border: 1px solid #d29d90; border-radius: 8px; background: #fff7f5; color: #8a4036; font-size: 12px; font-weight: 750; }
+    .save-failure-keep .retry-details { display: inline-flex; }
+    .warning-chip { background: #f5dfd7; color: #8a4036; }
+    .search-panel {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 8px 9px;
+      border: 1px solid #d9e1dc;
+      border-radius: 13px;
+      background: rgba(255, 254, 250, .78);
+    }
+    .search-panel.show { display: flex; }
+    .search-icon { padding-left: 7px; color: #7b8782; }
+    #search-input {
+      flex: 1;
+      min-width: 0;
+      height: 42px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+    }
+    #search-button {
+      display: none;
+      height: 40px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 750;
+    }
+    #search-button.show { display: block; }
+    .advanced-builder {
+      display: none;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid #d9e1dc;
+      border-radius: 13px;
+      background: rgba(255, 254, 250, .78);
+    }
+    .advanced-builder.show { display: grid; }
+    .advanced-builder label { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .advanced-builder select {
+      width: 100%;
+      margin-top: 5px;
+      padding: 9px 10px;
+      border: 1px solid #cad5cf;
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .logic-badge { align-self: end; margin-bottom: 3px; padding: 8px 10px; border-radius: 8px; background: var(--mint); color: var(--green-dark); font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .advanced-label-group {
+      display: none;
+      grid-column: 1 / -1;
+      align-items: center;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .advanced-label-group.show { display: flex; }
+    .advanced-label-group > span { margin-right: 4px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .advanced-label-group label { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid #ccd7d1; border-radius: 999px; background: white; color: var(--ink); font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+    .advanced-label-group input { accent-color: var(--green); }
+    #label-logic { margin-left: auto; padding: 8px 10px; border: 1px solid #c9d4ce; border-radius: 8px; background: white; color: var(--green-dark); font-weight: 750; }
+    .search-example { display: none; margin: 8px 4px 0; color: #7f8a85; font-size: 11px; }
+    .search-example.show { display: block; }
+    .advanced-search-mode .label-row { display: flex; }
+    .advanced-search-mode .add-label, .advanced-search-mode .label-entry { display: none; }
+    .save-search-row { display: none; justify-content: flex-end; margin-top: 10px; }
+    .save-search-row.show { display: flex; }
+    .save-search-action { padding: 8px 12px; border: 1px solid #b9c8c0; border-radius: 9px; background: var(--card); color: var(--green-dark); font-size: 12px; font-weight: 750; }
+    .save-search-dialog {
+      position: fixed; inset: 0; z-index: 36; display: none; place-items: center; padding: 24px;
+      background: rgba(24,35,30,.62); backdrop-filter: blur(4px);
+    }
+    .save-search-dialog.show { display: grid; }
+    .save-search-box { width: min(420px,100%); padding: 27px; border-radius: 16px; background: var(--card); box-shadow: 0 24px 70px rgba(10,22,16,.28); }
+    .save-search-box h2 { margin: 0 0 7px; font: 500 25px Georgia, serif; }
+    .save-search-box p { margin: 0 0 17px; color: var(--muted); font-size: 13px; }
+    .save-search-box input { width: 100%; padding: 10px 11px; border: 1px solid #bdcbc3; border-radius: 9px; color: var(--ink); }
+    .save-search-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 17px; }
+    .save-search-buttons button { padding: 9px 12px; border-radius: 8px; font-weight: 750; }
+    .cancel-search-save { border: 1px solid #c9d3cd; background: white; color: var(--muted); }
+    .confirm-search-save { border: 0; background: var(--green); color: white; }
+    .import-start {
+      display: none;
+      margin: 18px auto 0;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--green);
+      color: white;
+      font-weight: 750;
+    }
+    .import-mode .import-start { display: inline-block; }
+    .imported-mode .label-row { display: flex; }
+    .imported-mode .add-label, .imported-mode .label-entry { display: none; }
+    .import-dialog-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(24, 35, 30, .62);
+      backdrop-filter: blur(4px);
+    }
+    .import-dialog-wrap.show { display: grid; }
+    .import-dialog { width: min(570px, 100%); padding: 28px; border-radius: 17px; background: var(--card); box-shadow: 0 25px 75px rgba(10,22,16,.28); }
+    .import-dialog h2 { margin: 0 0 7px; font: 500 27px Georgia, serif; }
+    .import-dialog > p { margin: 0 0 22px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .file-drop { padding: 30px; border: 1px dashed #aebfb5; border-radius: 13px; background: #f7faf8; text-align: center; }
+    .file-drop strong { display: block; margin-bottom: 5px; }
+    .choose-file, .confirm-import { margin-top: 15px; padding: 9px 13px; border: 0; border-radius: 8px; background: var(--green); color: white; font-weight: 750; }
+    .import-preview { display: none; }
+    .import-preview.show { display: block; }
+    .file-summary { display: flex; align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #f8faf8; }
+    .file-icon { width: 39px; height: 39px; display: grid; place-items: center; border-radius: 9px; background: var(--mint); color: var(--green); font-weight: 900; }
+    .file-summary strong { display: block; font-size: 13px; }
+    .file-summary span { color: var(--muted); font-size: 11px; }
+    .import-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+    .import-stat { padding: 12px; border-radius: 10px; background: #f2f3ef; }
+    .import-stat strong { display: block; font: 600 21px Georgia, serif; }
+    .import-stat span { color: var(--muted); font-size: 10px; }
+    .folder-preview { padding: 12px; border-radius: 10px; background: #f7f3eb; color: #665b4d; font-size: 12px; }
+    .import-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+    .cancel-import { border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+    .import-note { display: none; margin: 14px 0 0; color: var(--green-dark); font-size: 12px; font-weight: 700; }
+    .import-note.show { display: block; }
+    .export-panel { display: none; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 34px; }
+    .export-panel.show { display: grid; }
+    .export-option { padding: 23px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: 0 8px 24px rgba(35,55,46,.05); }
+    .export-icon { width: 43px; height: 43px; display: grid; place-items: center; margin-bottom: 17px; border-radius: 11px; background: var(--mint); color: var(--green); font-size: 19px; }
+    .export-option.secondary .export-icon { background: #eee8dc; color: #806846; }
+    .export-option h3 { margin: 0 0 7px; font: 600 20px Georgia, serif; }
+    .export-option p { min-height: 60px; margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .export-includes { min-height: 78px; padding: 11px; border-radius: 9px; background: #f4f6f3; color: #52605a; font-size: 11px; line-height: 1.65; }
+    .export-button { width: 100%; margin-top: 15px; padding: 10px; border: 0; border-radius: 9px; background: var(--green); color: white; font-weight: 750; }
+    .export-option.secondary .export-button { border: 1px solid #b8c6be; background: white; color: var(--green-dark); }
+    .export-complete { display: none; margin-top: 15px; padding: 13px; border-radius: 10px; background: #e4f0e9; color: var(--green-dark); font-size: 12px; line-height: 1.5; }
+    .export-complete.show { display: block; }
+    .export-complete strong { display: block; }
+    .settings-panel { display: none; width: min(650px,100%); margin-top: 34px; padding: 28px; border: 1px solid var(--line); border-radius: 17px; background: var(--card); box-shadow: var(--shadow); }
+    .settings-panel.show { display: block; }
+    .setting-row { display: grid; grid-template-columns: 1fr 220px; align-items: center; gap: 25px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+    .setting-row:first-child { padding-top: 0; }
+    .setting-row:last-of-type { border-bottom: 0; }
+    .setting-row strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .setting-row span { color: var(--muted); font-size: 12px; }
+    .setting-row select { width: 100%; padding: 10px 11px; border: 1px solid #c6d2cb; border-radius: 9px; background: white; color: var(--ink); font-weight: 700; }
+    .settings-actions { display: flex; justify-content: flex-end; margin-top: 22px; }
+    .save-settings { padding: 10px 15px; border: 0; border-radius: 9px; background: var(--green); color: white; font-weight: 750; }
+    .page-status { display: none; justify-content: space-between; align-items: center; margin-top: 16px; padding: 11px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .page-status.show { display: flex; }
+    .page-buttons button { padding: 6px 9px; border: 1px solid #ced7d2; border-radius: 7px; background: var(--card); color: var(--muted); }
+    .text-large .bookmark-title { font-size: 24px; }
+    .text-large .bookmark-description { font-size: 16px; line-height: 1.65; }
+    .text-large .domain, .text-large .saved-chip { font-size: 13px; }
+    @media (max-width: 760px) { .export-panel { grid-template-columns: 1fr; } }
+    .library-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 40px 0 16px;
+    }
+    .library-head h2 { margin: 0; font: 500 22px Georgia, serif; }
+    .library-head span { color: var(--muted); font-size: 13px; }
+    .sort-controls { display: none; align-items: center; justify-content: flex-end; margin: 22px 0 -22px; }
+    .sort-controls.show { display: flex; }
+    .sort-menu-wrap { display: none; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+    .sort-menu-wrap.show { display: flex; }
+    #sort-menu {
+      min-width: 150px;
+      padding: 9px 30px 9px 11px;
+      border: 1px solid #cbd5cf;
+      border-radius: 9px;
+      background: var(--card);
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .sort-buttons { display: none; gap: 3px; padding: 4px; border: 1px solid #d3dcd6; border-radius: 10px; background: rgba(255,255,255,.65); }
+    .sort-buttons.show { display: flex; }
+    .sort-buttons button { padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .sort-buttons button.active { background: var(--green); color: white; }
+
+    .empty-state {
+      min-height: 226px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #cbd5cf;
+      border-radius: 18px;
+      background: rgba(255, 254, 250, .47);
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-icon {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      background: var(--mint);
+      color: var(--green);
+      font-size: 22px;
+    }
+    .empty-state strong { display: block; margin-bottom: 5px; color: var(--ink); }
+
+    .bookmark-card {
+      position: relative;
+      display: none;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: 0 7px 24px rgba(35, 55, 46, .05);
+      animation: arrive .3s ease both;
+    }
+    .bookmark-card.show { display: grid; }
+    .bookmark-card.attention {
+      border-color: #6c987f;
+      box-shadow: 0 0 0 4px rgba(70, 128, 98, .14), 0 14px 34px rgba(35, 55, 46, .09);
+      animation: focus-card .45s ease both;
+    }
+    .bookmark-card + .bookmark-card { margin-top: 12px; }
+    .bulk-mode .label-row { display: flex; }
+    .bulk-check {
+      position: absolute;
+      top: 20px;
+      left: 19px;
+      display: none;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+    }
+    .bulk-check input { width: 18px; height: 18px; accent-color: var(--green); }
+    .bulk-visible .bulk-check { display: grid; }
+    .bulk-visible .library-card { padding-left: 58px; }
+    .bulk-selector { display: none; justify-content: flex-end; margin-top: 18px; }
+    .bulk-selector.show { display: flex; }
+    .start-selecting {
+      padding: 8px 12px;
+      border: 1px solid #c3cec8;
+      border-radius: 9px;
+      background: var(--card);
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .select-visible {
+      display: none;
+      margin-left: 8px;
+      padding: 8px 12px;
+      border: 1px solid #c3cec8;
+      border-radius: 9px;
+      background: var(--green);
+      color: white;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .filtered-bulk.bulk-visible .select-visible { display: inline-flex; }
+    .bulk-bar {
+      position: fixed;
+      z-index: 12;
+      left: calc(232px + 50%);
+      bottom: 24px;
+      display: none;
+      align-items: center;
+      gap: 7px;
+      min-width: 520px;
+      padding: 10px 12px 10px 17px;
+      border: 1px solid #44564d;
+      border-radius: 14px;
+      background: #23332c;
+      color: white;
+      box-shadow: 0 20px 44px rgba(20,35,28,.24);
+      transform: translateX(-50%);
+    }
+    .bulk-bar.show { display: flex; }
+    .bulk-count { margin-right: auto; font-size: 13px; font-weight: 750; }
+    .bulk-bar > button { padding: 8px 10px; border: 0; border-radius: 8px; background: #3b4c44; color: white; font-size: 12px; font-weight: 700; }
+    .bulk-bar > button:hover { background: #50655b; }
+    .bulk-label-menu {
+      position: absolute;
+      right: 225px;
+      bottom: 56px;
+      display: none;
+      width: 190px;
+      padding: 8px;
+      border: 1px solid #d4ddd8;
+      border-radius: 11px;
+      background: var(--card);
+      color: var(--ink);
+      box-shadow: 0 15px 35px rgba(20,35,28,.2);
+    }
+    .bulk-reading-menu {
+      position: absolute;
+      right: 145px;
+      bottom: 56px;
+      display: none;
+      width: 190px;
+      padding: 8px;
+      border: 1px solid #d4ddd8;
+      border-radius: 11px;
+      background: var(--card);
+      color: var(--ink);
+      box-shadow: 0 15px 35px rgba(20,35,28,.2);
+    }
+    .bulk-reading-menu.show { display: grid; gap: 5px; }
+    .bulk-reading-menu p { margin: 3px 7px 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .bulk-reading-menu button { width: 100%; padding: 9px; border: 0; border-radius: 8px; background: var(--mint); color: var(--green-dark); text-align: left; font-size: 12px; font-weight: 750; }
+    .bulk-label-menu.show { display: block; }
+    .bulk-label-menu p { margin: 3px 7px 7px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .bulk-label-menu button { width: 100%; padding: 9px; border: 0; border-radius: 8px; background: var(--mint); color: var(--green-dark); text-align: left; font-size: 12px; font-weight: 750; }
+    .bulk-label-menu button + p { margin-top: 12px; }
+    .bulk-label-menu .remove-label-choice { background: #f7e8e5; color: #934238; }
+    .site-row { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+    .favicon {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #24292f;
+      color: white;
+      font: 700 13px Georgia, serif;
+    }
+    .domain { color: var(--muted); font-size: 12px; }
+    .bookmark-title { margin: 0 0 7px; font: 600 20px Georgia, serif; }
+    .bookmark-title a { color: inherit; text-decoration: none; }
+    .bookmark-title a:hover { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+    .external-mark { color: #82908a; font: 12px ui-sans-serif, system-ui, sans-serif; }
+    .bookmark-description { max-width: 650px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .saved-chip {
+      align-self: start;
+      padding: 7px 10px;
+      border-radius: 20px;
+      background: var(--mint);
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .site-blue { background: #2867b2; }
+    .site-coral { background: #bd5841; }
+    .site-violet { background: #6652a3; }
+    .no-results {
+      display: none;
+      padding: 48px 20px;
+      border: 1px dashed #cbd5cf;
+      border-radius: 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .no-results.show { display: block; }
+    .label-row { display: none; align-items: center; gap: 7px; margin-top: 15px; }
+    .label-mode .label-row { display: flex; }
+    .label-chip, .add-label {
+      min-height: 29px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .label-chip {
+      border: 0;
+      background: #e7e2f3;
+      color: #584486;
+    }
+    .add-label {
+      border: 1px dashed #aebbb4;
+      background: transparent;
+      color: #67736e;
+    }
+    .label-entry { position: relative; display: none; align-items: center; gap: 6px; }
+    .label-entry.show { display: flex; }
+    .label-entry input {
+      width: 126px;
+      height: 29px;
+      padding: 0 9px;
+      border: 1px solid #91a69a;
+      border-radius: 8px;
+      outline: 2px solid rgba(37, 93, 72, .10);
+    }
+    .label-suggestions {
+      position: absolute;
+      z-index: 5;
+      top: 35px;
+      left: 0;
+      width: 174px;
+      display: none;
+      padding: 5px;
+      border: 1px solid #d7dfda;
+      border-radius: 10px;
+      background: var(--card);
+      box-shadow: 0 12px 28px rgba(35, 55, 46, .14);
+    }
+    .label-suggestions.show { display: block; }
+    .label-suggestion {
+      width: 100%;
+      padding: 8px 9px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+      font-size: 12px;
+    }
+    .label-suggestion:hover, .label-suggestion:focus { background: var(--mint); outline: 0; }
+    .suggestion-caption { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .label-filter-note {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 17px;
+      color: var(--green-dark);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .label-filter-note.show { display: flex; }
+    .clear-filter {
+      border: 0;
+      background: transparent;
+      color: var(--green);
+      font-size: 12px;
+      text-decoration: underline;
+    }
+    .toast {
+      position: fixed;
+      right: 30px;
+      bottom: 28px;
+      padding: 13px 17px;
+      border-radius: 11px;
+      background: var(--ink);
+      color: white;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @keyframes arrive { from { opacity: 0; transform: translateY(8px); } }
+    @keyframes focus-card { 50% { transform: translateY(-3px); } }
+
+    @media (max-width: 760px) {
+      .app-shell { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 20px 48px; }
+      .content { margin-top: 22px; }
+      .save-panel { display: grid; }
+      #save-button { height: 46px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="brand-mark">T</span> Trove</div>
+      <nav aria-label="Bookmark views">
+        <button class="nav-item active" id="all-bookmarks-nav"><span class="nav-icon">⌂</span>All bookmarks <span class="count" id="nav-count">0</span></button>
+        <button class="nav-item" id="read-later-nav"><span class="nav-icon">◷</span>Read later <span class="count" id="read-later-count">0</span></button>
+        <button class="nav-item"><span class="nav-icon">◇</span>Labels</button>
+        <button class="nav-item"><span class="nav-icon">⌕</span>Search</button>
+        <button class="nav-item" id="put-away-nav"><span class="nav-icon">▱</span>Put away <span class="count" id="put-away-count">0</span></button>
+      </nav>
+      <section class="saved-searches" id="saved-searches"><h3>Saved searches</h3><button class="saved-search-link" id="saved-search-link" type="button">⌕ Accessible design</button></section>
+      <button class="nav-item settings-nav" id="settings-nav" type="button"><span class="nav-icon">⚙</span>Settings</button>
+    </aside>
+
+    <main>
+      <div class="topbar"><div class="avatar" aria-label="Personal account">ME</div></div>
+      <section class="content">
+        <p class="eyebrow">Your personal library</p>
+        <h1>Save something worth<br>finding again.</h1>
+        <p class="lede">Paste a link and its details will be gathered for you.</p>
+
+        <form class="save-panel" id="save-form">
+          <div class="url-wrap">
+            <span class="link-symbol" aria-hidden="true">↗</span>
+            <input id="url-input" type="url" required autocomplete="off" aria-label="Web address" placeholder="Paste a web address…">
+          </div>
+          <label class="read-later-choice"><input id="read-later-choice" type="checkbox"> Read later</label>
+          <button id="save-button" type="submit">Save link</button>
+        </form>
+        <p class="hint">For this prototype, try: https://github.com/features/copilot</p>
+        <div class="save-error" id="save-error"><span>!</span><div><strong>We couldn’t reach that page.</strong><br>Check the address or try again when the site is available. Nothing has been saved.</div></div>
+
+        <form class="search-panel" id="search-form" role="search">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="search-input" type="search" autocomplete="off" aria-label="Search saved bookmarks" placeholder="Search titles, descriptions, and more…">
+          <button id="search-button" type="submit">Search</button>
+        </form>
+        <p class="search-example" id="search-example">Try: label:Design &quot;keyboard navigation&quot; -site:css-tricks.com</p>
+        <div class="advanced-builder" id="advanced-builder">
+          <label id="advanced-single-label">With label<select id="advanced-label"><option value="">Any label</option><option value="design">Design</option><option value="accessibility">Accessibility</option><option value="books">Books</option></select></label>
+          <label>But not from<select id="advanced-exclude"><option value="">Any site</option><option value="css-tricks.com">css-tricks.com</option><option value="inclusive-components.design">inclusive-components.design</option></select></label>
+          <span class="logic-badge">Match all conditions</span>
+          <div class="advanced-label-group" id="advanced-label-group"><span>Label is</span><label><input type="checkbox" value="design"> Design</label><label><input type="checkbox" value="reference"> Reference</label><label><input type="checkbox" value="books"> Books</label><select id="label-logic" aria-label="How selected labels match"><option value="any">Match any selected</option><option value="all">Match all selected</option></select></div>
+        </div>
+        <div class="save-search-row" id="save-search-row"><button class="save-search-action" id="save-search-action" type="button">☆ Save this search</button></div>
+        <div class="label-filter-note" id="label-filter-note">Showing label: <span id="active-label"></span><button class="clear-filter" id="clear-label-filter" type="button">Show all</button></div>
+
+        <div class="sort-controls" id="sort-controls">
+          <label class="sort-menu-wrap" id="sort-menu-wrap">Order by
+            <select id="sort-menu" aria-label="Order bookmarks">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </label>
+          <div class="sort-buttons" id="sort-buttons" aria-label="Order bookmarks">
+            <button class="active" type="button" data-sort="newest">Newest</button>
+            <button type="button" data-sort="oldest">Oldest</button>
+            <button type="button" data-sort="name">Name A–Z</button>
+          </div>
+        </div>
+        <div class="bulk-selector" id="bulk-selector"><button class="start-selecting" id="start-selecting" type="button">Select bookmarks</button><button class="select-visible" id="select-visible" type="button">Select all 2 results</button></div>
+
+        <div class="library-head">
+          <h2>Recently saved</h2>
+          <span id="result-count">0 bookmarks</span>
+        </div>
+
+        <div class="empty-state" id="empty-state">
+          <div>
+            <div class="empty-icon">↗</div>
+            <strong>Your library is waiting</strong>
+            <span>Your first saved link will appear here.</span>
+            <button class="import-start" id="import-start" type="button">Import browser bookmarks</button>
+          </div>
+        </div>
+
+        <article class="bookmark-card" id="bookmark-card" aria-live="polite">
+          <div>
+            <div class="site-row">
+              <span class="favicon">GH</span>
+              <span class="domain" id="domain">github.com</span>
+            </div>
+            <h3 class="bookmark-title">GitHub Copilot · Your AI pair programmer</h3>
+            <p class="bookmark-description">Get suggestions for whole lines or entire functions right inside your editor, powered by AI and trained on billions of lines of code.</p>
+            <button class="read-later-action" id="mark-read" type="button">✓ Mark as read</button>
+            <button class="view-copy-action" id="view-copy" type="button">▣ View saved copy</button>
+            <button class="retry-details" id="retry-details" type="button">↻ Retry details and saved copy</button>
+          </div>
+          <span class="saved-chip">Saved just now</span>
+        </article>
+
+        <article class="bookmark-card library-card" data-title="Inclusive Components" data-saved="2026-05-18" data-labels="accessibility design" data-address="https://inclusive-components.design/" data-search="inclusive components accessible interface patterns keyboard navigation forms menus heydon pickering https://inclusive-components.design/">
+          <div>
+            <div class="site-row">
+              <span class="favicon site-coral">IC</span>
+              <span class="domain">inclusive-components.design</span>
+            </div>
+            <h3 class="bookmark-title">Inclusive Components</h3>
+            <p class="bookmark-description">Accessible interface patterns explained through practical examples, including keyboard navigation, forms, and menus.</p>
+            <div class="label-row"><button class="label-chip" type="button">Accessibility</button><button class="label-chip" type="button">Design</button><button class="add-label" type="button">＋ Add label</button></div>
+          </div>
+          <span class="saved-chip">Saved May 18</span>
+        </article>
+
+        <article class="bookmark-card library-card" id="css-card" data-title="A Complete Guide to CSS Grid" data-saved="2026-04-06" data-labels="reference" data-address="https://css-tricks.com/snippets/css/complete-guide-grid/" data-search="understanding css grid complete guide layout rows columns web design https://css-tricks.com/snippets/css/complete-guide-grid/">
+          <div>
+            <div class="site-row">
+              <span class="favicon site-blue">CS</span>
+              <span class="domain">css-tricks.com</span>
+            </div>
+            <h3 class="bookmark-title">A Complete Guide to CSS Grid</h3>
+            <p class="bookmark-description">A visual reference for building web layouts with grid containers, rows, columns, and alignment.</p>
+            <button class="set-aside-action" id="set-aside" type="button">◷ Set aside to read</button>
+            <button class="put-away-action" id="put-away" type="button">▱ Put away</button>
+            <button class="restore-action" id="restore-bookmark" type="button">↶ Restore to library</button>
+            <div class="manage-actions"><button class="edit-details" id="edit-details" type="button">✎ Edit details</button><button class="delete-bookmark" id="delete-bookmark" type="button">Delete</button></div>
+            <form class="inline-edit" id="inline-edit">
+              <label>Web address<input id="edit-url" type="url" value="https://css-tricks.com/snippets/css/complete-guide-grid/" required></label>
+              <label>Title<input id="edit-title" value="A Complete Guide to CSS Grid"></label>
+              <label>Description<textarea id="edit-description">A visual reference for building web layouts with grid containers, rows, columns, and alignment.</textarea></label>
+              <div class="edit-buttons"><button class="cancel-edit" id="cancel-edit" type="button">Cancel</button><button class="save-edit" type="submit">Save changes</button></div>
+            </form>
+            <div class="label-row" id="target-label-row">
+              <button class="label-chip" type="button">Reference</button>
+              <button class="add-label" id="add-label" type="button">＋ Add label</button>
+              <form class="label-entry" id="label-entry">
+                <input id="label-input" aria-label="New label" placeholder="Label name" autocomplete="off">
+                <button class="label-chip" type="submit">Add</button>
+                <div class="label-suggestions" id="label-suggestions" role="listbox">
+                  <button class="label-suggestion" id="design-suggestion" type="button" role="option">Design<span class="suggestion-caption">Existing label · 1 bookmark</span></button>
+                </div>
+              </form>
+            </div>
+          </div>
+          <span class="saved-chip">Saved Apr 06</span>
+        </article>
+
+        <article class="bookmark-card library-card" data-title="How to Take Smart Notes" data-saved="2026-03-29" data-labels="books" data-address="https://www.goodreads.com/book/show/34507927-how-to-take-smart-notes" data-search="how to take smart notes reading knowledge ideas note taking sönke ahrens https://www.goodreads.com/book/show/34507927-how-to-take-smart-notes">
+          <div>
+            <div class="site-row">
+              <span class="favicon site-violet">BK</span>
+              <span class="domain">goodreads.com</span>
+            </div>
+            <h3 class="bookmark-title">How to Take Smart Notes</h3>
+            <p class="bookmark-description">A practical guide to turning reading and research into connected ideas you can find and use later.</p>
+            <div class="label-row"><button class="label-chip" type="button">Books</button><button class="add-label" type="button">＋ Add label</button></div>
+          </div>
+          <span class="saved-chip">Saved Mar 29</span>
+        </article>
+
+        <div class="no-results" id="no-results">No saved bookmarks match those words.</div>
+        <div class="read-later-empty" id="read-later-empty">
+          <div><div class="empty-icon">✓</div><strong>You’re all caught up</strong><br><span>Nothing is waiting to be read.</span></div>
+        </div>
+        <div class="read-later-empty" id="put-away-empty">
+          <div><div class="empty-icon">▱</div><strong>Nothing put away</strong><br><span>Restored bookmarks return to your main library.</span></div>
+        </div>
+        <section class="export-panel" id="export-panel">
+          <article class="export-option">
+            <div class="export-icon">⬇</div><h3>Complete library backup</h3>
+            <p>A restorable copy of everything you trust Trove to keep.</p>
+            <div class="export-includes">247 bookmarks · titles and descriptions<br>Labels, dates, reading and put-away status<br>231 saved pages · 16 original PDFs</div>
+            <button class="export-button" id="export-full" type="button">Download full backup</button>
+            <div class="export-complete" id="export-complete"><strong>✓ Backup downloaded</strong>trove-library-2026-09-25.zip · 184 MB</div>
+          </article>
+          <article class="export-option secondary">
+            <div class="export-icon">↗</div><h3>Browser bookmark file</h3>
+            <p>A portable list of names and addresses for browsers and other bookmark tools.</p>
+            <div class="export-includes">247 bookmark names and addresses<br>Labels arranged as folders<br>Saved copies and app status not included</div>
+            <button class="export-button" id="export-browser" type="button">Download bookmark file</button>
+          </article>
+        </section>
+        <form class="settings-panel" id="settings-panel">
+          <div class="setting-row"><div><strong>Bookmarks per page</strong><span>Choose how many appear before moving to the next page.</span></div><select id="page-size"><option value="25">25 bookmarks</option><option value="50">50 bookmarks</option><option value="100">100 bookmarks</option></select></div>
+          <div class="setting-row"><div><strong>Text size</strong><span>Adjust the reading size across bookmark cards.</span></div><select id="text-size"><option value="small">Small</option><option value="comfortable" selected>Comfortable</option><option value="large">Large</option></select></div>
+          <div class="setting-row"><div><strong>Default order</strong><span>The order used whenever you open your library.</span></div><select id="default-order"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></div>
+          <div class="settings-actions"><button class="save-settings" type="submit">Save settings</button></div>
+        </form>
+        <div class="page-status" id="page-status"><span>Showing 50 per page · 247 bookmarks</span><div class="page-buttons"><button type="button" disabled>Previous</button> Page 1 of 5 <button type="button">Next</button></div></div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status">Link saved with its details</div>
+  <div class="bulk-bar" id="bulk-bar">
+    <span class="bulk-count" id="bulk-count">0 selected</span>
+    <button id="bulk-label" type="button">Labels</button>
+    <button id="bulk-reading" type="button">Reading</button>
+    <button id="bulk-put-away" type="button">▱ Put away</button>
+    <button id="bulk-delete" type="button">Delete</button>
+    <div class="bulk-label-menu" id="bulk-label-menu"><p>Add existing label</p><button id="bulk-design" type="button">＋ Design</button><p>Remove label</p><button class="remove-label-choice" id="bulk-remove-design" type="button">− Design</button></div>
+    <div class="bulk-reading-menu" id="bulk-reading-menu"><p>Change reading status</p><button id="bulk-mark-read" type="button">✓ Mark read</button><button id="bulk-mark-unread" type="button">◷ Mark unread</button></div>
+  </div>
+  <div class="copy-viewer" id="copy-viewer" role="dialog" aria-modal="true" aria-label="Saved copy">
+    <article class="reader-copy">
+      <div class="copy-topline"><span class="copy-status">✓ SAVED COPY · MAY 18, 2026</span><button class="close-copy" id="close-copy" type="button">Close ✕</button></div>
+      <p class="copy-kicker">Ideas &amp; practice</p>
+      <h2>Building a resilient personal knowledge base</h2>
+      <div class="copy-byline">By Mara Chen · Originally from fieldnotes.example/articles/resilient-knowledge</div>
+      <div class="copy-illustration" aria-label="Abstract green illustration"></div>
+      <div class="copy-article">
+        <p>A useful personal library is more than a collection of links. It preserves the context that made an idea worth saving in the first place.</p>
+        <p>Start by capturing enough information to recognize each source later. A clear title, a short summary, and your own notes turn an address into something meaningful and retrievable.</p>
+        <p>Over time, websites move and pages change. Keeping a readable copy means the knowledge you deliberately collected does not disappear along with its original location.</p>
+      </div>
+    </article>
+    <section class="pdf-copy" aria-label="Saved PDF document">
+      <div class="pdf-toolbar"><span class="pdf-name">future-of-digital-archives-2026.pdf</span><span class="pdf-saved">Saved file</span><span>1 / 24</span><button class="pdf-tool" type="button">Download</button><button class="pdf-tool close-pdf" type="button">Close ✕</button></div>
+      <div class="pdf-stage">
+        <article class="pdf-page">
+          <div class="report-brand">OPEN KNOWLEDGE INSTITUTE</div>
+          <h2>The Future of<br>Digital Archives</h2>
+          <div class="report-rule"></div>
+          <p>Preserving access, context, and trust in personal and public knowledge collections.</p>
+          <div class="report-meta">Research report · May 2026<br>Open Knowledge Institute</div>
+        </article>
+      </div>
+    </section>
+  </div>
+  <div class="confirm-backdrop" id="delete-confirmation" role="dialog" aria-modal="true" aria-labelledby="delete-heading">
+    <div class="confirm-dialog">
+      <div class="confirm-symbol">!</div>
+      <h2 id="delete-heading">Delete this bookmark?</h2>
+      <p id="delete-description"><span class="confirm-title">A Complete Guide to CSS Grid</span> and its saved copy will be removed from your library.</p>
+      <div class="confirm-buttons"><button class="keep-bookmark" id="keep-bookmark" type="button">Keep bookmark</button><button class="confirm-delete" id="confirm-delete" type="button">Delete bookmark</button></div>
+    </div>
+  </div>
+  <div class="import-dialog-wrap" id="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-heading">
+    <div class="import-dialog">
+      <h2 id="import-heading">Bring in your bookmarks</h2>
+      <p>Choose the bookmark file from your browser. Nothing is added until you review it.</p>
+      <div class="file-drop" id="file-drop"><strong>Drop your bookmark file here</strong><span>or choose it from your computer</span><br><button class="choose-file" id="choose-file" type="button">Choose bookmark file</button></div>
+      <div class="import-preview" id="import-preview">
+        <div class="file-summary"><span class="file-icon">↥</span><div><strong>browser-bookmarks.html</strong><span>Ready to review · 1.8 MB</span></div></div>
+        <div class="import-stats"><div class="import-stat"><strong>247</strong><span>BOOKMARKS</span></div><div class="import-stat"><strong>12</strong><span>FOLDERS → LABELS</span></div><div class="import-stat"><strong>231</strong><span>SAVED DATES FOUND</span></div></div>
+        <div class="folder-preview"><strong>Folder labels found:</strong> Design, Accessibility, Books, Research, Recipes, Travel, and 6 more</div>
+        <div class="import-actions"><button class="cancel-import" id="cancel-import" type="button">Cancel</button><button class="confirm-import" id="confirm-import" type="button">Import 247 bookmarks</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="save-search-dialog" id="save-search-dialog" role="dialog" aria-modal="true" aria-labelledby="save-search-heading">
+    <form class="save-search-box" id="save-search-form">
+      <h2 id="save-search-heading">Save this search</h2><p>Give these search conditions a name you’ll recognize.</p>
+      <input id="saved-search-name" value="Accessible design" aria-label="Saved search name" required>
+      <div class="save-search-buttons"><button class="cancel-search-save" id="cancel-search-save" type="button">Cancel</button><button class="confirm-search-save" type="submit">Save search</button></div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url-input');
+    const button = document.querySelector('#save-button');
+    const empty = document.querySelector('#empty-state');
+    const card = document.querySelector('#bookmark-card');
+    const toast = document.querySelector('#toast');
+    const params = new URLSearchParams(window.location.search);
+    const searchMode = params.get('flow') === 'search';
+    const searchInteraction = params.get('interaction') || 'live';
+    const searchPanel = document.querySelector('#search-form');
+    const searchInput = document.querySelector('#search-input');
+    const searchButton = document.querySelector('#search-button');
+    const libraryCards = [...document.querySelectorAll('.library-card')];
+    const noResults = document.querySelector('#no-results');
+    const cssCard = document.querySelector('#css-card');
+    const labelMode = params.get('flow') === 'labels';
+    const readLaterMode = params.get('flow') === 'read-later';
+    const archiveMode = params.get('flow') === 'archive';
+    const duplicateMode = params.get('flow') === 'duplicate';
+    const manageMode = params.get('flow') === 'manage';
+    const putAwayMode = params.get('flow') === 'put-away';
+    const openMode = params.get('flow') === 'open';
+    const sortMode = params.get('flow') === 'sort';
+    const sortControl = params.get('control') || 'menu';
+    const bulkMode = params.get('flow') === 'bulk';
+    const bulkControl = params.get('control') || 'mode';
+    const bulkState = params.get('state');
+    const advancedSearchMode = params.get('flow') === 'advanced-search';
+    const advancedControl = params.get('control') || 'query';
+    const advancedLogic = params.get('logic');
+    const importMode = params.get('flow') === 'import';
+    const exportMode = params.get('flow') === 'export';
+    const savedSearchMode = params.get('flow') === 'saved-search';
+    const settingsMode = params.get('flow') === 'settings';
+    const saveFailureMode = params.get('flow') === 'save-failure';
+    const failureHandling = params.get('handling') || 'keep';
+    const putAwayState = params.get('state');
+    let isPutAway = false;
+    let bulkDeleteTargets = [];
+    const archiveType = params.get('type') || 'page';
+    const readLaterState = params.get('state');
+    let isReadLater = false;
+    let existingReadLater = false;
+
+    function applySearch() {
+      const words = searchInput.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      let visible = 0;
+      libraryCards.forEach((item) => {
+        const excludedBecausePutAway = putAwayMode && isPutAway && item.id === 'css-card';
+        const matches = !excludedBecausePutAway && words.every((word) => item.dataset.search.includes(word));
+        item.classList.toggle('show', matches);
+        if (matches) visible += 1;
+      });
+      noResults.classList.toggle('show', visible === 0);
+      document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+    }
+
+    if (searchMode) {
+      document.querySelector('h1').innerHTML = 'Find what you saved.<br>Right when you need it.';
+      document.querySelector('.lede').textContent = 'Search across your personal library by the words you remember.';
+      searchPanel.classList.add('show');
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelectorAll('.nav-item')[3].classList.add('active');
+      if (searchInteraction === 'button') searchButton.classList.add('show');
+      if (searchInteraction === 'live') searchInput.addEventListener('input', applySearch);
+    }
+
+    if (labelMode) {
+      document.body.classList.add('label-mode');
+      document.querySelector('h1').innerHTML = 'Make your library<br>work your way.';
+      document.querySelector('.lede').textContent = 'Add your own labels, then use them to gather related bookmarks.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelectorAll('.nav-item')[2].classList.add('active');
+    }
+
+    if (readLaterMode) {
+      document.body.classList.add('read-later-mode');
+      document.querySelector('h1').innerHTML = 'Save now.<br>Read when you’re ready.';
+      document.querySelector('.lede').textContent = 'Set reading aside without losing it in the rest of your library.';
+      document.querySelector('.hint').textContent = 'Try: https://github.com/features/copilot';
+      input.value = 'https://github.com/features/copilot';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      if (readLaterState === 'has-item') {
+        isReadLater = true;
+        libraryCards.forEach((item) => item.classList.remove('show'));
+        card.style.display = '';
+        card.classList.add('show');
+        card.querySelector('.saved-chip').textContent = '◷ Read later';
+        document.querySelector('#read-later-count').textContent = '1';
+        document.querySelector('#nav-count').textContent = '4';
+        document.querySelector('#result-count').textContent = '1 bookmark';
+        document.body.classList.add('read-later-view');
+        document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+        document.querySelector('#read-later-nav').classList.add('active');
+        document.querySelector('h1').innerHTML = 'Ready when you are.';
+        document.querySelector('.lede').textContent = 'Everything you set aside to read, in one calm place.';
+        document.querySelector('.library-head h2').textContent = 'Read later';
+      }
+      if (readLaterState === 'add-existing') {
+        document.body.classList.add('add-existing-state');
+        document.querySelector('h1').innerHTML = 'Your saved library.';
+        document.querySelector('.lede').textContent = 'Anything you already saved can still be set aside for later.';
+      }
+    }
+
+    if (archiveMode) {
+      document.body.classList.add('archive-mode');
+      document.querySelector('h1').innerHTML = 'What you save,<br>stays with you.';
+      document.querySelector('.lede').textContent = 'A preserved copy is kept with every bookmark for when the original is gone.';
+      empty.style.display = 'none';
+      card.style.display = '';
+      card.classList.add('show');
+      card.querySelector('.favicon').textContent = 'FN';
+      card.querySelector('.favicon').style.background = '#315e4c';
+      card.querySelector('.domain').textContent = 'fieldnotes.example';
+      card.querySelector('.bookmark-title').textContent = 'Building a resilient personal knowledge base';
+      card.querySelector('.bookmark-description').textContent = 'How to preserve context, connect useful ideas, and keep the knowledge you collect available over time.';
+      card.querySelector('.saved-chip').textContent = '✓ Copy saved';
+      document.querySelector('#nav-count').textContent = '1';
+      document.querySelector('#result-count').textContent = '1 bookmark';
+      if (archiveType === 'pdf') {
+        document.body.classList.add('archive-pdf');
+        card.querySelector('.favicon').textContent = 'PDF';
+        card.querySelector('.favicon').style.background = '#b9493f';
+        card.querySelector('.domain').textContent = 'openknowledge.example · PDF';
+        card.querySelector('.bookmark-title').textContent = 'The Future of Digital Archives — 2026 Report';
+        card.querySelector('.bookmark-description').textContent = 'Research on preserving access, context, and trust in personal and public knowledge collections.';
+        card.querySelector('.saved-chip').textContent = '✓ PDF saved';
+        document.querySelector('#view-copy').textContent = '▣ Open saved PDF';
+      }
+    }
+
+    if (duplicateMode) {
+      document.querySelector('h1').innerHTML = 'Everything saved.<br>Only once.';
+      document.querySelector('.lede').textContent = 'Paste a link and the library will recognize what you already have.';
+      input.value = 'https://css-tricks.com/snippets/css/complete-guide-grid/';
+      document.querySelector('.hint').textContent = 'This address is already in your library.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+    }
+
+    if (manageMode) {
+      document.body.classList.add('manage-mode');
+      document.querySelector('h1').innerHTML = 'Keep every bookmark<br>clear and useful.';
+      document.querySelector('.lede').textContent = 'Tidy the details whenever the page’s own wording misses the mark.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+    }
+
+    if (putAwayMode) {
+      document.body.classList.add('put-away-mode');
+      document.querySelector('h1').innerHTML = 'Keep what matters.<br>Clear what’s in the way.';
+      document.querySelector('.lede').textContent = 'Put a bookmark away without losing it for good.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      if (putAwayState === 'search') {
+        isPutAway = true;
+        cssCard.classList.remove('show');
+        cssCard.querySelector('.saved-chip').textContent = '▱ Put away';
+        document.querySelector('#put-away-count').textContent = '1';
+        document.querySelector('#nav-count').textContent = '2';
+        document.querySelector('#result-count').textContent = '2 bookmarks';
+        searchPanel.classList.add('show');
+        searchInput.addEventListener('input', applySearch);
+        document.querySelector('h1').innerHTML = 'Search your<br>everyday library.';
+        document.querySelector('.lede').textContent = 'Put-away bookmarks stay outside normal results until you restore them.';
+      }
+    }
+
+    if (openMode) {
+      document.querySelector('h1').innerHTML = 'Return to what<br>you saved.';
+      document.querySelector('.lede').textContent = 'Open the original website directly from its bookmark.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      const title = cssCard.querySelector('.bookmark-title');
+      title.innerHTML = '<a href="external-site.html" target="_blank" rel="noopener">A Complete Guide to CSS Grid <span class="external-mark">↗</span></a>';
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+    }
+
+    function orderBookmarks(order) {
+      const ordered = [...libraryCards].sort((a, b) => {
+        if (order === 'oldest') return a.dataset.saved.localeCompare(b.dataset.saved);
+        if (order === 'name') return a.dataset.title.localeCompare(b.dataset.title);
+        return b.dataset.saved.localeCompare(a.dataset.saved);
+      });
+      ordered.forEach((item) => noResults.before(item));
+    }
+
+    if (sortMode) {
+      document.querySelector('h1').innerHTML = 'Your library,<br>in the order you need.';
+      document.querySelector('.lede').textContent = 'Change the arrangement without changing what you saved.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#sort-controls').classList.add('show');
+      document.querySelector(sortControl === 'buttons' ? '#sort-buttons' : '#sort-menu-wrap').classList.add('show');
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+    }
+
+    function setBulkVisibility(visible) {
+      document.body.classList.toggle('bulk-visible', visible);
+    }
+
+    function updateBulkBar() {
+      const selected = [...document.querySelectorAll('.bulk-check input:checked')];
+      document.querySelector('#bulk-count').textContent = `${selected.length} selected`;
+      document.querySelector('#bulk-bar').classList.toggle('show', selected.length > 0);
+    }
+
+    if (bulkMode) {
+      document.body.classList.add('bulk-mode');
+      document.querySelector('h1').innerHTML = 'Tidy several things<br>in one pass.';
+      document.querySelector('.lede').textContent = 'Select the bookmarks you want, then make one change to all of them.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => {
+        item.classList.add('show');
+        const selector = document.createElement('label');
+        selector.className = 'bulk-check';
+        selector.innerHTML = `<input type="checkbox" aria-label="Select ${item.dataset.title}">`;
+        item.prepend(selector);
+        selector.querySelector('input').addEventListener('change', updateBulkBar);
+      });
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      if (bulkControl === 'checkboxes') setBulkVisibility(true);
+      else document.querySelector('#bulk-selector').classList.add('show');
+      if (bulkState === 'filtered') {
+        document.body.classList.add('filtered-bulk');
+        searchPanel.classList.add('show');
+        searchInput.value = 'design';
+        applySearch();
+        document.querySelector('h1').innerHTML = 'Act on what<br>you’ve narrowed down.';
+        document.querySelector('.lede').textContent = 'Selection applies only to the results visible in this filtered view.';
+      }
+      if (bulkState === 'reverse-label') {
+        const cssLabels = cssCard.querySelector('.label-row');
+        const chip = document.createElement('button');
+        chip.className = 'label-chip';
+        chip.type = 'button';
+        chip.textContent = 'Design';
+        cssLabels.querySelector('.add-label').before(chip);
+        document.querySelector('h1').innerHTML = 'Undo a label<br>in one pass.';
+        document.querySelector('.lede').textContent = 'Remove the same label from every selected bookmark.';
+      }
+      if (bulkState === 'reverse-read') {
+        document.querySelector('h1').innerHTML = 'Set several things<br>aside to read.';
+        document.querySelector('.lede').textContent = 'Mark a selected batch unread to place all of them into Read later.';
+      }
+      if (bulkState === 'bulk-put-away') {
+        document.querySelector('h1').innerHTML = 'Clear several things<br>out of the way.';
+        document.querySelector('.lede').textContent = 'Put a selected batch away while keeping every bookmark intact.';
+      }
+      if (bulkState === 'bulk-delete') {
+        document.querySelector('h1').innerHTML = 'Remove several things<br>with one careful check.';
+        document.querySelector('.lede').textContent = 'Permanent bulk deletion confirms exactly what will be lost.';
+      }
+    }
+
+    function showAdvancedMatches(predicate) {
+      let visible = 0;
+      libraryCards.forEach((item) => {
+        const matches = predicate(item);
+        item.classList.toggle('show', matches);
+        if (matches) visible += 1;
+      });
+      noResults.classList.toggle('show', visible === 0);
+      document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+    }
+
+    function applyQuerySearch() {
+      const raw = searchInput.value.trim();
+      const tokens = [...raw.matchAll(/"([^"]+)"|(\S+)/g)].map(match => ({ value: (match[1] || match[2]).toLowerCase(), exact: Boolean(match[1]) }));
+      showAdvancedMatches((item) => tokens.every((token) => {
+        if (token.value.startsWith('label:')) return item.dataset.labels.split(' ').includes(token.value.slice(6));
+        if (token.value.startsWith('-site:')) return !item.dataset.address.includes(token.value.slice(6));
+        return item.dataset.search.includes(token.value);
+      }));
+    }
+
+    function applyBuilderSearch() {
+      const phrase = searchInput.value.trim().toLowerCase();
+      const label = document.querySelector('#advanced-label').value;
+      const excludedSite = document.querySelector('#advanced-exclude').value;
+      showAdvancedMatches((item) => {
+        const phraseMatches = !phrase || item.dataset.search.includes(phrase);
+        let labelMatches = !label || item.dataset.labels.split(' ').includes(label);
+        if (advancedLogic === 'or') {
+          const selectedLabels = [...document.querySelectorAll('#advanced-label-group input:checked')].map(input => input.value);
+          const itemLabels = item.dataset.labels.split(' ');
+          const mode = document.querySelector('#label-logic').value;
+          labelMatches = selectedLabels.length === 0 || (mode === 'any' ? selectedLabels.some(value => itemLabels.includes(value)) : selectedLabels.every(value => itemLabels.includes(value)));
+        }
+        const siteAllowed = !excludedSite || !item.dataset.address.includes(excludedSite);
+        return phraseMatches && labelMatches && siteAllowed;
+      });
+    }
+
+    if (advancedSearchMode) {
+      document.body.classList.add('advanced-search-mode');
+      document.querySelector('h1').innerHTML = 'Narrow in on<br>exactly the right thing.';
+      document.querySelector('.lede').textContent = 'Combine remembered wording, labels, and exclusions in one search.';
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      searchPanel.classList.add('show');
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      if (advancedControl === 'query') {
+        searchInput.placeholder = 'Search with words, labels, and exclusions…';
+        document.querySelector('#search-example').classList.add('show');
+        searchInput.addEventListener('input', applyQuerySearch);
+      } else {
+        searchInput.placeholder = 'Exact phrase…';
+        document.querySelector('#advanced-builder').classList.add('show');
+        searchInput.addEventListener('input', applyBuilderSearch);
+        document.querySelector('#advanced-label').addEventListener('change', applyBuilderSearch);
+        document.querySelector('#advanced-exclude').addEventListener('change', applyBuilderSearch);
+        if (advancedLogic === 'or') {
+          document.querySelector('#advanced-single-label').style.display = 'none';
+          document.querySelector('#advanced-label-group').classList.add('show');
+          document.querySelector('.logic-badge').textContent = 'Phrase + label group + exclusion';
+          document.querySelectorAll('#advanced-label-group input').forEach(input => input.addEventListener('change', applyBuilderSearch));
+          document.querySelector('#label-logic').addEventListener('change', applyBuilderSearch);
+          document.querySelector('.lede').textContent = 'Gather bookmarks matching any selected label, alongside precise wording and exclusions.';
+        }
+      }
+    }
+
+    if (importMode) {
+      document.body.classList.add('import-mode');
+      document.querySelector('h1').innerHTML = 'Bring your old library<br>into one place.';
+      document.querySelector('.lede').textContent = 'Start with the bookmarks already saved in your browser.';
+      document.querySelector('.hint').style.display = 'none';
+      document.querySelector('.library-head').style.display = 'none';
+      empty.querySelector('strong').textContent = 'Start with what you already have';
+      empty.querySelector('span:not(.empty-icon)').textContent = 'Import your browser bookmarks instead of entering them again.';
+    }
+
+    if (exportMode) {
+      document.querySelector('h1').innerHTML = 'Your library.<br>Your copy to keep.';
+      document.querySelector('.lede').textContent = 'Download everything for safekeeping or take your links to another tool.';
+      document.querySelector('.save-panel').style.display = 'none';
+      document.querySelector('.hint').style.display = 'none';
+      document.querySelector('.library-head').style.display = 'none';
+      empty.style.display = 'none';
+      document.querySelector('#export-panel').classList.add('show');
+      document.querySelector('#nav-count').textContent = '247';
+    }
+
+    if (savedSearchMode) {
+      document.body.classList.add('advanced-search-mode');
+      document.querySelector('h1').innerHTML = 'Keep a useful search<br>within easy reach.';
+      document.querySelector('.lede').textContent = 'Save the conditions, then return to their live results with one click.';
+      empty.style.display = 'none'; card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      searchPanel.classList.add('show');
+      document.querySelector('#advanced-builder').classList.add('show');
+      document.querySelector('#save-search-row').classList.add('show');
+      document.querySelector('#saved-searches').classList.add('show');
+      searchInput.value = 'keyboard navigation';
+      document.querySelector('#advanced-label').value = 'design';
+      document.querySelector('#advanced-exclude').value = 'css-tricks.com';
+      document.querySelector('#nav-count').textContent = '3';
+      searchInput.addEventListener('input', applyBuilderSearch);
+      document.querySelector('#advanced-label').addEventListener('change', applyBuilderSearch);
+      document.querySelector('#advanced-exclude').addEventListener('change', applyBuilderSearch);
+      applyBuilderSearch();
+    }
+
+    function showSettings() {
+      document.querySelector('.save-panel').style.display = 'none';
+      document.querySelector('.hint').style.display = 'none';
+      document.querySelector('.library-head').style.display = 'none';
+      libraryCards.forEach((item) => item.classList.remove('show'));
+      empty.style.display = 'none'; card.style.display = 'none';
+      document.querySelector('#page-status').classList.remove('show');
+      document.querySelector('#settings-panel').classList.add('show');
+      document.querySelector('h1').innerHTML = 'Make the library<br>comfortable for you.';
+      document.querySelector('.lede').textContent = 'Choose how much you see and how it is presented each time you return.';
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#settings-nav').classList.add('active');
+    }
+
+    if (settingsMode) {
+      document.querySelector('#nav-count').textContent = '247';
+      showSettings();
+    }
+    if (saveFailureMode) {
+      document.querySelector('h1').innerHTML = 'Save something worth<br>finding again.';
+      document.querySelector('.lede').textContent = 'This example page cannot be reached while its details are gathered.';
+      input.value = 'https://example.com/unreachable-article';
+      document.querySelector('.hint').textContent = 'The address is valid, but the page is temporarily unavailable.';
+    }
+    document.querySelector('#settings-nav').addEventListener('click', () => {
+      if (!settingsMode) return;
+      showSettings();
+    });
+    document.querySelector('#settings-panel').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const pageSize = document.querySelector('#page-size').value;
+      const size = document.querySelector('#text-size').value;
+      const order = document.querySelector('#default-order').value;
+      document.querySelector('#settings-panel').classList.remove('show');
+      document.querySelector('.save-panel').style.display = '';
+      document.querySelector('.library-head').style.display = 'flex';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      orderBookmarks(order);
+      document.body.classList.toggle('text-large', size === 'large');
+      document.querySelector('#page-status span').textContent = `Showing ${pageSize} per page · 247 bookmarks`;
+      document.querySelector('#page-status').classList.add('show');
+      document.querySelector('#result-count').textContent = '247 bookmarks';
+      document.querySelector('h1').innerHTML = 'Your saved library.';
+      document.querySelector('.lede').textContent = 'Your preferred view is ready whenever you return.';
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#all-bookmarks-nav').classList.add('active');
+      toast.textContent = 'Settings saved'; toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    document.querySelector('#save-search-action').addEventListener('click', () => {
+      document.querySelector('#save-search-dialog').classList.add('show');
+      document.querySelector('#saved-search-name').select();
+    });
+    document.querySelector('#cancel-search-save').addEventListener('click', () => document.querySelector('#save-search-dialog').classList.remove('show'));
+    document.querySelector('#save-search-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = document.querySelector('#saved-search-name').value.trim();
+      document.querySelector('#saved-search-link').textContent = `⌕ ${name}`;
+      document.querySelector('#saved-search-link').classList.add('show');
+      document.querySelector('#save-search-dialog').classList.remove('show');
+      searchInput.value = '';
+      document.querySelector('#advanced-label').value = '';
+      document.querySelector('#advanced-exclude').value = '';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      document.querySelector('h1').innerHTML = 'Your saved library.';
+      toast.textContent = 'Search saved'; toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1500);
+    });
+    document.querySelector('#saved-search-link').addEventListener('click', () => {
+      searchInput.value = 'keyboard navigation';
+      document.querySelector('#advanced-label').value = 'design';
+      document.querySelector('#advanced-exclude').value = 'css-tricks.com';
+      applyBuilderSearch();
+      document.querySelector('h1').innerHTML = 'Accessible design';
+      document.querySelector('.lede').textContent = 'Live results from your saved search.';
+    });
+
+    document.querySelector('#export-full').addEventListener('click', () => {
+      const button = document.querySelector('#export-full');
+      button.disabled = true; button.textContent = 'Preparing backup…';
+      window.setTimeout(() => {
+        button.style.display = 'none';
+        document.querySelector('#export-complete').classList.add('show');
+      }, 700);
+    });
+    document.querySelector('#export-browser').addEventListener('click', () => {
+      toast.textContent = 'Browser bookmark file downloaded';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    document.querySelector('#import-start').addEventListener('click', () => document.querySelector('#import-dialog').classList.add('show'));
+    document.querySelector('#choose-file').addEventListener('click', () => {
+      document.querySelector('#file-drop').style.display = 'none';
+      document.querySelector('#import-preview').classList.add('show');
+    });
+    document.querySelector('#cancel-import').addEventListener('click', () => document.querySelector('#import-dialog').classList.remove('show'));
+    document.querySelector('#confirm-import').addEventListener('click', () => {
+      document.querySelector('#import-dialog').classList.remove('show');
+      document.body.classList.add('imported-mode');
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('.library-head').style.display = 'flex';
+      document.querySelector('.library-head h2').textContent = 'Imported bookmarks';
+      document.querySelector('#nav-count').textContent = '247';
+      document.querySelector('#result-count').textContent = '247 bookmarks';
+      toast.textContent = '247 bookmarks imported';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 2200);
+    });
+
+    document.querySelector('#start-selecting').addEventListener('click', () => {
+      setBulkVisibility(true);
+      document.querySelector('#start-selecting').textContent = 'Selecting…';
+    });
+    document.querySelector('#select-visible').addEventListener('click', () => {
+      document.querySelectorAll('.library-card.show .bulk-check input').forEach(input => input.checked = true);
+      updateBulkBar();
+    });
+    document.querySelector('#bulk-label').addEventListener('click', () => document.querySelector('#bulk-label-menu').classList.toggle('show'));
+    document.querySelector('#bulk-reading').addEventListener('click', () => document.querySelector('#bulk-reading-menu').classList.toggle('show'));
+    document.querySelector('#bulk-design').addEventListener('click', () => {
+      const selectedCards = [...document.querySelectorAll('.bulk-check input:checked')].map(input => input.closest('.library-card'));
+      selectedCards.forEach((item) => {
+        const labels = [...item.querySelectorAll('.label-chip')].map(chip => chip.textContent.trim());
+        if (!labels.includes('Design')) {
+          const chip = document.createElement('button');
+          chip.className = 'label-chip';
+          chip.type = 'button';
+          chip.textContent = 'Design';
+          item.querySelector('.add-label').before(chip);
+        }
+      });
+      document.querySelectorAll('.bulk-check input').forEach(input => input.checked = false);
+      document.querySelector('#bulk-label-menu').classList.remove('show');
+      updateBulkBar();
+      if (bulkControl === 'mode') setBulkVisibility(false);
+      toast.textContent = `Design added to ${selectedCards.length} bookmarks`;
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+    document.querySelector('#bulk-remove-design').addEventListener('click', () => {
+      const selectedCards = [...document.querySelectorAll('.bulk-check input:checked')].map(input => input.closest('.library-card'));
+      selectedCards.forEach((item) => {
+        [...item.querySelectorAll('.label-chip')]
+          .filter(chip => chip.textContent.trim() === 'Design')
+          .forEach(chip => chip.remove());
+      });
+      document.querySelectorAll('.bulk-check input').forEach(input => input.checked = false);
+      document.querySelector('#bulk-label-menu').classList.remove('show');
+      updateBulkBar();
+      setBulkVisibility(false);
+      toast.textContent = `Design removed from ${selectedCards.length} bookmarks`;
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+    function finishBulkReading(selectedCards, unread) {
+      selectedCards.forEach((item) => {
+        item.dataset.readLater = unread ? 'true' : 'false';
+        if (unread) item.querySelector('.saved-chip').textContent = '◷ Read later';
+        else item.querySelector('.saved-chip').textContent = item.id === 'css-card' ? 'Saved Apr 06' : item.dataset.title === 'Inclusive Components' ? 'Saved May 18' : 'Saved Mar 29';
+      });
+      const readLaterCards = [...libraryCards].filter(item => item.dataset.readLater === 'true');
+      document.querySelector('#read-later-count').textContent = String(readLaterCards.length);
+      document.querySelectorAll('.bulk-check input').forEach(input => input.checked = false);
+      document.querySelector('#bulk-reading-menu').classList.remove('show');
+      updateBulkBar();
+      setBulkVisibility(false);
+      toast.textContent = `${selectedCards.length} bookmarks marked ${unread ? 'unread' : 'read'}`;
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+    document.querySelector('#bulk-mark-unread').addEventListener('click', () => {
+      const selectedCards = [...document.querySelectorAll('.bulk-check input:checked')].map(input => input.closest('.library-card'));
+      finishBulkReading(selectedCards, true);
+    });
+    document.querySelector('#bulk-mark-read').addEventListener('click', () => {
+      const selectedCards = [...document.querySelectorAll('.bulk-check input:checked')].map(input => input.closest('.library-card'));
+      finishBulkReading(selectedCards, false);
+    });
+
+    document.querySelector('#read-later-nav').addEventListener('click', () => {
+      if (!bulkMode || bulkState !== 'reverse-read') return;
+      libraryCards.forEach((item) => item.classList.toggle('show', item.dataset.readLater === 'true'));
+      card.classList.remove('show');
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#read-later-nav').classList.add('active');
+      document.querySelector('h1').innerHTML = 'Ready when you are.';
+      document.querySelector('.lede').textContent = 'Everything you marked unread, gathered in one place.';
+      document.querySelector('.library-head h2').textContent = 'Read later';
+      const total = [...libraryCards].filter(item => item.dataset.readLater === 'true').length;
+      document.querySelector('#result-count').textContent = `${total} ${total === 1 ? 'bookmark' : 'bookmarks'}`;
+    });
+    document.querySelector('#bulk-put-away').addEventListener('click', () => {
+      const selectedCards = [...document.querySelectorAll('.bulk-check input:checked')].map(input => input.closest('.library-card'));
+      selectedCards.forEach((item) => {
+        item.dataset.putAway = 'true';
+        item.classList.remove('show');
+        item.querySelector('.saved-chip').textContent = '▱ Put away';
+      });
+      document.querySelector('#put-away-count').textContent = String(selectedCards.length);
+      document.querySelector('#nav-count').textContent = String(libraryCards.length - selectedCards.length);
+      document.querySelector('#result-count').textContent = `${libraryCards.length - selectedCards.length} bookmark`;
+      document.querySelectorAll('.bulk-check input').forEach(input => input.checked = false);
+      updateBulkBar();
+      setBulkVisibility(false);
+      toast.textContent = `${selectedCards.length} bookmarks put away`;
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+    document.querySelector('#bulk-delete').addEventListener('click', () => {
+      bulkDeleteTargets = [...document.querySelectorAll('.bulk-check input:checked')].map(input => input.closest('.library-card'));
+      if (!bulkDeleteTargets.length) return;
+      document.querySelector('#delete-heading').textContent = `Delete ${bulkDeleteTargets.length} bookmarks?`;
+      const names = bulkDeleteTargets.map(item => item.dataset.title).join(' and ');
+      document.querySelector('#delete-description').innerHTML = `<span class="confirm-title">${names}</span> and their saved copies will be permanently removed from your library.`;
+      deleteConfirmation.classList.add('show');
+      document.querySelector('#confirm-delete').focus();
+    });
+    document.querySelector('#put-away-nav').addEventListener('click', () => {
+      if (!bulkMode || bulkState !== 'bulk-put-away') return;
+      libraryCards.forEach((item) => item.classList.toggle('show', item.dataset.putAway === 'true'));
+      card.classList.remove('show');
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#put-away-nav').classList.add('active');
+      document.querySelector('h1').innerHTML = 'Put away, not gone.';
+      document.querySelector('.lede').textContent = 'The selected bookmarks remain intact together in this view.';
+      document.querySelector('.library-head h2').textContent = 'Put away';
+      const total = [...libraryCards].filter(item => item.dataset.putAway === 'true').length;
+      document.querySelector('#result-count').textContent = `${total} ${total === 1 ? 'bookmark' : 'bookmarks'}`;
+    });
+
+    document.querySelector('#sort-menu').addEventListener('change', (event) => orderBookmarks(event.target.value));
+    document.querySelector('#sort-buttons').addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-sort]');
+      if (!button) return;
+      document.querySelectorAll('#sort-buttons button').forEach((item) => item.classList.toggle('active', item === button));
+      orderBookmarks(button.dataset.sort);
+    });
+
+    document.querySelector('#put-away').addEventListener('click', () => {
+      isPutAway = true;
+      cssCard.classList.remove('show');
+      cssCard.querySelector('.saved-chip').textContent = '▱ Put away';
+      document.querySelector('#put-away-count').textContent = '1';
+      document.querySelector('#nav-count').textContent = '2';
+      document.querySelector('#result-count').textContent = '2 bookmarks';
+      toast.textContent = 'Bookmark put away';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    document.querySelector('#put-away-nav').addEventListener('click', () => {
+      if (!putAwayMode) return;
+      libraryCards.forEach((item) => item.classList.remove('show'));
+      card.classList.remove('show');
+      cssCard.classList.toggle('show', isPutAway);
+      document.querySelector('#put-away-empty').classList.toggle('show', !isPutAway);
+      document.body.classList.add('put-away-view');
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#put-away-nav').classList.add('active');
+      document.querySelector('h1').innerHTML = 'Put away, not gone.';
+      document.querySelector('.lede').textContent = 'Bookmarks outside your everyday library, kept for whenever you need them again.';
+      document.querySelector('.library-head h2').textContent = 'Put away';
+      document.querySelector('#result-count').textContent = isPutAway ? '1 bookmark' : '0 bookmarks';
+    });
+
+    document.querySelector('#restore-bookmark').addEventListener('click', () => {
+      isPutAway = false;
+      cssCard.classList.remove('show');
+      cssCard.querySelector('.saved-chip').textContent = 'Saved Apr 06';
+      document.querySelector('#put-away-count').textContent = '0';
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '0 bookmarks';
+      document.querySelector('#put-away-empty').classList.add('show');
+      toast.textContent = 'Restored to your library';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    document.querySelector('#all-bookmarks-nav').addEventListener('click', () => {
+      if (!putAwayMode) return;
+      document.body.classList.remove('put-away-view');
+      document.querySelector('#put-away-empty').classList.remove('show');
+      libraryCards.forEach((item) => item.classList.add('show'));
+      if (isPutAway) cssCard.classList.remove('show');
+      card.classList.remove('show');
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#all-bookmarks-nav').classList.add('active');
+      document.querySelector('h1').innerHTML = 'Keep what matters.<br>Clear what’s in the way.';
+      document.querySelector('.lede').textContent = 'Put a bookmark away without losing it for good.';
+      document.querySelector('.library-head h2').textContent = 'Recently saved';
+      const visibleTotal = isPutAway ? 2 : 3;
+      document.querySelector('#result-count').textContent = `${visibleTotal} bookmarks`;
+    });
+
+    const inlineEdit = document.querySelector('#inline-edit');
+    document.querySelector('#edit-details').addEventListener('click', () => {
+      cssCard.querySelector('.bookmark-title').style.display = 'none';
+      cssCard.querySelector('.bookmark-description').style.display = 'none';
+      document.querySelector('#edit-details').style.display = 'none';
+      inlineEdit.classList.add('show');
+      document.querySelector('#edit-title').focus();
+      document.querySelector('#edit-title').select();
+    });
+
+    document.querySelector('#cancel-edit').addEventListener('click', () => {
+      inlineEdit.classList.remove('show');
+      cssCard.querySelector('.bookmark-title').style.display = '';
+      cssCard.querySelector('.bookmark-description').style.display = '';
+      document.querySelector('#edit-details').style.display = '';
+    });
+
+    inlineEdit.addEventListener('submit', (event) => {
+      event.preventDefault();
+      cssCard.querySelector('.bookmark-title').textContent = document.querySelector('#edit-title').value.trim();
+      cssCard.querySelector('.bookmark-description').textContent = document.querySelector('#edit-description').value.trim();
+      const updatedUrl = new URL(document.querySelector('#edit-url').value.trim());
+      cssCard.querySelector('.domain').textContent = updatedUrl.hostname.replace(/^www\./, '');
+      cssCard.dataset.address = updatedUrl.href;
+      inlineEdit.classList.remove('show');
+      cssCard.querySelector('.bookmark-title').style.display = '';
+      cssCard.querySelector('.bookmark-description').style.display = '';
+      document.querySelector('#edit-details').style.display = '';
+      toast.textContent = 'Bookmark details updated';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    const deleteConfirmation = document.querySelector('#delete-confirmation');
+    document.querySelector('#delete-bookmark').addEventListener('click', () => {
+      deleteConfirmation.classList.add('show');
+      document.querySelector('#confirm-delete').focus();
+    });
+    document.querySelector('#keep-bookmark').addEventListener('click', () => {
+      deleteConfirmation.classList.remove('show');
+    });
+    document.querySelector('#confirm-delete').addEventListener('click', () => {
+      deleteConfirmation.classList.remove('show');
+      if (bulkMode && bulkState === 'bulk-delete' && bulkDeleteTargets.length) {
+        const deletedCount = bulkDeleteTargets.length;
+        bulkDeleteTargets.forEach(item => item.remove());
+        document.querySelector('#nav-count').textContent = String(libraryCards.length - deletedCount);
+        document.querySelector('#result-count').textContent = `${libraryCards.length - deletedCount} bookmark`;
+        document.querySelector('#bulk-bar').classList.remove('show');
+        setBulkVisibility(false);
+        toast.textContent = `${deletedCount} bookmarks deleted`;
+        toast.classList.add('show');
+        window.setTimeout(() => toast.classList.remove('show'), 1800);
+        bulkDeleteTargets = [];
+        return;
+      }
+      cssCard.remove();
+      document.querySelector('#nav-count').textContent = '2';
+      document.querySelector('#result-count').textContent = '2 bookmarks';
+      toast.textContent = 'Bookmark deleted';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    document.querySelector('#view-copy').addEventListener('click', () => {
+      document.querySelector('#copy-viewer').classList.add('show');
+    });
+
+    document.querySelector('#close-copy').addEventListener('click', () => {
+      document.querySelector('#copy-viewer').classList.remove('show');
+    });
+    document.querySelector('.close-pdf').addEventListener('click', () => {
+      document.querySelector('#copy-viewer').classList.remove('show');
+    });
+
+    const addLabel = document.querySelector('#add-label');
+    const labelEntry = document.querySelector('#label-entry');
+    const labelInput = document.querySelector('#label-input');
+    const labelSuggestions = document.querySelector('#label-suggestions');
+    const designSuggestion = document.querySelector('#design-suggestion');
+    addLabel.addEventListener('click', () => {
+      addLabel.style.display = 'none';
+      labelEntry.classList.add('show');
+      labelInput.focus();
+    });
+
+    function attachLabel(name) {
+      if (!name) return;
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'label-chip new-label';
+      chip.textContent = name;
+      labelEntry.before(chip);
+      labelEntry.classList.remove('show');
+      labelSuggestions.classList.remove('show');
+      addLabel.style.display = '';
+      labelInput.value = '';
+      chip.focus();
+    }
+
+    labelInput.addEventListener('input', () => {
+      const typed = labelInput.value.trim().toLowerCase();
+      labelSuggestions.classList.toggle('show', typed.length > 0 && 'design'.includes(typed));
+    });
+
+    designSuggestion.addEventListener('click', () => attachLabel('Design'));
+
+    labelEntry.addEventListener('submit', (event) => {
+      event.preventDefault();
+      attachLabel(labelInput.value.trim());
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!labelMode || !event.target.classList.contains('label-chip') || event.target.closest('#label-entry')) return;
+      const selected = event.target.textContent.trim();
+      let visible = 0;
+      libraryCards.forEach((item) => {
+        const labels = [...item.querySelectorAll('.label-chip')].map((chip) => chip.textContent.trim());
+        const matches = labels.includes(selected);
+        item.classList.toggle('show', matches);
+        if (matches) visible += 1;
+      });
+      document.querySelector('#active-label').textContent = selected;
+      document.querySelector('#label-filter-note').classList.add('show');
+      document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+    });
+
+    document.querySelector('#clear-label-filter').addEventListener('click', () => {
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#label-filter-note').classList.remove('show');
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+    });
+
+    searchPanel.addEventListener('submit', (event) => {
+      event.preventDefault();
+      applySearch();
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Gathering…';
+      if (saveFailureMode) {
+        window.setTimeout(() => {
+          button.disabled = false; button.textContent = 'Save link';
+          if (failureHandling === 'keep') {
+            document.body.classList.add('save-failure-keep');
+            empty.style.display = 'none';
+            card.classList.add('show');
+            card.querySelector('.favicon').textContent = '?';
+            card.querySelector('.favicon').style.background = '#9b766d';
+            card.querySelector('.domain').textContent = 'example.com';
+            card.querySelector('.bookmark-title').textContent = 'unreachable-article';
+            card.querySelector('.bookmark-description').textContent = 'Title and description could not be gathered. The address has been kept so you can return to it.';
+            card.querySelector('.saved-chip').textContent = '! Copy not saved';
+            card.querySelector('.saved-chip').classList.add('warning-chip');
+            document.querySelector('#nav-count').textContent = '1';
+            document.querySelector('#result-count').textContent = '1 bookmark';
+            toast.textContent = 'Address saved — details need attention'; toast.classList.add('show');
+          } else {
+            document.querySelector('#save-error').classList.add('show');
+          }
+        }, 650);
+        return;
+      }
+      if (duplicateMode) {
+        window.setTimeout(() => {
+          button.disabled = false;
+          button.textContent = 'Save link';
+          input.value = '';
+          const existingCard = document.querySelector('#css-card');
+          existingCard.classList.add('attention');
+          existingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          toast.textContent = 'Already saved — here’s your bookmark';
+          toast.classList.add('show');
+          window.setTimeout(() => {
+            toast.classList.remove('show');
+            existingCard.classList.remove('attention');
+          }, 2600);
+        }, 550);
+        return;
+      }
+      window.setTimeout(() => {
+        empty.style.display = 'none';
+        card.classList.add('show');
+        const markedReadLater = readLaterMode && document.querySelector('#read-later-choice').checked;
+        if (markedReadLater) {
+          isReadLater = true;
+          card.querySelector('.saved-chip').textContent = '◷ Read later';
+          document.querySelector('#read-later-count').textContent = '1';
+          document.querySelector('#nav-count').textContent = '4';
+          document.querySelector('#result-count').textContent = '4 bookmarks';
+        } else {
+          document.querySelector('#nav-count').textContent = '1';
+          document.querySelector('#result-count').textContent = '1 bookmark';
+        }
+        button.disabled = false;
+        button.textContent = 'Save link';
+        input.value = '';
+        toast.classList.add('show');
+        window.setTimeout(() => toast.classList.remove('show'), 2200);
+      }, 700);
+    });
+
+    document.querySelector('#read-later-nav').addEventListener('click', () => {
+      if (!readLaterMode) return;
+      libraryCards.forEach((item) => item.classList.remove('show'));
+      card.classList.toggle('show', isReadLater);
+      document.querySelector('#css-card').classList.toggle('show', existingReadLater);
+      const readLaterTotal = Number(isReadLater) + Number(existingReadLater);
+      document.querySelector('#read-later-empty').classList.toggle('show', readLaterTotal === 0);
+      document.body.classList.add('read-later-view');
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#read-later-nav').classList.add('active');
+      document.querySelector('h1').innerHTML = 'Ready when you are.';
+      document.querySelector('.lede').textContent = 'Everything you set aside to read, in one calm place.';
+      document.querySelector('.library-head h2').textContent = 'Read later';
+      document.querySelector('#result-count').textContent = `${readLaterTotal} ${readLaterTotal === 1 ? 'bookmark' : 'bookmarks'}`;
+    });
+
+    document.querySelector('#set-aside').addEventListener('click', () => {
+      existingReadLater = true;
+      document.querySelector('#read-later-count').textContent = '1';
+      document.querySelector('#css-card .saved-chip').textContent = '◷ Read later';
+      document.querySelector('#set-aside').textContent = '✓ Added to Read later';
+      document.querySelector('#set-aside').disabled = true;
+      toast.textContent = 'Added to Read later';
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1800);
+    });
+
+    document.querySelector('#mark-read').addEventListener('click', () => {
+      isReadLater = false;
+      card.classList.remove('show');
+      card.querySelector('.saved-chip').textContent = 'Saved';
+      document.querySelector('#read-later-count').textContent = '0';
+      document.querySelector('#result-count').textContent = '0 bookmarks';
+      document.querySelector('#read-later-empty').classList.add('show');
+    });
+
+    document.querySelector('#all-bookmarks-nav').addEventListener('click', () => {
+      if (!readLaterMode) return;
+      document.body.classList.remove('read-later-view');
+      document.querySelector('#read-later-empty').classList.remove('show');
+      card.style.display = '';
+      card.classList.toggle('show', readLaterState === 'has-item' || isReadLater);
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelector('#all-bookmarks-nav').classList.add('active');
+      document.querySelector('h1').innerHTML = 'Save now.<br>Read when you’re ready.';
+      document.querySelector('.lede').textContent = 'Set reading aside without losing it in the rest of your library.';
+      document.querySelector('.library-head h2').textContent = 'Recently saved';
+      const allTotal = readLaterState === 'add-existing' ? 3 : 4;
+      document.querySelector('#result-count').textContent = `${allTotal} bookmarks`;
+    });
+  </script>
+</body>
+</html>

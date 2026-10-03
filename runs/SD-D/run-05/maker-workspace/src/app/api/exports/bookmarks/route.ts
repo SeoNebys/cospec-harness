@@ -1,0 +1,1 @@
+import{NextResponse}from"next/server";import{exportHtml}from"@/server/services/import-export";export async function GET(){return new NextResponse(exportHtml(),{headers:{"Content-Type":"text/html; charset=utf-8","Content-Disposition":'attachment; filename="keepsake-bookmarks.html"'}});}

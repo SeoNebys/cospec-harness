@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nook — Save something worth finding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Nook home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 34 34"><path d="M8.4 6.5h12.1A5.5 5.5 0 0 1 26 12v15.5H13.9a5.5 5.5 0 0 1-5.5-5.5V6.5Z"/><path d="M13 12.2h8M13 17h8M13 21.8h5"/></svg>
+        </span>
+        <span>Nook</span>
+      </a>
+
+      <nav aria-label="Bookmark views">
+        <a class="nav-item active" id="all-nav" href="#">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11Z"/><path d="M8 9h8M8 13h5"/></svg>
+          All bookmarks
+          <span class="count" id="nav-count">0</span>
+        </a>
+        <a class="nav-item" id="read-later-nav" href="#">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M12 7v5l3 2"/></svg>
+          Read later
+          <span class="count" id="read-later-count"></span>
+        </a>
+        <a class="nav-item" id="archive-nav" href="#">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 13h10l1-13M9 4h6"/></svg>
+          Archive
+          <span class="count" id="archive-count"></span>
+        </a>
+      </nav>
+
+      <div class="sidebar-section">
+        <div class="section-label">Tags</div>
+        <div class="no-tags" id="no-tags">No tags yet</div>
+        <div class="tag-list" id="tag-list" hidden></div>
+      </div>
+
+      <div class="profile">
+        <span class="avatar">M</span>
+        <span><strong>My collection</strong><small>Personal space</small></span>
+        <button aria-label="More options">•••</button>
+      </div>
+    </aside>
+
+    <main class="main" data-harness-ready="true">
+      <header class="topbar">
+        <label class="search" aria-label="Search bookmarks">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.3 16.3 4.2 4.2"/></svg>
+          <input id="search-input" type="search" placeholder="Search your bookmarks" autocomplete="off">
+          <kbd>⌘ K</kbd>
+        </label>
+        <button class="add-button" id="add-top" type="button">
+          <span>＋</span> Add bookmark
+        </button>
+      </header>
+
+      <section class="content">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Your library</p>
+            <h1 id="page-title">All bookmarks</h1>
+          </div>
+          <span class="total" id="total-label">0 bookmarks</span>
+        </div>
+
+        <div class="results-summary" id="results-summary" hidden>
+          <div><strong id="result-count">0 results</strong> <span id="result-query"></span></div>
+          <button id="clear-search" type="button">Clear filters</button>
+        </div>
+
+        <section class="empty-state" id="empty-state">
+          <div class="empty-art" aria-hidden="true">
+            <span class="card card-one"></span>
+            <span class="card card-two"></span>
+            <span class="card card-three"><i></i><i></i><i></i></span>
+          </div>
+          <h2>Your collection starts here</h2>
+          <p>Save a link and Nook will make it easy to recognize when you come back.</p>
+        </section>
+
+        <section class="bookmark-list" id="bookmark-list" aria-live="polite" hidden></section>
+
+        <section class="no-results" id="no-results" hidden>
+          <div class="no-results-icon">⌕</div>
+          <h2>No bookmarks found</h2>
+          <p>Try a different word or clear your search.</p>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <form class="modal-card" id="bookmark-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">New bookmark</p>
+          <h2 id="modal-title">Save a link</h2>
+        </div>
+        <button class="close-button" id="close-modal" type="button" aria-label="Close">×</button>
+      </div>
+      <label for="url">Web address</label>
+      <div class="url-field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
+        <input id="url" name="url" type="url" value="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout" required spellcheck="false">
+      </div>
+      <p class="helper">We’ll automatically add the page title and a short preview.</p>
+      <div class="modal-actions">
+        <button class="cancel-button" id="cancel-modal" type="button">Cancel</button>
+        <button class="save-button" id="save-button" type="submit">Save bookmark</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="note-modal" role="dialog" aria-modal="true" aria-labelledby="note-modal-title" hidden>
+    <form class="modal-card note-modal-card" id="note-form">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Personal note</p>
+          <h2 id="note-modal-title">Add a note</h2>
+        </div>
+        <button class="close-button" id="close-note" type="button" aria-label="Close">×</button>
+      </div>
+      <p class="note-bookmark-title" id="note-bookmark-title"></p>
+      <label for="note-text">Your note</label>
+      <textarea id="note-text" name="note" rows="4" placeholder="Why did you save this?" required></textarea>
+      <p class="helper">This note stays with the bookmark for when you come back.</p>
+      <div class="modal-actions">
+        <button class="cancel-button" id="cancel-note" type="button">Cancel</button>
+        <button class="save-button" type="submit">Save note</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" role="status">
+    <span>✓</span>
+    <div><strong id="toast-title">Bookmark saved</strong><small id="toast-detail">Title and preview added automatically</small></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

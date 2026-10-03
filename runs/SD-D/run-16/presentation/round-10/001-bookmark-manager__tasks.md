@@ -1,0 +1,320 @@
+---
+
+description: "Task list for Bookmark Manager implementation"
+---
+
+# Tasks: Bookmark Manager
+
+**Input**: Design documents from `/specs/001-bookmark-manager/`
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/api.md, quickstart.md
+
+**Tests**: Included. The plan and API contract designate node:test + supertest for
+contract/integration acceptance; targeted test tasks accompany each story.
+
+**Organization**: Tasks are grouped by user story (US1–US12) to enable independent
+implementation and testing. Story priorities come from spec.md (P1 → P3).
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies on incomplete tasks)
+- **[Story]**: User story the task serves (US1..US12)
+- Exact file paths are included in each task.
+
+## Path Conventions
+
+Single Node web app (per plan.md): backend under `src/server/`, no-build client under
+`src/web/`, tests under `tests/`, runtime data under `data/` (gitignored).
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and structure.
+
+- [ ] T001 Create project directory structure per plan.md (`src/server/{db,routes,services}`, `src/web`, `tests/{unit,integration,e2e}`, `data/preserved`) with a `data/.gitkeep`
+- [ ] T002 Initialize `package.json` at repo root: ES modules (`"type":"module"`), `"engines":{"node":">=24"}`, `"scripts":{"start":"node src/server/index.js","test":"node --test","test:e2e":"playwright test"}`, and dependencies express, better-sqlite3, cheerio, single-file-cli, marked, dompurify, jsdom; devDependencies supertest and `playwright@1.61.0` (pinned to match the shared browser)
+- [ ] T003 [P] Create `.gitignore` at repo root ignoring `node_modules/` and `data/` (keep `data/.gitkeep`)
+- [ ] T004 [P] Create `.harness/app.json` = `{"kind":"application","port":4000,"path":"/","start_command":["npm","start"],"start_cwd":"/work"}`
+- [ ] T005 Run `npm install` and confirm the lockfile is created/preserved and the shared Chromium at `/opt/playwright-browsers` is used (no second browser download)
+
+**Checkpoint**: Project skeleton installs cleanly.
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Core infrastructure required by all user stories. **No story work begins until this phase is complete.**
+
+- [ ] T006 Implement `src/server/config.js`: port `4000`, host `0.0.0.0`, data dir path, preserved dir path, and network timeouts for fetch/preservation
+- [ ] T007 Implement `src/server/db/connection.js`: create `data/` if missing, open better-sqlite3 database file, enable `PRAGMA foreign_keys = ON` and WAL mode
+- [ ] T008 Implement `src/server/db/migrations.js` creating all tables from data-model.md with constraints quoted verbatim: `Bookmark.address` text **required, unique** (well-formed http/https), `is_unread` integer **default 1**, `is_archived` integer **default 0**, `date_added`/`date_updated` ISO-8601 text, nullable `preserved_copy_path`, `preserved_copy_kind` in (`html`,`pdf`), `archive_org_url`; `Tag.name` text **required, unique case-insensitive**; `bookmark_tags(bookmark_id,tag_id)` PK with **ON DELETE CASCADE**; `SavedSearch(name required, query_text, included_tags, excluded_tags, date_created)`; `Preference` single row id=1 with `default_sort` in (`newest`,`oldest`,`title`,`updated`), `items_shown` integer, `text_size` in (`small`,`medium`,`large`); plus indexes on `Bookmark.address` (unique), `Tag.name` (unique ci), `bookmark_tags(tag_id)`, `bookmark_tags(bookmark_id)`, and `Bookmark(is_archived,is_unread,date_added)`
+- [ ] T009 Implement `src/server/app.js`: Express app with JSON body parsing, static serving of `src/web`, route mounting placeholders, and a JSON error handler returning `{error:{code,message}}`
+- [ ] T010 Implement `src/server/index.js`: create the app and listen on `0.0.0.0:4000`; log the URL
+- [ ] T011 [P] Create `src/web/index.html` (SPA shell with nav for views: All, Unread, Archived, Saved searches, Import/Export, Preferences) and `src/web/styles.css`
+- [ ] T012 [P] Create `src/web/app.js` bootstrap: JSON fetch helper, minimal view router, and logic to set `data-harness-ready="true"` on the root element only after initial UI and data have loaded (empty state counts as ready)
+- [ ] T013 [P] Seed helper `tests/helpers/seed.js` to create N bookmarks/tags for performance and integration tests
+
+**Checkpoint**: Server boots on port 4000, serves an empty-state UI marked ready, DB schema present.
+
+---
+
+## Phase 3: User Story 1 - Save a bookmark with its page details (Priority: P1) 🎯 MVP
+
+**Goal**: Save an address; capture title, description, icon, preview image; edit title/description before/after; persist.
+
+**Independent Test**: POST a valid address → bookmark created with captured details; edit title/description → persists after reload; empty/invalid address → clear rejection; unreachable page → address fallback title.
+
+- [ ] T014 [P] [US1] Unit test for metadata extraction (title/og:title, description, favicon variants, og:image/twitter:image, absolute-URL resolution, fallback to address) in `tests/unit/metadata.test.js`
+- [ ] T015 [P] [US1] Integration test for POST/GET/PATCH bookmark save + metadata capture + edit persistence + validation (FR-001–004) in `tests/integration/bookmarks.save.test.js`
+- [ ] T016 [US1] Implement `src/server/services/metadata.js`: fetch URL and parse metadata with cheerio; fallback to address as title on failure (FR-003)
+- [ ] T017 [US1] Implement address validation helper (well-formed http/https; reject empty/malformed) in `src/server/services/bookmarks.js`
+- [ ] T018 [US1] Implement bookmark create/get/update in `src/server/services/bookmarks.js`: set `date_added`/`date_updated`, default `is_unread=1`; dedup — saving an existing address resolves to the existing row (FR-016) [depends on T016, T017]
+- [ ] T019 [US1] Implement routes `POST /api/bookmarks`, `GET /api/bookmarks/:id`, `PATCH /api/bookmarks/:id` in `src/server/routes/bookmarks.js` per contracts/api.md (POST returns `existing` flag) [depends on T018]
+- [ ] T020 [US1] Frontend: add-bookmark form and detail/edit view in `src/web/app.js` showing title, description, icon, preview image, with editable title/description (FR-004)
+
+**Checkpoint**: A user can save a bookmark with captured details, edit it, and it persists — deliverable MVP.
+
+---
+
+## Phase 4: User Story 2 - Browse, search, and open (Priority: P1)
+
+**Goal**: Readable list (title, description, tags, icon); flexible search; open in new tab; empty/no-results states; archived excluded.
+
+**Independent Test**: List renders rows with all fields; queries for phrases, `#tag`, implicit AND, `text #tag`, OR/NOT/parentheses, and quoted-literal `"AND"` return correct results; open → new tab; no match → clear message.
+
+- [ ] T021 [P] [US2] Unit test for search query parser: quoted phrases, `#tag`, AND/OR/NOT, parentheses, implicit AND between terms and between text+`#tag`, and quoted operators treated as literals (FR-009, FR-010) in `tests/unit/searchParser.test.js`
+- [ ] T022 [P] [US2] Integration test for `GET /api/bookmarks` (list + sort + view) and `GET /api/search` incl. case-insensitivity across title/description/note/address and archived exclusion (FR-006–011) in `tests/integration/search.test.js`
+- [ ] T023 [US2] Implement `src/server/services/searchParser.js`: tokenizer + recursive-descent parser → AST (per research Decision 4); malformed query → clear error
+- [ ] T024 [US2] Implement `src/server/services/searchEvaluator.js`: evaluate AST over records; free-text matches title/description/note/address case-insensitively; `#tag` matches tag set; exclude archived from normal search [depends on T023]
+- [ ] T025 [US2] Implement list service (sort `newest|oldest|title|updated`, `view` normal/unread/archived, `tag` filter, limit/offset) in `src/server/services/bookmarks.js`
+- [ ] T026 [US2] Implement routes `GET /api/bookmarks` and `GET /api/search` (returns `items`, `total`, `matchedIds`) in `src/server/routes/bookmarks.js` and `src/server/routes/search.js` [depends on T024, T025]
+- [ ] T027 [US2] Frontend: bookmark list rendering rows (title, description, tags, icon), search box, open-in-new-tab action, empty state and no-results state in `src/web/app.js`
+
+**Checkpoint**: Full browse + powerful search works; combined with US1 this is a usable product.
+
+---
+
+## Phase 5: User Story 3 - Organize with tags and suggestions (Priority: P2)
+
+**Goal**: Add/remove tags with autocomplete from existing tags; filter by tag; unused tags drop from suggestions/filters.
+
+**Independent Test**: Add tags (see suggestions), filter by a tag, remove a tag and confirm it disappears when unused.
+
+- [ ] T028 [P] [US3] Integration test for tag add/remove on a bookmark, `GET /api/tags`, and `GET /api/tags/suggest?prefix=` (FR-012–014) in `tests/integration/tags.test.js`
+- [ ] T029 [US3] Implement tag service (normalize/create tags, link/unlink, list with counts, prefix suggestions, prune unused) in `src/server/services/tags.js`
+- [ ] T030 [US3] Wire tag updates into bookmark create/update in `src/server/services/bookmarks.js` [depends on T029]
+- [ ] T031 [US3] Implement routes `GET /api/tags` and `GET /api/tags/suggest` in `src/server/routes/tags.js` [depends on T029]
+- [ ] T032 [US3] Frontend: tag input with autocomplete suggestions and tag-filter control in `src/web/app.js`
+
+**Checkpoint**: Tagging and tag filtering fully functional.
+
+---
+
+## Phase 6: User Story 4 - Edit, deduplicate, and delete (Priority: P2)
+
+**Goal**: Edit title/address/description/note/tags; saving an existing address opens it for editing; delete with confirmation.
+
+**Independent Test**: Edit fields persist; re-saving an existing address returns the existing bookmark for editing; delete with confirm removes it (and preserved files) after reload.
+
+- [ ] T033 [P] [US4] Integration test for edit persistence, dedup-opens-existing on re-save, address-collision on edit (409), and confirmed delete cascade (FR-015–017) in `tests/integration/edit-delete.test.js`
+- [ ] T034 [US4] Extend bookmark service: full edit (incl. address change with collision → 409) and delete removing row, tag links (cascade), and preserved files in `src/server/services/bookmarks.js`
+- [ ] T035 [US4] Implement route `DELETE /api/bookmarks/:id` requiring `?confirm=true` and finalize `PATCH` edit semantics in `src/server/routes/bookmarks.js` [depends on T034]
+- [ ] T036 [US4] Frontend: edit form for all fields, dedup redirect-to-existing behavior, and delete with confirmation prompt in `src/web/app.js`
+
+**Checkpoint**: Collection stays accurate; no duplicates; safe deletion.
+
+---
+
+## Phase 7: User Story 5 - Read later and unread tracking (Priority: P2)
+
+**Goal**: Mark unread/read; dedicated unread view; new bookmarks default unread.
+
+**Independent Test**: Toggle read state; unread view lists only unread; marking read removes from view; new bookmark starts unread.
+
+- [ ] T037 [P] [US5] Integration test for setting read state and the unread view filter (FR-018–020) in `tests/integration/read-later.test.js`
+- [ ] T038 [US5] Implement read-state update in bookmark service and ensure `view=unread` list filter in `src/server/services/bookmarks.js`
+- [ ] T039 [US5] Frontend: mark read/unread control and Unread view in `src/web/app.js`
+
+**Checkpoint**: Read-later workflow works end to end.
+
+---
+
+## Phase 8: User Story 6 - Archive and restore (Priority: P3)
+
+**Goal**: Archive hides from normal list/search; Archived view lists archived; restore returns them; distinct from delete.
+
+**Independent Test**: Archive → leaves normal list/search, appears in Archived view; restore → returns; confirm archive ≠ delete.
+
+- [ ] T040 [P] [US6] Integration test for archive hides from normal list/search, Archived view lists only archived, restore returns, archive independent of delete (FR-021–023) in `tests/integration/archive.test.js`
+- [ ] T041 [US6] Implement archive/restore in bookmark service and archived-view filtering; ensure search excludes archived in `src/server/services/bookmarks.js` and `searchEvaluator.js`
+- [ ] T042 [US6] Frontend: archive/restore controls and Archived view in `src/web/app.js`
+
+**Checkpoint**: Archiving cleanly separated from deletion.
+
+---
+
+## Phase 9: User Story 7 - Bulk actions on many bookmarks (Priority: P3)
+
+**Goal**: Select several or all matching the current search/filter; bulk add/remove tags, change read/archive status, delete.
+
+**Independent Test**: Bulk act on an explicit selection and on "all matching" (incl. off-screen); confirm all targeted updated; bulk delete requires confirmation (SC-005: 100+ items).
+
+- [ ] T043 [P] [US7] Integration test for `POST /api/bookmarks/bulk` with `ids` and `matching` selectors and each action type, incl. 100+ items (FR-024–026, SC-005) in `tests/integration/bulk.test.js`
+- [ ] T044 [US7] Implement bulk service resolving `matching` via the search/filter path and applying addTags/removeTags/setUnread/setArchived/delete in a transaction in `src/server/services/bookmarks.js` [depends on T024, T029]
+- [ ] T045 [US7] Implement route `POST /api/bookmarks/bulk` (delete requires `confirm:true`) in `src/server/routes/bookmarks.js` [depends on T044]
+- [ ] T046 [US7] Frontend: multi-select checkboxes, "select all matching", and bulk-action toolbar in `src/web/app.js`
+
+**Checkpoint**: Efficient management of large sets.
+
+---
+
+## Phase 10: User Story 8 - Sorting and display preferences (Priority: P3)
+
+**Goal**: Sort options beyond newest; persistent preferences (default sort, items shown, text size).
+
+**Independent Test**: Change sort → reorders; set default sort, items shown, text size → persist across reload and take effect.
+
+- [ ] T047 [P] [US8] Integration test for `GET/PUT /api/preferences` persistence and sort options (FR-027–028) in `tests/integration/preferences.test.js`
+- [ ] T048 [US8] Implement preferences service (read/update single row id=1) in `src/server/services/preferences.js`
+- [ ] T049 [US8] Implement routes `GET /api/preferences` and `PUT /api/preferences` in `src/server/routes/preferences.js` [depends on T048]
+- [ ] T050 [US8] Frontend: sort selector plus preferences panel (default sort, items shown, text size) applying text size to the list in `src/web/app.js`
+
+**Checkpoint**: Presentation is user-configurable and persistent.
+
+---
+
+## Phase 11: User Story 9 - Saved searches (Priority: P3)
+
+**Goal**: Save named queries with included/excluded tags; run/edit/delete.
+
+**Independent Test**: Create a saved search (query + included + excluded tags), run it (correct results), edit and delete.
+
+- [ ] T051 [P] [US9] Integration test for saved-search CRUD and run applying query + included/excluded tags (FR-029–030) in `tests/integration/saved-searches.test.js`
+- [ ] T052 [US9] Implement saved-search service (CRUD + run combining query text with included/excluded tag constraints) in `src/server/services/savedSearches.js` [depends on T024]
+- [ ] T053 [US9] Implement routes for `/api/saved-searches` (list/create/edit/delete/run) in `src/server/routes/savedSearches.js` [depends on T052]
+- [ ] T054 [US9] Frontend: save-current-search, saved-search list with run/edit/delete in `src/web/app.js`
+
+**Checkpoint**: Recurring queries are reusable.
+
+---
+
+## Phase 12: User Story 10 - Import and export (Priority: P3)
+
+**Goal**: Export Netscape bookmark file; import preserving title, tags, original date-added; skip existing; report added/skipped; malformed file rejected.
+
+**Independent Test**: Export → valid bookmark file; import → new added with title/tags/date-added preserved, existing skipped, counts reported; malformed → clear error, no corruption.
+
+- [ ] T055 [P] [US10] Unit test for Netscape bookmark parse/generate incl. `ADD_DATE`/`TAGS` and fallbacks (address as title, empty tags, import time as date-added) in `tests/unit/importExport.test.js`
+- [ ] T056 [P] [US10] Integration test for `GET /api/export` and `POST /api/import` (skip existing, counts, malformed→400) (FR-031–033) in `tests/integration/import-export.test.js`
+- [ ] T057 [US10] Implement import/export service (cheerio parse + generate, dedup-skip, preserve title/tags/date-added with fallbacks) in `src/server/services/importExport.js`
+- [ ] T058 [US10] Implement routes `GET /api/export` (attachment) and `POST /api/import` (multipart) in `src/server/routes/importExport.js` [depends on T057]
+- [ ] T059 [US10] Frontend: export download and import upload with added/skipped result summary in `src/web/app.js`
+
+**Checkpoint**: Data portability in and out.
+
+---
+
+## Phase 13: User Story 11 - Preserve page copies (Priority: P3)
+
+**Goal**: Single self-contained HTML offline copy; PDFs kept as PDFs; Internet Archive snapshot link; graceful failure.
+
+**Independent Test**: Preserve a page → one self-contained HTML viewable without the live page; preserve a PDF → original PDF stored; Internet Archive → snapshot link stored; unreachable target → clear failure, bookmark intact.
+
+- [ ] T060 [P] [US11] Integration test for preserve (html vs pdf branch), view preserved, Internet Archive submit + link storage, and failure handling leaving bookmark intact (FR-034–037) in `tests/integration/preservation.test.js`
+- [ ] T061 [US11] Implement preservation service in `src/server/services/preservation.js`: detect PDF (content-type/extension) → store original PDF; else run single-file-cli with `--browser-executable-path` = shared Chromium → single self-contained HTML under `data/preserved/`; set `preserved_copy_path/kind/preserved_at`
+- [ ] T062 [US11] Implement Internet Archive submission (Save Page Now) capturing returned snapshot URL into `archive_org_url`/`archive_org_at`, with clear failure on unreachable/timeout, in `src/server/services/preservation.js`
+- [ ] T063 [US11] Implement routes `POST /api/bookmarks/:id/preserve`, `GET /api/bookmarks/:id/preserved` (serve html/pdf), `POST /api/bookmarks/:id/archive-org` in `src/server/routes/preservation.js` [depends on T061, T062]
+- [ ] T064 [US11] Frontend: preserve buttons (offline copy, Internet Archive), view-preserved link, and clear success/failure messaging in `src/web/app.js`
+
+**Checkpoint**: Content preserved against link rot.
+
+---
+
+## Phase 14: User Story 12 - Formatted notes (Priority: P3)
+
+**Goal**: Notes authored in Markdown, rendered (and sanitized) as formatted text on view.
+
+**Independent Test**: Save a Markdown note; view bookmark → renders headings/emphasis/lists/links/quotes/code safely.
+
+- [ ] T065 [P] [US12] Unit test for Markdown render + sanitization (allowed elements render; scripts/unsafe HTML stripped) in `tests/unit/markdown.test.js`
+- [ ] T066 [US12] Implement `src/server/services/markdown.js` using marked + DOMPurify(jsdom); expose `noteHtml` from `GET /api/bookmarks/:id` [depends on T019]
+- [ ] T067 [US12] Frontend: Markdown note editor (raw) and rendered note display in `src/web/app.js`
+
+**Checkpoint**: Rich notes render safely.
+
+---
+
+## Phase 15: Polish & Cross-Cutting Concerns
+
+**Purpose**: Cross-story quality, performance, and validation.
+
+- [ ] T068 [P] Performance check: seed 500+ bookmarks and assert search/filter/sort < 1s (SC-002, SC-003) in `tests/integration/performance.test.js`
+- [ ] T069 [P] Persistence check: restart server and confirm bookmarks, tags, states, and preferences remain (SC-004) in `tests/integration/persistence.test.js`
+- [ ] T070 [P] End-to-end smoke: save → search → open flow with playwright@1.61.0 (shared Chromium) in `tests/e2e/smoke.spec.js`
+- [ ] T071 Consistent error handling and user-facing messages across all routes (graceful degradation for network features per FR-037) in `src/server/app.js` and route files
+- [ ] T072 Accessibility and readable-list polish (truncation of long titles/addresses without layout break) in `src/web/styles.css` and `src/web/app.js`
+- [ ] T073 Run `quickstart.md` validation scenarios 1–12 and record results
+- [ ] T074 Verify `.harness/app.json` starts the app on port 4000 and the UI sets `data-harness-ready="true"` after load
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: no dependencies.
+- **Foundational (Phase 2)**: depends on Setup; **blocks all user stories**.
+- **User Stories (Phases 3–14)**: depend on Foundational. US1 and US2 together form the MVP. US3–US12 each depend on Foundational and may build on the shared bookmark service; they are independently testable.
+- **Polish (Phase 15)**: depends on the targeted stories being complete.
+
+### Key cross-story dependencies (kept minimal)
+
+- US2 search AST (T023/T024) is reused by US7 bulk "matching" (T044) and US9 saved searches (T052).
+- US3 tag service (T029) is reused by US7 bulk tag actions (T044).
+- US1 bookmark GET (T019) is extended by US12 note rendering (T066).
+
+### Within each story
+
+- Tests first (write and see them fail), then services, then routes, then frontend.
+
+### Parallel opportunities
+
+- Setup: T003, T004 in parallel.
+- Foundational: T011, T012, T013 in parallel after T006–T010.
+- Within a story, test tasks marked [P] run in parallel; frontend tasks touch the shared `src/web/app.js` so are sequential within that file.
+
+---
+
+## Parallel Example: User Story 1
+
+```bash
+# Tests together:
+Task: "Unit test metadata extraction in tests/unit/metadata.test.js"        # T014
+Task: "Integration test save+metadata in tests/integration/bookmarks.save.test.js"  # T015
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (US1 + US2)
+
+1. Phase 1 Setup → 2. Phase 2 Foundational → 3. Phase 3 (US1) → 4. Phase 4 (US2).
+5. **STOP and VALIDATE**: save a bookmark with details, browse, search, open. Demo MVP.
+
+### Incremental Delivery
+
+Add stories in priority order: US3, US4, US5 (P2) → US6–US12 (P3). Each is testable and
+adds value without breaking earlier stories. Finish with Phase 15 polish + quickstart
+validation.
+
+---
+
+## Notes
+
+- [P] = different files, no incomplete-task dependencies.
+- Every task lists an exact file path; commit after each task or logical group.
+- Network-dependent features (metadata, preservation, Internet Archive) must degrade
+  gracefully with clear messages (FR-037).
+- Keep `playwright` pinned to `1.61.0`; reuse the shared Chromium — do not download a
+  second browser.

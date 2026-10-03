@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <button id="homeButton" class="wordmark" type="button" aria-label="Show all bookmarks">
+      <span class="wordmark-icon" aria-hidden="true">
+        <svg viewBox="0 0 28 28"><path d="M8 4.5h12v19L14 19.6 8 23.5z"/></svg>
+      </span>
+      <span>Bookmarks</span>
+    </button>
+  </header>
+
+  <main id="app" aria-live="polite">
+    <section id="collectionView" class="view collection-view" hidden>
+      <div class="collection-heading">
+        <div>
+          <p class="eyebrow">YOUR PERSONAL LIBRARY</p>
+          <h1>All bookmarks</h1>
+          <p id="collectionCount" class="muted"></p>
+        </div>
+        <button id="addBookmarkButton" class="primary-button" type="button">+ Add bookmark</button>
+      </div>
+
+      <div id="collectionTools" class="collection-tools">
+        <label class="search-box" for="searchInput">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input id="searchInput" type="search" autocomplete="off" placeholder="Search words, #tags, or “exact phrases”">
+        </label>
+        <button id="clearSearchButton" class="clear-search" type="button" hidden>Clear search</button>
+      </div>
+
+      <div id="searchMessage" class="search-message" hidden></div>
+      <div id="bookmarkList" class="bookmark-list"></div>
+
+      <div id="emptyCollection" class="empty-state" hidden>
+        <span class="empty-state-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M9 5h14v22l-7-4.7L9 27z"/></svg>
+        </span>
+        <h2>Your collection starts here</h2>
+        <p>Save a useful page now and it will be easy to find later.</p>
+        <button class="primary-button empty-add" type="button">Save your first bookmark</button>
+      </div>
+
+      <div id="emptySearch" class="empty-state" hidden>
+        <span class="empty-state-icon search-empty-icon" aria-hidden="true">⌕</span>
+        <h2>No matching bookmarks</h2>
+        <p>Try changing your words or tags.</p>
+      </div>
+    </section>
+
+    <section id="captureView" class="view capture-view" hidden>
+      <button class="back-button back-to-collection" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        All bookmarks
+      </button>
+      <div class="capture-copy">
+        <p class="eyebrow">SAVE A BOOKMARK</p>
+        <h1>Paste the page you want to keep.</h1>
+        <p>The useful details will be filled in for you. If the page does not cooperate, your link will still be saved.</p>
+      </div>
+      <form id="captureForm" class="capture-card" novalidate>
+        <label for="addressInput">Web address</label>
+        <div id="addressShell" class="address-shell">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.2 13.8a4 4 0 0 0 5.7 0l2.8-2.8A4 4 0 1 0 13 5.3M13.8 10.2a4 4 0 0 0-5.7 0L5.3 13A4 4 0 1 0 11 18.7"/></svg>
+          <input id="addressInput" type="text" inputmode="url" autocomplete="url" placeholder="example.com/article">
+          <button id="captureSubmit" class="primary-button" type="submit">Save bookmark</button>
+        </div>
+        <p id="captureError" class="field-error" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <section id="editorView" class="view editor-view" hidden>
+      <button class="back-button back-to-collection" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        All bookmarks
+      </button>
+      <div id="editorNotice" class="notice" role="status" hidden>
+        <span id="noticeIcon" class="notice-icon">✓</span>
+        <span><strong id="noticeTitle"></strong><small id="noticeText"></small></span>
+      </div>
+
+      <form id="editorForm" class="editor-card" novalidate>
+        <div id="pagePreview" class="page-preview">
+          <img id="previewImage" alt="" hidden>
+          <div id="previewFallback" class="preview-fallback">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.2 13.8a4 4 0 0 0 5.7 0l2.8-2.8A4 4 0 1 0 13 5.3M13.8 10.2a4 4 0 0 0-5.7 0L5.3 13A4 4 0 1 0 11 18.7"/></svg>
+            <span>No preview available</span>
+          </div>
+          <span class="site-chip"><img id="siteIcon" alt="" hidden><span id="siteInitial"></span><span id="siteName"></span></span>
+        </div>
+
+        <div class="editor-fields">
+          <div class="field">
+            <label for="titleInput">Title</label>
+            <input id="titleInput" class="title-input" maxlength="500">
+          </div>
+          <div class="field">
+            <label for="descriptionInput">Description</label>
+            <textarea id="descriptionInput" rows="3" maxlength="10000"></textarea>
+          </div>
+          <div class="field">
+            <label for="savedAddressInput">Web address</label>
+            <input id="savedAddressInput" type="text" inputmode="url">
+            <p id="editorAddressError" class="field-error" role="alert" hidden></p>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <label for="notesInput">My notes</label>
+              <span>Formatting updates beside you</span>
+            </div>
+            <div class="notes-layout">
+              <div class="note-source">
+                <span class="mini-label">Note text</span>
+                <div class="format-toolbar" aria-label="Note formatting">
+                  <button type="button" data-format="heading">Heading</button>
+                  <button type="button" data-format="list"><span aria-hidden="true">•</span> List</button>
+                  <button type="button" data-format="bold" aria-label="Make selected text bold"><strong>B</strong></button>
+                </div>
+                <textarea id="notesInput" rows="10" maxlength="100000" placeholder="Why did you save this? Add anything you want to remember."></textarea>
+              </div>
+              <div class="note-reading">
+                <span class="mini-label">Formatted note</span>
+                <div id="notePreview" class="note-preview"><p class="note-placeholder">Your formatted note will appear here.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field tag-field">
+            <label for="tagInput">Tags</label>
+            <div id="tagInputShell" class="tag-input-shell">
+              <div id="selectedTags" class="selected-tags"></div>
+              <input id="tagInput" autocomplete="off" placeholder="Type a tag and press Enter" aria-controls="tagSuggestions" aria-expanded="false">
+            </div>
+            <div id="tagSuggestions" class="tag-suggestions" role="listbox" hidden></div>
+            <p class="field-help">Press Enter after each tag.</p>
+          </div>
+
+          <div class="editor-actions">
+            <span id="saveState" class="muted"></span>
+            <button id="saveChangesButton" class="primary-button" type="submit">Save changes</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

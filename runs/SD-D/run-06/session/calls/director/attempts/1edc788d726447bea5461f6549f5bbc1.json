@@ -1,0 +1,140 @@
+{
+  "id": "1edc788d726447bea5461f6549f5bbc1",
+  "operation": "model_call",
+  "started_at": "2026-09-17T07:20:41.195048+00:00",
+  "outcome": "completed",
+  "config": {
+    "provider": "codex",
+    "model": "gpt-5.6-sol",
+    "effort": "medium"
+  },
+  "role": "director",
+  "attempt": 1,
+  "requested_session": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+  "timeout_seconds": 10800,
+  "phase_before": {
+    "sdd_artifacts": [
+      "spec.md",
+      "plan.md"
+    ]
+  },
+  "phase_after": {
+    "sdd_artifacts": [
+      "spec.md",
+      "plan.md"
+    ]
+  },
+  "phase_assignment": "stable_observation",
+  "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a0ae36-55ee-7801-ba48-6cbe0c0d0baa\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/bash -lc \\\"sed -n '1,280p' /presentation/round-04/001-bookmark-manager__plan.md; sed -n '1,340p' /presentation/round-04/001-bookmark-manager__quickstart.md; sed -n '1,360p' /presentation/round-04/001-bookmark-manager__data-model.md\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/bash -lc \\\"sed -n '1,280p' /presentation/round-04/001-bookmark-manager__plan.md; sed -n '1,340p' /presentation/round-04/001-bookmark-manager__quickstart.md; sed -n '1,360p' /presentation/round-04/001-bookmark-manager__data-model.md\\\"\",\"aggregated_output\":\"# Implementation Plan: Bookmark Manager\\n\\n**Branch**: `001-bookmark-manager` | **Date**: 2026-09-17 | **Spec**: [spec.md](./spec.md)\\n\\n**Input**: Feature specification from `/specs/001-bookmark-manager/spec.md`\\n\\n## Summary\\n\\nA single-user, browser-accessed web application for saving and managing a growing\\nbookmark collection with locally-stored data. Users save an address; the app\\nauto-collects title/description/site-icon/preview-image, prevents duplicates\\n(routing repeat saves to the existing bookmark), and supports tags with\\nsuggestions and filtering, an expressive search (case-insensitive; phrases,\\n`#tag`, AND/OR/NOT, grouping, implicit-AND, quoted operators-as-text), a\\nread-later workflow, reversible archiving, sorting, multi-select bulk actions,\\nsaved views, formatted notes, local page preservation (self-contained HTML for\\npages, original PDF for PDFs) with optional Internet Archive submission,\\nstandard browser-bookmark import/export, and personal display preferences.\\n\\n**Technical approach**: A Node.js web app — an Express HTTP server exposing a\\nJSON API and serving a lightweight browser client — backed by a local SQLite\\ndatabase (via `better-sqlite3`) plus a files directory for preserved copies.\\nMetadata capture and self-contained HTML snapshots use the pre-installed\\nPlaywright 1.61.0 + Chromium; PDF links are streamed to disk unchanged. Search\\nis a small hand-written parser producing an AST evaluated against SQLite. All\\nexternal steps (metadata fetch, snapshot, Internet Archive) are best-effort and\\nnon-blocking so saving never fails on them.\\n\\n## Technical Context\\n\\n**Language/Version**: Node.js 24 (JavaScript, ES modules) — matches the shared image.\\n\\n**Primary Dependencies**:\\n- `express` — HTTP server, JSON API, static client hosting (listens on `0.0.0.0:4000`).\\n- `better-sqlite3` — embedded, file-based relational storage (synchronous, fast).\\n- `playwright` (pinned `1.61.0`) + shared Chromium — page metadata extraction and\\n  self-contained HTML snapshotting; browser binaries from `/opt/playwright-browsers`.\\n- `cheerio` — HTML parsing for the Netscape bookmark import/export and metadata fallback.\\n- `markdown-it` + `sanitize-html` — author and safely render formatted notes.\\n- Client: framework-free vanilla JS/HTML/CSS (no build step) served from `src/web/`.\\n\\n**Storage**: Local SQLite database file plus a preserved-copies directory, both\\nunder a single app data directory (`data/`). Bookmarks, tags, saved views, and\\ndisplay preferences live in SQLite; preserved HTML/PDF blobs live on disk with\\npaths referenced from the database.\\n\\n**Testing**: `node:test` (built-in runner) for unit/integration of the search\\nparser, address normalization, import/export, and API routes; `@playwright/test`\\n(pinned `1.61.0`) for a small end-to-end smoke of the primary flows.\\n\\n**Target Platform**: Linux container on the shared Docker network; served at\\n`http://maker:4000` for the client, captured via `http://127.0.0.1:4000`.\\n\\n**Project Type**: Web application — single project, Express backend serving a\\nstatic browser client (no separate frontend build).\\n\\n**Performance Goals**: Browsing, sorting, filtering, and search results update in\\nunder 1 second with at least 1,000 bookmarks (SC-004); metadata capture runs\\nasynchronously and does not block the save response (SC-001).\\n\\n**Constraints**: Offline-capable local persistence; single writer (one user);\\npreservation and Internet Archive steps are asynchronous and non-blocking\\n(FR-029); HTTP-session-friendly (though v1 has no login) and must bind `0.0.0.0`\\nper the runtime environment.\\n\\n**Scale/Scope**: One user; low thousands of bookmarks; 11 user stories / 35+2\\nfunctional requirements; ~10–15 API endpoints; a handful of client views\\n(all / unread / archive / saved views / preferences).\\n\\n## Constitution Check\\n\\n*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*\\n\\nThe project constitution at `.specify/memory/constitution.md` is the unpopulated\\ntemplate — it contains only placeholders and defines **no ratified principles or\\nconstraints**. There are therefore no project-specific gates to evaluate.\\n\\nApplying the template's default spirit (simplicity, testability, no unjustified\\ncomplexity) as informal guidance:\\n\\n- **Single project, minimal dependencies**: PASS — one Express project, a\\n  file-based DB, no microservices, no client build pipeline.\\n- **Testability**: PASS — pure logic (search parser, normalization, import/export)\\n  is unit-tested; API and flows are integration/e2e tested.\\n- **No premature complexity**: PASS — no auth/sync/multi-user machinery (all\\n  explicitly out of scope in the spec's Assumptions).\\n\\n**Result**: Gate passes (no constitution violations; Complexity Tracking not required).\\n\\n## Project Structure\\n\\n### Documentation (this feature)\\n\\n```text\\nspecs/001-bookmark-manager/\\n├── plan.md              # This file (/speckit-plan output)\\n├── spec.md              # Approved specification\\n├── research.md          # Phase 0 output\\n├── data-model.md        # Phase 1 output\\n├── quickstart.md        # Phase 1 output\\n├── contracts/           # Phase 1 output (HTTP API contract)\\n│   └── api.md\\n├── checklists/\\n│   └── requirements.md  # Spec quality checklist\\n└── tasks.md             # Phase 2 output (/speckit-tasks — NOT created here)\\n```\\n\\n### Source Code (repository root)\\n\\n```text\\nsrc/\\n├── server/\\n│   ├── index.js             # App entry: builds app, listens on 0.0.0.0:4000\\n│   ├── app.js               # Express app wiring (routes, static, error handling)\\n│   ├── db/\\n│   │   ├── connection.js     # better-sqlite3 handle + pragmas\\n│   │   └── migrations.js     # Schema creation / versioning\\n│   ├── routes/\\n│   │   ├── bookmarks.js       # CRUD, save-or-route-to-existing, bulk actions\\n│   │   ├── tags.js            # list/suggest tags\\n│   │   ├── search.js          # query endpoint (uses search parser)\\n│   │   ├── views.js           # saved views CRUD\\n│   │   ├── preservation.js    # trigger/status of local copy + Internet Archive\\n│   │   ├── importexport.js    # Netscape bookmark import/export\\n│   │   └── preferences.js     # display preferences\\n│   ├── services/\\n│   │   ├── metadata.js        # title/description/icon/preview via Playwright\\n│   │   ├── preserve.js        # self-contained HTML snapshot; original PDF store\\n│   │   ├── archiveOrg.js      # Internet Archive submission (best-effort)\\n│   │   ├── search/\\n│   │   │   ├── tokenize.js     # lexer (quotes, #tag, parens, operators)\\n│   │   │   ├── parse.js        # AST (implicit AND, precedence, quoted-literal ops)\\n│   │   │   └── toSql.js        # AST → SQLite WHERE + params\\n│   │   ├── normalizeUrl.js    # scheme/trailing-slash/host-case normalization\\n│   │   ├── duplicates.js      # existing-bookmark lookup by normalized address\\n│   │   ├── bookmarksImport.js # parse Netscape HTML (titles, tags, dates)\\n│   │   └── bookmarksExport.js # emit Netscape HTML\\n│   └── lib/notes.js          # markdown-it render + sanitize-html\\n├── web/                      # Framework-free client (served statically)\\n│   ├── index.html\\n│   ├── app.js                # views: all / unread / archive / saved views / prefs\\n│   ├── search.js             # query box, tag suggest, filters, sort, bulk select\\n│   └── styles.css            # honors text-size preference\\ndata/                         # Created at runtime (gitignored)\\n├── bookmarks.db              # SQLite database\\n└── preserved/                # <bookmarkId>.html or <bookmarkId>.pdf snapshots\\ntests/\\n├── unit/                     # search parser, normalizeUrl, notes, import/export\\n├── integration/              # API routes against a temp SQLite db\\n└── e2e/                      # Playwright smoke of primary flows\\npackage.json                  # \\\"start\\\": node src/server/index.js\\n```\\n\\n**Structure Decision**: Single web-application project. The Express server both\\nexposes the JSON API and serves the static `src/web/` client, so there is no\\nseparate frontend build or deployment. Local state lives entirely under `data/`\\n(SQLite DB + preserved files), satisfying the single-user, local-persistence\\nassumptions. `src/server/services/` isolates the externally-dependent,\\nbest-effort work (metadata, preservation, Internet Archive) from request\\nhandling so those steps can run asynchronously without blocking saves.\\n\\n## Complexity Tracking\\n\\n> No constitution violations. This section is intentionally empty.\\n# Quickstart & Validation: Bookmark Manager\\n\\nA run-and-validate guide proving the feature works end-to-end. Implementation\\ndetails live in `tasks.md`; entity/field definitions in\\n[data-model.md](./data-model.md); endpoints in [contracts/api.md](./contracts/api.md).\\n\\n## Prerequisites\\n\\n- Node.js 24 + npm (shared image).\\n- Shared Chromium at `/opt/playwright-browsers`; `playwright`/`@playwright/test`\\n  pinned to `1.61.0` (do not download another browser revision).\\n- Data directory `data/` is created on first run (SQLite DB + `preserved/`).\\n\\n## Setup & run\\n\\n```bash\\nnpm install          # installs express, better-sqlite3, playwright@1.61.0, cheerio, markdown-it, sanitize-html\\nnpm start            # node src/server/index.js — listens on 0.0.0.0:4000\\n```\\n\\nThe client is reachable at `http://maker:4000` (VM capture uses\\n`http://127.0.0.1:4000`). The app writes `/work/.harness/app.json`\\n(`kind: application`, port `4000`) and marks its shell `data-harness-ready=\\\"true\\\"`\\nonce the initial UI and bookmark list have loaded.\\n\\n## Tests\\n\\n```bash\\nnpm test             # node:test — unit (search parser, normalizeUrl, notes, import/export) + integration (API on a temp DB)\\nnpm run test:e2e     # @playwright/test — smoke of the primary flows\\n```\\n\\n## Validation scenarios (map to spec acceptance criteria)\\n\\n1. **Save + auto-metadata (US1)**: POST a URL → list shows the new bookmark;\\n   within a moment its title/description/icon/preview populate; editing the title\\n   persists across reload.\\n2. **Duplicate routing (US2, SC-003)**: POST the same URL again → response marks\\n   `duplicate: true` and returns the existing bookmark; the list still has exactly\\n   one entry, unchanged.\\n3. **Tags + suggestions + filter (US3)**: add tags to bookmarks; typing suggests\\n   existing tags; filtering by a tag narrows the list.\\n4. **Search semantics (US4)**: verify case-insensitive match; `\\\"exact phrase\\\"`;\\n   `#tag`; `AND`/`OR`/`NOT`; grouping; `foo #news` behaves as implicit AND;\\n   `\\\"NOT ready\\\"` matches the literal words, not an operator; malformed query → 400.\\n5. **Read-later (US5)**: mark unread → appears in unread view; mark read → leaves it.\\n6. **Archive (US6)**: archive → gone from normal browse + search, present in\\n   archive view; restore → returns; permanent delete requires confirmation.\\n7. **Sort / bulk / saved views (US7)**: change sort order; select-all-matching and\\n   bulk add a tag / remove a tag / mark read / archive; save a search+tag\\n   combination as a named view and reopen it.\\n8. **Rich notes (US8)**: save a formatted note; view renders the formatting.\\n9. **Preservation (US9)**: a normal page yields an openable self-contained `.html`\\n   copy; a PDF link yields the original `.pdf`; requesting Internet Archive records\\n   a reference (or reports failure without blocking save).\\n10. **Import/export (US10)**: import a Netscape bookmark file preserving titles,\\n    tags, original dates, reconciling existing addresses; export produces a valid\\n    re-importable file.\\n11. **Preferences (US11)**: set default sort, items-per-view, text size; reload\\n    and confirm they apply.\\n\\n## Expected outcomes\\n\\n- Saving returns immediately; metadata/preservation/Internet Archive complete\\n  asynchronously and never block or fail the save (FR-005/FR-029).\\n- No duplicate is ever created for a repeated address (SC-003).\\n- Archived items appear in 0% of normal/search results and 100% of the archive\\n  view (SC-007).\\n- Browsing/sort/filter/search stay under 1s with 1,000+ bookmarks (SC-004).\\n- Note: the Internet Archive is an external service and may be unavailable in the\\n  offline review environment; such failures are reported honestly, not hidden.\\n# Phase 1 Data Model: Bookmark Manager\\n\\nPersisted in a local SQLite database (`data/bookmarks.db`). Preserved page\\ncopies are files under `data/preserved/`, referenced by path. Entities derive\\ndirectly from the spec's **Key Entities** and functional requirements.\\n\\n## Entity: Bookmark\\n\\nRepresents a saved reference to a web resource.\\n\\n| Field | Type | Notes / Rules |\\n|-------|------|---------------|\\n| `id` | integer, PK | Auto-generated unique identifier. |\\n| `url` | text, required | The address as entered/edited by the user. |\\n| `normalized_url` | text, required, **UNIQUE** | Normalization of `url` (FR-002); the duplicate-detection key (FR-007). |\\n| `title` | text, required | User-editable; falls back to derived/host value when metadata missing (FR-003/FR-005). |\\n| `description` | text, nullable | Auto-collected; user-editable (FR-004). |\\n| `icon_url` | text, nullable | Site icon location (FR-003, list display FR-033). |\\n| `preview_image_url` | text, nullable | Preview image (`og:image`) (FR-003). |\\n| `notes_markdown` | text, nullable | Formatted note source (Markdown) (FR-025). |\\n| `is_read` | boolean, default false | Read-later status (FR-015). |\\n| `is_archived` | boolean, default false | Archived status (FR-017/FR-018). |\\n| `date_added` | timestamp, required | Set on creation (FR-006); overridden by import original date (FR-030). |\\n| `date_modified` | timestamp, required | Updated on any edit. |\\n| `metadata_status` | enum: `pending`/`ready`/`failed` | Async capture state (FR-005). |\\n| `preserved_path` | text, nullable | Path to local copy file (FR-026/FR-027). |\\n| `preserved_kind` | enum: `html`/`pdf`, nullable | Self-contained HTML vs original PDF. |\\n| `preserved_status` | enum: `none`/`pending`/`ready`/`failed` | Local preservation state (FR-029). |\\n| `archive_org_url` | text, nullable | Internet Archive snapshot reference (FR-028). |\\n| `archive_org_status` | enum: `none`/`pending`/`ready`/`failed` | IA submission state (FR-029). |\\n\\n**Relationships**: many-to-many with **Tag** (via `bookmark_tags`).\\n\\n**Validation**:\\n- `url` must be a well-formed web URL after normalization; empty/malformed rejected (FR-002).\\n- `normalized_url` UNIQUE enforces no duplicates at the DB layer (FR-007, SC-003).\\n- Editing `url` re-runs normalization + duplicate check before persisting (FR-004).\\n\\n**State transitions**:\\n- Read: `is_read` toggles false↔true (FR-015).\\n- Archive: `is_archived` false→true (archive) and true→false (restore) (FR-017/FR-019).\\n- Async fields (`metadata_status`, `preserved_status`, `archive_org_status`) move\\n  `pending`→`ready`/`failed` independently and never block save (FR-005/FR-029).\\n\\n## Entity: Tag\\n\\nA user-defined label.\\n\\n| Field | Type | Notes / Rules |\\n|-------|------|---------------|\\n| `id` | integer, PK | Unique identifier. |\\n| `name` | text, required, **UNIQUE (case-insensitive)** | Normalized for merge on import (FR-031). |\\n\\n**Relationships**: many-to-many with **Bookmark**.\\n**Rules**: typing suggests existing tags (FR-009); a new name creates a tag\\n(US3); same-named tags merge rather than duplicate (FR-031).\\n\\n## Join: bookmark_tags\\n\\n| Field | Type | Notes |\\n|-------|------|-------|\\n| `bookmark_id` | integer, FK → Bookmark | ON DELETE CASCADE. |\\n| `tag_id` | integer, FK → Tag | ON DELETE CASCADE. |\\n\\nComposite PK `(bookmark_id, tag_id)`. Supports tag filtering (FR-010), `#tag`\\nsearch (FR-013), and bulk add/remove tags (FR-023).\\n\\n## Entity: Saved View\\n\\nA named, reusable combination of search text plus included/excluded tags.\\n\\n| Field | Type | Notes / Rules |\\n|-------|------|---------------|\\n| `id` | integer, PK | Unique identifier. |\\n| `name` | text, required | Display name. |\\n| `search_text` | text, nullable | The search expression (FR-024). |\\n| `included_tags` | text (JSON array), nullable | Tag names that must be present. |\\n| `excluded_tags` | text (JSON array), nullable | Tag names that must be absent. |\\n\\nReopening restores the same search + tag inclusion/exclusion (FR-024).\\n\\n## Entity: Display Preferences\\n\\nSingle-row (one user) settings table.\\n\\n| Field | Type | Notes / Rules |\\n|-------|------|---------------|\\n| `id` | integer, PK (always 1) | Singleton row. |\\n| `default_sort` | enum: `newest`/`oldest`/`title`/`recently_modified` | Default list order (FR-021/FR-035). |\\n| `items_per_view` | integer | How many items shown at once (FR-035). |\\n| `text_size` | enum: `small`/`medium`/`large` | UI text size (FR-035). |\\n\\nApplied and persisted across sessions (FR-035).\\n\\n## Derived / not stored separately\\n\\n- **Preserved Copy** and **Internet Archive Reference** from the spec are modeled\\n  as fields on **Bookmark** (`preserved_*`, `archive_org_*`) plus the on-disk file\\n  at `preserved_path`, rather than separate tables — each bookmark has at most one\\n  of each, so a 1:1 field set is simpler than a join.\\n\\n## Indexes (for SC-004 responsiveness at 1,000+ bookmarks)\\n\\n- UNIQUE index on `bookmark.normalized_url` (duplicate detection).\\n- Index on `bookmark.is_archived`, `bookmark.is_read`, `bookmark.date_added`,\\n  `bookmark.title` to keep normal-view filtering and sorting fast.\\n- Index on `bookmark_tags.tag_id` for tag filtering and `#tag` search joins.\\n- UNIQUE (case-insensitive) index on `tag.name`.\\n\\n## Query-visibility rules\\n\\n- **Normal browsing and search**: `is_archived = false` only (FR-018).\\n- **Unread view**: `is_archived = false AND is_read = false` (FR-016).\\n- **Archive view**: `is_archived = true` only (FR-018).\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"agent_message\",\"text\":\"Yes, the plan supports the approved behavior and the failure handling sounds appropriate. Please proceed to the task breakdown and pause for review before implementation.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":229466,\"cached_input_tokens\":196608,\"cache_write_input_tokens\":0,\"output_tokens\":1793,\"reasoning_output_tokens\":718}}\n",
+  "returncode": 0,
+  "accounting": {
+    "session_id": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+    "usage": {
+      "input_tokens": 5959,
+      "output_tokens": 291,
+      "cache_read_input_tokens": 58112,
+      "cache_creation_input_tokens": 0,
+      "reasoning_output_tokens": 137
+    },
+    "threads": [
+      {
+        "session_id": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+        "kind": "main",
+        "usage": {
+          "output_tokens": 291,
+          "input_tokens": 5959,
+          "reasoning_output_tokens": 137,
+          "cache_read_input_tokens": 58112,
+          "cache_creation_input_tokens": 0
+        },
+        "before": {
+          "output_tokens": 1502,
+          "cache_creation_input_tokens": 0,
+          "input_tokens": 26899,
+          "reasoning_output_tokens": 581,
+          "cache_read_input_tokens": 138496
+        },
+        "after": {
+          "output_tokens": 1793,
+          "cache_creation_input_tokens": 0,
+          "input_tokens": 32858,
+          "reasoning_output_tokens": 718,
+          "cache_read_input_tokens": 196608
+        },
+        "inherited_baseline": {}
+      }
+    ],
+    "scope": "observed_distinct_threads",
+    "issues": [],
+    "complete": true
+  },
+  "session_id": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+  "normalized": {
+    "result": "Yes, the plan supports the approved behavior and the failure handling sounds appropriate. Please proceed to the task breakdown and pause for review before implementation.",
+    "session_id": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+    "usage": {
+      "input_tokens": 5959,
+      "output_tokens": 291,
+      "cache_read_input_tokens": 58112,
+      "cache_creation_input_tokens": 0,
+      "reasoning_output_tokens": 137
+    },
+    "native_usage": {
+      "input_tokens": 229466,
+      "cached_input_tokens": 196608,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 1793,
+      "reasoning_output_tokens": 718
+    },
+    "total_cost_usd": null,
+    "model_config": {
+      "provider": "codex",
+      "model": "gpt-5.6-sol",
+      "effort": "medium"
+    },
+    "observed_models": [],
+    "accounting": {
+      "session_id": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+      "usage": {
+        "input_tokens": 5959,
+        "output_tokens": 291,
+        "cache_read_input_tokens": 58112,
+        "cache_creation_input_tokens": 0,
+        "reasoning_output_tokens": 137
+      },
+      "threads": [
+        {
+          "session_id": "01a0ae36-55ee-7801-ba48-6cbe0c0d0baa",
+          "kind": "main",
+          "usage": {
+            "output_tokens": 291,
+            "input_tokens": 5959,
+            "reasoning_output_tokens": 137,
+            "cache_read_input_tokens": 58112,
+            "cache_creation_input_tokens": 0
+          },
+          "before": {
+            "output_tokens": 1502,
+            "cache_creation_input_tokens": 0,
+            "input_tokens": 26899,
+            "reasoning_output_tokens": 581,
+            "cache_read_input_tokens": 138496
+          },
+          "after": {
+            "output_tokens": 1793,
+            "cache_creation_input_tokens": 0,
+            "input_tokens": 32858,
+            "reasoning_output_tokens": 718,
+            "cache_read_input_tokens": 196608
+          },
+          "inherited_baseline": {}
+        }
+      ],
+      "scope": "observed_distinct_threads",
+      "issues": [],
+      "complete": true
+    }
+  },
+  "ended_at": "2026-09-17T07:20:53.268825+00:00",
+  "elapsed_seconds": 12.073779
+}

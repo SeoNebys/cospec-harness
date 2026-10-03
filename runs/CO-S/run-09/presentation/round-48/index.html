@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — Save a bookmark</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17201c;
+      --muted: #65706a;
+      --line: #dfe5e0;
+      --paper: #fbfcf8;
+      --panel: #ffffff;
+      --green: #275f49;
+      --green-soft: #e8f2ed;
+      --amber: #d59b3d;
+      --shadow: 0 18px 55px rgba(30, 48, 39, .10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 78% 6%, rgba(213, 155, 61, .12), transparent 24rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 236px 1fr; }
+    aside {
+      border-right: 1px solid var(--line);
+      padding: 32px 24px;
+      background: rgba(255,255,255,.68);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; font-weight: 760; font-size: 21px; letter-spacing: -.03em; }
+    .mark { width: 31px; height: 35px; border-radius: 7px 7px 4px 4px; background: var(--green); position: relative; }
+    .mark::after { content: ""; position: absolute; bottom: -1px; left: 7px; border-left: 8.5px solid transparent; border-right: 8.5px solid transparent; border-bottom: 8px solid white; }
+    nav { margin-top: 58px; }
+    .nav-item { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 10px; color: var(--green); background: var(--green-soft); font-weight: 650; }
+    .nav-icon { width: 17px; height: 20px; border: 2px solid currentColor; border-radius: 3px; position: relative; }
+    .nav-icon::after { content: ""; position: absolute; left: 3px; right: 3px; top: 5px; height: 2px; background: currentColor; box-shadow: 0 5px 0 currentColor; opacity: .65; }
+    .nav-item.secondary { margin-top: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+    .nav-item.secondary.active { background: var(--green-soft); color: var(--green); }
+    .nav-item.inactive { background: transparent; color: var(--muted); }
+    .nav-count { margin-left: auto; min-width: 21px; padding: 2px 6px; border-radius: 999px; background: #edf0ec; text-align: center; font-size: 11px; }
+    main { padding: 34px 52px 64px; }
+    .topbar { display: flex; justify-content: flex-end; align-items: center; min-height: 36px; }
+    .avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: #eee5d5; color: #6b5330; font-size: 13px; font-weight: 750; }
+    .content { max-width: 780px; margin: 78px auto 0; }
+    .eyebrow { margin: 0 0 12px; color: var(--green); font-size: 13px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; max-width: 620px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(42px, 5vw, 62px); line-height: 1.02; letter-spacing: -.045em; font-weight: 500; }
+    .intro { margin: 22px 0 33px; max-width: 560px; color: var(--muted); font-size: 17px; line-height: 1.6; }
+    .composer { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 10px; }
+    .url-row { display: flex; align-items: center; gap: 10px; }
+    .link-glyph { width: 25px; color: var(--muted); margin-left: 10px; flex: 0 0 auto; }
+    input {
+      border: 0;
+      outline: 0;
+      min-width: 0;
+      width: 100%;
+      padding: 16px 4px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 16px;
+    }
+    input::placeholder { color: #929b96; }
+    .fetch-state { display: none; align-items: center; gap: 8px; color: var(--muted); padding: 12px 14px 6px; font-size: 13px; }
+    .url-error { display: none; margin: 8px 0 0; padding: 13px 15px; border-top: 1px solid #efd2ce; color: #9a3f37; font-size: 13px; line-height: 1.45; }
+    .fetch-error { display: none; margin-top: 8px; padding: 18px 16px 12px; border-top: 1px solid #efd2ce; animation: rise .28s ease-out; }
+    .fetch-error h2 { margin: 0 0 7px; font-family: Georgia, serif; font-size: 21px; font-weight: 500; }
+    .fetch-error p { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .error-actions { display: flex; gap: 9px; }
+    .retry-action { background: #f1f3f0; color: var(--green); }
+    .spinner { width: 14px; height: 14px; border: 2px solid #d6ddd8; border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .preview { display: none; margin: 8px 0 0; border-top: 1px solid var(--line); padding: 18px 14px 10px; grid-template-columns: 88px 1fr auto; gap: 16px; align-items: center; animation: rise .28s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(5px); } }
+    .thumb { width: 88px; height: 72px; border-radius: 11px; background: linear-gradient(145deg, #f2e6cc, #d7eadf); display: grid; place-items: center; overflow: hidden; position: relative; }
+    .thumb::before { content: "Aa"; font-family: Georgia, serif; font-size: 25px; color: var(--green); }
+    .meta { min-width: 0; }
+    .source { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+    .favicon { width: 17px; height: 17px; border-radius: 4px; display: grid; place-items: center; background: #171717; color: white; font-family: Georgia, serif; font-size: 11px; font-weight: bold; }
+    .title { margin: 0 0 5px; font-family: Georgia, serif; font-size: 19px; line-height: 1.2; }
+    .description { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    button { border: 0; border-radius: 10px; padding: 12px 18px; background: var(--green); color: white; font: inherit; font-weight: 700; cursor: pointer; transition: transform .15s, background .15s; }
+    button:hover { background: #1e4e3b; }
+    button:active { transform: translateY(1px); }
+    .done { display: none; align-items: center; gap: 13px; padding: 19px 16px; border-top: 1px solid var(--line); margin-top: 8px; color: var(--green); font-weight: 680; }
+    .check { width: 27px; height: 27px; border-radius: 50%; background: var(--green-soft); display: grid; place-items: center; }
+    .duplicate { display: none; margin-top: 8px; padding: 18px 16px 10px; border-top: 1px solid var(--line); animation: rise .28s ease-out; }
+    .duplicate-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; color: #7d5618; font-weight: 750; }
+    .duplicate-icon { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #fff1d5; }
+    .duplicate-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: #f7f8f5; }
+    .duplicate-row .thumb { width: 52px; height: 48px; border-radius: 8px; }
+    .duplicate-row .title { margin-bottom: 3px; font-size: 16px; }
+    .duplicate-note { color: var(--muted); font-size: 12px; }
+    .secondary-action { color: var(--green); background: var(--green-soft); }
+    .secondary-action:hover { color: white; }
+    .editor { display: none; margin-top: 8px; padding: 20px 16px 12px; border-top: 1px solid var(--line); animation: rise .28s ease-out; }
+    .editor-head { margin-bottom: 17px; }
+    .editor-head h2 { margin: 0 0 5px; font-family: Georgia, serif; font-size: 23px; font-weight: 500; }
+    .editor-head p { margin: 0; color: var(--muted); font-size: 13px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: grid; gap: 7px; }
+    .field.wide { grid-column: 1 / -1; }
+    label { color: #465049; font-size: 12px; font-weight: 750; }
+    .field input, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 11px 12px; background: white; color: var(--ink); font: inherit; font-size: 14px; outline: none; }
+    .field input:focus, .field textarea:focus { border-color: #8aab9b; box-shadow: 0 0 0 3px var(--green-soft); }
+    .field textarea { min-height: 74px; resize: vertical; line-height: 1.45; }
+    .editor-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 17px; }
+    .keep-one { color: var(--muted); font-size: 12px; }
+    .hint { color: var(--muted); margin: 17px 4px 0; font-size: 13px; }
+    .library { display: none; margin-top: 34px; animation: rise .3s ease-out; }
+    .library-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 15px; }
+    .library-head h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; letter-spacing: -.02em; }
+    .count { color: var(--muted); font-size: 13px; }
+    .bookmark-card { display: grid; grid-template-columns: 112px 1fr auto; gap: 19px; align-items: center; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 10px 32px rgba(30,48,39,.07); }
+    .bookmark-card .thumb { width: 112px; height: 92px; }
+    .bookmark-card .title { font-size: 21px; }
+    .saved-badge { align-self: start; border-radius: 999px; padding: 7px 10px; background: var(--green-soft); color: var(--green); font-size: 12px; font-weight: 750; white-space: nowrap; }
+    .search-view { display: none; animation: rise .28s ease-out; }
+    .search-view h1 { font-size: 48px; }
+    .search-box { display: flex; align-items: center; gap: 10px; margin-top: 27px; padding: 3px 12px; background: white; border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 8px 26px rgba(30,48,39,.06); }
+    .search-icon { width: 20px; color: var(--muted); flex: 0 0 auto; }
+    .results-head { display: flex; align-items: center; justify-content: space-between; margin: 29px 2px 13px; }
+    .results-head h2 { margin: 0; font-family: Georgia, serif; font-size: 24px; font-weight: 500; }
+    .search-list { display: grid; gap: 12px; }
+    .search-card { display: grid; grid-template-columns: 78px 1fr; gap: 16px; align-items: center; padding: 15px; background: white; border: 1px solid var(--line); border-radius: 14px; }
+    .search-card .thumb { width: 78px; height: 72px; }
+    .search-card .title { font-size: 18px; }
+    .personal-note { margin-top: 8px; color: #4f5d55; font-size: 12px; }
+    .personal-note span { color: var(--green); font-weight: 750; }
+    .no-results { display: none; padding: 30px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 14px; }
+    .tag-filter { display: none; flex-wrap: wrap; gap: 8px; margin-top: 25px; }
+    .filter-chip { padding: 8px 13px; border: 1px solid var(--line); background: white; color: #526058; font-size: 13px; }
+    .filter-chip:hover, .filter-chip.active { border-color: var(--green); background: var(--green); color: white; }
+    .tag-filter.sidebar-filter { flex-direction: column; align-items: stretch; margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
+    .tag-filter.sidebar-filter::before { content: "Tags"; margin: 0 4px 3px; color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    .tag-filter.sidebar-filter .filter-chip { width: 100%; text-align: left; background: transparent; border-color: transparent; }
+    .tag-filter.sidebar-filter .filter-chip.active { background: var(--green-soft); color: var(--green); }
+    .result-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .result-tags .tag-chip { padding: 4px 7px; font-size: 10px; }
+    .manage-view { display: none; animation: rise .28s ease-out; }
+    .manage-view h1 { font-size: 48px; }
+    .manage-card { margin-top: 28px; }
+    .manage-card .card-action { align-self: center; }
+    .card-actions { display: grid; gap: 8px; align-self: center; }
+    .card-delete-action { display: none; }
+    .clickable-card { cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; }
+    .clickable-card:hover { border-color: #9ab5a7; transform: translateY(-1px); box-shadow: 0 13px 34px rgba(30,48,39,.10); }
+    .click-hint { display: none; color: var(--green); font-size: 12px; font-weight: 750; }
+    .readlater-view { display: none; animation: rise .28s ease-out; }
+    .readlater-view h1 { font-size: 48px; }
+    .readlater-confirmation { display: none; align-items: center; gap: 11px; margin-top: 24px; padding: 14px 16px; border-radius: 12px; background: #fff4dd; color: #785217; font-weight: 750; }
+    .later-action { background: #f0f3ef; color: var(--green); white-space: nowrap; }
+    .later-action:hover, .later-action.marked { background: var(--green); color: white; }
+    .later-action.icon-only { width: 42px; height: 42px; padding: 0; border-radius: 50%; font-size: 19px; }
+    .readlater-empty { display: none; margin-top: 24px; padding: 54px 24px; border: 1px dashed var(--line); border-radius: 16px; text-align: center; color: var(--muted); }
+    .readlater-empty strong { display: block; margin-bottom: 7px; color: var(--ink); font-family: Georgia, serif; font-size: 22px; font-weight: 500; }
+    .manage-confirmation { display: none; align-items: center; gap: 11px; margin-top: 24px; padding: 14px 16px; border-radius: 12px; background: var(--green-soft); color: var(--green); font-weight: 750; }
+    .card-note { display: none; margin: 9px 0 0; color: #4f5d55; font-size: 12px; }
+    .card-note strong { color: var(--green); }
+    .card-tags { display: none; gap: 6px; margin-top: 9px; }
+    .manage-editor { display: none; margin-top: 28px; padding: 24px; background: white; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+    .manage-editor .field-grid { margin-top: 20px; }
+    .tag-entry { display: flex; align-items: center; gap: 8px; min-height: 45px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: white; }
+    .tag-entry input { padding: 4px; font-size: 14px; }
+    .tag-help { color: var(--muted); font-size: 11px; }
+    .tag-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 9px; background: var(--green-soft); color: var(--green); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .tag-chip button { width: 15px; padding: 0; background: transparent; color: currentColor; font-size: 15px; line-height: 1; }
+    .tag-add-button { padding: 7px 12px; border-radius: 8px; font-size: 12px; }
+    .tag-suggestions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tag-suggestion { padding: 7px 10px; background: #f0f3ef; color: #4b5951; font-size: 12px; }
+    .tag-suggestion:hover { background: var(--green-soft); color: var(--green); }
+    .tag-new-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .tag-new-row input { border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+    .selected-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 9px; }
+    .danger-zone { display: none; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .danger-action { background: #fff0ee; color: #a13d35; }
+    .danger-action:hover { background: #a13d35; color: white; }
+    .dialog-backdrop { display: none; position: fixed; inset: 0; z-index: 20; align-items: center; justify-content: center; padding: 24px; background: rgba(20,29,24,.42); backdrop-filter: blur(3px); }
+    .dialog { width: min(440px, 100%); padding: 26px; border-radius: 17px; background: white; box-shadow: 0 25px 80px rgba(20,29,24,.25); }
+    .dialog h2 { margin: 0 0 10px; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
+    .dialog p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+    .cancel-action { background: #f1f3f0; color: #4d5a52; }
+    .delete-result { display: none; margin-top: 28px; padding: 55px 24px; border: 1px dashed var(--line); border-radius: 16px; text-align: center; color: var(--muted); }
+    .delete-result strong { display: block; margin-bottom: 8px; color: var(--ink); font-family: Georgia, serif; font-size: 24px; font-weight: 500; }
+    .archive-view { display: none; animation: rise .28s ease-out; }
+    .archive-view h1 { font-size: 48px; }
+    .archive-status { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 7px; color: #925f17; font-size: 12px; font-weight: 750; }
+    .archive-action { background: #80591f; white-space: nowrap; }
+    .archive-action:hover { background: #654516; }
+    @media (max-width: 760px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 20px 44px; }
+      .content { margin-top: 52px; }
+      .preview { grid-template-columns: 68px 1fr; }
+      .thumb { width: 68px; height: 68px; }
+      button { grid-column: 1 / -1; width: 100%; }
+      .bookmark-card { grid-template-columns: 74px 1fr; }
+      .bookmark-card .thumb { width: 74px; height: 74px; }
+      .saved-badge { grid-column: 2; justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand"><span class="mark" aria-hidden="true"></span>Trove</div>
+      <nav>
+        <div class="nav-item" id="all-nav"><span class="nav-icon" aria-hidden="true"></span>All bookmarks</div>
+        <div class="nav-item secondary" id="readlater-nav" style="display:none"><span aria-hidden="true">◷</span><span>Read later</span><span class="nav-count" id="readlater-count">0</span></div>
+      </nav>
+    </aside>
+    <main>
+      <div class="topbar"><div class="avatar" aria-label="Profile">ME</div></div>
+      <section class="content" data-harness-ready="true">
+        <p class="eyebrow">Your library</p>
+        <h1>Save something worth returning to.</h1>
+        <p class="intro">Paste a link. Its useful details will be gathered for you, so it stays recognizable later.</p>
+        <div class="composer">
+          <div class="url-row">
+            <svg class="link-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10.5 13.5a4.2 4.2 0 0 0 5.9 0l2.1-2.1a4.2 4.2 0 0 0-5.9-5.9l-1.2 1.2"/><path d="M13.5 10.5a4.2 4.2 0 0 0-5.9 0l-2.1 2.1a4.2 4.2 0 0 0 5.9 5.9l1.2-1.2"/></svg>
+            <input id="url" type="url" autocomplete="off" aria-label="Web address" placeholder="Paste a web address…">
+          </div>
+          <div class="fetch-state" id="fetch"><span class="spinner"></span>Gathering title, description, and preview…</div>
+          <div class="url-error" id="url-error"><strong>That doesn’t look like a complete web address.</strong><br>Paste a link beginning with http:// or https://.</div>
+          <div class="fetch-error" id="fetch-error">
+            <h2>We couldn’t reach this page</h2>
+            <p>The link is valid, but its details and readable copy could not be gathered. Your address is still here.</p>
+            <div class="error-actions"><button class="retry-action" type="button">Try again</button><button type="button">Add details manually</button></div>
+          </div>
+          <div class="preview" id="preview">
+            <div class="thumb" aria-label="Article preview image"></div>
+            <div class="meta">
+              <div class="source"><span class="favicon">A</span><span id="source">A List Apart</span></div>
+              <h2 class="title" id="title">Designing for Readers</h2>
+              <p class="description" id="description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</p>
+            </div>
+            <button id="save" type="button">Save bookmark</button>
+          </div>
+          <div class="duplicate" id="duplicate">
+            <div class="duplicate-heading"><span class="duplicate-icon">↺</span><span>This is already in your library</span></div>
+            <div class="duplicate-row">
+              <div class="thumb" aria-label="Article preview image"></div>
+              <div class="meta">
+                <h2 class="title">Designing for Readers</h2>
+                <div class="duplicate-note">A List Apart · Saved previously</div>
+              </div>
+              <button class="secondary-action" id="review-update" type="button">Review &amp; update</button>
+            </div>
+          </div>
+          <div class="editor" id="editor">
+            <div class="editor-head">
+              <h2>Update saved bookmark</h2>
+              <p>Review the bookmark you already have before changing it.</p>
+            </div>
+            <div class="field-grid">
+              <div class="field wide">
+                <label for="edit-title">Title</label>
+                <input id="edit-title" value="Designing for Readers">
+              </div>
+              <div class="field wide">
+                <label for="edit-description">Description</label>
+                <textarea id="edit-description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</textarea>
+              </div>
+            </div>
+            <div class="editor-actions">
+              <span class="keep-one">Changes apply to the existing bookmark—no copy will be made.</span>
+              <button id="save-changes" type="button">Save changes</button>
+            </div>
+          </div>
+          <div class="done" id="done"><span class="check">✓</span><span id="done-text">Saved to your library</span></div>
+        </div>
+        <p class="hint">Your library is empty. Your first saved link will appear here.</p>
+        <section class="library" id="library" aria-label="Saved bookmarks">
+          <div class="library-head">
+            <h2>All bookmarks</h2>
+            <span class="count">1 bookmark</span>
+          </div>
+          <article class="bookmark-card">
+            <div class="thumb" aria-label="Article preview image"></div>
+            <div class="meta">
+              <div class="source"><span class="favicon">A</span><span>A List Apart</span></div>
+              <h3 class="title">Designing for Readers</h3>
+              <p class="description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</p>
+            </div>
+            <span class="saved-badge" id="saved-badge">Just saved</span>
+          </article>
+        </section>
+        <section class="search-view" id="search-view" aria-label="Search bookmarks">
+          <p class="eyebrow">Your library</p>
+          <h1>Find what you saved.</h1>
+          <p class="intro">Search the words you remember—even when they came from your own notes.</p>
+          <div class="tag-filter" id="tag-filter" aria-label="Filter by tag">
+            <button class="filter-chip active" type="button" data-tag="all">All</button>
+            <button class="filter-chip" type="button" data-tag="design">design</button>
+            <button class="filter-chip" type="button" data-tag="reading">reading</button>
+            <button class="filter-chip" type="button" data-tag="research">research</button>
+          </div>
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="search-input" type="search" autocomplete="off" placeholder="Search bookmarks…" aria-label="Search bookmarks">
+          </div>
+          <div class="results-head"><h2>All bookmarks</h2><span class="count" id="result-count">4 bookmarks</span></div>
+          <div class="search-list" id="search-list">
+            <article class="search-card" data-tags="design reading" data-search="designing for readers practical ways make reading web clearer calmer rewarding a list apart typography workshop">
+              <div class="thumb" aria-label="Article preview image"></div>
+              <div class="meta">
+                <div class="source"><span class="favicon">A</span><span>A List Apart</span></div>
+                <h3 class="title">Designing for Readers</h3>
+                <p class="description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</p>
+                <p class="personal-note"><span>My note:</span> Use this for the typography workshop.</p>
+              </div>
+            </article>
+            <article class="search-card" data-tags="research" data-search="the case for boring architecture dependable systems software field notes">
+              <div class="thumb" aria-label="Article preview image"></div>
+              <div class="meta">
+                <div class="source"><span class="favicon">F</span><span>Field Notes</span></div>
+                <h3 class="title">The Case for Boring Architecture</h3>
+                <p class="description">Why dependable systems often begin with familiar, well-understood choices.</p>
+                <p class="personal-note"><span>My note:</span> Share with the engineering team.</p>
+              </div>
+            </article>
+            <article class="search-card" data-tags="design" data-search="attention is a design material humane interfaces digital spaces pattern journal">
+              <div class="thumb" aria-label="Article preview image"></div>
+              <div class="meta">
+                <div class="source"><span class="favicon">P</span><span>Pattern Journal</span></div>
+                <h3 class="title">Attention Is a Design Material</h3>
+                <p class="description">Building humane interfaces for busy digital spaces.</p>
+                <p class="personal-note"><span>My note:</span> Revisit before planning the new dashboard.</p>
+              </div>
+            </article>
+            <article class="search-card" data-tags="reading" data-search="a field guide to deep work focus routines knowledge workers north star review">
+              <div class="thumb" aria-label="Article preview image"></div>
+              <div class="meta">
+                <div class="source"><span class="favicon">N</span><span>North Star Review</span></div>
+                <h3 class="title">A Field Guide to Deep Work</h3>
+                <p class="description">Simple focus routines for knowledge workers.</p>
+                <p class="personal-note"><span>My note:</span> Try the shutdown ritual next Friday.</p>
+              </div>
+            </article>
+          </div>
+          <div class="no-results" id="no-results">No bookmarks match that search.</div>
+        </section>
+        <section class="manage-view" id="manage-view" aria-label="Manage bookmark">
+          <p class="eyebrow">Your library</p>
+          <h1>All bookmarks</h1>
+          <p class="intro">Keep the details that make each link useful to you.</p>
+          <div class="manage-confirmation" id="manage-confirmation"><span class="check">✓</span><span>Bookmark details updated</span></div>
+          <article class="bookmark-card manage-card" id="manage-card">
+            <div class="thumb" aria-label="Article preview image"></div>
+            <div class="meta">
+              <div class="source"><span class="favicon">A</span><span>A List Apart</span></div>
+              <h2 class="title">Designing for Readers</h2>
+              <p class="description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</p>
+              <p class="card-note" id="card-note"><strong>My note:</strong> <span></span></p>
+              <div class="card-tags" id="card-tags"></div>
+            </div>
+            <div class="card-actions">
+              <button class="secondary-action card-action" id="edit-bookmark" type="button">Edit bookmark</button>
+              <button class="danger-action card-delete-action" id="card-delete-bookmark" type="button">Delete bookmark</button>
+              <span class="click-hint" id="click-hint">Click card to edit</span>
+            </div>
+          </article>
+          <section class="manage-editor" id="manage-editor" aria-label="Edit Designing for Readers">
+            <div class="editor-head">
+              <h2>Edit bookmark</h2>
+              <p>Add the personal context that will help you find and use this later.</p>
+            </div>
+            <div class="field-grid">
+              <div class="field wide">
+                <label for="manage-title">Title</label>
+                <input id="manage-title" value="Designing for Readers">
+              </div>
+              <div class="field wide">
+                <label for="manage-description">Description</label>
+                <textarea id="manage-description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</textarea>
+              </div>
+              <div class="field wide">
+                <label for="manage-note">My note</label>
+                <textarea id="manage-note" placeholder="Why did you save this?"></textarea>
+              </div>
+              <div class="field wide">
+                <label for="manage-tag">Tags</label>
+                <div class="tag-entry"><input id="manage-tag" placeholder="Add a tag" aria-describedby="tag-help"></div>
+                <span class="tag-help" id="tag-help">Type a tag and press Enter</span>
+              </div>
+            </div>
+            <div class="editor-actions">
+              <span class="keep-one">The page details stay editable alongside your own note and tags.</span>
+              <button id="save-managed" type="button">Save changes</button>
+            </div>
+            <div class="danger-zone" id="danger-zone"><button class="danger-action" id="delete-bookmark" type="button">Delete bookmark</button></div>
+          </section>
+          <div class="delete-result" id="delete-result"><strong>Bookmark deleted</strong>Your library is empty.</div>
+        </section>
+        <section class="readlater-view" id="readlater-view" aria-label="Read later bookmarks">
+          <p class="eyebrow">Your library</p>
+          <h1 id="readlater-heading">All bookmarks</h1>
+          <p class="intro" id="readlater-intro">Keep something close when you want to return to it soon.</p>
+          <div class="readlater-confirmation" id="readlater-confirmation"><span class="check">✓</span><span id="readlater-confirmation-text">Added to Read later</span></div>
+          <article class="bookmark-card manage-card" id="readlater-card">
+            <div class="thumb" aria-label="Article preview image"></div>
+            <div class="meta">
+              <div class="source"><span class="favicon">A</span><span>A List Apart</span></div>
+              <h2 class="title">Designing for Readers</h2>
+              <p class="description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</p>
+            </div>
+            <button class="later-action" id="readlater-button" type="button">◷&nbsp; Read later</button>
+          </article>
+          <div class="readlater-empty" id="readlater-empty"><strong>Nothing waiting</strong>Your Read later list is all clear.</div>
+        </section>
+        <section class="archive-view" id="archive-view" aria-label="Saved copy available">
+          <p class="eyebrow">Your library</p>
+          <h1>Still here when the web isn’t.</h1>
+          <p class="intro">The original page can no longer be reached, but the readable copy captured when you saved it is available.</p>
+          <article class="bookmark-card manage-card">
+            <div class="thumb" aria-label="Article preview image"></div>
+            <div class="meta">
+              <div class="archive-status"><span>●</span><span>Original page unavailable · Saved copy ready</span></div>
+              <div class="source"><span class="favicon">A</span><span>A List Apart</span></div>
+              <h2 class="title">Designing for Readers</h2>
+              <p class="description">Practical ways to make reading on the web clearer, calmer, and more rewarding.</p>
+            </div>
+            <button class="archive-action" id="open-saved-copy" type="button">Open saved copy</button>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div class="dialog-backdrop" id="delete-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <div class="dialog">
+      <h2 id="delete-title">Delete “Designing for Readers”?</h2>
+      <p>This bookmark, its personal note, and its tags will be removed from your library.</p>
+      <div class="dialog-actions">
+        <button class="cancel-action" id="cancel-delete" type="button">Keep bookmark</button>
+        <button class="danger-action" id="confirm-delete" type="button">Delete bookmark</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const input = document.querySelector('#url');
+    const fetching = document.querySelector('#fetch');
+    const urlError = document.querySelector('#url-error');
+    const fetchError = document.querySelector('#fetch-error');
+    const preview = document.querySelector('#preview');
+    const done = document.querySelector('#done');
+    const duplicate = document.querySelector('#duplicate');
+    const editor = document.querySelector('#editor');
+    const save = document.querySelector('#save');
+    const reviewUpdate = document.querySelector('#review-update');
+    const saveChanges = document.querySelector('#save-changes');
+    const library = document.querySelector('#library');
+    const params = new URLSearchParams(location.search);
+    const existingMode = params.get('state') === 'existing' || params.get('state') === 'duplicate';
+    let timer;
+
+    function showSavedState() {
+      input.value = 'https://alistapart.com/article/designing-for-readers/';
+      fetching.style.display = 'none';
+      preview.style.display = 'none';
+      done.style.display = 'flex';
+      library.style.display = 'block';
+      document.querySelector('.hint').style.display = 'none';
+      library.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    }
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      preview.style.display = 'none';
+      duplicate.style.display = 'none';
+      editor.style.display = 'none';
+      done.style.display = 'none';
+      urlError.style.display = 'none';
+      fetchError.style.display = 'none';
+      const value = input.value.trim();
+      if (!value) { fetching.style.display = 'none'; return; }
+      fetching.style.display = 'flex';
+      timer = setTimeout(() => {
+        fetching.style.display = 'none';
+        let parsed;
+        try { parsed = new URL(value); } catch (_) { parsed = null; }
+        if (!parsed || !['http:', 'https:'].includes(parsed.protocol)) {
+          urlError.style.display = 'block';
+        } else if (params.get('state') === 'unreachable-url') fetchError.style.display = 'block';
+        else if (existingMode) duplicate.style.display = 'block';
+        else preview.style.display = 'grid';
+      }, 650);
+    });
+
+    save.addEventListener('click', () => {
+      history.replaceState({}, '', '?state=saved');
+      showSavedState();
+    });
+
+    reviewUpdate.addEventListener('click', () => {
+      duplicate.style.display = 'none';
+      editor.style.display = 'block';
+      history.replaceState({}, '', '?state=duplicate-edit');
+    });
+
+    saveChanges.addEventListener('click', () => {
+      const updatedTitle = document.querySelector('#edit-title').value.trim() || 'Untitled bookmark';
+      const updatedDescription = document.querySelector('#edit-description').value.trim();
+      document.querySelector('.bookmark-card .title').textContent = updatedTitle;
+      document.querySelector('.bookmark-card .description').textContent = updatedDescription;
+      document.querySelector('#saved-badge').textContent = 'Updated now';
+      document.querySelector('#done-text').textContent = 'Bookmark updated';
+      editor.style.display = 'none';
+      done.style.display = 'flex';
+      history.replaceState({}, '', '?state=updated');
+    });
+
+    if (params.get('state') === 'saved') {
+      showSavedState();
+    }
+    if (existingMode) {
+      library.style.display = 'block';
+      document.querySelector('.hint').style.display = 'none';
+      document.querySelector('#saved-badge').textContent = 'Saved';
+    }
+    if (params.get('state') === 'duplicate') {
+      input.value = 'https://alistapart.com/article/designing-for-readers/';
+      duplicate.style.display = 'block';
+    }
+    if (params.get('state') === 'duplicate-edit' || params.get('state') === 'ready-update') {
+      input.value = 'https://alistapart.com/article/designing-for-readers/';
+      editor.style.display = 'block';
+      library.style.display = 'block';
+      document.querySelector('.hint').style.display = 'none';
+      document.querySelector('#saved-badge').textContent = 'Saved';
+    }
+    if (params.get('state') === 'ready-update') {
+      document.querySelector('#edit-title').value = 'Designing for Focused Reading';
+    }
+    if (params.get('state') === 'updated') {
+      input.value = 'https://alistapart.com/article/designing-for-readers/';
+      library.style.display = 'block';
+      document.querySelector('.hint').style.display = 'none';
+      document.querySelector('.bookmark-card .title').textContent = 'Designing for Focused Reading';
+      document.querySelector('#saved-badge').textContent = 'Updated now';
+      document.querySelector('#done-text').textContent = 'Bookmark updated';
+      done.style.display = 'flex';
+    }
+    if (['search', 'tags', 'tags-sidebar'].includes(params.get('state'))) {
+      for (const selector of ['.content > .eyebrow', '.content > h1', '.content > .intro', '.composer', '.content > .hint', '#library']) {
+        document.querySelector(selector).style.display = 'none';
+      }
+      const searchView = document.querySelector('#search-view');
+      const searchInput = document.querySelector('#search-input');
+      const cards = [...document.querySelectorAll('.search-card')];
+      searchView.style.display = 'block';
+      function applySearch() {
+        const query = searchInput.value.trim().toLowerCase();
+        let visible = 0;
+        for (const card of cards) {
+          const matches = card.dataset.search.includes(query);
+          card.style.display = matches ? 'grid' : 'none';
+          if (matches) visible += 1;
+        }
+        document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+        document.querySelector('.results-head h2').textContent = query ? 'Search results' : 'All bookmarks';
+        document.querySelector('#no-results').style.display = visible ? 'none' : 'block';
+      }
+      searchInput.addEventListener('input', applySearch);
+      if (params.get('q')) {
+        searchInput.value = params.get('q');
+        applySearch();
+      }
+      if (params.get('state') === 'tags' || params.get('state') === 'tags-sidebar') {
+        searchView.querySelector('h1').textContent = 'Browse by tag.';
+        searchView.querySelector('.intro').textContent = 'Narrow the library to bookmarks that share the same label.';
+        searchView.querySelector('.search-box').style.display = 'none';
+        document.querySelector('#tag-filter').style.display = 'flex';
+        if (params.get('state') === 'tags-sidebar') {
+          const tagFilter = document.querySelector('#tag-filter');
+          tagFilter.classList.add('sidebar-filter');
+          document.querySelector('aside nav').appendChild(tagFilter);
+        }
+        for (const card of cards) {
+          const tags = card.dataset.tags.split(' ');
+          const tagRow = document.createElement('div');
+          tagRow.className = 'result-tags';
+          for (const tag of tags) {
+            const chip = document.createElement('span');
+            chip.className = 'tag-chip';
+            chip.textContent = tag;
+            tagRow.appendChild(chip);
+          }
+          card.querySelector('.meta').appendChild(tagRow);
+        }
+        function applyTag(tag) {
+          let visible = 0;
+          for (const card of cards) {
+            const matches = tag === 'all' || card.dataset.tags.split(' ').includes(tag);
+            card.style.display = matches ? 'grid' : 'none';
+            if (matches) visible += 1;
+          }
+          for (const button of document.querySelectorAll('.filter-chip')) button.classList.toggle('active', button.dataset.tag === tag);
+          document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+          document.querySelector('.results-head h2').textContent = tag === 'all' ? 'All bookmarks' : `Tagged ${tag}`;
+        }
+        for (const button of document.querySelectorAll('.filter-chip')) {
+          button.addEventListener('click', () => {
+            applyTag(button.dataset.tag);
+            const tagState = params.get('state') === 'tags-sidebar' ? 'tags-sidebar' : 'tags';
+            history.replaceState({}, '', `?state=${tagState}&tag=${encodeURIComponent(button.dataset.tag)}`);
+          });
+        }
+        applyTag(params.get('tag') || 'all');
+      }
+    }
+    if (['manage', 'manage-edit', 'manage-note', 'manage-tag', 'manage-ready', 'managed', 'tag-click', 'tag-suggest', 'tag-combined', 'edit-card', 'open-original', 'delete', 'delete-confirm', 'deleted', 'delete-card'].includes(params.get('state'))) {
+      for (const selector of ['.content > .eyebrow', '.content > h1', '.content > .intro', '.composer', '.content > .hint', '#library']) {
+        document.querySelector(selector).style.display = 'none';
+      }
+      document.querySelector('#manage-view').style.display = 'block';
+      if (!['manage', 'managed', 'edit-card', 'open-original', 'deleted', 'delete-card'].includes(params.get('state'))) {
+        document.querySelector('#manage-card').style.display = 'none';
+        document.querySelector('#manage-editor').style.display = 'block';
+      }
+    }
+    document.querySelector('#edit-bookmark').addEventListener('click', event => {
+      event.stopPropagation();
+      document.querySelector('#manage-card').style.display = 'none';
+      document.querySelector('#manage-editor').style.display = 'block';
+      history.replaceState({}, '', '?state=manage-edit');
+    });
+    if (params.get('state') === 'edit-card') {
+      const card = document.querySelector('#manage-card');
+      document.querySelector('#edit-bookmark').style.display = 'none';
+      document.querySelector('#click-hint').style.display = 'block';
+      card.classList.add('clickable-card');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', 'Edit Designing for Readers');
+      const openFromCard = () => {
+        card.style.display = 'none';
+        document.querySelector('#manage-editor').style.display = 'block';
+        history.replaceState({}, '', '?state=manage-edit');
+      };
+      card.addEventListener('click', openFromCard);
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openFromCard(); }
+      });
+    }
+    if (params.get('state') === 'open-original') {
+      const card = document.querySelector('#manage-card');
+      card.classList.add('clickable-card');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'link');
+      card.setAttribute('aria-label', 'Open Designing for Readers');
+      const openOriginal = () => { window.open('article.html', '_blank', 'noopener'); };
+      card.addEventListener('click', openOriginal);
+      card.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); openOriginal(); }
+      });
+    }
+    if (params.get('state') === 'delete' || params.get('state') === 'delete-confirm') {
+      document.querySelector('#danger-zone').style.display = 'block';
+    }
+    function showDeleteDialog() {
+      document.querySelector('#delete-dialog').style.display = 'flex';
+    }
+    document.querySelector('#delete-bookmark').addEventListener('click', () => {
+      showDeleteDialog();
+      history.replaceState({}, '', '?state=delete-confirm');
+    });
+    document.querySelector('#card-delete-bookmark').addEventListener('click', () => {
+      showDeleteDialog();
+      history.replaceState({}, '', '?state=delete-confirm');
+    });
+    if (params.get('state') === 'delete-card') document.querySelector('#card-delete-bookmark').style.display = 'block';
+    document.querySelector('#cancel-delete').addEventListener('click', () => {
+      document.querySelector('#delete-dialog').style.display = 'none';
+      history.replaceState({}, '', '?state=delete');
+    });
+    function showDeleted() {
+      document.querySelector('#delete-dialog').style.display = 'none';
+      document.querySelector('#manage-editor').style.display = 'none';
+      document.querySelector('#manage-card').style.display = 'none';
+      document.querySelector('#delete-result').style.display = 'block';
+    }
+    document.querySelector('#confirm-delete').addEventListener('click', () => {
+      showDeleted();
+      history.replaceState({}, '', '?state=deleted');
+    });
+    if (params.get('state') === 'delete-confirm') showDeleteDialog();
+    if (params.get('state') === 'deleted') showDeleted();
+    function addTag(label) {
+      const clean = label.trim();
+      if (!clean) return;
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.innerHTML = `<span>${clean}</span><button type="button" aria-label="Remove ${clean}">×</button>`;
+      chip.querySelector('button').addEventListener('click', () => chip.remove());
+      document.querySelector('.tag-entry').insertBefore(chip, document.querySelector('#manage-tag'));
+      document.querySelector('#manage-tag').value = '';
+    }
+    document.querySelector('#manage-tag').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addTag(event.currentTarget.value);
+      }
+    });
+    if (['manage-note', 'manage-tag', 'manage-ready', 'tag-click', 'tag-suggest', 'tag-combined'].includes(params.get('state'))) {
+      document.querySelector('#manage-note').value = 'Use this for the typography workshop';
+    }
+    if (params.get('state') === 'manage-tag' || params.get('state') === 'manage-ready') addTag('design');
+    function showManagedResult(note, tags) {
+      document.querySelector('#manage-editor').style.display = 'none';
+      document.querySelector('#manage-card').style.display = 'grid';
+      document.querySelector('#manage-confirmation').style.display = 'flex';
+      const noteDisplay = document.querySelector('#card-note');
+      noteDisplay.querySelector('span').textContent = note;
+      noteDisplay.style.display = note ? 'block' : 'none';
+      const tagDisplay = document.querySelector('#card-tags');
+      tagDisplay.innerHTML = '';
+      for (const tag of tags) {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = tag;
+        tagDisplay.appendChild(chip);
+      }
+      tagDisplay.style.display = tags.length ? 'flex' : 'none';
+    }
+    document.querySelector('#save-managed').addEventListener('click', () => {
+      const note = document.querySelector('#manage-note').value.trim();
+      const tags = [...document.querySelectorAll('.tag-entry .tag-chip > span')].map(item => item.textContent);
+      showManagedResult(note, tags);
+      history.replaceState({}, '', '?state=managed');
+    });
+    if (params.get('state') === 'managed') {
+      showManagedResult('Use this for the typography workshop', ['design']);
+    }
+    if (params.get('state') === 'tag-click') {
+      const tagInput = document.querySelector('#manage-tag');
+      tagInput.value = 'design';
+      document.querySelector('#tag-help').textContent = 'Type a tag, then add it';
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'tag-add-button';
+      addButton.textContent = 'Add';
+      addButton.addEventListener('click', () => addTag(tagInput.value));
+      document.querySelector('.tag-entry').appendChild(addButton);
+    }
+    if (params.get('state') === 'tag-suggest') {
+      const tagEntry = document.querySelector('.tag-entry');
+      tagEntry.innerHTML = '<div class="tag-suggestions"><button type="button" class="tag-suggestion">design</button><button type="button" class="tag-suggestion">reading</button><button type="button" class="tag-suggestion">research</button></div>';
+      document.querySelector('#tag-help').textContent = 'Choose a suggested tag';
+      for (const button of document.querySelectorAll('.tag-suggestion')) {
+        button.addEventListener('click', () => {
+          const label = button.textContent;
+          tagEntry.innerHTML = `<span class="tag-chip"><span>${label}</span><button type="button" aria-label="Remove ${label}">×</button></span>`;
+          tagEntry.querySelector('.tag-chip button').addEventListener('click', () => tagEntry.querySelector('.tag-chip').remove());
+        });
+      }
+    }
+    if (params.get('state') === 'tag-combined') {
+      const tagEntry = document.querySelector('.tag-entry');
+      tagEntry.style.display = 'block';
+      tagEntry.innerHTML = '<div class="selected-tags"></div><div class="tag-suggestions"><button type="button" class="tag-suggestion">design</button><button type="button" class="tag-suggestion">reading</button><button type="button" class="tag-suggestion">research</button></div><div class="tag-new-row"><input id="manage-tag" placeholder="Create a new tag"><button type="button" class="tag-add-button">Add</button></div>';
+      document.querySelector('#tag-help').textContent = 'Choose an existing tag, or create a new one';
+      const selected = tagEntry.querySelector('.selected-tags');
+      function selectCombinedTag(label) {
+        if ([...selected.querySelectorAll('.tag-chip > span')].some(item => item.textContent === label)) return;
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.innerHTML = `<span>${label}</span><button type="button" aria-label="Remove ${label}">×</button>`;
+        chip.querySelector('button').addEventListener('click', () => chip.remove());
+        selected.appendChild(chip);
+      }
+      for (const button of tagEntry.querySelectorAll('.tag-suggestion')) {
+        button.addEventListener('click', () => selectCombinedTag(button.textContent));
+      }
+      const newInput = tagEntry.querySelector('#manage-tag');
+      const addNew = () => {
+        const label = newInput.value.trim();
+        if (!label) return;
+        selectCombinedTag(label);
+        newInput.value = '';
+      };
+      tagEntry.querySelector('.tag-add-button').addEventListener('click', addNew);
+      newInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); addNew(); }
+      });
+    }
+    if (['read-later', 'read-later-marked', 'read-later-list', 'read-later-icon', 'read-later-removed'].includes(params.get('state'))) {
+      for (const selector of ['.content > .eyebrow', '.content > h1', '.content > .intro', '.composer', '.content > .hint', '#library']) {
+        document.querySelector(selector).style.display = 'none';
+      }
+      document.querySelector('#readlater-view').style.display = 'block';
+      document.querySelector('#readlater-nav').style.display = 'flex';
+    }
+    if (params.get('state') === 'read-later-icon') {
+      const button = document.querySelector('#readlater-button');
+      button.textContent = '◷';
+      button.classList.add('icon-only');
+      button.setAttribute('aria-label', 'Read later');
+      button.title = 'Read later';
+    }
+    function showReadLaterMarked() {
+      const button = document.querySelector('#readlater-button');
+      button.classList.remove('icon-only');
+      button.textContent = '✓  Saved for later';
+      button.classList.add('marked');
+      document.querySelector('#readlater-confirmation').style.display = 'flex';
+      document.querySelector('#readlater-count').textContent = '1';
+    }
+    function showReadLaterList() {
+      showReadLaterMarked();
+      document.querySelector('#readlater-confirmation').style.display = 'none';
+      document.querySelector('#readlater-heading').textContent = 'Read later';
+      document.querySelector('#readlater-intro').textContent = 'The bookmarks you set aside to come back to.';
+      document.querySelector('#all-nav').classList.add('inactive');
+      document.querySelector('#readlater-nav').classList.add('active');
+    }
+    function showReadLaterRemoved() {
+      document.querySelector('#readlater-card').style.display = 'none';
+      document.querySelector('#readlater-empty').style.display = 'block';
+      document.querySelector('#readlater-confirmation-text').textContent = 'Removed from Read later';
+      document.querySelector('#readlater-confirmation').style.display = 'flex';
+      document.querySelector('#readlater-count').textContent = '0';
+    }
+    document.querySelector('#readlater-button').addEventListener('click', () => {
+      if (document.querySelector('#readlater-button').classList.contains('marked')) {
+        showReadLaterRemoved();
+        history.replaceState({}, '', '?state=read-later-removed');
+      } else {
+        showReadLaterMarked();
+        history.replaceState({}, '', '?state=read-later-marked');
+      }
+    });
+    if (params.get('state') === 'read-later-marked') showReadLaterMarked();
+    document.querySelector('#readlater-nav').addEventListener('click', () => {
+      showReadLaterList();
+      history.replaceState({}, '', '?state=read-later-list');
+    });
+    if (params.get('state') === 'read-later-list') showReadLaterList();
+    if (params.get('state') === 'read-later-removed') {
+      showReadLaterList();
+      showReadLaterRemoved();
+    }
+    if (params.get('state') === 'archive' || params.get('state') === 'archive-auto') {
+      for (const selector of ['.content > .eyebrow', '.content > h1', '.content > .intro', '.composer', '.content > .hint', '#library']) {
+        document.querySelector(selector).style.display = 'none';
+      }
+      document.querySelector('#archive-view').style.display = 'block';
+    }
+    document.querySelector('#open-saved-copy').addEventListener('click', () => {
+      window.open('saved-copy.html', '_blank', 'noopener');
+    });
+    if (params.get('state') === 'archive-auto') {
+      const archiveCard = document.querySelector('#archive-view .bookmark-card');
+      document.querySelector('#open-saved-copy').style.display = 'none';
+      archiveCard.classList.add('clickable-card');
+      archiveCard.tabIndex = 0;
+      archiveCard.setAttribute('role', 'link');
+      archiveCard.setAttribute('aria-label', 'Open saved copy of Designing for Readers');
+      const openCopy = () => window.open('saved-copy.html', '_blank', 'noopener');
+      archiveCard.addEventListener('click', openCopy);
+      archiveCard.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); openCopy(); }
+      });
+    }
+  </script>
+</body>
+</html>

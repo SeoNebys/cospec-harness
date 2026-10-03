@@ -1,0 +1,1 @@
+import{NextRequest,NextResponse}from"next/server";import{executeBulk}from"@/server/services/bulk";export async function POST(req:NextRequest){const{token}=await req.json();const r=executeBulk(token);return NextResponse.json(r,{status:"error"in r?409:200});}

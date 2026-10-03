@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e4e7eb; --text:#1c2430; --muted:#6b7684; --accent:#2f6fed; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--text); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 20px; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  main { max-width:720px; margin:0 auto; padding:20px; }
+  .save { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:10px; }
+  .save input { flex:1; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .save button { padding:11px 18px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; cursor:pointer; }
+  .save button:disabled { opacity:.5; cursor:default; }
+  .count { color:var(--muted); font-size:13px; margin:22px 4px 8px; }
+  ul.list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; }
+  li.item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  li.item .title { font-size:15px; font-weight:600; }
+  li.item a.link { color:var(--accent); text-decoration:none; font-size:13px; word-break:break-all; }
+  li.item a.link:hover { text-decoration:underline; }
+  li.item .meta { color:var(--muted); font-size:12px; margin-top:6px; }
+  .empty { color:var(--muted); font-size:14px; padding:24px 4px; }
+  .flash { animation:flash 1.2s ease; }
+  @keyframes flash { from { background:#eaf1ff; } to { background:var(--card); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>One dependable place for every link you save.</p>
+</header>
+<main>
+  <form class="save" id="saveForm">
+    <input id="urlInput" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+    <button id="saveBtn" type="submit" disabled>Save</button>
+  </form>
+
+  <div class="count" id="count"></div>
+  <ul class="list" id="list"></ul>
+</main>
+
+<script>
+  var items = []; // in-memory for this prototype session
+
+  function deriveTitle(url) {
+    try {
+      var u = new URL(/^https?:\/\//i.test(url) ? url : 'https://' + url);
+      var host = u.hostname.replace(/^www\./,'');
+      var seg = u.pathname.split('/').filter(Boolean).pop() || '';
+      seg = decodeURIComponent(seg).replace(/[-_]+/g,' ').replace(/\.\w+$/,'').trim();
+      if (seg) {
+        seg = seg.charAt(0).toUpperCase() + seg.slice(1);
+        return seg + ' — ' + host;
+      }
+      return host;
+    } catch (e) { return url; }
+  }
+
+  function normalizeUrl(url) {
+    return /^https?:\/\//i.test(url) ? url : 'https://' + url;
+  }
+
+  function render() {
+    var list = document.getElementById('list');
+    var count = document.getElementById('count');
+    list.innerHTML = '';
+    if (items.length === 0) {
+      count.textContent = '';
+      var d = document.createElement('div');
+      d.className = 'empty';
+      d.textContent = 'Nothing saved yet. Paste a link above to get started.';
+      list.appendChild(d);
+      return;
+    }
+    count.textContent = items.length + (items.length === 1 ? ' saved link' : ' saved links');
+    items.forEach(function (it, idx) {
+      var li = document.createElement('li');
+      li.className = 'item' + (it._new ? ' flash' : '');
+      it._new = false;
+      var title = document.createElement('div'); title.className = 'title'; title.textContent = it.title;
+      var a = document.createElement('a'); a.className = 'link'; a.href = it.url; a.target = '_blank'; a.rel='noopener'; a.textContent = it.url;
+      var meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = 'Saved ' + it.saved;
+      li.appendChild(title); li.appendChild(a); li.appendChild(meta);
+      list.appendChild(li);
+    });
+  }
+
+  var input = document.getElementById('urlInput');
+  var btn = document.getElementById('saveBtn');
+  input.addEventListener('input', function () { btn.disabled = input.value.trim() === ''; });
+
+  document.getElementById('saveForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var raw = input.value.trim();
+    if (!raw) return;
+    var url = normalizeUrl(raw);
+    items.unshift({ url: url, title: deriveTitle(raw), saved: 'just now', _new: true });
+    input.value = '';
+    btn.disabled = true;
+    render();
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready', 'true');
+</script>
+</body>
+</html>

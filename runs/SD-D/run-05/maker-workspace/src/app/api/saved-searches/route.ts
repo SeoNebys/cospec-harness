@@ -1,0 +1,2 @@
+import{NextRequest,NextResponse}from"next/server";import{listSaved,saveSearch}from"@/server/services/saved-search-service";
+export async function GET(){return NextResponse.json(listSaved());}export async function POST(req:NextRequest){try{return NextResponse.json({id:saveSearch(await req.json())},{status:201});}catch(e){return NextResponse.json({message:e instanceof Error?e.message:"Could not save search"},{status:409});}}

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>My Bookmarks</h1>
+    <p class="tagline">A calm place to save links and find them again.</p>
+  </header>
+
+  <div class="tools-row">
+    <button class="ghost-btn" id="importBtn">Import bookmarks…</button>
+    <button class="ghost-btn" id="exportBtn">Export bookmarks</button>
+    <button class="ghost-btn" id="displayBtn">Display ▾</button>
+    <input type="file" id="importFile" accept=".html,text/html" hidden />
+    <span class="tools-status" id="toolsStatus" role="status"></span>
+  </div>
+
+  <div class="display-panel" id="displayPanel" hidden>
+    <div class="dp-row">
+      <span class="dp-label">Text size</span>
+      <div class="seg" id="fontSeg">
+        <button data-fs="small">Small</button><button data-fs="medium">Medium</button><button data-fs="large">Large</button>
+      </div>
+    </div>
+    <div class="dp-row">
+      <span class="dp-label">Items shown</span>
+      <label class="sel-label"><select id="pageSizeSel">
+        <option value="5">5 at a time</option><option value="10">10 at a time</option>
+        <option value="25">25 at a time</option><option value="50">50 at a time</option>
+        <option value="all">Show all</option>
+      </select></label>
+    </div>
+  </div>
+
+  <div class="save-bar">
+    <input id="urlInput" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+    <button class="btn" id="saveBtn">Save</button>
+  </div>
+  <div class="url-note" id="urlNote" hidden></div>
+
+  <div class="search-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="searchInput" type="text" placeholder="Search your bookmarks — a word, a topic, a label…" autocomplete="off" />
+    <button class="search-clear" id="searchClear" hidden>Clear</button>
+  </div>
+  <div class="collections" id="collections"></div>
+
+  <div class="controls-row" id="controlsRow">
+    <div class="seg" id="filter"></div>
+    <div class="right-controls">
+      <button class="ghost-btn" id="archivedToggle"></button>
+      <div id="sortControls"></div>
+    </div>
+  </div>
+
+  <div class="archived-banner" id="archivedBanner" hidden></div>
+  <div class="bulkbar" id="bulkbar" hidden></div>
+  <div class="result-count" id="resultCount"></div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<!-- Save / edit editor -->
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2 id="modalTitle">Save this link</h2>
+    <p class="hint" id="modalHint"></p>
+
+    <div class="preview-row">
+      <div id="mThumb" hidden></div>
+      <div class="preview-meta">
+        <div id="mFav" class="mfav"></div>
+        <span class="preview-cap" id="previewCap"></span>
+      </div>
+    </div>
+
+    <div class="field" id="urlField" hidden>
+      <label>Address</label>
+      <input id="fUrl" type="text" />
+      <div class="field-err" id="urlErr" hidden></div>
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input id="fTitle" type="text" />
+      <div class="auto" id="titleAuto" hidden>✓ filled in for you</div>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="fDesc"></textarea>
+    </div>
+
+    <div class="toggle-row">
+      <button class="switch" id="rlSwitch" type="button" aria-pressed="true"><span class="knob"></span></button>
+      <div><div class="t-text">Read later</div><div class="t-sub">Keep it in your "still to read" pile</div></div>
+    </div>
+    <div class="toggle-row">
+      <button class="switch" id="copySwitch" type="button" aria-pressed="true"><span class="knob"></span></button>
+      <div><div class="t-text">Keep a viewable copy of this page</div><div class="t-sub">So you can still read it if the original changes or disappears</div></div>
+    </div>
+    <div class="toggle-row">
+      <button class="switch" id="iaSwitch" type="button" aria-pressed="false"><span class="knob"></span></button>
+      <div>
+        <div class="t-text">Also save a copy to the Internet Archive</div>
+        <div class="t-sub">Creates a <b>public</b> copy on archive.org that anyone can find (optional)</div>
+        <div class="t-sub ia-note" id="iaNote" hidden>Heads up: enabling this makes a publicly visible copy.</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Your note (optional)</label>
+      <div class="note-toolbar" id="noteToolbar">
+        <button type="button" data-md="heading" title="Heading">H</button>
+        <button type="button" data-md="bold" title="Bold"><b>B</b></button>
+        <button type="button" data-md="italic" title="Italic"><i>I</i></button>
+        <button type="button" data-md="list" title="Bullet list">• List</button>
+        <button type="button" data-md="numbered" title="Numbered list">1. List</button>
+        <button type="button" data-md="link" title="Link">Link</button>
+      </div>
+      <textarea id="fNote" placeholder="Why is this worth keeping? Use **bold**, *italic*, # heading, - lists, 1. numbers, [links](https://…)."></textarea>
+      <div class="note-preview-label" id="notePreviewLabel" hidden>Preview</div>
+      <div class="note-preview" id="notePreview" hidden></div>
+    </div>
+
+    <div class="field">
+      <label>Labels</label>
+      <input id="fTags" type="text" placeholder="e.g. reading, work" />
+      <div class="suggest" id="suggest"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="cancelBtn">Cancel</button>
+      <button class="btn" id="confirmBtn">Save to my list</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="query.js"></script>
+<script src="format.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

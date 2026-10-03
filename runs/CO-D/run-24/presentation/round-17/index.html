@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eef2ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .saver input[type=url] {
+    flex: 1 1 320px;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .saver button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .saver button:disabled { opacity: .55; cursor: default; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 2px 0; }
+  .save-error { color: #c0392b; font-size: 13px; margin: 8px 2px 0; font-weight: 600; }
+  .fetch-warn { color: #b7791f; font-size: 12.5px; margin: 2px 0 6px; }
+  .list { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .favicon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--accent-soft);
+    display: grid; place-items: center;
+    font-weight: 700; color: var(--accent);
+    flex: none; font-size: 15px; overflow: hidden;
+  }
+  .favicon img { width: 22px; height: 22px; display: block; }
+  .card .body { flex: 1; min-width: 0; }
+  .card .preview {
+    width: 100%; height: 132px; object-fit: cover;
+    border-radius: 8px; margin-bottom: 8px; display: block;
+    border: 1px solid var(--line);
+  }
+  .card .title { font-weight: 600; font-size: 15px; margin: 0 0 3px; }
+  .card .title a { color: var(--ink); text-decoration: none; }
+  .card .title a:hover { text-decoration: underline; }
+  .card .col-actions { flex: none; }
+  .edit-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .edit-btn:hover { background: var(--bg); }
+  .archive-btn, .restore-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .archive-btn:hover { background: var(--bg); }
+  .restore-btn { color: var(--accent); border-color: #bcd0ff; }
+  .restore-btn:hover { background: var(--accent-soft); }
+  .note a { color: var(--accent); }
+  .note ul { margin: 4px 0; padding-left: 20px; }
+  .note code { background: #f3eecb; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+  .note p { margin: 4px 0; }
+  .note p:first-child { margin-top: 0; }
+  .note p:last-child { margin-bottom: 0; }
+  .card .desc {
+    color: var(--muted); font-size: 13px; margin: 0 0 6px; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card .site { color: var(--accent); font-size: 12px; word-break: break-all; }
+  .card.saving { opacity: .7; }
+  .card.flash { animation: flash 1.4s ease; }
+  @keyframes flash {
+    0% { box-shadow: 0 0 0 0 rgba(37,99,235,.0); border-color: var(--accent); }
+    25% { box-shadow: 0 0 0 4px rgba(37,99,235,.18); border-color: var(--accent); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); border-color: var(--line); }
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 10px;
+    font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0;
+    transition: opacity .25s, transform .25s; pointer-events: none; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .searchbar {
+    margin-top: 14px; display: flex; align-items: center; gap: 8px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px;
+  }
+  .searchbar .search-icon { font-size: 14px; opacity: .6; }
+  .searchbar input {
+    border: none; outline: none; flex: 1; font-size: 15px; padding: 9px 4px; background: transparent;
+  }
+  .search-clear {
+    border: none; background: transparent; font-size: 20px; line-height: 1;
+    color: var(--muted); cursor: pointer; padding: 0 6px;
+  }
+  .tabs { display: flex; gap: 8px; margin-top: 22px; }
+  .tab {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab .count {
+    display: inline-block; min-width: 18px; text-align: center; font-size: 12px;
+    background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; margin-left: 4px;
+  }
+  .tab.active .count { background: rgba(255,255,255,.25); }
+  .col-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .readlater-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .readlater-btn.on { background: #fff7e6; border-color: #f0c469; color: #b7791f; }
+  .toread-flag {
+    display: inline-block; font-size: 11px; font-weight: 700; color: #b7791f;
+    background: #fff7e6; border: 1px solid #f0c469; border-radius: 999px;
+    padding: 1px 8px; margin-bottom: 4px;
+  }
+  .listtools { display: flex; justify-content: flex-end; margin-top: 12px; }
+  .select-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .select-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .checkcol { flex: none; display: flex; align-items: center; padding-right: 2px; }
+  .checkcol input { width: 18px; height: 18px; cursor: pointer; }
+  .card.selected { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .bulkbar {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--ink); color: #fff;
+    z-index: 45; box-shadow: 0 -6px 20px rgba(0,0,0,.2);
+  }
+  .bulkbar-inner {
+    max-width: 760px; margin: 0 auto; padding: 10px 14px; display: flex;
+    align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px;
+  }
+  .bulkbar .bulk-link { background: transparent; border: none; color: #9ecbff; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .bulkbar .bulk-sep { width: 1px; height: 18px; background: rgba(255,255,255,.25); }
+  .bulkbar .bulk-spacer { flex: 1; }
+  .bulkbar .bulk-act {
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff;
+    border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .bulkbar .bulk-act:hover { background: rgba(255,255,255,.22); }
+  .bulkbar .bulk-act.danger { background: #dc2626; border-color: #dc2626; }
+  .bulkbar .bulk-done { background: #fff; color: var(--ink); border: none; border-radius: 8px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
+  .bulk-remove-tag {
+    display: inline-flex; align-items: center; gap: 6px; margin: 4px 6px 0 0;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid #cdd9ff;
+    border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .card.clickable { cursor: pointer; transition: box-shadow .15s; }
+  .card.clickable:hover { box-shadow: 0 3px 12px rgba(0,0,0,.07); }
+  .note {
+    margin: 6px 0 0; font-size: 13px; color: var(--ink);
+    background: #fffbea; border: 1px solid #f4e6a8; border-radius: 8px; padding: 8px 10px;
+    white-space: pre-wrap;
+  }
+  .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 12px; background: var(--accent-soft); color: var(--accent);
+    padding: 3px 9px; border-radius: 999px; font-weight: 600;
+    border: none; cursor: pointer; font-family: inherit;
+  }
+  .tag:hover { background: #dfe6ff; text-decoration: underline; }
+  .sortrow { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .sortrow .label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .sortrow select {
+    padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    border: none; background: #fff; color: var(--muted); font-size: 13px; font-weight: 600;
+    padding: 7px 12px; cursor: pointer; border-left: 1px solid var(--line);
+  }
+  .seg button:first-child { border-left: none; }
+  .seg button.active { background: var(--ink); color: #fff; }
+  .sortmenu { position: relative; }
+  .sortmenu > button {
+    border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 14px; font-weight: 600;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .sortmenu .menu {
+    position: absolute; top: 100%; left: 0; margin-top: 4px; background: #fff;
+    border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    z-index: 40; display: none; min-width: 160px; overflow: hidden;
+  }
+  .sortmenu .menu.open { display: block; }
+  .sortmenu .menu button {
+    display: block; width: 100%; text-align: left; border: none; background: #fff;
+    padding: 9px 12px; font-size: 14px; cursor: pointer;
+  }
+  .sortmenu .menu button:hover, .sortmenu .menu button.active { background: var(--accent-soft); color: var(--accent); }
+  /* editor modal */
+  .backdrop {
+    position: fixed; inset: 0; background: rgba(15,20,30,.45);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; z-index: 50;
+  }
+  .backdrop.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 14px; width: 100%; max-width: 520px;
+    padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.25); animation: pop .2s ease;
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 18px; }
+  .modal .sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; word-break: break-all; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .field input[type=text], .field textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .chipbox {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px;
+  }
+  .chipbox .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+    font-size: 12px; padding: 3px 4px 3px 9px; border-radius: 999px;
+  }
+  .chipbox .chip button {
+    border: none; background: transparent; color: var(--accent); cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 0 3px;
+  }
+  .chipbox input {
+    border: none; outline: none; flex: 1; min-width: 120px; font-size: 14px; padding: 4px;
+  }
+  .suggestions {
+    position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 60; overflow: hidden; display: none;
+  }
+  .suggestions.open { display: block; }
+  .suggestions .opt { padding: 9px 12px; font-size: 14px; cursor: pointer; }
+  .suggestions .opt:hover, .suggestions .opt.active { background: var(--accent-soft); color: var(--accent); }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .btn {
+    padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .delete-btn {
+    border: 1px solid #f0c4c4; background: #fff; color: #c0392b;
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .delete-btn:hover { background: #fdeaea; }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block; vertical-align: -3px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    text-align: center; color: var(--muted); padding: 48px 20px;
+    border: 1px dashed var(--line); border-radius: 12px; margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and I'll fill in the page details for you.</p>
+</header>
+<main>
+  <form class="saver" id="saver" autocomplete="off" novalidate>
+    <input type="text" id="url" placeholder="Paste a link, e.g. https://…" />
+    <button type="submit" id="saveBtn">Save</button>
+  </form>
+  <div class="hint" id="hint">Paste any web address and press Save.</div>
+  <div class="save-error" id="saveError" hidden></div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-view="all" type="button">All</button>
+    <button class="tab" data-view="toread" type="button">To read <span class="count" id="toreadCount"></span></button>
+    <button class="tab" data-view="archived" type="button">Archived <span class="count" id="archivedCount"></span></button>
+  </div>
+
+  <div class="searchbar">
+    <span class="search-icon">🔍</span>
+    <input type="search" id="search" placeholder='Search — try #tag, "a phrase", or AND / OR / NOT' autocomplete="off" />
+    <button class="search-clear" id="searchClear" type="button" title="Clear search" hidden>×</button>
+  </div>
+
+  <div class="sortrow" id="sortRow"></div>
+
+  <div class="listtools">
+    <button class="select-btn" id="selectBtn" type="button">Select</button>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">No bookmarks yet. Paste a link above to save your first one.</div>
+</main>
+
+<div class="backdrop" id="backdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>Edit bookmark</h2>
+    <div class="field">
+      <label for="editAddr">Web address</label>
+      <input type="text" id="editAddr" />
+    </div>
+    <div class="field">
+      <label for="editTitle">Title</label>
+      <input type="text" id="editTitle" />
+    </div>
+    <div class="field">
+      <label for="editDesc">Description</label>
+      <textarea id="editDesc"></textarea>
+    </div>
+    <div class="field">
+      <label for="editNote">Your note</label>
+      <textarea id="editNote" placeholder="Why did you save this? Add a private note…"></textarea>
+    </div>
+    <div class="field" style="position:relative;">
+      <label for="tagInput">Tags</label>
+      <div class="chipbox" id="chipbox">
+        <input type="text" id="tagInput" placeholder="Type a tag and press Enter" autocomplete="off" />
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="cancelEdit" type="button">Cancel</button>
+      <button class="btn primary" id="saveEdit" type="button">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="bulkbar" id="bulkbar" hidden>
+  <div class="bulkbar-inner">
+    <span id="bulkCount">0 selected</span>
+    <button data-act="selectAll" type="button" class="bulk-link" id="selectAllBtn"></button>
+    <button data-act="clear" type="button" class="bulk-link">Clear</button>
+    <span class="bulk-sep"></span>
+    <button data-act="addTag" type="button" class="bulk-act">+ Tag</button>
+    <button data-act="removeTag" type="button" class="bulk-act">– Tag</button>
+    <button data-act="readlater" type="button" class="bulk-act">Read later</button>
+    <button data-act="read" type="button" class="bulk-act">Mark read</button>
+    <button data-act="archive" type="button" class="bulk-act" id="bulkArchive">Archive</button>
+    <button data-act="restore" type="button" class="bulk-act" id="bulkRestore" hidden>Restore</button>
+    <button data-act="delete" type="button" class="bulk-act danger">Delete</button>
+    <span class="bulk-spacer"></span>
+    <button data-act="done" type="button" class="bulk-done">Done</button>
+  </div>
+</div>
+
+<div class="backdrop" id="bulkTagBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:420px;">
+    <h2 id="bulkTagTitle">Add a tag</h2>
+    <p class="sub" id="bulkTagSub"></p>
+    <div id="bulkTagBody"></div>
+    <div class="actions">
+      <button class="btn" id="bulkTagCancel" type="button">Cancel</button>
+      <button class="btn primary" id="bulkTagApply" type="button">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="backdrop" id="confirmBackdrop">
+  <div class="modal" role="alertdialog" aria-modal="true" style="max-width:420px;">
+    <h2>Delete this bookmark?</h2>
+    <p class="sub" id="confirmTarget"></p>
+    <p style="font-size:14px;color:var(--muted);margin:0 0 4px;">
+      This permanently removes it. Unlike Archive, this <strong>cannot be undone</strong>.
+    </p>
+    <div class="actions">
+      <button class="btn" id="cancelDelete" type="button">Cancel</button>
+      <button class="btn danger" id="confirmDelete" type="button">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Prototype: simulated page-detail lookup (no real network needed) ---
+// Simulated preview image, so "preview when available" renders even offline.
+function previewImage(label, c1, c2) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='320'>
+    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/>
+    </linearGradient></defs>
+    <rect width='640' height='320' fill='url(#g)'/>
+    <text x='40' y='180' font-family='Segoe UI, Arial' font-size='44' font-weight='700' fill='#ffffff'>${label}</text>
+  </svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+const KNOWN = {
+  "github.com": { site: "GitHub", title: "GitHub · Build and ship software", desc: "The complete developer platform to build, scale, and deliver secure software.", preview: previewImage("GitHub", "#24292e", "#57606a") },
+  "en.wikipedia.org": { site: "Wikipedia", title: "Wikipedia, the free encyclopedia", desc: "A free online encyclopedia, created and edited by volunteers around the world.", preview: previewImage("Wikipedia", "#3366cc", "#111111") },
+  "nytimes.com": { site: "The New York Times", title: "The New York Times — Breaking News, World News & Multimedia", desc: "Live news, investigations, opinion, photos and video.", preview: previewImage("The New York Times", "#000000", "#333333") },
+  "youtube.com": { site: "YouTube", title: "YouTube", desc: "Enjoy the videos and music you love, upload original content, and share it all.", preview: previewImage("YouTube", "#ff0000", "#7a0000") },
+  "developer.mozilla.org": { site: "MDN Web Docs", title: "MDN Web Docs", desc: "Resources for developers, by developers. Documentation for web technologies.", preview: previewImage("MDN Web Docs", "#0b5fff", "#001b44") },
+  "medium.com": { site: "Medium", title: "Medium — Where good ideas find you", desc: "Read and write stories, deepen your understanding of the topics that matter.", preview: previewImage("Medium", "#000000", "#4d4d4d") },
+};
+function faviconUrl(host) {
+  return "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=64";
+}
+function looksLikeUrl(url) {
+  let s = (url || "").trim();
+  if (!s) return false;
+  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  try {
+    const p = new URL(s);
+    if (p.hostname === "localhost") return true;
+    // require a dot and no spaces in the host, i.e. a plausible domain
+    return /\./.test(p.hostname) && !/\s/.test(p.hostname);
+  } catch { return false; }
+}
+function normalizeUrl(url) {
+  let u = url.trim();
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try {
+    const p = new URL(u);
+    let path = p.pathname.replace(/\/$/, "");
+    return (p.hostname.replace(/^www\./, "") + path + p.search).toLowerCase();
+  } catch { return u.toLowerCase().replace(/\/$/, ""); }
+}
+function metadataFor(url) {
+  let host;
+  try { host = new URL(/^https?:\/\//i.test(url) ? url : "https://" + url).hostname.replace(/^www\./, ""); }
+  catch { host = url.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, ""); }
+  const base = KNOWN[host]
+    ? { ...KNOWN[host], host }
+    : (() => {
+        const name = (host.split(".")[0] || host).replace(/[-_]/g, " ");
+        const pretty = name.charAt(0).toUpperCase() + name.slice(1);
+        // Unknown sites: no preview image available.
+        return { site: pretty, title: pretty + " — " + host, desc: "Saved page from " + host + ".", host, preview: null };
+      })();
+  base.favicon = faviconUrl(host);
+  return base;
+}
+
+const list = document.getElementById("list");
+const empty = document.getElementById("empty");
+const form = document.getElementById("saver");
+const urlInput = document.getElementById("url");
+const saveBtn = document.getElementById("saveBtn");
+
+let bookmarks = [];
+let selectionMode = false;
+const selected = new Set();
+let seqCounter = 0;
+let currentSort = "newest";   // newest | oldest | az | za
+function sortLabel(s) {
+  return { newest: "Newest first", oldest: "Oldest first", az: "Title A–Z", za: "Title Z–A" }[s];
+}
+function sortBookmarks(arr) {
+  const a = arr.slice();
+  if (currentSort === "newest") a.sort((x, y) => y.seq - x.seq);
+  else if (currentSort === "oldest") a.sort((x, y) => x.seq - y.seq);
+  else if (currentSort === "az") a.sort((x, y) => (x.title || "").localeCompare(y.title || "", undefined, { sensitivity: "base" }));
+  else if (currentSort === "za") a.sort((x, y) => (y.title || "").localeCompare(x.title || "", undefined, { sensitivity: "base" }));
+  return a;
+}
+
+function faviconHtml(b) {
+  const initial = (b.site || b.host || "?").trim().charAt(0).toUpperCase();
+  if (b.loading) return '<span class="spinner"></span>';
+  if (b.favicon) {
+    return `<img src="${b.favicon}" alt="" onerror="this.replaceWith(document.createTextNode('${initial}'))" />`;
+  }
+  return initial;
+}
+let currentView = "all";
+let searchQuery = "";
+
+// --- Search query language ---
+// Tokens: ( ) , AND OR NOT (bareword, case-insensitive), "quoted phrase" (literal
+// text, so "or" searches the word), #tag (exact tag match), bareword (text term).
+function tokenizeQuery(q) {
+  const toks = [];
+  let i = 0;
+  while (i < q.length) {
+    const c = q[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (c === "(") { toks.push({ t: "lp" }); i++; continue; }
+    if (c === ")") { toks.push({ t: "rp" }); i++; continue; }
+    if (c === '"') {
+      let j = i + 1, s = "";
+      while (j < q.length && q[j] !== '"') { s += q[j]; j++; }
+      toks.push({ t: "text", v: s });      // quoted: always literal text
+      i = (j < q.length) ? j + 1 : j;
+      continue;
+    }
+    if (c === "#") {
+      let j = i + 1, s = "";
+      while (j < q.length && /[^\s()"]/.test(q[j])) { s += q[j]; j++; }
+      toks.push({ t: "tag", v: s });
+      i = j;
+      continue;
+    }
+    let j = i, s = "";
+    while (j < q.length && /[^\s()"]/.test(q[j])) { s += q[j]; j++; }
+    i = j;
+    const up = s.toUpperCase();
+    if (up === "AND" || up === "OR" || up === "NOT") toks.push({ t: up });
+    else toks.push({ t: "text", v: s });
+  }
+  return toks;
+}
+function parseQuery(q) {
+  const toks = tokenizeQuery(q);
+  let p = 0;
+  const peek = () => toks[p];
+  const isTermStart = (tk) => tk && (tk.t === "text" || tk.t === "tag" || tk.t === "NOT" || tk.t === "lp");
+  function parseOr() {
+    let left = parseAnd();
+    while (peek() && peek().t === "OR") { p++; const right = parseAnd(); left = { op: "or", left, right }; }
+    return left;
+  }
+  function parseAnd() {
+    let left = parseNot();
+    while (peek() && peek().t !== "OR" && peek().t !== "rp") {
+      if (peek().t === "AND") { p++; }
+      else if (!isTermStart(peek())) break;   // implicit AND between adjacent terms
+      const right = parseNot();
+      left = { op: "and", left, right };
+    }
+    return left;
+  }
+  function parseNot() {
+    if (peek() && peek().t === "NOT") { p++; return { op: "not", operand: parseNot() }; }
+    return parsePrimary();
+  }
+  function parsePrimary() {
+    const tk = peek();
+    if (!tk) return null;
+    if (tk.t === "lp") { p++; const e = parseOr(); if (peek() && peek().t === "rp") p++; return e; }
+    if (tk.t === "text") { p++; return { op: "text", v: tk.v }; }
+    if (tk.t === "tag") { p++; return { op: "tag", v: tk.v }; }
+    p++; return null;   // stray operator/paren: skip
+  }
+  return parseOr();
+}
+function evalQuery(node, b) {
+  if (!node) return true;
+  switch (node.op) {
+    case "and": return evalQuery(node.left, b) && evalQuery(node.right, b);
+    case "or":  return evalQuery(node.left, b) || evalQuery(node.right, b);
+    case "not": return !evalQuery(node.operand, b);
+    case "text": {
+      if (!node.v) return true;
+      const hay = [b.title, b.desc, b.note, b.url, ...(b.tags || [])].join(" ").toLowerCase();
+      return hay.includes(node.v.toLowerCase());
+    }
+    case "tag": {
+      if (!node.v) return true;
+      return (b.tags || []).some(t => t.toLowerCase() === node.v.toLowerCase());
+    }
+    default: return true;
+  }
+}
+function filterByTag(tag) {
+  const q = "#" + tag;
+  const el = document.getElementById("search");
+  el.value = q;
+  setSearchQuery(q);
+  document.getElementById("searchClear").hidden = false;
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  showToast("Showing bookmarks tagged “" + tag + "”.");
+}
+let compiledQuery = null;
+function setSearchQuery(q) {
+  searchQuery = q;
+  try { compiledQuery = q ? parseQuery(q) : null; }
+  catch { compiledQuery = null; }
+}
+function matchesSearch(b) {
+  return evalQuery(compiledQuery, b);
+}
+function inView(b) {
+  if (currentView === "archived") return b.archived;
+  if (currentView === "toread") return !b.archived && b.readLater;
+  return !b.archived;   // "all" excludes archived
+}
+function visibleBookmarks() {
+  return sortBookmarks(bookmarks.filter(b => inView(b) && matchesSearch(b)));
+}
+function render() {
+  const toReadCount = bookmarks.filter(b => b.readLater && !b.archived).length;
+  const countEl = document.getElementById("toreadCount");
+  if (countEl) countEl.textContent = toReadCount ? String(toReadCount) : "";
+  const archivedCount = bookmarks.filter(b => b.archived).length;
+  const aEl = document.getElementById("archivedCount");
+  if (aEl) aEl.textContent = archivedCount ? String(archivedCount) : "";
+  const shown = visibleBookmarks();
+  empty.style.display = shown.length ? "none" : "block";
+  if (bookmarks.length === 0) {
+    empty.textContent = "No bookmarks yet. Paste a link above to save your first one.";
+  } else if (searchQuery) {
+    const where = currentView === "toread" ? " in “To read”" : currentView === "archived" ? " in “Archived”" : "";
+    empty.textContent = `No bookmarks match “${searchQuery}”${where}. Try a different word.`;
+  } else if (currentView === "toread") {
+    empty.textContent = "Nothing marked to read later. Use “Read later” on any bookmark to add it here.";
+  } else if (currentView === "archived") {
+    empty.textContent = "Nothing archived. Use “Archive” on a bookmark to move older links out of the way — they stay here, not deleted.";
+  } else {
+    empty.textContent = "No bookmarks yet. Paste a link above to save your first one.";
+  }
+  list.innerHTML = "";
+  for (const b of shown) {
+    const card = document.createElement("div");
+    const selectable = selectionMode && !b.loading;
+    card.className = "card" + (b.loading ? " saving" : (selectionMode ? "" : " clickable")) +
+      (selected.has(b.key) ? " selected" : "");
+    card.dataset.key = b.key;
+    const checkCol = selectable
+      ? `<div class="checkcol"><input type="checkbox" ${selected.has(b.key) ? "checked" : ""} aria-label="Select bookmark" /></div>` : "";
+    const preview = (!b.loading && b.preview)
+      ? `<img class="preview" src="${b.preview}" alt="Page preview" />` : "";
+    const note = (!b.loading && b.note) ? `<div class="note">${renderMarkdown(b.note)}</div>` : "";
+    const tags = (!b.loading && b.tags && b.tags.length)
+      ? `<div class="tags">${b.tags.map(t => `<button class="tag" type="button" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("")}</div>` : "";
+    const href = openHref(b.url);
+    const titleHtml = b.loading
+      ? "Fetching page details…"
+      : `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(b.title)}</a>`;
+    const flag = (!b.loading && b.readLater) ? '<span class="toread-flag">To read</span><br>' : "";
+    const fetchWarn = (!b.loading && b.fetchFailed)
+      ? '<div class="fetch-warn">⚠ Couldn\'t fetch page details — click Edit to add a title and description yourself.</div>' : "";
+    const actions = b.loading ? "" : (b.archived ? `
+      <div class="col-actions">
+        <button class="restore-btn" type="button">Restore</button>
+        <button class="edit-btn" type="button">Edit</button>
+        <button class="delete-btn" type="button">Delete</button>
+      </div>` : `
+      <div class="col-actions">
+        <button class="readlater-btn ${b.readLater ? "on" : ""}" type="button">${b.readLater ? "✓ To read" : "Read later"}</button>
+        <button class="edit-btn" type="button">Edit</button>
+        <button class="archive-btn" type="button">Archive</button>
+        <button class="delete-btn" type="button">Delete</button>
+      </div>`);
+    card.innerHTML = `
+      ${checkCol}
+      <div class="favicon">${faviconHtml(b)}</div>
+      <div class="body">
+        ${preview}
+        ${flag}
+        <p class="title">${titleHtml}</p>
+        ${fetchWarn}
+        <p class="desc">${b.loading ? "" : escapeHtml(b.desc)}</p>
+        <span class="site">${escapeHtml(b.url)}</span>
+        ${note}
+        ${tags}
+      </div>
+      ${selectionMode ? "" : actions}`;
+    if (selectable) {
+      // In selection mode, clicking the card toggles its checkbox.
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("a")) return;
+        toggleSelected(b.key);
+      });
+    } else if (!b.loading) {
+      // Clicking the card (or its title) opens the original page.
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".edit-btn") || e.target.closest(".readlater-btn") ||
+            e.target.closest(".archive-btn") || e.target.closest(".restore-btn") ||
+            e.target.closest(".delete-btn") || e.target.closest(".tag") || e.target.closest("a")) return;
+        window.open(href, "_blank", "noopener");
+      });
+      card.querySelectorAll(".tag").forEach(pill => pill.addEventListener("click", (e) => {
+        e.stopPropagation();
+        filterByTag(pill.dataset.tag);
+      }));
+      card.querySelector(".edit-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        openEditor(b.key);
+      });
+      const rl = card.querySelector(".readlater-btn");
+      if (rl) rl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        b.readLater = !b.readLater;
+        render();
+        if (b.readLater) showToast("Added to “To read”.");
+      });
+      const arch = card.querySelector(".archive-btn");
+      if (arch) arch.addEventListener("click", (e) => {
+        e.stopPropagation();
+        b.archived = true;
+        render();
+        showToast("Archived — find it under “Archived”, it's not deleted.");
+      });
+      const restore = card.querySelector(".restore-btn");
+      if (restore) restore.addEventListener("click", (e) => {
+        e.stopPropagation();
+        b.archived = false;
+        render();
+        showToast("Restored to your bookmarks.");
+      });
+      const del = card.querySelector(".delete-btn");
+      if (del) del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        askDelete(b.key);
+      });
+    }
+    list.appendChild(card);
+  }
+  updateBulkBar();
+}
+let toastTimer;
+function showToast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function flashCard(key) {
+  const el = list.querySelector(`[data-key="${CSS.escape(key)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("flash");
+  void el.offsetWidth;
+  el.classList.add("flash");
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+}
+function openHref(url) {
+  return /^https?:\/\//i.test(url) ? url : "https://" + url;
+}
+function safeLink(url) {
+  // Only allow http/https links from note markdown.
+  return /^https?:\/\//i.test(url) ? url : null;
+}
+// Minimal, escaped-first Markdown for notes: paragraphs, bullet lists,
+// links, bold, italic, inline code.
+function renderMarkdown(src) {
+  const lines = (src || "").split(/\r?\n/);
+  let html = "", inList = false;
+  const inline = (t) => {
+    t = escapeHtml(t);
+    t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+    t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, txt, url) => {
+      const safe = safeLink(url.trim());
+      return safe ? `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener">${txt}</a>` : txt;
+    });
+    t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+    return t;
+  };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const li = line.match(/^\s*[-*]\s+(.*)$/);
+    if (li) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${inline(li[1])}</li>`;
+    } else {
+      if (inList) { html += "</ul>"; inList = false; }
+      if (line.trim()) html += `<p>${inline(line)}</p>`;
+    }
+  }
+  if (inList) html += "</ul>";
+  return html;
+}
+function allKnownTags() {
+  const set = new Map();
+  for (const b of bookmarks) for (const t of (b.tags || [])) {
+    const k = t.toLowerCase();
+    if (!set.has(k)) set.set(k, t);
+  }
+  return [...set.values()];
+}
+
+const saveError = document.getElementById("saveError");
+function showSaveError(msg) { saveError.textContent = msg; saveError.hidden = false; }
+function clearSaveError() { saveError.hidden = true; saveError.textContent = ""; }
+urlInput.addEventListener("input", clearSaveError);
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  if (!url) { showSaveError("Please paste a web address to save."); return; }
+  if (!looksLikeUrl(url)) {
+    showSaveError("That doesn't look like a web address. Try something like example.com or https://example.com.");
+    return;
+  }
+  clearSaveError();
+  const key = normalizeUrl(url);
+  // Duplicate: don't add a second copy — bring up the one already saved.
+  const existing = bookmarks.find(b => b.key === key);
+  if (existing) {
+    urlInput.value = "";
+    if (existing.loading) { flashCard(key); return; }
+    if (existing.archived) {
+      currentView = "archived";
+      document.querySelectorAll("#tabs .tab").forEach(t => t.classList.toggle("active", t.dataset.view === "archived"));
+      render();
+      showToast("This link is archived. Opening it — use Restore to bring it back.");
+    } else {
+      showToast("You already saved this — opening it so you can update it.");
+    }
+    openEditor(key);
+    return;
+  }
+  const entry = { url, key, loading: true, id: Date.now(), seq: ++seqCounter };
+  bookmarks.unshift(entry);
+  urlInput.value = "";
+  saveBtn.disabled = true;
+  render();
+  // Simulate the brief moment of fetching page details (and its possible failure).
+  setTimeout(() => {
+    const meta = metadataFor(url);
+    const failed = /unreachable/i.test(meta.host || "");   // simulated fetch failure
+    if (failed) {
+      Object.assign(entry, {
+        loading: false, fetchFailed: true,
+        title: meta.host || url, desc: "", preview: null, favicon: null, site: meta.host, host: meta.host,
+      });
+    } else {
+      Object.assign(entry, meta, { loading: false, fetchFailed: false });
+    }
+    saveBtn.disabled = false;
+    render();
+  }, 650);
+});
+
+// --- Editor ---
+const backdrop = document.getElementById("backdrop");
+const editAddr = document.getElementById("editAddr");
+const editTitle = document.getElementById("editTitle");
+const editDesc = document.getElementById("editDesc");
+const editNote = document.getElementById("editNote");
+const chipbox = document.getElementById("chipbox");
+const tagInput = document.getElementById("tagInput");
+const suggestions = document.getElementById("suggestions");
+let editingKey = null;
+let draftTags = [];
+let activeSuggestion = -1;
+
+function renderChips() {
+  chipbox.querySelectorAll(".chip").forEach(c => c.remove());
+  draftTags.forEach((t, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${escapeHtml(t)} <button type="button" aria-label="Remove tag">×</button>`;
+    chip.querySelector("button").addEventListener("click", () => {
+      draftTags.splice(i, 1); renderChips();
+    });
+    chipbox.insertBefore(chip, tagInput);
+  });
+}
+function addTag(value) {
+  const raw = (value || "").trim().replace(/,$/, "").trim();
+  if (!raw) return;
+  if (!draftTags.some(t => t.toLowerCase() === raw.toLowerCase())) draftTags.push(raw);
+  tagInput.value = "";
+  renderChips();
+  renderSuggestions();
+}
+function addTagFromInput() { addTag(tagInput.value); }
+
+function currentSuggestions() {
+  const q = tagInput.value.trim().toLowerCase();
+  return allKnownTags().filter(t =>
+    !draftTags.some(d => d.toLowerCase() === t.toLowerCase()) &&
+    (q === "" ? false : t.toLowerCase().includes(q))
+  ).slice(0, 6);
+}
+function renderSuggestions() {
+  const opts = currentSuggestions();
+  activeSuggestion = -1;
+  if (!opts.length) { suggestions.classList.remove("open"); suggestions.innerHTML = ""; return; }
+  suggestions.innerHTML = opts.map((t, i) =>
+    `<div class="opt" data-i="${i}">${escapeHtml(t)}</div>`).join("");
+  suggestions.querySelectorAll(".opt").forEach(el => {
+    el.addEventListener("mousedown", (e) => { e.preventDefault(); addTag(opts[+el.dataset.i]); });
+  });
+  suggestions.classList.add("open");
+}
+tagInput.addEventListener("input", renderSuggestions);
+tagInput.addEventListener("keydown", (e) => {
+  const opts = currentSuggestions();
+  if (e.key === "ArrowDown" && opts.length) {
+    e.preventDefault(); activeSuggestion = Math.min(activeSuggestion + 1, opts.length - 1); highlightSuggestion();
+  } else if (e.key === "ArrowUp" && opts.length) {
+    e.preventDefault(); activeSuggestion = Math.max(activeSuggestion - 1, 0); highlightSuggestion();
+  } else if (e.key === "Enter" || e.key === ",") {
+    e.preventDefault();
+    if (activeSuggestion >= 0 && opts[activeSuggestion]) addTag(opts[activeSuggestion]);
+    else addTagFromInput();
+  } else if (e.key === "Backspace" && !tagInput.value && draftTags.length) {
+    draftTags.pop(); renderChips(); renderSuggestions();
+  }
+});
+function highlightSuggestion() {
+  suggestions.querySelectorAll(".opt").forEach((el, i) =>
+    el.classList.toggle("active", i === activeSuggestion));
+}
+tagInput.addEventListener("blur", () => {
+  addTagFromInput();
+  suggestions.classList.remove("open");
+});
+
+function openEditor(key) {
+  const b = bookmarks.find(x => x.key === key);
+  if (!b) return;
+  editingKey = key;
+  editAddr.value = b.url;
+  editTitle.value = b.title || "";
+  editDesc.value = b.desc || "";
+  editNote.value = b.note || "";
+  draftTags = (b.tags || []).slice();
+  tagInput.value = "";
+  renderChips();
+  renderSuggestions();
+  backdrop.classList.add("open");
+  editTitle.focus();
+}
+function closeEditor() {
+  backdrop.classList.remove("open");
+  editingKey = null;
+}
+document.getElementById("cancelEdit").addEventListener("click", closeEditor);
+backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeEditor(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && backdrop.classList.contains("open")) closeEditor(); });
+document.getElementById("saveEdit").addEventListener("click", () => {
+  addTagFromInput();
+  const b = bookmarks.find(x => x.key === editingKey);
+  if (b) {
+    const newAddr = editAddr.value.trim() || b.url;
+    const newKey = normalizeUrl(newAddr);
+    // Guard: don't let an edited address collide with a different bookmark.
+    const clash = bookmarks.find(x => x !== b && x.key === newKey);
+    if (clash) {
+      showToast("Another bookmark already uses that web address.");
+      return;
+    }
+    b.url = newAddr;
+    b.key = newKey;
+    b.title = editTitle.value.trim() || b.title;
+    b.desc = editDesc.value.trim();
+    b.note = editNote.value.trim();
+    b.tags = draftTags.slice();
+    editingKey = newKey;
+  }
+  const key = editingKey;
+  closeEditor();
+  render();
+  flashCard(key);
+  showToast("Saved your changes.");
+});
+
+// --- Search ---
+const searchEl = document.getElementById("search");
+const searchClear = document.getElementById("searchClear");
+searchEl.addEventListener("input", () => {
+  setSearchQuery(searchEl.value.trim());
+  searchClear.hidden = !searchEl.value;
+  render();
+});
+searchClear.addEventListener("click", () => {
+  searchEl.value = ""; setSearchQuery(""); searchClear.hidden = true; render(); searchEl.focus();
+});
+
+// --- Delete confirmation ---
+const confirmBackdrop = document.getElementById("confirmBackdrop");
+const confirmTarget = document.getElementById("confirmTarget");
+let deleteKey = null;
+function askDelete(key) {
+  const b = bookmarks.find(x => x.key === key);
+  if (!b) return;
+  deleteKey = key;
+  confirmTarget.textContent = b.title || b.url;
+  confirmBackdrop.classList.add("open");
+}
+function closeConfirm() { confirmBackdrop.classList.remove("open"); deleteKey = null; }
+document.getElementById("cancelDelete").addEventListener("click", closeConfirm);
+confirmBackdrop.addEventListener("click", (e) => { if (e.target === confirmBackdrop) closeConfirm(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && confirmBackdrop.classList.contains("open")) closeConfirm(); });
+document.getElementById("confirmDelete").addEventListener("click", () => {
+  if (deleteKey === "__bulk__") {
+    const n = selected.size;
+    bookmarks = bookmarks.filter(x => !selected.has(x.key));
+    selected.clear();
+    closeConfirm();
+    render();
+    showToast(`Deleted ${n} bookmark(s) permanently.`);
+  } else {
+    bookmarks = bookmarks.filter(x => x.key !== deleteKey);
+    closeConfirm();
+    render();
+    showToast("Bookmark deleted permanently.");
+  }
+  confirmBackdrop.querySelector("h2").textContent = "Delete this bookmark?";
+});
+
+// --- Sort control (three UI variants to compare via ?sort_ui=) ---
+const SORTS = ["newest", "oldest", "az", "za"];
+const sortRow = document.getElementById("sortRow");
+const sortUi = new URLSearchParams(location.search).get("sort_ui") || "select";
+function setSort(s) { currentSort = s; renderSortControl(); render(); }
+function renderSortControl() {
+  if (sortUi === "select") {
+    sortRow.innerHTML = `<span class="label">Sort</span>
+      <select id="sortSelect">${SORTS.map(s => `<option value="${s}" ${s===currentSort?"selected":""}>${sortLabel(s)}</option>`).join("")}</select>`;
+    sortRow.querySelector("#sortSelect").addEventListener("change", (e) => setSort(e.target.value));
+  } else if (sortUi === "menu") {
+    sortRow.innerHTML = `<span class="label">Sort</span>
+      <div class="sortmenu" id="sortMenu">
+        <button type="button" id="sortMenuBtn">${sortLabel(currentSort)} ▾</button>
+        <div class="menu" id="sortMenuList">
+          ${SORTS.map(s => `<button type="button" data-s="${s}" class="${s===currentSort?"active":""}">${sortLabel(s)}</button>`).join("")}
+        </div>
+      </div>`;
+    const btn = sortRow.querySelector("#sortMenuBtn");
+    const menu = sortRow.querySelector("#sortMenuList");
+    btn.addEventListener("click", (e) => { e.stopPropagation(); menu.classList.toggle("open"); });
+    menu.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { menu.classList.remove("open"); setSort(b.dataset.s); }));
+    document.addEventListener("click", () => menu.classList.remove("open"), { once: true });
+  } else { // segmented (default)
+    const short = { newest: "Newest", oldest: "Oldest", az: "A–Z", za: "Z–A" };
+    sortRow.innerHTML = `<span class="label">Sort</span>
+      <div class="seg">${SORTS.map(s => `<button type="button" data-s="${s}" class="${s===currentSort?"active":""}">${short[s]}</button>`).join("")}</div>`;
+    sortRow.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => setSort(b.dataset.s)));
+  }
+}
+
+// --- Optional sample data for edge-case review (only with ?seed=1) ---
+function seedSampleData() {
+  const sites = [
+    "github.com","en.wikipedia.org","nytimes.com","youtube.com","developer.mozilla.org",
+    "medium.com","stackoverflow.com","arxiv.org","bbc.com","theguardian.com",
+    "reddit.com","news.ycombinator.com","css-tricks.com","smashingmagazine.com","figma.com"
+  ];
+  const sampleTags = ["reading","article","book","work","recipe","travel","reference","video","tutorial"];
+  const out = [];
+  for (let i = 0; i < 42; i++) {
+    const host = sites[i % sites.length];
+    const url = "https://" + host + "/page-" + (i + 1);
+    const meta = metadataFor(url);
+    const tagCount = i % 5;
+    const tags = sampleTags.slice(0, tagCount);
+    out.push({
+      url, key: normalizeUrl(url), loading: false, seq: ++seqCounter,
+      title: meta.title + " #" + (i + 1),
+      desc: meta.desc, favicon: meta.favicon, preview: (i % 3 === 0) ? meta.preview : null,
+      note: (i % 4 === 0) ? "Saved for later — check the **key section** and the [link](https://example.com)." : "",
+      tags, readLater: (i % 6 === 0), archived: (i % 9 === 0),
+    });
+  }
+  // One deliberately extreme item: very long title, description, url, note, many tags.
+  const longUrl = "https://example.com/" + "very-long-path-segment/".repeat(8) + "end";
+  out.unshift({
+    url: longUrl, key: normalizeUrl(longUrl), loading: false, seq: ++seqCounter,
+    title: "An unusually long bookmark title that keeps going well beyond what would normally fit on a single line so we can see how the card handles wrapping without breaking the layout",
+    desc: "This description is intentionally verbose. ".repeat(12),
+    favicon: faviconUrl("example.com"), preview: null,
+    note: "Long note with formatting:\n\n- first **important** point\n- second point with a [reference](https://example.com)\n- third point mentioning `some code`\n\nAnd a final paragraph that rambles on for a while to test how a long note is displayed on the card.",
+    tags: ["reading","article","book","work","recipe","travel","reference","video","tutorial","longtag-that-is-quite-wide"],
+    readLater: true, archived: false,
+  });
+  bookmarks = out;
+}
+if (new URLSearchParams(location.search).get("seed") === "1") {
+  seedSampleData();
+}
+
+// --- Multi-select & bulk actions ---
+const selectBtn = document.getElementById("selectBtn");
+const bulkbar = document.getElementById("bulkbar");
+function toggleSelected(key) {
+  if (selected.has(key)) selected.delete(key); else selected.add(key);
+  render();
+}
+function enterSelection() { selectionMode = true; selectBtn.classList.add("active"); selectBtn.textContent = "Cancel select"; render(); }
+function exitSelection() { selectionMode = false; selected.clear(); selectBtn.classList.remove("active"); selectBtn.textContent = "Select"; render(); }
+selectBtn.addEventListener("click", () => { selectionMode ? exitSelection() : enterSelection(); });
+
+function selectedList() { return bookmarks.filter(b => selected.has(b.key)); }
+function updateBulkBar() {
+  bulkbar.hidden = !selectionMode;
+  if (!selectionMode) { document.body.style.paddingBottom = ""; return; }
+  document.body.style.paddingBottom = "72px";
+  const n = selected.size;
+  document.getElementById("bulkCount").textContent = n + " selected";
+  const matching = visibleBookmarks().length;
+  document.getElementById("selectAllBtn").textContent = `Select all ${matching} matching`;
+  // Archive vs Restore depends on the active view.
+  document.getElementById("bulkArchive").hidden = currentView === "archived";
+  document.getElementById("bulkRestore").hidden = currentView !== "archived";
+}
+document.querySelector("#bulkbar .bulkbar-inner").addEventListener("click", (e) => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  const act = btn.dataset.act;
+  if (act === "done") return exitSelection();
+  if (act === "clear") { selected.clear(); return render(); }
+  if (act === "selectAll") { visibleBookmarks().forEach(b => selected.add(b.key)); return render(); }
+  if (selected.size === 0) { showToast("Select some bookmarks first."); return; }
+  const items = selectedList();
+  if (act === "readlater") { items.forEach(b => b.readLater = true); render(); showToast(`Marked ${items.length} to read later.`); }
+  else if (act === "read") { items.forEach(b => b.readLater = false); render(); showToast(`Marked ${items.length} as read.`); }
+  else if (act === "archive") { items.forEach(b => b.archived = true); selected.clear(); render(); showToast(`Archived ${items.length}.`); }
+  else if (act === "restore") { items.forEach(b => b.archived = false); selected.clear(); render(); showToast(`Restored ${items.length}.`); }
+  else if (act === "delete") { askBulkDelete(items.length); }
+  else if (act === "addTag") { openBulkTag("add"); }
+  else if (act === "removeTag") { openBulkTag("remove"); }
+});
+
+// Bulk delete confirmation reuses a dedicated dialog
+function askBulkDelete(count) {
+  deleteKey = "__bulk__";
+  confirmTarget.textContent = count + " selected bookmark" + (count === 1 ? "" : "s");
+  confirmBackdrop.querySelector("h2").textContent = "Delete these bookmarks?";
+  confirmBackdrop.classList.add("open");
+}
+
+// Bulk tag add/remove dialog
+const bulkTagBackdrop = document.getElementById("bulkTagBackdrop");
+const bulkTagBody = document.getElementById("bulkTagBody");
+let bulkTagMode = "add";
+function openBulkTag(mode) {
+  bulkTagMode = mode;
+  const applyBtn = document.getElementById("bulkTagApply");
+  document.getElementById("bulkTagSub").textContent = selected.size + " bookmark(s) selected";
+  if (mode === "add") {
+    document.getElementById("bulkTagTitle").textContent = "Add a tag to selected";
+    const known = allKnownTags();
+    bulkTagBody.innerHTML = `
+      <input type="text" id="bulkTagInput" list="bulkTagList" placeholder="Type a tag" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;" />
+      <datalist id="bulkTagList">${known.map(t => `<option value="${escapeHtml(t)}"></option>`).join("")}</datalist>`;
+    applyBtn.hidden = false; applyBtn.textContent = "Add tag";
+  } else {
+    document.getElementById("bulkTagTitle").textContent = "Remove a tag from selected";
+    renderBulkRemoveTags();
+    applyBtn.hidden = true;
+  }
+  bulkTagBackdrop.classList.add("open");
+  const inp = document.getElementById("bulkTagInput"); if (inp) inp.focus();
+}
+function renderBulkRemoveTags() {
+  const union = new Map();
+  selectedList().forEach(b => (b.tags || []).forEach(t => union.set(t.toLowerCase(), t)));
+  const tags = [...union.values()];
+  bulkTagBody.innerHTML = tags.length
+    ? `<p style="font-size:13px;color:var(--muted);margin:0 0 6px;">Click a tag to remove it from all selected:</p>` +
+      tags.map(t => `<button class="bulk-remove-tag" data-t="${escapeHtml(t)}" type="button">${escapeHtml(t)} ✕</button>`).join("")
+    : `<p style="font-size:14px;color:var(--muted);">The selected bookmarks have no tags.</p>`;
+  bulkTagBody.querySelectorAll(".bulk-remove-tag").forEach(btn => btn.addEventListener("click", () => {
+    const t = btn.dataset.t.toLowerCase();
+    selectedList().forEach(b => { b.tags = (b.tags || []).filter(x => x.toLowerCase() !== t); });
+    renderBulkRemoveTags(); render();
+  }));
+}
+function closeBulkTag() { bulkTagBackdrop.classList.remove("open"); }
+document.getElementById("bulkTagCancel").addEventListener("click", closeBulkTag);
+bulkTagBackdrop.addEventListener("click", (e) => { if (e.target === bulkTagBackdrop) closeBulkTag(); });
+document.getElementById("bulkTagApply").addEventListener("click", () => {
+  if (bulkTagMode === "add") {
+    const val = (document.getElementById("bulkTagInput").value || "").trim();
+    if (!val) { closeBulkTag(); return; }
+    let n = 0;
+    selectedList().forEach(b => {
+      b.tags = b.tags || [];
+      if (!b.tags.some(t => t.toLowerCase() === val.toLowerCase())) { b.tags.push(val); n++; }
+    });
+    closeBulkTag(); render(); showToast(`Added “${val}” to ${n} bookmark(s).`);
+  }
+});
+
+// --- View tabs (All / To read) ---
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  currentView = tab.dataset.view;
+  document.querySelectorAll("#tabs .tab").forEach(t => t.classList.toggle("active", t === tab));
+  render();
+});
+
+renderSortControl();
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

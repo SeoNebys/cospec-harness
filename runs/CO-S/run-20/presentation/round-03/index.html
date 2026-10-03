@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Bookmarks — prototype</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #f5f6f8;
+      color: #1c1e21;
+    }
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e3e5e8;
+      padding: 18px 24px;
+    }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: #65676b; font-size: 13px; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px; }
+    .card {
+      background: #fff;
+      border: 1px solid #e3e5e8;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 15px; color: #444; }
+    label { display: block; font-size: 13px; color: #444; margin: 10px 0 4px; }
+    input[type=text], input[type=url] {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #ccd0d5;
+      border-radius: 7px;
+      font-size: 14px;
+    }
+    button {
+      margin-top: 14px;
+      background: #2f6fed;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #255ad0; }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .item {
+      padding: 14px 0;
+      border-top: 1px solid #eceef0;
+    }
+    .item:first-child { border-top: none; }
+    .item a { color: #2f6fed; text-decoration: none; font-size: 15px; font-weight: 600; }
+    .item a:hover { text-decoration: underline; }
+    .item .url { color: #65676b; font-size: 12px; margin-top: 3px; word-break: break-all; }
+    .item .meta { color: #8a8d91; font-size: 12px; margin-top: 4px; }
+    .count { color: #65676b; font-size: 13px; margin: 0 0 10px; }
+    .empty {
+      text-align: center;
+      color: #8a8d91;
+      padding: 30px 10px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Bookmarks</h1>
+    <p>Your personal place to save links and find them again.</p>
+  </header>
+  <main id="app">
+    <section class="card">
+      <h2>Save a link</h2>
+      <form id="addForm">
+        <label for="url">Link address</label>
+        <input type="url" id="url" placeholder="https://example.com/article" required />
+        <label for="title">Title</label>
+        <input type="text" id="title" placeholder="What is this link about?" required />
+        <button type="submit">Save</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Saved links</h2>
+      <p class="count" id="count"></p>
+      <ul class="list" id="list"></ul>
+    </section>
+  </main>
+
+  <script>
+    const KEY = 'bm_proto_v1';
+    const load = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+    const save = (items) => localStorage.setItem(KEY, JSON.stringify(items));
+
+    function fmt(ts) {
+      const d = new Date(ts);
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function render() {
+      const items = load().sort((a, b) => b.created - a.created);
+      const list = document.getElementById('list');
+      const count = document.getElementById('count');
+      list.innerHTML = '';
+      if (items.length === 0) {
+        count.textContent = '';
+        const li = document.createElement('li');
+        li.className = 'empty';
+        li.textContent = 'No links saved yet. Save your first link above.';
+        list.appendChild(li);
+        return;
+      }
+      count.textContent = items.length + (items.length === 1 ? ' link saved' : ' links saved');
+      for (const it of items) {
+        const li = document.createElement('li');
+        li.className = 'item';
+        const a = document.createElement('a');
+        a.href = it.url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = it.title;
+        const url = document.createElement('div');
+        url.className = 'url'; url.textContent = it.url;
+        const meta = document.createElement('div');
+        meta.className = 'meta'; meta.textContent = 'Saved ' + fmt(it.created);
+        li.append(a, url, meta);
+        list.appendChild(li);
+      }
+    }
+
+    document.getElementById('addForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url').value.trim();
+      const title = document.getElementById('title').value.trim();
+      if (!url || !title) return;
+      const items = load();
+      items.push({ id: Date.now(), url, title, created: Date.now() });
+      save(items);
+      e.target.reset();
+      document.getElementById('url').focus();
+      render();
+    });
+
+    render();
+    document.getElementById('app').setAttribute('data-harness-ready', 'true');
+  </script>
+</body>
+</html>

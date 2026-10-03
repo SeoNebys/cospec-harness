@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Save a bookmark</title>
+  <style>
+    :root { --ink:#202722; --muted:#6b746e; --paper:#f4f1e9; --card:#fffdf8; --green:#315c4b; --lime:#dce7a7; --line:#d8d7ce; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); background:var(--paper); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    button,input,textarea { font:inherit; }
+    header { height:72px; display:flex; align-items:center; justify-content:space-between; padding:0 5vw; border-bottom:1px solid var(--line); }
+    .brand { display:flex; gap:11px; align-items:center; font-family:Georgia,serif; font-size:23px; font-weight:700; letter-spacing:-.4px; }
+    .mark { width:28px; height:34px; background:var(--green); border-radius:5px 5px 10px 10px; position:relative; }
+    .mark:after { content:""; position:absolute; width:8px;height:8px;border-radius:50%;background:var(--lime);top:8px;left:10px; }
+    .count { color:var(--muted); font-size:13px; }
+    main { width:min(760px,90vw); margin:70px auto; }
+    h1 { margin:0; font:700 46px/1.05 Georgia,serif; letter-spacing:-1.6px; }
+    .lead { margin:14px 0 35px; color:var(--muted); font-size:17px; }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:0 15px 40px rgba(47,57,48,.07); padding:24px; }
+    label { display:block; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+    .urlrow { display:flex; gap:10px; }
+    input,textarea { width:100%; border:1px solid #bbbdb5; border-radius:10px; background:white; padding:12px 14px; color:var(--ink); outline:none; }
+    input:focus,textarea:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(49,92,75,.11); }
+    button { border:0; border-radius:10px; padding:12px 19px; cursor:pointer; font-weight:750; }
+    .primary { background:var(--green); color:white; white-space:nowrap; }
+    .primary:hover { background:#25493b; }
+    .primary:disabled { opacity:.55; cursor:default; }
+    .helper { color:var(--muted); font-size:13px; margin:8px 0 0; }
+    .editor { display:none; margin-top:24px; padding-top:24px; border-top:1px solid var(--line); }
+    .editor.show { display:block; }
+    .preview { display:grid; grid-template-columns:145px 1fr; gap:18px; margin-bottom:20px; }
+    .image { min-height:126px; border-radius:12px; background:linear-gradient(145deg,#173f35,#46735c 55%,#c5d58e); color:#fff; display:flex; align-items:flex-end; padding:14px; font:700 20px/1.1 Georgia,serif; }
+    .site { display:flex; gap:8px; align-items:center; color:var(--muted); font-size:13px; margin-bottom:10px; }
+    .favicon { width:22px; height:22px; display:grid; place-items:center; border-radius:6px; color:white; background:#242c27; font:bold 12px Georgia,serif; }
+    .fields { display:grid; gap:14px; }
+    textarea { min-height:78px; resize:vertical; }
+    .actions { display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:20px; }
+    .quiet { background:transparent; color:var(--muted); }
+    .saved { display:none; align-items:center; justify-content:space-between; gap:20px; }
+    .saved.show { display:flex; }
+    .saved-copy { display:flex; gap:14px; align-items:center; }
+    .check { width:38px; height:38px; flex:0 0 auto; display:grid; place-items:center; background:var(--lime); color:var(--green); border-radius:50%; font-size:20px; font-weight:900; }
+    .saved h2 { margin:0 0 3px; font:700 23px Georgia,serif; }
+    .saved p { margin:0; color:var(--muted); }
+    @media(max-width:620px){ main{margin:42px auto} h1{font-size:38px}.urlrow{display:block}.urlrow button{width:100%;margin-top:10px}.preview{grid-template-columns:1fr}.image{min-height:100px}.saved{align-items:flex-start;flex-direction:column} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark"></span>Keepwell</div>
+    <div class="count" id="count">0 bookmarks</div>
+  </header>
+  <main data-harness-ready="true">
+    <section id="saveView">
+      <h1>Keep what matters.</h1>
+      <p class="lead">Paste a link and we’ll fill in the useful details.</p>
+      <div class="panel">
+        <label for="url">Web address</label>
+        <div class="urlrow">
+          <input id="url" type="url" placeholder="https://…" autocomplete="off">
+          <button id="fetch" class="primary">Get details</button>
+        </div>
+        <p class="helper" id="hint">For this prototype, paste any link to preview the save flow.</p>
+        <div class="editor" id="editor">
+          <div class="preview">
+            <div class="image">A calmer way to read</div>
+            <div>
+              <div class="site"><span class="favicon">P</span><span id="domain">papertrail.example</span></div>
+              <div class="fields">
+                <div><label for="title">Title</label><input id="title" value="How to build a lasting reading habit"></div>
+                <div><label for="description">Description</label><textarea id="description">Simple ideas for making thoughtful reading part of every day.</textarea></div>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="quiet" id="cancel">Cancel</button>
+            <button class="primary" id="save">Save bookmark</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="panel saved" id="savedView">
+      <div class="saved-copy">
+        <div class="check">✓</div>
+        <div><h2 id="savedTitle">Bookmark saved</h2><p>Its page details are ready whenever you need it.</p></div>
+      </div>
+      <button class="quiet" id="again">Save another</button>
+    </section>
+  </main>
+  <script>
+    const url = document.querySelector('#url');
+    const fetchBtn = document.querySelector('#fetch');
+    const editor = document.querySelector('#editor');
+    const domain = document.querySelector('#domain');
+    const hint = document.querySelector('#hint');
+    const saveView = document.querySelector('#saveView');
+    const savedView = document.querySelector('#savedView');
+    fetchBtn.onclick = () => {
+      if (!url.value.trim()) { url.focus(); hint.textContent='Paste a link first.'; return; }
+      try { domain.textContent = new URL(url.value.includes('://') ? url.value : 'https://' + url.value).hostname.replace(/^www\./,''); } catch { domain.textContent='the saved page'; }
+      fetchBtn.disabled=true; fetchBtn.textContent='Getting details…';
+      setTimeout(() => { editor.classList.add('show'); fetchBtn.textContent='Details found'; hint.textContent='We found these details on the page. You can change them before saving.'; document.querySelector('#title').focus(); }, 450);
+    };
+    document.querySelector('#save').onclick = () => { document.querySelector('#savedTitle').textContent='“'+document.querySelector('#title').value+'” saved'; saveView.style.display='none'; savedView.classList.add('show'); document.querySelector('#count').textContent='1 bookmark'; };
+    document.querySelector('#cancel').onclick = () => { editor.classList.remove('show'); fetchBtn.disabled=false; fetchBtn.textContent='Get details'; hint.textContent='For this prototype, paste any link to preview the save flow.'; };
+    document.querySelector('#again').onclick = () => { savedView.classList.remove('show'); saveView.style.display='block'; url.value=''; editor.classList.remove('show'); fetchBtn.disabled=false; fetchBtn.textContent='Get details'; document.querySelector('#count').textContent='1 bookmark'; url.focus(); };
+    url.addEventListener('keydown', e => { if(e.key==='Enter') fetchBtn.click(); });
+  </script>
+</body>
+</html>

@@ -1,0 +1,810 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager Internal API
+  version: 1.0.0
+  description: Same-origin interface between the Bookmark Manager client and server.
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: /
+security: []
+tags:
+  - name: System
+    description: Runtime readiness.
+  - name: Metadata
+    description: Duplicate inspection and guarded remote page-detail retrieval.
+  - name: Bookmarks
+    description: Bookmark collection and state transitions.
+  - name: Tags
+    description: Reusable tag suggestions.
+  - name: Preferences
+    description: Persistent single-user display preferences.
+  - name: Assets
+    description: Immutable processed icon and preview rasters.
+
+paths:
+  /api/health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Check application readiness
+      responses:
+        "200":
+          description: Process and database are ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: ok
+
+  /api/metadata/preview:
+    post:
+      tags: [Metadata]
+      operationId: inspectBookmarkUrl
+      summary: Inspect a URL for duplicates and page details
+      description: Checks duplicates before performing a guarded metadata retrieval.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+      responses:
+        "200":
+          description: Existing bookmark target or a new metadata preview.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ExistingInspection"
+                  - $ref: "#/components/schemas/MetadataInspection"
+                discriminator:
+                  propertyName: kind
+        "422":
+          $ref: "#/components/responses/ValidationFailure"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/metadata/drafts/{draftId}/{kind}:
+    get:
+      tags: [Metadata]
+      operationId: getMetadataDraftAsset
+      summary: Read a temporary processed metadata image
+      parameters:
+        - $ref: "#/components/parameters/DraftId"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [icon, preview]
+      responses:
+        "200":
+          description: Processed draft raster.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/bookmarks:
+    get:
+      tags: [Bookmarks]
+      operationId: listBookmarks
+      summary: List and query one collection view
+      parameters:
+        - name: view
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CollectionView"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 500
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 50
+        - name: favorite
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: toRead
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SortField"
+        - name: direction
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SortDirection"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Stable page within the selected collection view.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookmarkPage"
+        "422":
+          description: Invalid query parameter or search expression.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/SearchSyntaxError"
+    post:
+      tags: [Bookmarks]
+      operationId: createBookmark
+      summary: Create a unique bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkCreate"
+      responses:
+        "201":
+          description: Bookmark created.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "409":
+          $ref: "#/components/responses/DuplicateBookmark"
+        "422":
+          $ref: "#/components/responses/ValidationFailure"
+
+  /api/bookmarks/{bookmarkId}:
+    get:
+      tags: [Bookmarks]
+      operationId: getBookmark
+      summary: Read one bookmark
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+      responses:
+        "200":
+          description: Bookmark details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Bookmarks]
+      operationId: updateBookmark
+      summary: Update bookmark details or status
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkUpdate"
+      responses:
+        "200":
+          description: Bookmark updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/DuplicateBookmark"
+        "422":
+          $ref: "#/components/responses/ValidationFailure"
+    delete:
+      tags: [Bookmarks]
+      operationId: deleteBookmark
+      summary: Permanently delete a bookmark
+      description: Permanently removes a bookmark. The client must obtain confirmation first.
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+      responses:
+        "204":
+          description: Bookmark permanently removed.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/bookmarks/{bookmarkId}/archive:
+    post:
+      tags: [Bookmarks]
+      operationId: archiveBookmark
+      summary: Move a bookmark to Archive
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+      responses:
+        "200":
+          description: Bookmark archived, or returned unchanged if already archived.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/bookmarks/{bookmarkId}/restore:
+    post:
+      tags: [Bookmarks]
+      operationId: restoreBookmark
+      summary: Restore an archived bookmark
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+      responses:
+        "200":
+          description: Bookmark restored, or returned unchanged if already active.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/tags/suggestions:
+    get:
+      tags: [Tags]
+      operationId: suggestTags
+      summary: Suggest tags currently in use
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 50
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        "200":
+          description: Tags currently used by active or archived bookmarks.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: "#/components/schemas/TagSuggestion"
+
+  /api/preferences:
+    get:
+      tags: [Preferences]
+      operationId: getPreferences
+      summary: Read display preferences
+      responses:
+        "200":
+          description: Persistent display preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preferences"
+    patch:
+      tags: [Preferences]
+      operationId: updatePreferences
+      summary: Update display preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                sortField:
+                  $ref: "#/components/schemas/SortField"
+                sortDirection:
+                  $ref: "#/components/schemas/SortDirection"
+      responses:
+        "200":
+          description: Updated preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preferences"
+        "422":
+          $ref: "#/components/responses/ValidationFailure"
+
+  /api/assets/{assetId}:
+    get:
+      tags: [Assets]
+      operationId: getAsset
+      summary: Read an immutable processed image
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-f0-9]{64}$"
+      responses:
+        "200":
+          description: Immutable processed bookmark image.
+          headers:
+            ETag:
+              required: true
+              schema:
+                type: string
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: Client cache is current.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DraftId:
+      name: draftId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    NotFound:
+      description: Requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ValidationFailure:
+      description: Request fields are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+    DuplicateBookmark:
+      description: The normalized URL already belongs to a bookmark.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DuplicateBookmarkError"
+    RateLimited:
+      description: Too many metadata requests are already running.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+  schemas:
+    CollectionView:
+      type: string
+      enum: [active, to-read, archive]
+      default: active
+
+    SortField:
+      type: string
+      enum: [title, createdAt, updatedAt]
+
+    SortDirection:
+      type: string
+      enum: [asc, desc]
+
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+
+    TagSuggestion:
+      type: object
+      additionalProperties: false
+      required: [id, name, bookmarkCount]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        bookmarkCount:
+          type: integer
+          minimum: 1
+
+    RichTextMark:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [bold, italic, link]
+        attrs:
+          type: object
+          additionalProperties: false
+          properties:
+            href:
+              type: string
+              format: uri
+
+    RichTextNode:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [doc, paragraph, heading, text, bulletList, orderedList, listItem, blockquote, hardBreak]
+        text:
+          type: string
+        attrs:
+          type: object
+          additionalProperties: false
+          properties:
+            level:
+              type: integer
+              enum: [2, 3]
+        marks:
+          type: array
+          items:
+            $ref: "#/components/schemas/RichTextMark"
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/RichTextNode"
+
+    RichTextDocument:
+      allOf:
+        - $ref: "#/components/schemas/RichTextNode"
+        - type: object
+          required: [type, content]
+          properties:
+            type:
+              const: doc
+
+    BookmarkSummary:
+      type: object
+      required:
+        - id
+        - url
+        - title
+        - tags
+        - favorite
+        - toRead
+        - archivedAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        iconAssetUrl:
+          type: [string, "null"]
+        previewAssetUrl:
+          type: [string, "null"]
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+        favorite:
+          type: boolean
+        toRead:
+          type: boolean
+        archivedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Bookmark:
+      allOf:
+        - $ref: "#/components/schemas/BookmarkSummary"
+        - type: object
+          required: [notes]
+          properties:
+            notes:
+              $ref: "#/components/schemas/RichTextDocument"
+            metadataRefreshedAt:
+              type: [string, "null"]
+              format: date-time
+      unevaluatedProperties: false
+
+    BookmarkPage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, pageSize, sortField, sortDirection]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookmarkSummary"
+        total:
+          type: integer
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        sortField:
+          $ref: "#/components/schemas/SortField"
+        sortDirection:
+          $ref: "#/components/schemas/SortDirection"
+
+    BookmarkCreate:
+      type: object
+      additionalProperties: false
+      required: [url, title, notes, tags, favorite, toRead]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, "null"]
+          maxLength: 2000
+        notes:
+          $ref: "#/components/schemas/RichTextDocument"
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        favorite:
+          type: boolean
+        toRead:
+          type: boolean
+        metadataDraftId:
+          type: [string, "null"]
+          format: uuid
+
+    BookmarkUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, "null"]
+          maxLength: 2000
+        notes:
+          $ref: "#/components/schemas/RichTextDocument"
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        favorite:
+          type: boolean
+        toRead:
+          type: boolean
+        metadataDraftId:
+          type: [string, "null"]
+          format: uuid
+
+    ExistingInspection:
+      type: object
+      additionalProperties: false
+      required: [kind, bookmark]
+      properties:
+        kind:
+          const: existing
+        bookmark:
+          $ref: "#/components/schemas/DuplicateTarget"
+
+    MetadataInspection:
+      type: object
+      additionalProperties: false
+      required: [kind, status, draftId, title, description, iconUrl, previewImageUrl, warnings]
+      properties:
+        kind:
+          const: metadata
+        status:
+          type: string
+          enum: [complete, partial, unavailable]
+        draftId:
+          type: [string, "null"]
+          format: uuid
+        finalUrl:
+          type: [string, "null"]
+          format: uri
+        title:
+          type: [string, "null"]
+        description:
+          type: [string, "null"]
+        iconUrl:
+          type: [string, "null"]
+        previewImageUrl:
+          type: [string, "null"]
+        warnings:
+          type: array
+          items:
+            type: string
+            enum: [timeout, unreachable, too_large, unsupported_content, missing_title, missing_description, missing_icon, missing_preview]
+
+    DuplicateTarget:
+      type: object
+      additionalProperties: false
+      required: [id, title, archived]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        archived:
+          type: boolean
+
+    Preferences:
+      type: object
+      additionalProperties: false
+      required: [sortField, sortDirection]
+      properties:
+        sortField:
+          $ref: "#/components/schemas/SortField"
+        sortDirection:
+          $ref: "#/components/schemas/SortDirection"
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    ValidationError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          properties:
+            fieldErrors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+      unevaluatedProperties: false
+
+    SearchSyntaxError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          required: [query, start, end]
+          properties:
+            code:
+              const: INVALID_SEARCH
+            query:
+              type: string
+            start:
+              type: integer
+              minimum: 0
+            end:
+              type: integer
+              minimum: 0
+      unevaluatedProperties: false
+
+    DuplicateBookmarkError:
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          required: [existingBookmark]
+          properties:
+            code:
+              const: DUPLICATE_BOOKMARK
+            existingBookmark:
+              $ref: "#/components/schemas/DuplicateTarget"
+      unevaluatedProperties: false

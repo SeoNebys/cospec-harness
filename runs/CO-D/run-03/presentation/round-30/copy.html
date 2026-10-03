@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preserved copy — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; --warn:#b5791f; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:640px; margin:0 auto; padding:26px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 18px; }
+  .bk { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
+  .bk .title { font-size:17px; font-weight:600; margin:0 0 4px; }
+  .bk .url { color:var(--muted); font-size:12.5px; word-break:break-all; }
+  .bk .open { margin-top:10px; display:inline-block; border:1px solid #bcd0f7; color:var(--accent); background:#fff; border-radius:8px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer; }
+
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:15px 17px; margin-bottom:14px; }
+  .panel h3 { font-size:14px; margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+  .panel p { font-size:13px; color:var(--muted); margin:0 0 10px; line-height:1.5; }
+  .statusline { display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:12px; }
+  .dot { width:9px; height:9px; border-radius:50%; }
+  .dot.ok{ background:var(--green);} .dot.busy{ background:var(--accent); animation:pulse 1s infinite;} .dot.bad{ background:#c0392b;}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+  .kept { color:var(--ink); } .kept b{ font-weight:600; }
+  .btnrow { display:flex; gap:9px; flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer; color:var(--ink); }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+  .btn.view { border-color:#bfe3cd; color:var(--green); font-weight:600; }
+  .spin { width:14px; height:14px; border:2px solid #cfd6df; border-top-color:var(--accent); border-radius:50%; display:inline-block; animation:spin 1s linear infinite; }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .filetag { font-size:11px; font-weight:700; border-radius:6px; padding:2px 7px; background:#fde2e0; color:#c0392b; }
+  .note { font-size:12px; color:var(--muted); margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A saved bookmark's preserved copies</h1>
+  <p class="sub" id="sub"></p>
+  <div id="app"></div>
+</div>
+<script>
+const kase=new URLSearchParams(location.search).get("case")||"page";
+const sub=document.getElementById("sub"), app=document.getElementById("app");
+
+const isPdf = kase==="pdf";
+const bk = isPdf
+  ? {title:"Annual Report 2025 (PDF)", url:"https://reports.example.com/2025/annual-report.pdf"}
+  : {title:"The Quiet Art of Reading Later", url:"https://www.nytimes.com/2026/01/12/technology/reading-later.html"};
+sub.textContent = isPdf ? "A PDF bookmark — the file itself is preserved."
+                        : "A normal page — a self-contained copy is preserved.";
+
+// local copy panel
+let localPanel;
+if(kase==="capturing"){
+  localPanel='<div class="statusline"><span class="spin"></span> Saving a copy of this page…</div>'+
+    '<p>This runs in the background; you can keep using the app. I\'ll let you know when the copy is ready.</p>';
+} else if(kase==="failed"){
+  localPanel='<div class="statusline"><span class="dot bad"></span> Couldn\'t save a copy (the page blocked access or was unreachable).</div>'+
+    '<div class="btnrow"><button class="btn primary">Try again</button><button class="btn">Open the live page instead</button></div>';
+} else {
+  localPanel='<div class="statusline"><span class="dot ok"></span> <span class="kept">'+
+      (isPdf? 'Original <span class="filetag">PDF</span> preserved' : 'Self-contained page copy kept')+' · saved 12 Jan 2026 · 1.4 MB</span></div>'+
+    '<div class="btnrow"><button class="btn view">👁 View saved copy</button>'+
+      (isPdf?'<button class="btn">⬇ Download PDF</button>':'<button class="btn">⬇ Download copy</button>')+
+      '<button class="btn">↻ Refresh copy</button></div>'+
+    '<div class="note">The saved copy opens exactly as it was when you saved it, even if the original later changes or disappears.</div>';
+}
+
+// internet archive panel
+let iaPanel;
+if(kase==="ia-done"){
+  iaPanel='<div class="statusline"><span class="dot ok"></span> Saved to the Internet Archive on 12 Jan 2026</div>'+
+    '<div class="btnrow"><button class="btn view">🌐 View on web.archive.org</button><button class="btn">Copy archive link</button></div>';
+} else {
+  iaPanel='<p>Optionally keep a public copy in the Internet Archive as well, so there\'s an independent record you can point to.</p>'+
+    '<div class="btnrow"><button class="btn primary">🌐 Save a copy to the Internet Archive</button></div>'+
+    '<div class="note">This sends the page\'s address to archive.org, a third-party service — done only when you choose it.</div>';
+}
+
+app.innerHTML=
+  '<div class="bk"><div class="title">'+bk.title+'</div><div class="url">'+bk.url+'</div>'+
+    '<button class="open">↗ Open live page</button></div>'+
+  '<div class="panel"><h3>📥 Your saved copy '+(isPdf?'<span class="filetag">PDF</span>':'')+'</h3>'+localPanel+'</div>'+
+  '<div class="panel"><h3>🌐 Internet Archive <span style="font-weight:400;color:var(--muted);font-size:12px;">(optional)</span></h3>'+iaPanel+'</div>';
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

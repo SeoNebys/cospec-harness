@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stow — Bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2d28;
+      --muted: #65736e;
+      --paper: #f6f3eb;
+      --card: #fffefa;
+      --line: #d8d8ce;
+      --accent: #236b52;
+      --accent-dark: #174b39;
+      --soft: #e2eee8;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 85% -10%, #d9e7de 0, transparent 32rem),
+        var(--paper);
+    }
+
+    button, input { font: inherit; }
+
+    .shell {
+      width: min(960px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 32px 0 72px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 64px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 750;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      color: white;
+      background: var(--accent);
+      font-family: Georgia, serif;
+      font-size: 22px;
+    }
+
+    .account {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    main { max-width: 780px; margin: 0 auto; }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 640px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(38px, 6vw, 62px);
+      font-weight: 500;
+      line-height: 1.03;
+      letter-spacing: -.035em;
+    }
+
+    .intro {
+      max-width: 560px;
+      margin: 18px 0 32px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .save-form {
+      display: flex;
+      gap: 10px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 254, 250, .9);
+      box-shadow: 0 12px 40px rgba(42, 66, 57, .08);
+    }
+
+    .save-form:focus-within {
+      border-color: #8ca99c;
+      box-shadow: 0 0 0 4px rgba(35, 107, 82, .1), 0 12px 40px rgba(42, 66, 57, .08);
+    }
+
+    .save-form input {
+      min-width: 0;
+      flex: 1;
+      border: 0;
+      outline: 0;
+      padding: 11px 13px;
+      color: var(--ink);
+      background: transparent;
+    }
+
+    .save-form button {
+      border: 0;
+      border-radius: 11px;
+      padding: 11px 20px;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .save-form button:hover { background: var(--accent-dark); }
+    .save-form button:disabled { opacity: .65; cursor: wait; }
+
+    .open-capture {
+      border: 0;
+      border-radius: 12px;
+      padding: 13px 22px;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+      box-shadow: 0 12px 30px rgba(35, 107, 82, .16);
+    }
+
+    .open-capture:hover { background: var(--accent-dark); }
+
+    dialog {
+      width: min(560px, calc(100% - 28px));
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: 0 28px 90px rgba(25, 42, 35, .24);
+    }
+
+    dialog::backdrop { background: rgba(26, 38, 33, .42); backdrop-filter: blur(3px); }
+    dialog h2 { margin-bottom: 7px; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
+    dialog .dialog-copy { margin: 0 0 18px; color: var(--muted); }
+    dialog .save-form { background: var(--card); }
+
+    .dialog-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 50%;
+      color: var(--muted);
+      background: #e9e8df;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .tag-dialog .tag-form input { width: 100%; min-height: 42px; }
+    .tag-dialog .tag-form { align-items: center; }
+    .tag-dialog .tag-submit {
+      min-height: 42px;
+      border: 0;
+      border-radius: 9px;
+      padding: 8px 16px;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .hint, .status {
+      min-height: 22px;
+      margin: 10px 4px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status { color: var(--accent); }
+
+    .collection { margin-top: 56px; }
+
+    .search-panel {
+      display: grid;
+      gap: 13px;
+      margin-top: 44px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 254, 250, .84);
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #bcc6c0;
+      border-radius: 11px;
+      padding: 0 13px;
+      background: white;
+    }
+
+    .search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(35, 107, 82, .1); }
+
+    .search-box span { color: var(--muted); font-size: 18px; }
+
+    .search-box input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      padding: 12px 0;
+      color: var(--ink);
+      background: transparent;
+    }
+
+    .filter-row { display: flex; flex-wrap: wrap; gap: 7px; }
+
+    .filter-button {
+      border: 1px solid #bdc9c2;
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .filter-button.active {
+      border-color: var(--accent);
+      color: white;
+      background: var(--accent);
+    }
+
+    .tag-select {
+      display: grid;
+      grid-template-columns: auto minmax(150px, 230px);
+      align-items: center;
+      justify-content: start;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .tag-select select {
+      width: 100%;
+      border: 1px solid #bdc9c2;
+      border-radius: 9px;
+      padding: 8px 10px;
+      color: var(--ink);
+      background: white;
+      cursor: pointer;
+    }
+
+    .view-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .view-button {
+      margin-bottom: -1px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      padding: 10px 4px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .view-button + .view-button { margin-left: 12px; }
+    .view-button.active { border-bottom-color: var(--accent); color: var(--accent); }
+
+    .read-later-action {
+      margin-top: 13px;
+      border: 1px solid #bdc9c2;
+      border-radius: 9px;
+      padding: 7px 10px;
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .read-later-action.saved { border-color: var(--accent); background: var(--soft); }
+
+    .read-later-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 13px;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .read-later-check input { width: 17px; height: 17px; accent-color: var(--accent); }
+
+    .mark-read-action {
+      margin-top: 13px;
+      border: 0;
+      border-radius: 9px;
+      padding: 8px 11px;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .add-note {
+      margin-top: 13px;
+      border: 0;
+      padding: 4px 0;
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .note-form {
+      display: grid;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .note-form textarea {
+      width: 100%;
+      min-height: 76px;
+      resize: vertical;
+      border: 1px solid #9eb2a8;
+      border-radius: 9px;
+      outline: none;
+      padding: 9px 10px;
+      color: var(--ink);
+      background: white;
+      line-height: 1.4;
+    }
+
+    .note-form textarea:focus { box-shadow: 0 0 0 3px rgba(35, 107, 82, .12); }
+
+    .format-toolbar {
+      display: flex;
+      gap: 5px;
+    }
+
+    .note-form .format-button {
+      min-width: 38px;
+      padding: 6px 9px;
+      border: 1px solid #bdc9c2;
+      color: var(--ink);
+      background: white;
+    }
+
+    .rich-note-editor {
+      min-height: 92px;
+      border: 1px solid #9eb2a8;
+      border-radius: 9px;
+      outline: none;
+      padding: 9px 10px;
+      color: var(--ink);
+      background: white;
+      line-height: 1.5;
+    }
+
+    .rich-note-editor:focus { box-shadow: 0 0 0 3px rgba(35, 107, 82, .12); }
+    .rich-note-editor:empty::before { content: attr(data-placeholder); color: #8a9590; }
+    .rich-note-editor ul, .personal-note ul { margin: 5px 0 2px; padding-left: 21px; }
+
+    .note-syntax-help { margin: -2px 0 0; color: var(--muted); font-size: 12px; }
+
+    .note-preview {
+      min-height: 54px;
+      padding: 9px 10px;
+      border: 1px dashed #b8c3bd;
+      border-radius: 9px;
+      color: #43514c;
+      background: #f0f3ed;
+      font-size: 13px;
+    }
+
+    .note-preview::before {
+      content: 'Preview';
+      display: block;
+      margin-bottom: 5px;
+      color: var(--accent-dark);
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .note-preview ul { margin: 3px 0; padding-left: 21px; }
+
+    .note-form button {
+      justify-self: start;
+      border: 0;
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .personal-note {
+      margin-top: 13px;
+      padding: 10px 12px;
+      border-left: 3px solid #96b2a4;
+      border-radius: 0 8px 8px 0;
+      color: #43514c;
+      background: #f0f3ed;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .personal-note strong { display: block; margin-bottom: 3px; color: var(--accent-dark); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+
+    .edit-details {
+      margin-top: 13px;
+      border: 1px solid #bdc9c2;
+      border-radius: 9px;
+      padding: 7px 10px;
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .details-form {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 13px;
+      border-top: 1px solid var(--line);
+    }
+
+    .details-form label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .details-form input, .details-form textarea {
+      width: 100%;
+      border: 1px solid #9eb2a8;
+      border-radius: 8px;
+      outline: none;
+      padding: 8px 9px;
+      color: var(--ink);
+      background: white;
+    }
+    .details-form textarea { min-height: 76px; resize: vertical; }
+    .details-form input:focus, .details-form textarea:focus { box-shadow: 0 0 0 3px rgba(35, 107, 82, .12); }
+    .form-actions { display: flex; gap: 8px; }
+    .form-actions button { border: 0; border-radius: 8px; padding: 7px 11px; cursor: pointer; font-weight: 700; }
+    .save-details { color: white; background: var(--accent); }
+    .cancel-details { color: var(--muted); background: #e8e9e2; }
+
+    .search-scenario .collection { margin-top: 24px; }
+    #bookmarks { display: grid; gap: 12px; }
+    .bookmark.is-hidden { display: none; }
+
+    .results-empty {
+      padding: 32px 20px;
+      border: 1px dashed #c7cbbf;
+      border-radius: 14px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .search-preview {
+      display: grid;
+      place-items: center;
+      font-size: 38px;
+    }
+
+    .preview-rome { background: linear-gradient(145deg, #d8b58a, #eedcc5); }
+    .preview-pasta { background: linear-gradient(145deg, #d99b4d, #f0d58b); }
+    .preview-reading { background: linear-gradient(145deg, #78968e, #c2d4ce); }
+
+    .favicon.blue { background: #356da6; }
+    .favicon.green { background: #337559; }
+
+    .collection-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+
+    h2 { margin: 0; font-size: 19px; }
+    .count { color: var(--muted); font-size: 13px; }
+
+    .empty {
+      padding: 42px 24px;
+      border: 1px dashed #c7cbbf;
+      border-radius: 16px;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(255,255,255,.27);
+    }
+
+    .bookmark {
+      display: grid;
+      grid-template-columns: 116px 1fr;
+      gap: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: inherit;
+      text-decoration: none;
+      background: var(--card);
+      box-shadow: 0 12px 30px rgba(38, 55, 48, .07);
+      animation: rise .28s ease-out;
+      cursor: pointer;
+    }
+
+    .bookmark:hover { border-color: #9aafa5; transform: translateY(-1px); }
+
+    .bookmark.located {
+      animation: locate 1.1s ease-out;
+    }
+
+    .preview {
+      width: 116px;
+      height: 92px;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #d9c7ac;
+    }
+
+    .source {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 1px 0 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .favicon {
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      color: white;
+      background: #b22f24;
+      font-family: Georgia, serif;
+      font-weight: 700;
+    }
+
+    .bookmark h3 { margin: 0 0 7px; font-size: 18px; line-height: 1.25; }
+
+    .bookmark p {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      margin-top: 13px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: var(--accent-dark);
+      background: var(--soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .add-tag {
+      min-height: 28px;
+      padding: 4px 9px;
+      border: 1px solid #bdc9c2;
+      border-radius: 999px;
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tag-form { display: flex; gap: 7px; }
+
+    .tag-form input {
+      width: 150px;
+      min-height: 30px;
+      border: 1px solid #9eb2a8;
+      border-radius: 8px;
+      outline: none;
+      padding: 5px 9px;
+      background: white;
+      font-size: 13px;
+    }
+
+    .tag-form input:focus { box-shadow: 0 0 0 3px rgba(35, 107, 82, .12); }
+
+    .tag-entry { position: relative; }
+
+    .tag-suggestions {
+      position: absolute;
+      z-index: 3;
+      top: calc(100% + 5px);
+      left: 0;
+      width: 190px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(38, 55, 48, .14);
+    }
+
+    .tag-suggestion {
+      width: 100%;
+      border: 0;
+      border-radius: 7px;
+      padding: 8px 9px;
+      color: var(--ink);
+      background: var(--soft);
+      cursor: pointer;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(7px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes locate {
+      0%, 100% { box-shadow: 0 12px 30px rgba(38, 55, 48, .07); }
+      35% { border-color: var(--accent); box-shadow: 0 0 0 5px rgba(35, 107, 82, .15); }
+    }
+
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 24px, 960px); padding-top: 20px; }
+      header { margin-bottom: 42px; }
+      .account { display: none; }
+      .save-form { display: grid; }
+      .save-form button { width: 100%; }
+      .bookmark { grid-template-columns: 1fr; }
+      .preview { width: 100%; height: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="brand-mark">S</span> Stow</div>
+      <div class="account">Your private collection</div>
+    </header>
+
+    <main>
+      <p class="eyebrow">Start your collection</p>
+      <h1>Keep the good parts of the internet.</h1>
+      <p class="intro">Paste a link and Stow will collect the page details for you, so it’s useful when you come back.</p>
+
+      <div id="capture-slot">
+        <form class="save-form" id="save-form">
+          <input id="url" type="url" required aria-label="Web address" placeholder="Paste a link…" autocomplete="off">
+          <button id="save-button" type="submit">Save link</button>
+        </form>
+        <div class="hint" id="hint">Try: https://www.seriouseats.com/roman-pasta-recipes-5117829</div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+
+      <section class="collection" aria-labelledby="collection-title">
+        <div class="collection-head">
+          <h2 id="collection-title">Your bookmarks</h2>
+          <span class="count" id="count">0 saved</span>
+        </div>
+        <div class="empty" id="empty">Your saved links will appear here.</div>
+        <div id="bookmarks"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url');
+    const button = document.querySelector('#save-button');
+    const status = document.querySelector('#status');
+    const hint = document.querySelector('#hint');
+    const empty = document.querySelector('#empty');
+    const bookmarks = document.querySelector('#bookmarks');
+    const count = document.querySelector('#count');
+    const captureSlot = document.querySelector('#capture-slot');
+    const params = new URLSearchParams(window.location.search);
+    const duplicateScenario = params.get('scenario') === 'duplicate';
+    const multiTagScenario = params.get('scenario') === 'multi-tag';
+    const tagScenario = params.get('scenario') === 'tag' || multiTagScenario;
+    const tagDialogEntry = params.get('tagentry') === 'dialog';
+    const searchScenario = params.get('scenario') === 'search';
+    const markReadScenario = params.get('scenario') === 'mark-read';
+    const readLaterScenario = params.get('scenario') === 'read-later' || markReadScenario;
+    const checkboxLaterEntry = params.get('laterentry') === 'checkbox' || markReadScenario;
+    const checkboxReadClear = params.get('clearentry') === 'checkbox';
+    const noteSearchScenario = params.get('scenario') === 'note-search';
+    const toolbarNoteEntry = params.get('noteentry') === 'toolbar';
+    const markupNoteEntry = params.get('noteentry') === 'markup';
+    const editDetailsScenario = params.get('scenario') === 'edit-details';
+    const selectFilterEntry = params.get('filterentry') === 'select';
+    let captureDialog;
+
+    if (params.get('entry') === 'button') {
+      const openButton = document.createElement('button');
+      openButton.className = 'open-capture';
+      openButton.type = 'button';
+      openButton.textContent = 'Save a link';
+
+      captureDialog = document.createElement('dialog');
+      captureDialog.innerHTML = `
+        <button class="dialog-close" type="button" aria-label="Close">×</button>
+        <h2>Save a link</h2>
+        <p class="dialog-copy">Paste a page address and Stow will gather the useful details.</p>`;
+      captureDialog.append(form, hint, status);
+      captureSlot.replaceChildren(openButton);
+      document.body.append(captureDialog);
+
+      openButton.addEventListener('click', () => {
+        captureDialog.showModal();
+        input.focus();
+      });
+      captureDialog.querySelector('.dialog-close').addEventListener('click', () => captureDialog.close());
+    }
+
+    function showBookmark() {
+      empty.hidden = true;
+      hint.hidden = true;
+      bookmarks.innerHTML = `
+        <article class="bookmark" role="link" tabindex="0" aria-label="Open Essential Roman Pasta Recipes">
+          <svg class="preview" viewBox="0 0 232 184" role="img" aria-label="Bowl of pasta illustration" xmlns="http://www.w3.org/2000/svg">
+            <rect width="232" height="184" fill="#e7d6b8"/>
+            <circle cx="116" cy="92" r="67" fill="#f7f0dd"/>
+            <circle cx="116" cy="92" r="48" fill="#d99442"/>
+            <path d="M77 73c23 35 63 5 79 34M71 91c28-31 61 23 91-7M84 115c20-26 45 15 70-12" fill="none" stroke="#f4cf71" stroke-width="9" stroke-linecap="round"/>
+            <g fill="#47744b"><circle cx="93" cy="73" r="5"/><circle cx="135" cy="111" r="5"/><circle cx="145" cy="77" r="4"/></g>
+          </svg>
+          <div>
+            <div class="source"><span class="favicon">S</span> seriouseats.com</div>
+            <h3>Essential Roman Pasta Recipes</h3>
+            <p>Master the four classic pasta dishes of Rome, from silky cacio e pepe to deeply savory amatriciana.</p>
+            ${tagScenario ? '<div class="tag-row"><button class="add-tag" type="button">+ Add tag</button></div>' : ''}
+          </div>
+        </article>`;
+      count.textContent = '1 saved';
+
+      const card = bookmarks.querySelector('.bookmark');
+      const openPage = () => window.open('https://www.seriouseats.com/roman-pasta-recipes-5117829', '_blank', 'noopener');
+      card.addEventListener('click', (event) => {
+        if (!event.target.closest('button, input, form, textarea, label')) openPage();
+      });
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && event.target === card) openPage();
+      });
+
+      if (tagScenario) {
+        const tagRow = card.querySelector('.tag-row');
+        const tagNames = multiTagScenario ? ['Cooking'] : [];
+
+        const appendTag = (name) => {
+          const tag = document.createElement('span');
+          tag.className = 'tag';
+          tag.textContent = name;
+          tagRow.append(tag);
+        };
+
+        const saveTag = (rawName) => {
+          const enteredName = rawName.trim();
+          if (!enteredName) return;
+          const name = multiTagScenario && enteredName.toLowerCase() === 'italian' ? 'Italian' : enteredName;
+          if (!tagNames.some((tag) => tag.toLowerCase() === name.toLowerCase())) tagNames.push(name);
+          renderTags();
+          status.textContent = `Tagged “${name}”.`;
+        };
+
+        const openInlineEntry = () => {
+          tagRow.replaceChildren();
+          tagNames.forEach(appendTag);
+
+          const entry = document.createElement('div');
+          entry.className = 'tag-entry';
+          entry.innerHTML = '<form class="tag-form"><input aria-label="Tag name" placeholder="Type a tag…" maxlength="30" autocomplete="off"></form>';
+          tagRow.append(entry);
+          const tagForm = entry.querySelector('.tag-form');
+          const tagInput = tagForm.querySelector('input');
+
+          if (multiTagScenario) {
+            const suggestions = document.createElement('div');
+            suggestions.className = 'tag-suggestions';
+            suggestions.hidden = true;
+            suggestions.innerHTML = '<button class="tag-suggestion" type="button">Italian</button>';
+            entry.append(suggestions);
+
+            tagInput.addEventListener('input', () => {
+              const typed = tagInput.value.trim().toLowerCase();
+              suggestions.hidden = !typed || !'italian'.startsWith(typed);
+            });
+            suggestions.querySelector('.tag-suggestion').addEventListener('click', () => saveTag('Italian'));
+          }
+
+          tagForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            saveTag(tagInput.value);
+          });
+          tagInput.focus();
+        };
+
+        const openDialogEntry = () => {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'tag-dialog';
+            dialog.innerHTML = `
+              <button class="dialog-close" type="button" aria-label="Close">×</button>
+              <h2>Add a tag</h2>
+              <p class="dialog-copy">Use one of your own words to describe this bookmark.</p>
+              <form class="tag-form">
+                <input aria-label="Tag name" placeholder="Type a tag…" maxlength="30">
+                <button class="tag-submit" type="submit">Add</button>
+              </form>`;
+            document.body.append(dialog);
+            const dialogInput = dialog.querySelector('input');
+            dialog.querySelector('.dialog-close').addEventListener('click', () => dialog.close());
+            dialog.querySelector('.tag-form').addEventListener('submit', (event) => {
+              event.preventDefault();
+              if (!dialogInput.value.trim()) return;
+              saveTag(dialogInput.value);
+              dialog.close();
+            });
+            dialog.addEventListener('close', () => dialog.remove());
+            dialog.showModal();
+            dialogInput.focus();
+        };
+
+        function renderTags() {
+          tagRow.replaceChildren();
+          tagNames.forEach(appendTag);
+          const addTag = document.createElement('button');
+          addTag.className = 'add-tag';
+          addTag.type = 'button';
+          addTag.textContent = '+ Add tag';
+          addTag.addEventListener('click', () => {
+            if (tagDialogEntry) openDialogEntry();
+            else openInlineEntry();
+          });
+          tagRow.append(addTag);
+        }
+
+        renderTags();
+      }
+
+      if (editDetailsScenario) {
+        const content = card.lastElementChild;
+        const title = content.querySelector('h3');
+        const description = content.querySelector('p');
+        const editButton = document.createElement('button');
+        editButton.className = 'edit-details';
+        editButton.type = 'button';
+        editButton.textContent = 'Edit title & description';
+        content.append(editButton);
+
+        editButton.addEventListener('click', () => {
+          editButton.hidden = true;
+          const detailsForm = document.createElement('form');
+          detailsForm.className = 'details-form';
+          detailsForm.innerHTML = `
+            <label>Title<input name="title" value="${title.textContent}" required></label>
+            <label>Description<textarea name="description" required>${description.textContent}</textarea></label>
+            <div class="form-actions">
+              <button class="save-details" type="submit">Save changes</button>
+              <button class="cancel-details" type="button">Cancel</button>
+            </div>`;
+          content.append(detailsForm);
+          const titleInput = detailsForm.elements.title;
+          const descriptionInput = detailsForm.elements.description;
+          titleInput.focus();
+          titleInput.select();
+
+          detailsForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            title.textContent = titleInput.value.trim();
+            description.textContent = descriptionInput.value.trim();
+            card.setAttribute('aria-label', `Open ${title.textContent}`);
+            detailsForm.remove();
+            editButton.hidden = false;
+            status.textContent = 'Title and description updated.';
+          });
+          detailsForm.querySelector('.cancel-details').addEventListener('click', () => {
+            detailsForm.remove();
+            editButton.hidden = false;
+          });
+        });
+      }
+    }
+
+    function showSearchCollection() {
+      document.body.classList.add('search-scenario');
+      empty.hidden = true;
+      hint.hidden = true;
+
+      const panel = document.createElement('section');
+      panel.className = 'search-panel';
+      panel.setAttribute('aria-label', 'Find bookmarks');
+      const filterMarkup = selectFilterEntry
+        ? `<label class="tag-select"><span>Tag</span><select id="tag-filter"><option value="">All tags</option><option value="Travel">Travel</option><option value="Cooking">Cooking</option><option value="Design">Design</option></select></label>`
+        : `<div class="filter-row" aria-label="Filter by tag">
+            <button class="filter-button active" type="button" data-tag="">All</button>
+            <button class="filter-button" type="button" data-tag="Travel">Travel</button>
+            <button class="filter-button" type="button" data-tag="Cooking">Cooking</button>
+            <button class="filter-button" type="button" data-tag="Design">Design</button>
+          </div>`;
+      panel.innerHTML = `
+        <label class="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input id="bookmark-search" type="search" placeholder="Search title, description, or address" autocomplete="off">
+        </label>
+        ${filterMarkup}`;
+      document.querySelector('.collection').before(panel);
+
+      bookmarks.innerHTML = `
+        <article class="bookmark search-card" role="link" tabindex="0" data-id="rome" data-search="a local's guide to rome quiet piazzas neighborhood trattorias and walks away from the busiest streets in rome fieldnotes.example/rome" data-tags="Travel Italy" data-url="https://example.com/rome">
+          <div class="preview search-preview preview-rome" aria-label="Rome street preview">🏛️</div>
+          <div>
+            <div class="source"><span class="favicon blue">F</span> fieldnotes.example</div>
+            <h3>A Local’s Guide to Rome</h3>
+            <p>Quiet piazzas, neighborhood trattorias, and walks away from the busiest streets in Rome.</p>
+            <div class="tag-row"><span class="tag">Travel</span><span class="tag">Italy</span></div>
+          </div>
+        </article>
+        <article class="bookmark search-card" role="link" tabindex="0" data-id="pasta" data-search="essential roman pasta recipes master the four classic pasta dishes of rome seriouseats.com/roman-pasta-recipes-5117829" data-tags="Cooking Italian" data-url="https://www.seriouseats.com/roman-pasta-recipes-5117829">
+          <div class="preview search-preview preview-pasta" aria-label="Pasta preview">🍝</div>
+          <div>
+            <div class="source"><span class="favicon">S</span> seriouseats.com</div>
+            <h3>Essential Roman Pasta Recipes</h3>
+            <p>Master the four classic pasta dishes of Rome, from cacio e pepe to amatriciana.</p>
+            <div class="tag-row"><span class="tag">Cooking</span><span class="tag">Italian</span></div>
+          </div>
+        </article>
+        <article class="bookmark search-card" role="link" tabindex="0" data-id="reading" data-search="designing better reading lists a practical approach to calmer more useful reading queues designnotes.example/reading-lists" data-tags="Design Reading" data-url="https://example.com/reading-lists">
+          <div class="preview search-preview preview-reading" aria-label="Reading list preview">📚</div>
+          <div>
+            <div class="source"><span class="favicon green">D</span> designnotes.example</div>
+            <h3>Designing Better Reading Lists</h3>
+            <p>A practical approach to building calmer, more useful reading queues.</p>
+            <div class="tag-row"><span class="tag">Design</span><span class="tag">Reading</span></div>
+          </div>
+        </article>`;
+
+      const searchInput = panel.querySelector('#bookmark-search');
+      const filterButtons = [...panel.querySelectorAll('.filter-button')];
+      const tagSelect = panel.querySelector('#tag-filter');
+      const cards = [...bookmarks.querySelectorAll('.search-card')];
+      let selectedTag = '';
+      let selectedView = markReadScenario ? 'later' : 'all';
+      const readLaterIds = new Set(markReadScenario ? ['pasta'] : []);
+      let readLaterCount;
+      const resultsEmpty = document.createElement('div');
+      resultsEmpty.className = 'results-empty';
+      resultsEmpty.hidden = true;
+      document.querySelector('.collection').append(resultsEmpty);
+
+      if (noteSearchScenario) {
+        cards.forEach((card) => {
+          const addNote = document.createElement('button');
+          addNote.className = 'add-note';
+          addNote.type = 'button';
+          addNote.textContent = '+ Add note';
+          card.lastElementChild.append(addNote);
+
+          addNote.addEventListener('click', () => {
+            const escapeMarkup = (value) => value
+              .replaceAll('&', '&amp;')
+              .replaceAll('<', '&lt;')
+              .replaceAll('>', '&gt;');
+            const renderMarkup = (value) => {
+              const lines = value.split(/\n/).filter((line) => line.trim());
+              const inline = (line) => escapeMarkup(line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+              if (lines.length && lines.every((line) => line.trim().startsWith('- '))) {
+                return `<ul>${lines.map((line) => `<li>${inline(line.trim().slice(2))}</li>`).join('')}</ul>`;
+              }
+              return lines.map((line) => `<div>${inline(line)}</div>`).join('');
+            };
+            const noteForm = document.createElement('form');
+            noteForm.className = 'note-form';
+            noteForm.innerHTML = toolbarNoteEntry
+              ? `<div class="format-toolbar" aria-label="Note formatting">
+                  <button class="format-button" type="button" data-command="bold" aria-label="Bold"><strong>B</strong></button>
+                  <button class="format-button" type="button" data-command="insertUnorderedList" aria-label="Bulleted list">• List</button>
+                </div>
+                <div class="rich-note-editor" contenteditable="true" role="textbox" aria-label="Your note" data-placeholder="Write a note about this bookmark…"></div>
+                <button type="submit">Save note</button>`
+              : markupNoteEntry
+                ? `<textarea aria-label="Your note" placeholder="Write a note about this bookmark…"></textarea>
+                   <p class="note-syntax-help">Start lines with - for bullets. Put ** around words for bold.</p>
+                   <div class="note-preview"></div>
+                   <button type="submit">Save note</button>`
+                : '<textarea aria-label="Your note" placeholder="Write a note about this bookmark…"></textarea><button type="submit">Save note</button>';
+            addNote.replaceWith(noteForm);
+            const noteInput = noteForm.querySelector('textarea, .rich-note-editor');
+            noteInput.focus();
+
+            if (toolbarNoteEntry) {
+              noteForm.querySelectorAll('.format-button').forEach((formatButton) => {
+                formatButton.addEventListener('mousedown', (event) => {
+                  event.preventDefault();
+                  noteInput.focus();
+                  document.execCommand(formatButton.dataset.command, false);
+                });
+              });
+            }
+            if (markupNoteEntry) {
+              const preview = noteForm.querySelector('.note-preview');
+              noteInput.addEventListener('input', () => {
+                preview.innerHTML = renderMarkup(noteInput.value);
+              });
+            }
+
+            noteForm.addEventListener('submit', (event) => {
+              event.preventDefault();
+              const noteText = toolbarNoteEntry ? noteInput.innerText.trim() : noteInput.value.trim();
+              if (!noteText) return;
+              const note = document.createElement('div');
+              note.className = 'personal-note';
+              const noteLabel = document.createElement('strong');
+              noteLabel.textContent = 'Your note';
+              const noteBody = document.createElement('div');
+              if (toolbarNoteEntry) noteBody.innerHTML = noteInput.innerHTML;
+              else if (markupNoteEntry) noteBody.innerHTML = renderMarkup(noteInput.value);
+              else noteBody.textContent = noteText;
+              note.append(noteLabel, noteBody);
+              card.dataset.search += ` ${noteText.toLowerCase()}`;
+              noteForm.replaceWith(note);
+              status.textContent = 'Note saved and included in search.';
+              applyFilters();
+            });
+          });
+        });
+      }
+
+      if (readLaterScenario) {
+        const tabs = document.createElement('nav');
+        tabs.className = 'view-tabs';
+        tabs.setAttribute('aria-label', 'Bookmark views');
+        tabs.innerHTML = `
+          <button class="view-button ${markReadScenario ? '' : 'active'}" type="button" data-view="all">All bookmarks</button>
+          <button class="view-button ${markReadScenario ? 'active' : ''}" type="button" data-view="later">Read later <span class="read-later-count">${readLaterIds.size}</span></button>`;
+        document.querySelector('.collection').prepend(tabs);
+        readLaterCount = tabs.querySelector('.read-later-count');
+
+        tabs.querySelectorAll('.view-button').forEach((viewButton) => {
+          viewButton.addEventListener('click', () => {
+            selectedView = viewButton.dataset.view;
+            tabs.querySelectorAll('.view-button').forEach((candidate) => candidate.classList.toggle('active', candidate === viewButton));
+            applyFilters();
+          });
+        });
+
+        const addCheckboxControl = (card) => {
+            const laterLabel = document.createElement('label');
+            laterLabel.className = 'read-later-check';
+            laterLabel.innerHTML = '<input type="checkbox"> <span>Read later</span>';
+            card.lastElementChild.append(laterLabel);
+            const laterCheckbox = laterLabel.querySelector('input');
+            laterCheckbox.checked = readLaterIds.has(card.dataset.id);
+            laterCheckbox.addEventListener('change', () => {
+              if (laterCheckbox.checked) readLaterIds.add(card.dataset.id);
+              else readLaterIds.delete(card.dataset.id);
+              readLaterCount.textContent = readLaterIds.size;
+              status.textContent = laterCheckbox.checked ? 'Added to Read later.' : 'Removed from Read later.';
+              applyFilters();
+            });
+        };
+
+        cards.forEach((card) => {
+          if (markReadScenario && card.dataset.id === 'pasta') {
+            if (checkboxReadClear) {
+              addCheckboxControl(card);
+              return;
+            }
+
+            const markReadButton = document.createElement('button');
+            markReadButton.className = 'mark-read-action';
+            markReadButton.type = 'button';
+            markReadButton.textContent = '✓ Mark as read';
+            card.lastElementChild.append(markReadButton);
+            markReadButton.addEventListener('click', () => {
+              readLaterIds.delete(card.dataset.id);
+              readLaterCount.textContent = readLaterIds.size;
+              status.textContent = 'Marked as read. The bookmark remains in All bookmarks.';
+              markReadButton.remove();
+              addCheckboxControl(card);
+              applyFilters();
+            });
+            return;
+          }
+
+          if (checkboxLaterEntry) {
+            addCheckboxControl(card);
+            return;
+          }
+
+          const laterButton = document.createElement('button');
+          laterButton.className = 'read-later-action';
+          laterButton.type = 'button';
+          laterButton.textContent = '＋ Read later';
+          card.lastElementChild.append(laterButton);
+          laterButton.addEventListener('click', () => {
+            const isSaved = readLaterIds.has(card.dataset.id);
+            if (isSaved) readLaterIds.delete(card.dataset.id);
+            else readLaterIds.add(card.dataset.id);
+            laterButton.classList.toggle('saved', !isSaved);
+            laterButton.textContent = isSaved ? '＋ Read later' : '✓ Read later';
+            readLaterCount.textContent = readLaterIds.size;
+            status.textContent = isSaved ? 'Removed from Read later.' : 'Added to Read later.';
+            applyFilters();
+          });
+        });
+      }
+
+      const applyFilters = () => {
+        const words = searchInput.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        let shown = 0;
+        cards.forEach((card) => {
+          const textMatches = words.every((word) => card.dataset.search.includes(word));
+          const tagMatches = !selectedTag || card.dataset.tags.split(' ').includes(selectedTag);
+          const viewMatches = !readLaterScenario || selectedView === 'all' || readLaterIds.has(card.dataset.id);
+          const visible = textMatches && tagMatches && viewMatches;
+          card.classList.toggle('is-hidden', !visible);
+          if (visible) shown += 1;
+        });
+        count.textContent = shown === 1 ? '1 shown' : `${shown} shown`;
+        resultsEmpty.hidden = shown !== 0;
+        resultsEmpty.textContent = selectedView === 'later'
+          ? 'Nothing waiting — you’re all caught up.'
+          : 'No bookmarks match those filters.';
+      };
+
+      searchInput.addEventListener('input', applyFilters);
+      if (tagSelect) {
+        tagSelect.addEventListener('change', () => {
+          selectedTag = tagSelect.value;
+          applyFilters();
+        });
+      }
+      filterButtons.forEach((filterButton) => {
+        filterButton.addEventListener('click', () => {
+          selectedTag = filterButton.dataset.tag;
+          filterButtons.forEach((candidate) => candidate.classList.toggle('active', candidate === filterButton));
+          applyFilters();
+        });
+      });
+
+      cards.forEach((card) => {
+        card.addEventListener('click', (event) => {
+          if (!event.target.closest('button, input, select, label, textarea, form, [contenteditable], .personal-note')) window.open(card.dataset.url, '_blank', 'noopener');
+        });
+        card.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && event.target === card) window.open(card.dataset.url, '_blank', 'noopener');
+        });
+      });
+
+      if (markReadScenario) applyFilters();
+      else count.textContent = '3 shown';
+    }
+
+    if (searchScenario || readLaterScenario || noteSearchScenario) showSearchCollection();
+    else if (duplicateScenario || tagScenario || editDetailsScenario) {
+      showBookmark();
+      if (editDetailsScenario) status.textContent = 'You already saved this link — here it is.';
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Gathering details…';
+      status.textContent = 'Reading the page…';
+
+      window.setTimeout(() => {
+        if (duplicateScenario) {
+          const existing = bookmarks.querySelector('.bookmark');
+          existing.classList.remove('located');
+          void existing.offsetWidth;
+          existing.classList.add('located');
+          existing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          status.textContent = 'You already saved this link — here it is.';
+        } else {
+          showBookmark();
+          status.textContent = 'Saved with title, description, site icon, and preview.';
+        }
+        button.disabled = false;
+        button.textContent = 'Save link';
+        input.value = '';
+        if (captureDialog?.open) captureDialog.close();
+      }, 700);
+    });
+  </script>
+</body>
+</html>

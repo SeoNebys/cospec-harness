@@ -1,0 +1,2 @@
+import DOMPurify from 'dompurify';import { marked } from 'marked';
+export function NotePreview({source}:{source:string}){const html=DOMPurify.sanitize(String(marked.parse(source)),{ALLOWED_TAGS:['p','h1','h2','h3','h4','h5','h6','a','ol','ul','li','strong','em'],ALLOWED_ATTR:['href','title']});return source?<div className="note-rendered" dangerouslySetInnerHTML={{__html:html}}/>:<p className="muted">Nothing to preview yet.</p>}

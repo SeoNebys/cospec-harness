@@ -1,0 +1,2 @@
+import { describe,expect,it } from 'vitest';import { render,screen } from '@testing-library/react';import { NotePreview } from '../src/features/bookmarks/NotePreview';
+describe('formatted notes',()=>{it('renders supported structure and strips active content',()=>{const {container}=render(<NotePreview source={'## Heading\n- item\n<script>alert(1)</script>'}/>);expect(screen.getByRole('heading',{name:'Heading'})).toBeVisible();expect(screen.getByRole('list')).toBeVisible();expect(container.querySelector('script')).toBeNull()})});

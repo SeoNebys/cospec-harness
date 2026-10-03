@@ -1,0 +1,17 @@
+import { describe,expect,it } from 'vitest';
+import { createTestDatabase } from '../../fixtures/database.js';
+import { createDatabase } from '../../../src/server/db/connection.js';
+import { migrate } from '../../../src/server/db/migrate.js';
+import { inTransaction } from '../../../src/server/db/transactions.js';
+import { mkdtempSync,rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const bookmarkSql="INSERT INTO bookmarks(id,url,normalized_url,title,notes_json,notes_text,favorite,to_read,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)";
+describe('database migrations',()=>{
+  it('enables integrity controls and creates every approved index',()=>{const db=createTestDatabase();expect(db.pragma('foreign_keys',{simple:true})).toBe(1);expect(db.pragma('trusted_schema',{simple:true})).toBe(0);const tables=(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{name:string}>).map(row=>row.name);expect(tables).toEqual(expect.arrayContaining(['bookmarks','media_assets','metadata_drafts','tags','bookmark_tags','preferences','schema_migrations']));const indexes=(db.prepare("SELECT name FROM sqlite_master WHERE type='index'").all() as Array<{name:string}>).map(row=>row.name);expect(indexes).toEqual(expect.arrayContaining(['bookmarks_active_created','bookmarks_read_created','bookmark_tags_by_tag','metadata_drafts_expiry']));db.close();});
+  it('enforces key CHECK, UNIQUE, and foreign-key constraints',()=>{const db=createTestDatabase();const insert=db.prepare(bookmarkSql);expect(()=>insert.run('x','https://x','https://x/','', '{}','',0,0,1,1)).toThrow();insert.run('one','https://one','https://one/','One','{}','',0,0,1,1);expect(()=>insert.run('two','https://two','https://one/','Two','{}','',0,0,1,1)).toThrow();expect(()=>db.prepare('UPDATE bookmarks SET favorite=2 WHERE id=?').run('one')).toThrow();expect(()=>db.prepare("INSERT INTO bookmark_tags(bookmark_id,tag_id) VALUES('missing',999)").run()).toThrow();expect(()=>db.prepare("INSERT INTO tags(name,normalized_name,created_at) VALUES('','',1)").run()).toThrow();expect(()=>db.prepare("UPDATE preferences SET sort_field='bad' WHERE id=1").run()).toThrow();expect(()=>db.prepare("INSERT INTO media_assets(id,mime_type,bytes,byte_length,width,height,created_at) VALUES(?, 'image/png', ?, 1, 129, 1, 1)").run('a'.repeat(64),Buffer.from([1]))).toThrow();db.close();});
+  it('rolls back failed multi-step work',()=>{const db=createTestDatabase();expect(()=>inTransaction(db,()=>{db.prepare(bookmarkSql).run('one','https://one','https://one/','One','{}','',0,0,1,1);throw new Error('stop');})).toThrow('stop');expect(db.prepare('SELECT count(*) AS count FROM bookmarks').get()).toEqual({count:0});db.close();});
+  it('uses WAL on disk and survives close/reopen',()=>{const directory=mkdtempSync(join(tmpdir(),'keepsake-db-'));const path=join(directory,'bookmarks.sqlite3');let db=createDatabase(path);migrate(db);expect(String(db.pragma('journal_mode',{simple:true})).toLowerCase()).toBe('wal');db.prepare(bookmarkSql).run('one','https://one','https://one/','One','{}','',0,0,1,1);db.close();db=createDatabase(path);migrate(db);expect(db.prepare('SELECT title FROM bookmarks WHERE id=?').get('one')).toEqual({title:'One'});db.close();rmSync(directory,{recursive:true});});
+  it('refuses a schema version newer than the application',()=>{const db=createTestDatabase();db.prepare("INSERT INTO schema_migrations(version,name,applied_at) VALUES(999,'future.sql',1)").run();expect(()=>migrate(db)).toThrow(/newer/u);db.close();});
+});

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — edge cases: duplicate link & editing</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --ink:#1f2933; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --accent-soft:#eff4ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:22px 28px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .variant-tag { display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:3px 10px; }
+  main { max-width:760px; margin:0 auto; padding:24px 20px 60px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px; }
+  details.saver summary { cursor:pointer; font-size:15px; font-weight:600; list-style:none; }
+  details.saver summary::-webkit-details-marker { display:none; }
+  details.saver summary::before { content:"＋ "; color:var(--accent); }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 5px; }
+  input[type=text],input[type=url],input[type=search],textarea { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; background:#fff; }
+  textarea { resize:vertical; min-height:60px; }
+  button { border:none; border-radius:8px; padding:10px 16px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; } .btn-primary:disabled { background:#9db8f0; cursor:default; }
+  .btn-light { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .status-line { font-size:12px; min-height:16px; margin-top:8px; }
+  .status-fetching { color:var(--accent); } .status-done { color:#15803d; } .status-warn { color:#b45309; } .status-info { color:#1e40af; }
+  .autofilled { background:var(--accent-soft); border-color:#c7d8fb; transition:background .4s ease; }
+  .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+  .searchwrap { position:relative; }
+  #search { padding-left:36px; font-size:15px; }
+  .searchwrap::before { content:"🔍"; position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:14px; opacity:.6; }
+  .searchmeta { font-size:12px; color:var(--muted); margin-top:8px; min-height:16px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+  .tabs button { font-size:14px; font-weight:600; border:none; background:none; padding:10px 16px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs button.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tabs .badge { font-size:11px; background:#eef2f7; color:#334155; border-radius:999px; padding:1px 7px; margin-left:6px; }
+  .empty { text-align:center; color:var(--muted); padding:30px 10px; font-size:14px; }
+  ul.list { list-style:none; margin:0; padding:0; }
+  li.item { border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  li.item.flash { animation:flash 1.8s ease; }
+  @keyframes flash { 0%{ background:#fef3c7; border-color:#fcd34d; } 100%{ background:#fff; border-color:var(--line); } }
+  .itemhead { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  li.item .title { font-weight:600; font-size:15px; }
+  li.item .title a { color:var(--ink); text-decoration:none; }
+  li.item .url { font-size:12px; color:var(--muted); margin-top:2px; word-break:break-all; }
+  li.item .desc { font-size:13px; color:#4b5563; margin-top:8px; }
+  .actions { display:flex; gap:6px; flex:none; }
+  .move,.editbtn { font-size:12px; font-weight:600; border:1px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px; cursor:pointer; white-space:nowrap; }
+  .move.done { background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
+  .chips { margin-top:10px; }
+  .chip { display:inline-block; font-size:12px; color:#334155; background:#eef2f7; border:1px solid #e2e8f0; border-radius:999px; padding:3px 10px; margin:0 6px 6px 0; cursor:pointer; }
+  .editform { margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .editbtns { display:flex; gap:8px; margin-top:10px; }
+  .tagbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:7px 8px; background:#fff; }
+  .tagbox:focus-within { border-color:var(--accent); }
+  .tagbox .chip { display:inline-flex; align-items:center; margin:0; background:var(--accent-soft); border-color:#c7d8fb; color:#1e40af; cursor:default; }
+  .tagbox .chip button { background:none; border:none; color:#1e40af; font-size:14px; line-height:1; padding:0 0 0 6px; cursor:pointer; font-weight:700; }
+  .tagbox input { border:none; outline:none; flex:1; min-width:120px; padding:4px; font-size:14px; }
+  .suggest { margin-top:8px; }
+  .suggest span { display:inline-block; font-size:12px; color:var(--muted); margin-right:6px; }
+  .suggest .sug { color:var(--accent); background:var(--accent-soft); border:1px solid #c7d8fb; border-radius:999px; padding:3px 10px; margin:0 6px 6px 0; cursor:pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype for review — behaviour exploration only</p>
+  <span class="variant-tag">Edge cases: saving a link you already saved, and editing an existing bookmark</span>
+</header>
+<main>
+  <section class="panel">
+    <div class="searchwrap"><input id="search" type="search" placeholder="Search your bookmarks…" autocomplete="off" /></div>
+    <div class="searchmeta" id="searchmeta"></div>
+  </section>
+  <section class="panel">
+    <details class="saver" id="saver">
+      <summary>Save a link</summary>
+      <label for="url">Paste a link</label>
+      <input id="url" type="url" placeholder="https://…" autocomplete="off" />
+      <div id="status" class="status-line"></div>
+      <label for="title">Title</label>
+      <input id="title" type="text" placeholder="Filled in automatically" />
+      <label for="desc">Description</label>
+      <textarea id="desc" placeholder="Filled in automatically"></textarea>
+      <label for="taginput">Tags</label>
+      <div class="tagbox" id="tagbox"><input id="taginput" type="text" placeholder="Type a tag, press Enter" autocomplete="off" /></div>
+      <div class="hint">Press Enter (or comma) to turn a word into a tag.</div>
+      <div class="suggest" id="suggest"></div>
+      <div style="margin-top:16px"><button id="save" class="btn-primary" disabled>Save bookmark</button></div>
+    </details>
+  </section>
+  <section class="panel">
+    <div class="tabs">
+      <button data-t="toread" class="active">To read <span class="badge" id="badge-toread">0</span></button>
+      <button data-t="finished">Finished <span class="badge" id="badge-finished">0</span></button>
+    </div>
+    <div id="empty" class="empty" style="display:none"></div>
+    <ul id="list" class="list"></ul>
+  </section>
+</main>
+<script>
+  const CANNED = {
+    "developer.mozilla.org": { title:"MDN Web Docs", desc:"Resources for developers, by developers — documentation for web technologies including HTML, CSS, and JavaScript." },
+    "github.com": { title:"GitHub", desc:"Where the world builds software. Millions of developers build and ship on GitHub." }
+  };
+  function prettifyPath(u){try{const url=new URL(u);const host=url.hostname.replace(/^www\./,"");let slug=(url.pathname||"").split("/").filter(Boolean).pop()||"";slug=decodeURIComponent(slug).replace(/[-_]+/g," ").replace(/\.\w+$/,"").trim();if(slug){return {title:slug.replace(/\b\w/g,c=>c.toUpperCase()),desc:"Saved from "+host+"."};}return {title:host.split(".")[0].replace(/\b\w/g,c=>c.toUpperCase()),desc:"Saved from "+host+"."};}catch(e){return {title:"",desc:""};}}
+  function lookup(u){try{const host=new URL(u).hostname;if(CANNED[host])return CANNED[host];}catch(e){}return prettifyPath(u);}
+  function isValidUrl(u){try{const x=new URL(u);return x.protocol==="http:"||x.protocol==="https:";}catch(e){return false;}}
+  function normUrl(u){try{const x=new URL(u);let s=(x.origin+x.pathname).replace(/\/$/,"");return s.toLowerCase();}catch(e){return u.trim().toLowerCase();}}
+
+  let nextId=1;
+  function mk(o){o.id=nextId++;return o;}
+  const bookmarks=[
+    mk({url:"https://developer.mozilla.org/en-US/docs/Web/CSS/Flexbox",title:"Flexbox layout — CSS | MDN",desc:"A one-dimensional layout method for arranging items in rows or columns.",tags:["css","reference"],finished:false}),
+    mk({url:"https://www.nytimes.com/2026/09/10/technology/ai-agents.html",title:"The Rise of AI Agents",desc:"How autonomous software agents are changing daily work.",tags:["reading","ai"],finished:false}),
+    mk({url:"https://github.com/pallets/flask",title:"Flask — a lightweight web framework",desc:"The Python micro framework for building web applications.",tags:["python","reference"],finished:true})
+  ];
+  let tab="toread"; let query=""; let tagFilter=null; let editingId=null;
+  let currentTags=[]; const knownTags=new Set(); let fetchTimer=null;
+  bookmarks.forEach(b=>b.tags.forEach(t=>knownTags.add(t)));
+
+  const searchEl=document.getElementById("search"),searchMeta=document.getElementById("searchmeta");
+  const saver=document.getElementById("saver");
+  const urlEl=document.getElementById("url"),titleEl=document.getElementById("title"),descEl=document.getElementById("desc"),statusEl=document.getElementById("status"),saveEl=document.getElementById("save");
+  const tagbox=document.getElementById("tagbox"),tagInput=document.getElementById("taginput"),suggestEl=document.getElementById("suggest");
+  const listEl=document.getElementById("list"),emptyEl=document.getElementById("empty");
+
+  function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+  function highlight(text,q){const e=esc(text);if(!q)return e;const rx=new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig");return e.replace(rx,"<mark style='background:#fde68a;border-radius:3px'>$1</mark>");}
+  function matches(b,q){if(!q)return true;const hay=(b.title+" "+b.desc+" "+b.url+" "+b.tags.join(" ")).toLowerCase();return q.toLowerCase().split(/\s+/).filter(Boolean).every(term=>hay.includes(term));}
+
+  function refreshSaveState(){saveEl.disabled=!isValidUrl(urlEl.value.trim());}
+  function autofill(){const u=urlEl.value.trim();if(!isValidUrl(u)){if(u){statusEl.textContent="That doesn’t look like a web link — it should start with http:// or https://";statusEl.className="status-line status-warn";}else statusEl.textContent="";return;}statusEl.textContent="Fetching details…";statusEl.className="status-line status-fetching";clearTimeout(fetchTimer);fetchTimer=setTimeout(()=>{const m=lookup(u);titleEl.value=m.title;descEl.value=m.desc;titleEl.classList.add("autofilled");descEl.classList.add("autofilled");statusEl.textContent="Details filled in for you — edit if you like.";statusEl.className="status-line status-done";},600);}
+  urlEl.addEventListener("input",()=>{refreshSaveState();titleEl.classList.remove("autofilled");descEl.classList.remove("autofilled");});
+  urlEl.addEventListener("change",autofill); urlEl.addEventListener("blur",autofill);
+  [titleEl,descEl].forEach(el=>el.addEventListener("input",()=>el.classList.remove("autofilled")));
+  function renderTagEditor(){tagbox.querySelectorAll(".chip").forEach(c=>c.remove());currentTags.forEach(tag=>{const chip=document.createElement("span");chip.className="chip";chip.textContent="#"+tag;const x=document.createElement("button");x.type="button";x.textContent="×";x.addEventListener("click",()=>{currentTags=currentTags.filter(t=>t!==tag);renderTagEditor();renderSuggest();});chip.appendChild(x);tagbox.insertBefore(chip,tagInput);});}
+  function addTag(raw){const t=raw.trim();if(!t)return;if(!currentTags.includes(t)){currentTags.push(t);knownTags.add(t);}tagInput.value="";renderTagEditor();renderSuggest();}
+  tagInput.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();addTag(tagInput.value);}else if(e.key==="Backspace"&&!tagInput.value&&currentTags.length){currentTags.pop();renderTagEditor();renderSuggest();}});
+  function renderSuggest(){const avail=[...knownTags].filter(t=>!currentTags.includes(t));suggestEl.innerHTML="";if(!avail.length)return;const lbl=document.createElement("span");lbl.textContent="Reuse:";suggestEl.appendChild(lbl);avail.forEach(t=>{const b=document.createElement("span");b.className="sug";b.textContent="#"+t;b.addEventListener("click",()=>addTag(t));suggestEl.appendChild(b);});}
+  tagbox.addEventListener("click",()=>tagInput.focus());
+
+  function counts(){return {toread:bookmarks.filter(b=>!b.finished).length,finished:bookmarks.filter(b=>b.finished).length};}
+  function setTab(t){tab=t;document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.t===t));}
+
+  function flash(id){const el=listEl.querySelector('li[data-id="'+id+'"]');if(el){el.classList.add("flash");el.scrollIntoView({behavior:"smooth",block:"center"});}}
+
+  // ---- inline edit form ----
+  function buildEditForm(b){
+    const form=document.createElement("div");form.className="editform";
+    let editTags=b.tags.slice();
+    const l1=document.createElement("label");l1.textContent="Title";const ti=document.createElement("input");ti.type="text";ti.value=b.title;
+    const l2=document.createElement("label");l2.textContent="Description";const de=document.createElement("textarea");de.value=b.desc;
+    const l3=document.createElement("label");l3.textContent="Tags";
+    const tb=document.createElement("div");tb.className="tagbox";const tin=document.createElement("input");tin.type="text";tin.placeholder="Type a tag, press Enter";tb.appendChild(tin);
+    function drawTags(){tb.querySelectorAll(".chip").forEach(c=>c.remove());editTags.forEach(t=>{const chip=document.createElement("span");chip.className="chip";chip.textContent="#"+t;const x=document.createElement("button");x.type="button";x.textContent="×";x.addEventListener("click",()=>{editTags=editTags.filter(z=>z!==t);drawTags();});chip.appendChild(x);tb.insertBefore(chip,tin);});}
+    tin.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();const v=tin.value.trim();if(v&&!editTags.includes(v)){editTags.push(v);knownTags.add(v);}tin.value="";drawTags();}else if(e.key==="Backspace"&&!tin.value&&editTags.length){editTags.pop();drawTags();}});
+    tb.addEventListener("click",()=>tin.focus());
+    drawTags();
+    const btns=document.createElement("div");btns.className="editbtns";
+    const save=document.createElement("button");save.className="btn-primary";save.textContent="Save changes";
+    const cancel=document.createElement("button");cancel.className="btn-light";cancel.textContent="Cancel";
+    save.addEventListener("click",()=>{if(tin.value.trim()){const v=tin.value.trim();if(!editTags.includes(v))editTags.push(v);}b.title=ti.value.trim()||b.title;b.desc=de.value.trim();b.tags=editTags.slice();editingId=null;render();flash(b.id);});
+    cancel.addEventListener("click",()=>{editingId=null;render();});
+    btns.appendChild(save);btns.appendChild(cancel);
+    form.appendChild(l1);form.appendChild(ti);form.appendChild(l2);form.appendChild(de);form.appendChild(l3);form.appendChild(tb);form.appendChild(btns);
+    return form;
+  }
+
+  function applySearch(){
+    query=searchEl.value.trim();
+    const searching=query||tagFilter;
+    if(searching){const total=bookmarks.filter(b=>matches(b,query)&&(!tagFilter||b.tags.includes(tagFilter))).length;searchMeta.innerHTML="Showing <b>"+total+"</b> result"+(total===1?"":"s")+(tagFilter?' tagged <b>#'+esc(tagFilter)+'</b>':"")+" across both tabs.";}else searchMeta.textContent="";
+    render();
+  }
+  function render(){
+    const c=counts();document.getElementById("badge-toread").textContent=c.toread;document.getElementById("badge-finished").textContent=c.finished;
+    const searching=query||tagFilter;
+    let items=bookmarks.filter(b=>matches(b,query)&&(!tagFilter||b.tags.includes(tagFilter)));
+    if(!searching) items=items.filter(b=>tab==="toread"?!b.finished:b.finished);
+    listEl.innerHTML="";
+    if(!items.length){emptyEl.style.display="block";emptyEl.textContent=searching?"No bookmarks match your search.":(bookmarks.length===0?"No bookmarks yet. Open “Save a link” above to add your first one.":(tab==="toread"?"Nothing left to read — nice.":"Nothing finished yet."));}else emptyEl.style.display="none";
+    items.forEach(b=>{
+      const li=document.createElement("li");li.className="item";li.dataset.id=b.id;
+      const head=document.createElement("div");head.className="itemhead";
+      const left=document.createElement("div");
+      const t=document.createElement("div");t.className="title";const a=document.createElement("a");a.href=b.url;a.innerHTML=highlight(b.title||b.url,query);a.target="_blank";t.appendChild(a);
+      const url=document.createElement("div");url.className="url";url.textContent=b.url;
+      left.appendChild(t);left.appendChild(url);
+      const actions=document.createElement("div");actions.className="actions";
+      const edit=document.createElement("button");edit.className="editbtn";edit.textContent=editingId===b.id?"Close":"Edit";edit.addEventListener("click",()=>{editingId=editingId===b.id?null:b.id;render();});
+      const mv=document.createElement("button");if(b.finished){mv.className="move";mv.textContent="↩ To read";}else{mv.className="move done";mv.textContent="✓ Finished";}mv.addEventListener("click",()=>{b.finished=!b.finished;applySearch();flash(b.id);});
+      actions.appendChild(edit);actions.appendChild(mv);
+      head.appendChild(left);head.appendChild(actions);li.appendChild(head);
+      if(b.desc){const d=document.createElement("div");d.className="desc";d.innerHTML=highlight(b.desc,query);li.appendChild(d);}
+      if(b.tags&&b.tags.length){const ch=document.createElement("div");ch.className="chips";b.tags.forEach(tag=>{const s=document.createElement("span");s.className="chip";s.textContent="#"+tag;s.title="Filter by #"+tag;s.addEventListener("click",()=>{tagFilter=tag;applySearch();});ch.appendChild(s);});li.appendChild(ch);}
+      if(editingId===b.id){li.appendChild(buildEditForm(b));}
+      listEl.appendChild(li);
+    });
+  }
+  saveEl.addEventListener("click",()=>{
+    const u=urlEl.value.trim();if(!isValidUrl(u))return;
+    const existing=bookmarks.find(b=>normUrl(b.url)===normUrl(u));
+    if(existing){
+      statusEl.textContent="You’ve already saved this — here it is. Use Edit to add a tag or change its status.";statusEl.className="status-line status-info";
+      searchEl.value="";query="";tagFilter=null;searchMeta.textContent="";
+      setTab(existing.finished?"finished":"toread");editingId=existing.id;render();flash(existing.id);
+      return;
+    }
+    if(tagInput.value.trim())addTag(tagInput.value);
+    const nb=mk({url:u,title:titleEl.value.trim()||lookup(u).title||u,desc:descEl.value.trim(),tags:currentTags.slice(),finished:false});
+    bookmarks.unshift(nb);
+    urlEl.value="";titleEl.value="";descEl.value="";currentTags=[];renderTagEditor();renderSuggest();statusEl.textContent="";refreshSaveState();
+    setTab("toread");applySearch();flash(nb.id);
+  });
+  searchEl.addEventListener("input",applySearch);
+  document.querySelectorAll(".tabs button").forEach(btn=>btn.addEventListener("click",()=>{setTab(btn.dataset.t);render();}));
+  applySearch();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

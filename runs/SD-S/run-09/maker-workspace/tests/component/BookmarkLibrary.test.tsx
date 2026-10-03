@@ -1,0 +1,4 @@
+// @vitest-environment jsdom
+import { render,screen } from "@testing-library/react";import { describe,expect,it } from "vitest";import { BookmarkCard } from "../../src/client/features/bookmarks/BookmarkCard.js";
+const bookmark={id:1,url:"https://example.com",title:"Example",titleSource:"page" as const,notes:null,folder:null,tags:[],isFavorite:false,metadataStatus:"ready" as const,metadataFailureCode:null,iconUrl:"/generic-site-icon.svg",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+describe("bookmark card",()=>{it("opens externally without removing the item",()=>{render(<BookmarkCard bookmark={bookmark} folders={[]} tags={[]} onChange={()=>{}} onFavorite={()=>{}} onRetry={()=>{}} onDelete={async()=>{}}/>);const link=screen.getByRole("link",{name:"Example"});expect(link).toHaveAttribute("target","_blank");expect(link).toHaveAttribute("rel","noopener noreferrer");});});

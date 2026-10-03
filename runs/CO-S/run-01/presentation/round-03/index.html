@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1c2430; --muted: #6b7683;
+    --line: #e3e7ec; --accent: #2f6fed; --accent-soft: #eaf1fe;
+    --chip: #eef1f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.45;
+  }
+  header.app {
+    padding: 18px 20px; border-bottom: 1px solid var(--line); background: var(--card);
+    position: sticky; top: 0; z-index: 5;
+  }
+  header.app h1 { margin: 0; font-size: 20px; }
+  header.app p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px; }
+
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 22px;
+  }
+  .panel h2 { margin: 0 0 14px; font-size: 15px; }
+
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input[type=text], input[type=url], textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row-url { display: flex; gap: 8px; }
+  .row-url input { flex: 1; }
+
+  .fetch-state { font-size: 13px; margin-top: 8px; min-height: 18px; }
+  .fetch-state.loading { color: var(--muted); }
+  .fetch-state.done { color: #2f8a4e; }
+
+  .meta-preview {
+    margin-top: 12px; padding: 12px; border: 1px dashed var(--line);
+    border-radius: 8px; background: #fbfcfd; display: none;
+  }
+  .meta-preview.show { display: block; }
+  .meta-preview .site { font-size: 12px; color: var(--muted); }
+
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid transparent;
+    padding: 10px 16px; font-size: 14px;
+  }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:disabled { background: #b9cdf7; cursor: not-allowed; }
+  button.ghost { background: #fff; border-color: var(--line); color: var(--ink); }
+
+  .actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+  .save-flash { color: #2f8a4e; font-size: 13px; }
+
+  .list-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .count { color: var(--muted); font-size: 13px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 24px 4px; text-align: center; }
+
+  .bm {
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-top: 12px;
+  }
+  .bm .title { font-size: 15px; font-weight: 600; }
+  .bm .url { font-size: 12px; color: var(--muted); word-break: break-all; margin-top: 2px; }
+  .bm .desc { font-size: 13px; color: #45505d; margin-top: 6px; }
+  .bm .note { font-size: 13px; margin-top: 8px; padding: 8px 10px; background: #fffbe9; border-radius: 6px; }
+  .chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: #435; }
+</style>
+</head>
+<body>
+<header class="app">
+  <h1>Bookmarks</h1>
+  <p>Prototype — save flow</p>
+</header>
+
+<main>
+  <section class="panel" aria-label="Add a bookmark">
+    <h2>Save a link</h2>
+
+    <label for="url">Paste a link</label>
+    <div class="row-url">
+      <input id="url" type="url" placeholder="https://…" autocomplete="off" />
+      <button class="ghost" id="fetchBtn" type="button">Get details</button>
+    </div>
+    <div class="fetch-state" id="fetchState"></div>
+
+    <div class="meta-preview" id="metaPreview">
+      <div class="site" id="pSite"></div>
+      <label for="title">Title</label>
+      <input id="title" type="text" />
+      <label for="desc">Description</label>
+      <textarea id="desc"></textarea>
+
+      <label for="tags">Tags (comma separated) — optional</label>
+      <input id="tags" type="text" placeholder="e.g. design, to-read" />
+
+      <label for="note">Note — optional</label>
+      <textarea id="note" placeholder="Why you saved it…"></textarea>
+
+      <div class="actions">
+        <button class="primary" id="saveBtn" type="button">Save bookmark</button>
+        <span class="save-flash" id="saveFlash"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Saved bookmarks">
+    <div class="list-head">
+      <h2>Saved</h2>
+      <span class="count" id="count">0 saved</span>
+    </div>
+    <div id="list">
+      <div class="empty" id="empty">Nothing saved yet. Paste a link above to start.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // --- Simulated metadata lookup (Phase 1 prototype: fakes the "auto-fetch") ---
+  const KNOWN = {
+    "developer.mozilla.org": {
+      site: "MDN Web Docs",
+      title: "Array.prototype.map() - JavaScript | MDN",
+      desc: "The map() method creates a new array populated with the results of calling a function on every element in the calling array."
+    },
+    "www.nytimes.com": {
+      site: "The New York Times",
+      title: "How to Build a Reading Habit That Sticks",
+      desc: "Small, consistent routines beat ambitious plans. Here's what the research says about making reading a daily habit."
+    },
+    "github.com": {
+      site: "GitHub",
+      title: "microsoft/playwright: Fast and reliable end-to-end testing",
+      desc: "Playwright enables reliable end-to-end testing for modern web apps across all browsers."
+    }
+  };
+
+  function hostOf(u) {
+    try { return new URL(u).hostname; } catch (e) { return null; }
+  }
+  function titleCaseFromHost(host) {
+    const core = host.replace(/^www\./, "").split(".")[0];
+    return core.charAt(0).toUpperCase() + core.slice(1);
+  }
+
+  const el = (id) => document.getElementById(id);
+  let lastFetchedFor = null;
+
+  function fetchDetails() {
+    const url = el("url").value.trim();
+    if (!url) return;
+    const host = hostOf(url);
+    if (!host) {
+      el("fetchState").className = "fetch-state";
+      el("fetchState").textContent = "That doesn't look like a link yet.";
+      return;
+    }
+    el("fetchState").className = "fetch-state loading";
+    el("fetchState").textContent = "Getting details…";
+    el("metaPreview").classList.remove("show");
+
+    // Simulate a brief network fetch.
+    setTimeout(() => {
+      const meta = KNOWN[host] || {
+        site: titleCaseFromHost(host),
+        title: titleCaseFromHost(host) + " — " + host,
+        desc: ""
+      };
+      el("pSite").textContent = meta.site;
+      el("title").value = meta.title;
+      el("desc").value = meta.desc;
+      el("metaPreview").classList.add("show");
+      el("fetchState").className = "fetch-state done";
+      el("fetchState").textContent = "Details picked up — edit anything before saving.";
+      lastFetchedFor = url;
+    }, 550);
+  }
+
+  const bookmarks = [];
+  function render() {
+    el("count").textContent = bookmarks.length + (bookmarks.length === 1 ? " saved" : " saved");
+    const list = el("list");
+    if (bookmarks.length === 0) {
+      list.innerHTML = '<div class="empty" id="empty">Nothing saved yet. Paste a link above to start.</div>';
+      return;
+    }
+    list.innerHTML = bookmarks.map(b => `
+      <div class="bm">
+        <div class="title">${escapeHtml(b.title)}</div>
+        <div class="url">${escapeHtml(b.url)}</div>
+        ${b.desc ? `<div class="desc">${escapeHtml(b.desc)}</div>` : ""}
+        ${b.tags.length ? `<div class="chips">${b.tags.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+        ${b.note ? `<div class="note">${escapeHtml(b.note)}</div>` : ""}
+      </div>
+    `).join("");
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]));
+  }
+
+  function save() {
+    const url = el("url").value.trim();
+    if (!url) return;
+    const tags = el("tags").value.split(",").map(t => t.trim()).filter(Boolean);
+    bookmarks.unshift({
+      url,
+      title: el("title").value.trim() || url,
+      site: el("pSite").textContent,
+      desc: el("desc").value.trim(),
+      tags,
+      note: el("note").value.trim()
+    });
+    render();
+    // reset form
+    el("url").value = ""; el("title").value = ""; el("desc").value = "";
+    el("tags").value = ""; el("note").value = ""; el("pSite").textContent = "";
+    el("metaPreview").classList.remove("show");
+    el("fetchState").className = "fetch-state";
+    el("fetchState").textContent = "";
+    el("saveFlash").textContent = "Saved.";
+    setTimeout(() => el("saveFlash").textContent = "", 1800);
+  }
+
+  el("fetchBtn").addEventListener("click", fetchDetails);
+  el("url").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); fetchDetails(); } });
+  el("saveBtn").addEventListener("click", save);
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

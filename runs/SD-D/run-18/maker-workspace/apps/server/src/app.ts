@@ -1,0 +1,46 @@
+import Fastify from 'fastify';
+import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import path from 'node:path';
+import fs from 'node:fs';
+import type { DB } from '../../../packages/persistence/src/database.js';
+import { Store } from '../../../packages/persistence/src/store.js';
+import type { AppConfig } from '../../../packages/domain/src/config.js';
+import { fetchMetadata } from '../../worker/src/capture/metadata.js';
+import { safeFetch } from '../../worker/src/fetch-policy/ssrf.js';
+import { parseSearch } from '../../../packages/search/src/parser.js';
+import { parseBookmarksHtml } from '../../../packages/bookmark-html/src/import.js';
+import { exportBookmarksHtml } from '../../../packages/bookmark-html/src/export.js';
+import { newId,now } from '../../../packages/domain/src/identity.js';
+import { installErrors } from './api/errors.js';
+import { registerHealth } from './api/health.js';
+
+export async function createApp(db:DB,config:AppConfig,worker:{status:()=>unknown}){const app=Fastify({logger:{level:process.env.LOG_LEVEL??'info'},bodyLimit:105*1024*1024});const store=new Store(db);installErrors(app);await app.register(multipart,{limits:{fileSize:100*1024*1024,files:1}});registerHealth(app,worker);
+  app.get('/api/metadata',async(req)=>{const url=String((req.query as any).url??'');const existing=store.findByUrl(url);if(existing)throw Object.assign(new Error(`This link is already saved as “${existing.title}”`),{statusCode:409});const metadata=await fetchMetadata(url);const proxy=(value:string|null)=>value?`/api/image?url=${encodeURIComponent(value)}`:null;return {...metadata,faviconUrl:proxy(metadata.faviconUrl),previewImageUrl:proxy(metadata.previewImageUrl)}});
+  app.get('/api/image',async(req,reply)=>{const url=String((req.query as any).url??''),response=await safeFetch(url,{headers:{accept:'image/*'}});if(!response.ok)throw new Error(`Image responded with ${response.status}`);const type=(response.headers.get('content-type')??'').split(';')[0]!;if(!/^image\/(png|jpeg|gif|webp|svg\+xml|x-icon|vnd\.microsoft\.icon)$/.test(type))throw new Error('Unsupported image type');const reader=response.body?.getReader(),parts:Buffer[]=[];let size=0;if(reader)while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>15*1024*1024)throw new Error('Image is too large');parts.push(Buffer.from(value))}reply.header('content-type',type).header('cache-control','private, max-age=86400').header('x-content-type-options','nosniff');return Buffer.concat(parts)});
+  app.get('/api/bookmarks',async(req)=>{const q=req.query as any;return store.list({scope:q.scope,q:q.q,tags:typeof q.tags==='string'?q.tags.split(',').filter(Boolean):[],sort:q.sort,direction:q.direction,page:Number(q.page)||1,pageSize:Number(q.pageSize)||30})});
+  app.post('/api/bookmarks',async(req,reply)=>reply.status(201).send(store.create(req.body)));
+  app.get('/api/bookmarks/:id',async(req)=>{const b=store.get((req.params as any).id);if(!b)throw new Error('Bookmark not found');return b});
+  app.patch('/api/bookmarks/:id',async(req)=>store.update((req.params as any).id,req.body));
+  app.post('/api/bookmarks/:id/read',async(req)=>{const id=(req.params as any).id,b=store.get(id);if(!b)throw new Error('Bookmark not found');return store.update(id,{readStatus:(req.body as any)?.read?'read':'unread',version:b.version})});
+  app.post('/api/bookmarks/:id/archive',async(req)=>store.setArchived((req.params as any).id,true));
+  app.post('/api/bookmarks/:id/restore',async(req)=>store.setArchived((req.params as any).id,false));
+  app.post('/api/bookmarks/:id/capture',async(req)=>store.retryCapture((req.params as any).id));
+  app.post('/api/bookmarks/:id/capture/confirm',async(req)=>store.resolveCandidate((req.params as any).id,true));
+  app.post('/api/bookmarks/:id/capture/discard',async(req)=>store.resolveCandidate((req.params as any).id,false));
+  app.delete('/api/bookmarks/:id',async(req)=>store.delete((req.params as any).id,(req.query as any).expectedCopies===undefined?undefined:Number((req.query as any).expectedCopies)));
+  app.post('/api/bookmarks/bulk',async(req)=>{const body=req.body as any;return store.bulk(body.ids,body.action,body)});
+  app.get('/api/tags',async()=>({items:store.tags()}));
+  app.get('/api/saved-views',async()=>({items:store.savedViews()}));
+  app.post('/api/saved-views',async(req,reply)=>{const body=req.body as any;parseSearch(body.query??'');return reply.status(201).send(store.saveView(body))});
+  app.patch('/api/saved-views/:id',async(req)=>store.saveView(req.body,(req.params as any).id));
+  app.delete('/api/saved-views/:id',async(req,reply)=>{store.deleteView((req.params as any).id);return reply.status(204).send()});
+  app.get('/api/preferences',async()=>store.preferences());
+  app.patch('/api/preferences',async(req)=>store.updatePreferences(req.body));
+  app.post('/api/imports',async(req,reply)=>{const file=await req.file();if(!file)throw new Error('Choose a browser bookmark HTML file');const buffer=await file.toBuffer(),parsed=parseBookmarksHtml(buffer),id=newId(),stamp=now();let created=0,duplicates=0,skipped=parsed.issues.length;const createdIds:string[]=[];db.transaction(()=>{db.prepare('INSERT INTO import_runs(id,status,filename,created_at) VALUES(?,?,?,?)').run(id,'parsing',file.filename,stamp);for(const entry of parsed.items){try{if(store.findByUrl(entry.url)){duplicates++;continue}const bookmark=store.create({...entry,readStatus:'unread'});db.prepare('UPDATE bookmarks SET import_id=? WHERE id=?').run(id,bookmark.id);created++;createdIds.push(bookmark.id)}catch(error){skipped++;parsed.issues.push({line:0,message:(error as Error).message})}}db.prepare("UPDATE import_runs SET status='committed',created_count=?,duplicate_count=?,skipped_count=? WHERE id=?").run(created,duplicates,skipped,id);for(const issue of parsed.issues.slice(0,1000))db.prepare('INSERT INTO import_issues(import_id,line,message) VALUES(?,?,?)').run(id,issue.line,issue.message)})();return reply.status(201).send({id,status:'committed',created,duplicates,skipped,createdIds,issues:parsed.issues.slice(0,100)})});
+  app.get('/api/imports/:id',async(req)=>{const id=(req.params as any).id,run=db.prepare('SELECT * FROM import_runs WHERE id=?').get(id);if(!run)throw new Error('Import not found');const progress=db.prepare("SELECT count(*) total,sum(copy_status='pending') pending,sum(copy_status='available') available,sum(copy_status='failed') failed FROM bookmarks WHERE import_id=? AND deleted_at IS NULL").get(id);return {...run,progress,issues:db.prepare('SELECT line,message FROM import_issues WHERE import_id=? LIMIT 100').all(id)}});
+  app.get('/api/exports',async(req,reply)=>{const scope=String((req.query as any).scope??'all') as any;const items=store.list({scope,pageSize:100}).items;const all=[...items];let page=2,result=store.list({scope,page,pageSize:100});while(result.items.length){all.push(...result.items);result=store.list({scope,page:++page,pageSize:100})}const html=exportBookmarksHtml(all);reply.header('content-type','text/html; charset=utf-8').header('content-disposition','attachment; filename="keepsake-bookmarks.html"');return html});
+  app.get('/saved/:bookmarkId',async(req,reply)=>{const id=(req.params as any).bookmarkId,b=store.get(id);if(!b?.savedCopy)throw new Error('Saved copy not found');const row=db.prepare('SELECT sc.*,bl.path FROM saved_copies sc JOIN blobs bl ON bl.digest=sc.primary_blob_digest WHERE sc.id=? AND sc.bookmark_id=?').get(b.savedCopy.id,id) as any;if(!row)throw new Error('Saved copy not found');reply.header('content-type',row.primary_media_type).header('content-security-policy',"default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'").header('x-content-type-options','nosniff').header('cache-control','private, max-age=31536000, immutable');return reply.send(fs.createReadStream(row.path))});
+  app.get('/api/bookmarks/:id/copy/download',async(req,reply)=>{const id=(req.params as any).id,b=store.get(id);if(!b?.savedCopy)throw new Error('Saved copy not found');const row=db.prepare('SELECT sc.*,bl.path FROM saved_copies sc JOIN blobs bl ON bl.digest=sc.primary_blob_digest WHERE sc.id=?').get(b.savedCopy.id) as any;reply.header('content-type',row.primary_media_type).header('content-disposition',`attachment; filename="saved-copy.${row.kind==='pdf'?'pdf':'html'}"`);return reply.send(fs.createReadStream(row.path))});
+  const webRoot=path.join(process.cwd(),'apps/web/dist');if(fs.existsSync(webRoot)){await app.register(fastifyStatic,{root:webRoot,wildcard:false});app.setNotFoundHandler((req,reply)=>{if(req.url.startsWith('/api/')||req.url.startsWith('/saved/'))return reply.status(404).send({title:'Not found',status:404,detail:'No such endpoint'});return reply.sendFile('index.html')})}
+  return app}

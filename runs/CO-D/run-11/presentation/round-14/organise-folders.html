@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organise — Folders (A)</title>
+<link rel="stylesheet" href="organise-style.css">
+</head><body>
+<header><h1>My Bookmarks <span class="tag">— Option A: Folders</span></h1></header>
+<div class="wrap">
+  <aside class="side">
+    <h2>Folders</h2>
+    <div id="folders"></div>
+  </aside>
+  <main class="main">
+    <div class="note">In this version each bookmark lives in <b>one</b> folder, like files on a
+      shelf. Pick a folder on the left to see only its bookmarks. Move a bookmark with the
+      dropdown on its card.</div>
+    <div id="list"></div>
+  </main>
+</div>
+<script src="organise-common.js"></script>
+<script>
+  var items = JSON.parse(JSON.stringify(SEED));
+  var FOLDERS = ['Space','Programming','Recipes'];
+  var current = 'All';
+  function counts(){ var c={All:items.length}; FOLDERS.forEach(function(f){c[f]=0;});
+    items.forEach(function(it){ c[it.folder]=(c[it.folder]||0)+1; }); return c; }
+  function renderFolders(){
+    var c=counts(); var html='';
+    ['All'].concat(FOLDERS).forEach(function(f){
+      html+='<button data-f="'+f+'" class="'+(f===current?'active':'')+'">'+f+
+            '<span class="count">'+(c[f]||0)+'</span></button>';
+    });
+    document.getElementById('folders').innerHTML=html;
+  }
+  function renderList(){
+    var shown = items.filter(function(it){ return current==='All'||it.folder===current; });
+    var opts = FOLDERS.map(function(f){return f;});
+    document.getElementById('list').innerHTML = shown.map(function(it){
+      var sel='<div class="move">Folder: <select data-move="'+it.id+'">'+
+        opts.map(function(f){return '<option '+(f===it.folder?'selected':'')+'>'+f+'</option>';}).join('')+
+        '</select></div>';
+      return cardHtml(it, sel);
+    }).join('') || '<p class="url">No bookmarks in this folder.</p>';
+  }
+  document.getElementById('folders').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b)return; current=b.dataset.f; renderFolders(); renderList();
+  });
+  document.getElementById('list').addEventListener('change',function(e){
+    var id=+e.target.dataset.move; if(!id)return;
+    items.forEach(function(it){ if(it.id===id) it.folder=e.target.value; });
+    renderFolders(); renderList();
+  });
+  renderFolders(); renderList();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body></html>

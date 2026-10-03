@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Display preferences — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; --fs:15px; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .layout { max-width:920px; margin:0 auto; padding:24px 20px 80px; display:grid; grid-template-columns:300px 1fr; gap:24px; }
+  @media(max-width:700px){ .layout{ grid-template-columns:1fr; } }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 16px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .field { margin-bottom:18px; }
+  .field:last-child { margin-bottom:0; }
+  .field label.h { display:block; font-size:13px; font-weight:600; margin-bottom:3px; }
+  .field .hint { font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .seg { display:inline-flex; background:#eef1f5; border-radius:9px; padding:3px; }
+  .seg button { border:none; background:transparent; padding:7px 13px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:7px; }
+  .seg button.active { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  select { border:1px solid var(--line); border-radius:8px; padding:8px 11px; font-size:13px; background:#fff; width:100%; }
+  .saved { font-size:12.5px; color:var(--green); margin-top:14px; min-height:16px; }
+
+  .previewwrap h2 { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px; }
+  .list { display:flex; flex-direction:column; }
+  .list.comfortable { gap:12px; }
+  .list.compact { gap:6px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:11px; }
+  .list.comfortable .card { padding:14px 16px; }
+  .list.compact .card { padding:8px 12px; }
+  .card .t { font-size:var(--fs); font-weight:600; margin:0; }
+  .card .d { font-size:calc(var(--fs) - 2px); color:#4a5260; margin:4px 0 0; }
+  .list.compact .card .d { display:none; }
+  .card .m { font-size:calc(var(--fs) - 3px); color:var(--muted); margin-top:6px; }
+  .list.compact .card .m { margin-top:3px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="settings">
+    <h1>Display preferences</h1>
+    <p class="sub">Personal choices, remembered for next time.</p>
+    <div class="panel">
+      <div class="field">
+        <label class="h">Text size</label>
+        <div class="hint">How large bookmark text appears.</div>
+        <div class="seg" id="fontseg">
+          <button data-v="14">Small</button><button data-v="15" class="active">Medium</button><button data-v="18">Large</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="h">List density</label>
+        <div class="hint">How many bookmarks fit on screen at once.</div>
+        <div class="seg" id="densseg">
+          <button data-v="comfortable" class="active">Comfortable</button><button data-v="compact">Compact</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="h">Items per load</label>
+        <div class="hint">How many load at a time as you scroll a large library.</div>
+        <select id="perload"><option>20</option><option selected>50</option><option>100</option></select>
+      </div>
+      <div class="field">
+        <label class="h">Default sort order</label>
+        <div class="hint">Applied when you open the app (you can still change it anytime).</div>
+        <select id="defsort">
+          <option>Newest added</option><option>Oldest added</option><option>Recently updated</option>
+          <option>Title A–Z</option><option>Title Z–A</option>
+        </select>
+      </div>
+      <div class="saved" id="saved">Preferences are saved automatically as you change them.</div>
+    </div>
+  </div>
+  <div class="previewwrap">
+    <h2>Live preview</h2>
+    <div class="list comfortable" id="preview"></div>
+  </div>
+</div>
+<script>
+const ROWS=[
+  {t:"The Quiet Art of Reading Later", d:"Why saving articles to read later makes you a calmer reader.", m:"nytimes.com · #reading #focus"},
+  {t:"CSS Flexbox layout — MDN Web Docs", d:"A one-dimensional layout method for rows or columns.", m:"developer.mozilla.org · #css #reference"},
+  {t:"A weekend in Rome: what to see", d:"Highlights for a short first trip to Rome.", m:"travel.example.com · #rome #article"},
+  {t:"Rust ownership explained", d:"Understanding ownership, borrowing and lifetimes.", m:"doc.rust-lang.org · #rust #reference"}
+];
+const preview=document.getElementById("preview");
+function draw(){ preview.innerHTML=ROWS.map(r=>'<div class="card"><div class="t">'+r.t+'</div><div class="d">'+r.d+'</div><div class="m">'+r.m+'</div></div>').join(''); }
+draw();
+function saved(msg){ document.getElementById("saved").textContent="✓ "+msg+" — saved."; }
+document.querySelectorAll("#fontseg button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#fontseg button").forEach(x=>x.classList.toggle("active",x===b));
+  document.documentElement.style.setProperty("--fs", b.dataset.v+"px"); saved("Text size set to "+b.textContent); });
+document.querySelectorAll("#densseg button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#densseg button").forEach(x=>x.classList.toggle("active",x===b));
+  preview.className="list "+b.dataset.v; saved("Density set to "+b.textContent); });
+document.getElementById("perload").onchange=e=>saved("Items per load set to "+e.target.value);
+document.getElementById("defsort").onchange=e=>saved("Default sort set to "+e.target.value);
+// presets
+const p=new URLSearchParams(location.search);
+if(p.get("fs")){ const btn=[...document.querySelectorAll("#fontseg button")].find(x=>x.dataset.v===p.get("fs")); if(btn)btn.click(); }
+if(p.get("dens")){ const btn=[...document.querySelectorAll("#densseg button")].find(x=>x.dataset.v===p.get("dens")); if(btn)btn.click(); }
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

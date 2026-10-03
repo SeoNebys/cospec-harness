@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Find — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --ink: #1f2430; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2f6feb; --accent-soft: #eaf1fe;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 18px 24px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 24px; }
+
+  .searchbar { position: relative; margin-bottom: 16px; }
+  .searchbar input {
+    width: 100%; padding: 12px 14px 12px 40px; border: 1px solid var(--line);
+    border-radius: 10px; font-size: 15px; background: var(--card);
+  }
+  .searchbar::before { content: "🔍"; position: absolute; left: 13px; top: 11px; font-size: 15px; opacity: .6; }
+
+  .browse-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 8px; }
+  .tagfilters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .tagfilter { border: 1px solid var(--line); background: var(--card); color: var(--muted);
+    font-size: 13px; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+  .tagfilter.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .count { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .card .title { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  .card .title a { color: var(--ink); text-decoration: none; }
+  .card .site { color: var(--accent); font-size: 12px; margin: 0 0 8px; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: 0 0 10px; line-height: 1.45; }
+  .card .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .card .chip { background: var(--accent-soft); color: var(--accent); font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer; }
+  .card .note { color: #8a5a00; background: #fff8e6; border-radius: 8px; padding: 8px 10px; font-size: 13px; margin: 0 0 8px; }
+  .card .meta { color: var(--muted); font-size: 12px; }
+  mark { background: #fff2a8; padding: 0 1px; border-radius: 2px; }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; border: 1px dashed var(--line); border-radius: 12px; background: var(--card); }
+  .empty button { margin-top: 12px; border: 1px solid var(--line); background: #fff; padding: 7px 14px; border-radius: 8px; cursor: pointer; color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — finding a saved link again</p>
+</header>
+
+<div class="wrap">
+  <div class="searchbar">
+    <input id="search" type="text" placeholder="Search your bookmarks — title, site, tags, notes…" autocomplete="off" />
+  </div>
+
+  <p class="browse-label">Browse by tag</p>
+  <div class="tagfilters" id="tagfilters"></div>
+
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+</div>
+
+<script>
+  // Prototype seed data — a realistic mixed pile to make finding meaningful.
+  const DATA = [
+    { url:"https://reactjs.org/docs/hooks-intro.html", title:"Introducing Hooks - React", site:"reactjs.org",
+      desc:"Use state and other React features without writing a class.",
+      tags:["frontend","react","reference"], note:"Re-read before refactoring the dashboard.", savedAt:"2026-09-20" },
+    { url:"https://www.nasa.gov/mission/artemis-ii/", title:"Artemis II - NASA", site:"nasa.gov",
+      desc:"The first crewed mission of NASA's Artemis campaign around the Moon.",
+      tags:["space","science","to-read"], note:"", savedAt:"2026-09-18" },
+    { url:"https://www.nytimes.com/2026/09/15/well/sleep-habits.html", title:"Better Sleep Habits That Actually Work", site:"nytimes.com",
+      desc:"Evidence-based routines for falling asleep faster and waking rested.",
+      tags:["health","to-read"], note:"Try the wind-down routine.", savedAt:"2026-09-15" },
+    { url:"https://martinfowler.com/articles/microservices.html", title:"Microservices - Martin Fowler", site:"martinfowler.com",
+      desc:"A definition and trade-offs of the microservices architectural style.",
+      tags:["backend","architecture","reference"], note:"", savedAt:"2026-09-12" },
+    { url:"https://www.smashingmagazine.com/2026/08/css-grid-guide/", title:"A Complete Guide to CSS Grid", site:"smashingmagazine.com",
+      desc:"Practical patterns for building layouts with CSS Grid.",
+      tags:["frontend","css","reference"], note:"Grid template areas cheat sheet.", savedAt:"2026-09-08" },
+    { url:"https://en.wikipedia.org/wiki/Bookmark", title:"Bookmark - Wikipedia", site:"en.wikipedia.org",
+      desc:"A saved reference to a web page or a marker for a reader's place.",
+      tags:["reference"], note:"", savedAt:"2026-09-05" },
+    { url:"https://www.seriouseats.com/the-food-lab-perfect-roast-chicken", title:"The Food Lab: Perfect Roast Chicken", site:"seriouseats.com",
+      desc:"The science behind an evenly cooked, crisp-skinned roast chicken.",
+      tags:["cooking","to-read"], note:"For Sunday dinner.", savedAt:"2026-09-01" },
+    { url:"https://kubernetes.io/docs/concepts/overview/", title:"Kubernetes Concepts Overview", site:"kubernetes.io",
+      desc:"Core concepts for running containerised workloads on Kubernetes.",
+      tags:["backend","devops","reference"], note:"", savedAt:"2026-08-27" }
+  ];
+
+  let activeTag = null;
+  let query = "";
+
+  const listEl = document.getElementById("list");
+  const countEl = document.getElementById("count");
+  const tagfiltersEl = document.getElementById("tagfilters");
+  const searchEl = document.getElementById("search");
+
+  const allTags = [...new Set(DATA.flatMap(b => b.tags))].sort();
+
+  function esc(s){ return s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+  function hl(text){
+    if(!query) return esc(text);
+    const q = query.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    return esc(text).replace(new RegExp("("+q+")","ig"), "<mark>$1</mark>");
+  }
+  function fmt(d){ return new Date(d+"T00:00:00").toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}); }
+
+  function renderTagFilters(){
+    tagfiltersEl.innerHTML = allTags.map(t =>
+      `<span class="tagfilter ${t===activeTag?"active":""}" data-t="${t}">${t}</span>`).join("");
+    tagfiltersEl.querySelectorAll(".tagfilter").forEach(el =>
+      el.onclick = () => { activeTag = (activeTag===el.dataset.t)?null:el.dataset.t; render(); });
+  }
+
+  function matches(b){
+    if(activeTag && !b.tags.includes(activeTag)) return false;
+    if(query){
+      const hay = (b.title+" "+b.site+" "+b.tags.join(" ")+" "+b.note).toLowerCase();
+      if(!hay.includes(query.toLowerCase())) return false;
+    }
+    return true;
+  }
+
+  function render(){
+    renderTagFilters();
+    const rows = DATA.filter(matches);
+    let label = `${rows.length} of ${DATA.length}`;
+    if(activeTag) label += ` · tag "${activeTag}"`;
+    if(query) label += ` · search "${query}"`;
+    countEl.textContent = rows.length ? label : "";
+
+    if(!rows.length){
+      listEl.innerHTML = `<div class="empty">No bookmarks match${query?` "${esc(query)}"`:""}${activeTag?` in "${activeTag}"`:""}.
+        <br/><button id="clear">Clear filters</button></div>`;
+      document.getElementById("clear").onclick = () => { query=""; activeTag=null; searchEl.value=""; render(); };
+      return;
+    }
+    listEl.innerHTML = rows.map(b => `
+      <div class="card">
+        <p class="title"><a href="${b.url}" target="_blank" rel="noreferrer">${hl(b.title)}</a></p>
+        <p class="site">${hl(b.site)}</p>
+        <p class="desc">${hl(b.desc)}</p>
+        <div class="chips">${b.tags.map(t=>`<span class="chip" data-t="${t}">${hl(t)}</span>`).join("")}</div>
+        ${b.note?`<p class="note">📝 ${hl(b.note)}</p>`:""}
+        <p class="meta">Saved ${fmt(b.savedAt)}</p>
+      </div>`).join("");
+    listEl.querySelectorAll(".chip").forEach(el =>
+      el.onclick = () => { activeTag = el.dataset.t; render(); });
+  }
+
+  searchEl.addEventListener("input", () => { query = searchEl.value.trim(); render(); });
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

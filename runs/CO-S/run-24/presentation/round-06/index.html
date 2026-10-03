@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmark app — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --faint: #9aa1ac;
+    --line: #e5e7eb;
+    --accent: #2f6feb;
+    --accent-ink: #ffffff;
+    --chip: #eef2ff;
+    --chip-ink: #3949ab;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    padding: 20px 24px;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .saver label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+  .row { display: flex; gap: 8px; }
+  .row input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .hint { font-size: 12px; color: var(--faint); margin: 8px 0 0; }
+  button.primary {
+    padding: 10px 16px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button.primary:hover { filter: brightness(0.95); }
+
+  .count { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+  ul.links { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  li.link {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+  }
+  .favicon {
+    flex: 0 0 auto;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 16px;
+  }
+  .body { flex: 1; min-width: 0; }
+  .body .title { font-size: 15px; font-weight: 600; margin: 0 0 3px; }
+  .body .title a { color: var(--ink); text-decoration: none; }
+  .body .title a:hover { text-decoration: underline; }
+  .body .desc { font-size: 13px; color: var(--muted); margin: 0 0 8px; line-height: 1.4; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+  .tag {
+    font-size: 12px; padding: 2px 8px; border-radius: 999px;
+    background: var(--chip); color: var(--chip-ink);
+  }
+  .tags .none { font-size: 12px; color: var(--faint); background: none; padding: 2px 0; }
+  .body .secondary { font-size: 12px; color: var(--faint); word-break: break-all; }
+  .body .secondary .dot { margin: 0 6px; }
+  .loading .body .title { color: var(--faint); }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 16px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    background: var(--card);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — exploring how a saved link is captured and shown.</p>
+</header>
+<main>
+  <form class="saver" id="saver">
+    <label for="url">Save a link</label>
+    <div class="row">
+      <input id="url" type="text" placeholder="Paste a link here, e.g. https://example.com/article" autocomplete="off" />
+      <button class="primary" type="submit">Save</button>
+    </div>
+    <p class="hint">Just paste the link — the page's title, description and icon are filled in for you.</p>
+  </form>
+
+  <p class="count" id="count"></p>
+  <ul class="links" id="list"></ul>
+</main>
+
+<script>
+  var STORE_KEY = "bm_proto_v2";
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function persist(items) { localStorage.setItem(STORE_KEY, JSON.stringify(items)); }
+
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+  function hostOf(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ""); }
+    catch (e) { return url.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, ""); }
+  }
+  function colorFor(s) {
+    var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    return "hsl(" + h + ", 55%, 48%)";
+  }
+
+  // --- Simulated page-info lookup (stand-in for reading the real page) ---
+  function fetchPageInfo(url) {
+    var host = hostOf(url);
+    var path = "";
+    try { path = decodeURIComponent(new URL(url).pathname); } catch (e) {}
+    var seg = path.split("/").filter(Boolean).pop() || "";
+    seg = seg.replace(/\.(html?|php|aspx?)$/i, "").replace(/[-_]+/g, " ").trim();
+    var title = seg
+      ? seg.replace(/\b\w/g, function (c) { return c.toUpperCase(); })
+      : host.split(".")[0].replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    var siteName = host.split(".")[0].replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    return {
+      title: title + " — " + siteName,
+      description: "A short summary from the page would appear here, so you can recall what this link is about without opening it.",
+      host: host
+    };
+  }
+
+  function iconEl(item) {
+    var d = document.createElement("div");
+    d.className = "favicon";
+    var host = item.info ? item.info.host : hostOf(item.url);
+    d.style.background = colorFor(host);
+    d.textContent = (host[0] || "?").toUpperCase();
+    return d;
+  }
+
+  function render() {
+    var items = load();
+    var list = document.getElementById("list");
+    var count = document.getElementById("count");
+    list.innerHTML = "";
+    if (items.length === 0) {
+      count.textContent = "";
+      var e = document.createElement("li");
+      e.className = "empty";
+      e.textContent = "No links saved yet. Paste a link above and press Save.";
+      list.appendChild(e);
+      return;
+    }
+    count.textContent = items.length + (items.length === 1 ? " link saved" : " links saved");
+    items.slice().reverse().forEach(function (item) {
+      var li = document.createElement("li");
+      li.className = "link" + (item.loading ? " loading" : "");
+      li.appendChild(iconEl(item));
+
+      var body = document.createElement("div");
+      body.className = "body";
+
+      var t = document.createElement("p");
+      t.className = "title";
+      if (item.loading) {
+        t.textContent = "Fetching page info…";
+      } else {
+        var a = document.createElement("a");
+        a.href = item.url; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = item.info.title;
+        t.appendChild(a);
+      }
+      body.appendChild(t);
+
+      if (!item.loading) {
+        var d = document.createElement("p");
+        d.className = "desc";
+        d.textContent = item.info.description;
+        body.appendChild(d);
+
+        var tags = document.createElement("div");
+        tags.className = "tags";
+        var none = document.createElement("span");
+        none.className = "none";
+        none.textContent = "No tags yet";
+        tags.appendChild(none);
+        body.appendChild(tags);
+      }
+
+      var sec = document.createElement("p");
+      sec.className = "secondary";
+      var host = document.createElement("span");
+      host.textContent = item.info ? item.info.host : hostOf(item.url);
+      sec.appendChild(host);
+      if (!item.loading) {
+        var dot = document.createElement("span"); dot.className = "dot"; dot.textContent = "·";
+        var when = document.createElement("span"); when.textContent = "Saved " + fmtDate(item.savedAt);
+        sec.appendChild(dot); sec.appendChild(when);
+      }
+      body.appendChild(sec);
+
+      li.appendChild(body);
+      list.appendChild(li);
+    });
+  }
+
+  document.getElementById("saver").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var urlEl = document.getElementById("url");
+    var url = urlEl.value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+
+    var id = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+    var items = load();
+    items.push({ id: id, url: url, savedAt: Date.now(), loading: true, info: null, tags: [] });
+    persist(items);
+    urlEl.value = "";
+    urlEl.focus();
+    render();
+
+    // Simulate the app reading the page's details.
+    setTimeout(function () {
+      var current = load();
+      for (var i = 0; i < current.length; i++) {
+        if (current[i].id === id) {
+          current[i].loading = false;
+          current[i].info = fetchPageInfo(current[i].url);
+          break;
+        }
+      }
+      persist(current);
+      render();
+    }, 800);
+  });
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

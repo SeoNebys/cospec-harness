@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#233348" />
+    <title>Keepwell</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app" class="shell" aria-busy="true">
+      <aside class="sidebar">
+        <button class="wordmark" id="home-button" type="button" aria-label="Open all bookmarks">
+          <span class="wordmark-icon" aria-hidden="true">K</span>
+          <span>Keepwell</span>
+        </button>
+
+        <nav class="primary-nav" aria-label="Library sections">
+          <button class="nav-link is-active" type="button" data-section="all">
+            <span class="nav-symbol" aria-hidden="true">◆</span><span>All bookmarks</span><strong id="count-all">0</strong>
+          </button>
+          <button class="nav-link" type="button" data-section="later">
+            <span class="nav-symbol" aria-hidden="true">◷</span><span>Read later</span><strong id="count-later">0</strong>
+          </button>
+          <button class="nav-link" type="button" data-section="archive">
+            <span class="nav-symbol" aria-hidden="true">□</span><span>Archive</span><strong id="count-archive">0</strong>
+          </button>
+        </nav>
+
+        <section id="saved-views-section" class="side-section" hidden>
+          <h2>Saved views</h2>
+          <div id="saved-views-list" class="side-list"></div>
+        </section>
+
+        <section id="sidebar-tags-section" class="side-section" hidden>
+          <h2>Tags</h2>
+          <div id="sidebar-tags" class="side-list"></div>
+        </section>
+
+        <div class="sidebar-note">
+          <span class="status-dot" aria-hidden="true"></span>
+          <p><strong>Your personal library</strong><br />Stored here between visits</p>
+        </div>
+      </aside>
+
+      <main id="library-screen" class="main-content">
+        <header class="page-header">
+          <div>
+            <p class="kicker" id="page-kicker">LIBRARY</p>
+            <h1 id="page-title">All bookmarks</h1>
+          </div>
+          <p class="page-subtitle" id="page-subtitle">Everything you’ve kept, ready to find again.</p>
+        </header>
+
+        <section id="save-section" class="save-box" aria-labelledby="save-heading">
+          <div class="save-heading-row">
+            <div><h2 id="save-heading">Save a page</h2><p>Paste the address. Keepwell will capture the useful details and a readable copy.</p></div>
+            <span class="capture-label">Saved for later</span>
+          </div>
+          <form id="save-form" novalidate>
+            <label class="visually-hidden" for="save-url">Web address</label>
+            <div id="save-control" class="save-control">
+              <span class="input-symbol" aria-hidden="true">↗</span>
+              <input id="save-url" name="url" type="text" inputmode="url" autocomplete="off" placeholder="https://example.com/an-article" />
+              <button id="save-submit" class="primary-button" type="submit">Save bookmark</button>
+            </div>
+            <p id="save-error" class="inline-error" hidden></p>
+          </form>
+          <div id="save-failure" class="save-message warning-message" hidden>
+            <span class="message-icon" aria-hidden="true">!</span>
+            <div><strong>We couldn’t read this page</strong><p id="save-failure-copy">Nothing has been saved yet.</p><small>This can happen when a page requires sign-in or blocks saved copies. <span id="save-failure-url"></span></small></div>
+            <div class="message-actions"><button id="retry-save" type="button">Try again</button><button id="open-manual" type="button">Enter details myself</button></div>
+          </div>
+          <div id="duplicate-message" class="save-message duplicate-message" hidden>
+            <span class="message-icon" aria-hidden="true">↺</span>
+            <div><strong>You already saved this page</strong><p id="duplicate-copy"></p></div>
+            <button id="show-duplicate" type="button">Show existing</button>
+          </div>
+        </section>
+
+        <section id="library-tools" class="library-tools" aria-label="Find and organize bookmarks">
+          <div class="search-wrap">
+            <span aria-hidden="true">⌕</span>
+            <label class="visually-hidden" for="search-input">Search bookmarks</label>
+            <input id="search-input" type="search" autocomplete="off" placeholder="Search titles, descriptions, or websites" />
+            <button id="clear-search" type="button" hidden>Clear</button>
+          </div>
+          <div class="filter-row">
+            <div id="tag-filters" class="tag-filters" aria-label="Filter by tag"></div>
+            <div class="toolbar-end">
+              <label class="sort-label" for="sort-select"><span>Sort</span><select id="sort-select"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="az">Title A–Z</option><option value="za">Title Z–A</option></select></label>
+              <button id="save-view-button" class="outline-button" type="button">＋ Save this view</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="result-heading">
+          <strong id="result-count">0 bookmarks</strong>
+          <span id="result-range"></span>
+        </div>
+
+        <section id="bookmark-grid" class="bookmark-grid" aria-live="polite"></section>
+
+        <section id="empty-state" class="empty-state" hidden>
+          <div class="empty-mark" aria-hidden="true">◇</div>
+          <h2 id="empty-title">Your library is ready</h2>
+          <p id="empty-copy">Paste a page above to save your first bookmark.</p>
+          <button id="empty-action" class="outline-button" type="button" hidden></button>
+        </section>
+
+        <nav id="pagination" class="pagination" aria-label="Bookmark pages" hidden></nav>
+      </main>
+
+      <main id="reader-screen" class="reader-screen" hidden>
+        <button id="reader-back" class="reader-back" type="button">← Back to bookmarks</button>
+        <article class="reader-card">
+          <div id="reader-notice" class="reader-notice"></div>
+          <header class="reader-header">
+            <div class="reader-source"><span id="reader-source-mark"></span><strong id="reader-source"></strong><span id="reader-published"></span></div>
+            <h1 id="reader-title"></h1>
+            <p id="reader-description"></p>
+            <div class="reader-byline"><span id="reader-author"></span><span id="reader-captured"></span></div>
+          </header>
+          <img id="reader-image" class="reader-image" alt="" hidden />
+          <div id="reader-content" class="reader-content"></div>
+          <footer class="reader-footer"><span id="reader-domain"></span><a id="reader-original" target="_blank" rel="noreferrer noopener">Try original page ↗</a></footer>
+        </article>
+      </main>
+    </div>
+
+    <dialog id="details-dialog" class="drawer-dialog">
+      <form id="details-form" class="drawer-form" novalidate>
+        <header><div><p class="kicker">BOOKMARK</p><h2>Edit details</h2></div><button class="icon-button dialog-close" type="button" aria-label="Close">×</button></header>
+        <p class="drawer-context" id="details-context"></p>
+        <label for="details-title">Title</label>
+        <input id="details-title" name="title" />
+        <p id="details-title-error" class="inline-error" hidden>Add a title so you can recognize this bookmark.</p>
+        <label for="details-description">Description <span>optional</span></label>
+        <textarea id="details-description" name="description" rows="7"></textarea>
+        <footer><button class="plain-button dialog-close" type="button">Cancel</button><button class="primary-button" type="submit">Save changes</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="tags-dialog" class="drawer-dialog">
+      <form id="tags-form" class="drawer-form" novalidate>
+        <header><div><p class="kicker">BOOKMARK</p><h2>Edit tags</h2></div><button class="icon-button dialog-close" type="button" aria-label="Close">×</button></header>
+        <p class="drawer-context" id="tags-context"></p>
+        <label>Tags on this bookmark</label>
+        <div id="selected-tags" class="selected-tags"></div>
+        <label for="tag-entry">Add a tag</label>
+        <div class="tag-entry-row"><input id="tag-entry" type="text" autocomplete="off" placeholder="Type a tag" /><button id="add-tag" class="outline-button" type="button">Add</button></div>
+        <div id="tag-suggestions" class="tag-suggestions" hidden></div>
+        <small class="field-help">Existing matches appear as you type. New text creates a new tag.</small>
+        <footer><button class="plain-button dialog-close" type="button">Cancel</button><button class="primary-button" type="submit">Save tags</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="manual-dialog" class="drawer-dialog">
+      <form id="manual-form" class="drawer-form" novalidate>
+        <header><div><p class="kicker">SAVE WITHOUT A COPY</p><h2>Enter page details</h2></div><button class="icon-button dialog-close" type="button" aria-label="Close">×</button></header>
+        <div class="drawer-warning">This keeps the address and your details, but the page itself will not be available from the saved copy.</div>
+        <label for="manual-title">Title</label><input id="manual-title" name="title" />
+        <p id="manual-title-error" class="inline-error" hidden>Add a title so you can recognize this bookmark.</p>
+        <label for="manual-description">Description <span>optional</span></label><textarea id="manual-description" name="description" rows="6"></textarea>
+        <label for="manual-url">Web address</label><input id="manual-url" name="url" readonly />
+        <footer><button class="plain-button dialog-close" type="button">Cancel</button><button class="primary-button" type="submit">Save without a copy</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="save-view-dialog" class="modal-dialog">
+      <form id="save-view-form" novalidate>
+        <button class="icon-button dialog-close modal-x" type="button" aria-label="Close">×</button>
+        <p class="kicker">SAVED VIEW</p><h2>Save this view</h2>
+        <p class="modal-copy">Keep the current search, tag, and order one click away.</p>
+        <label for="saved-view-name">Name</label><input id="saved-view-name" name="name" value="My saved view" />
+        <p id="saved-view-error" class="inline-error" hidden>Give this saved view a name.</p>
+        <div id="saved-view-summary" class="view-summary"></div>
+        <footer><button class="plain-button dialog-close" type="button">Cancel</button><button class="primary-button" type="submit">Save view</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="delete-dialog" class="modal-dialog danger-dialog">
+      <form id="delete-form">
+        <div class="danger-symbol" aria-hidden="true">!</div>
+        <h2>Delete this bookmark permanently?</h2>
+        <p><strong id="delete-title"></strong> and all of its saved details will be removed. This cannot be undone.</p>
+        <footer><button class="plain-button dialog-close" type="button">Keep bookmark</button><button class="danger-button" type="submit">Delete permanently</button></footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" hidden aria-live="polite"><span aria-hidden="true">✓</span><p></p></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

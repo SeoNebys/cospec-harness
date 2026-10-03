@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --line:#e4e4e7; --muted:#71717a; --accent:#4f46e5; --bg:#fafafa; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         color:#18181b; background:var(--bg); }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); background:#fff; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:28px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:20px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:14px 0 6px; text-transform:uppercase; letter-spacing:.03em; }
+  label:first-child { margin-top:0; }
+  input[type=text], input[type=url], textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  textarea { min-height:70px; resize:vertical; }
+  .row { display:flex; gap:10px; }
+  .row input { flex:1; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid transparent; }
+  .btn-primary { background:var(--accent); color:#fff; padding:10px 18px; font-weight:600; font-size:14px; }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-ghost { background:#fff; border:1px solid var(--line); padding:9px 14px; font-size:13px; }
+  .preview { display:flex; gap:14px; align-items:flex-start; padding:14px; background:var(--bg);
+             border:1px dashed var(--line); border-radius:10px; margin-top:8px; }
+  .preview.hidden { display:none; }
+  .fav { width:40px; height:40px; border-radius:8px; background:var(--accent); color:#fff;
+         display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
+  .preview .title { font-weight:600; font-size:15px; }
+  .preview .site { color:var(--muted); font-size:12px; margin-top:2px; }
+  .preview .desc { color:#3f3f46; font-size:13px; margin-top:6px; line-height:1.45; }
+  .fetching { color:var(--muted); font-size:13px; margin-top:8px; font-style:italic; }
+  .fetching.hidden { display:none; }
+  .tags-input { display:flex; flex-wrap:wrap; gap:6px; padding:8px; border:1px solid var(--line); border-radius:8px; }
+  .chip { background:#eef2ff; color:var(--accent); font-size:12px; font-weight:600; padding:4px 8px; border-radius:6px; display:flex; gap:6px; align-items:center; }
+  .chip button { background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font-size:14px; line-height:1; }
+  .tags-input input { border:none; outline:none; flex:1; min-width:120px; padding:4px; font-size:14px; }
+  .list-item { display:flex; gap:14px; align-items:flex-start; padding:16px 0; border-top:1px solid var(--line); }
+  .list-item:first-child { border-top:none; }
+  .list-item .title { font-weight:600; font-size:15px; }
+  .list-item .title a { color:inherit; text-decoration:none; }
+  .list-item .site { color:var(--muted); font-size:12px; margin-top:2px; }
+  .list-item .note { color:#3f3f46; font-size:13px; margin-top:6px; background:var(--bg); padding:8px 10px; border-radius:6px; }
+  .list-item .meta { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+  .empty { color:var(--muted); text-align:center; padding:30px 0; font-size:14px; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); margin:0 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — exploring how saving a link should feel</p>
+</header>
+<div class="wrap">
+  <div class="card">
+    <label for="url">Paste a link</label>
+    <div class="row">
+      <input type="url" id="url" placeholder="https://…" autocomplete="off">
+    </div>
+    <div class="fetching hidden" id="fetching">Looking up the page details…</div>
+    <div class="preview hidden" id="preview">
+      <div class="fav" id="fav">?</div>
+      <div>
+        <div class="title" id="p-title"></div>
+        <div class="site" id="p-site"></div>
+        <div class="desc" id="p-desc"></div>
+      </div>
+    </div>
+
+    <label>Tags</label>
+    <div class="tags-input" id="tags-input">
+      <input type="text" id="tag-entry" placeholder="Type a tag and press Enter">
+    </div>
+
+    <label for="note">Note — why are you saving this?</label>
+    <textarea id="note" placeholder="A line of context for future you…"></textarea>
+
+    <div style="margin-top:18px;">
+      <button class="btn-primary" id="save" disabled>Save bookmark</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Saved</h2>
+    <div id="list"><div class="empty">Nothing saved yet.</div></div>
+  </div>
+</div>
+
+<script>
+// --- Simulated page-detail lookup (prototype only) -------------------------
+// In the real app this comes from the actual page. Here we fake it so the
+// client can experience the "details fill themselves in" behaviour.
+const CANNED = {
+  "example.com": { title:"Example Domain", desc:"This domain is for use in illustrative examples in documents." },
+};
+function fakeLookup(url){
+  let host="";
+  try { host = new URL(url).hostname.replace(/^www\./,''); } catch(e){ return null; }
+  const known = CANNED[host];
+  const site = host;
+  const nameGuess = host.split('.')[0].replace(/(^|\W)\w/g, c=>c.toUpperCase());
+  return {
+    title: known ? known.title : (nameGuess + " — page title"),
+    site: site,
+    desc: known ? known.desc : "A short description pulled from the page would appear here.",
+    letter: (host[0]||'?').toUpperCase()
+  };
+}
+
+const urlEl=document.getElementById('url');
+const fetching=document.getElementById('fetching');
+const preview=document.getElementById('preview');
+const saveBtn=document.getElementById('save');
+let current=null, tags=[];
+let timer=null;
+
+urlEl.addEventListener('input', ()=>{
+  clearTimeout(timer);
+  const val=urlEl.value.trim();
+  preview.classList.add('hidden');
+  current=null; refreshSave();
+  if(!val){ fetching.classList.add('hidden'); return; }
+  fetching.classList.remove('hidden');
+  timer=setTimeout(()=>{
+    const data=fakeLookup(val);
+    fetching.classList.add('hidden');
+    if(!data) return;
+    current=data;
+    document.getElementById('p-title').textContent=data.title;
+    document.getElementById('p-site').textContent=data.site;
+    document.getElementById('p-desc').textContent=data.desc;
+    document.getElementById('fav').textContent=data.letter;
+    preview.classList.remove('hidden');
+    refreshSave();
+  }, 700); // simulate a brief network lookup
+});
+
+// --- Tags ------------------------------------------------------------------
+const tagEntry=document.getElementById('tag-entry');
+const tagsInput=document.getElementById('tags-input');
+tagEntry.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && tagEntry.value.trim()){
+    e.preventDefault();
+    const t=tagEntry.value.trim();
+    if(!tags.includes(t)){ tags.push(t); renderTags(); }
+    tagEntry.value='';
+  } else if(e.key==='Backspace' && !tagEntry.value && tags.length){
+    tags.pop(); renderTags();
+  }
+});
+function renderTags(){
+  [...tagsInput.querySelectorAll('.chip')].forEach(c=>c.remove());
+  tags.forEach((t,i)=>{
+    const chip=document.createElement('span');
+    chip.className='chip';
+    chip.innerHTML=`${t} <button aria-label="remove">×</button>`;
+    chip.querySelector('button').onclick=()=>{ tags.splice(i,1); renderTags(); };
+    tagsInput.insertBefore(chip, tagEntry);
+  });
+}
+
+function refreshSave(){ saveBtn.disabled = !current; }
+
+// --- Save ------------------------------------------------------------------
+const list=document.getElementById('list');
+const saved=[];
+saveBtn.addEventListener('click', ()=>{
+  if(!current) return;
+  saved.unshift({ ...current, tags:[...tags], note:document.getElementById('note').value.trim(), url:urlEl.value.trim() });
+  renderList();
+  // reset the form
+  urlEl.value=''; document.getElementById('note').value=''; tags=[]; renderTags();
+  preview.classList.add('hidden'); current=null; refreshSave();
+});
+function renderList(){
+  if(!saved.length){ list.innerHTML='<div class="empty">Nothing saved yet.</div>'; return; }
+  list.innerHTML='';
+  saved.forEach(b=>{
+    const el=document.createElement('div');
+    el.className='list-item';
+    const tagsHtml=b.tags.map(t=>`<span class="chip">${t}</span>`).join('');
+    el.innerHTML=`
+      <div class="fav">${b.letter}</div>
+      <div style="flex:1">
+        <div class="title"><a href="${b.url}" target="_blank" rel="noopener">${b.title}</a></div>
+        <div class="site">${b.site}</div>
+        ${b.note?`<div class="note">${b.note}</div>`:''}
+        <div class="meta">${tagsHtml}</div>
+      </div>`;
+    list.appendChild(el);
+  });
+}
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>
+</content>

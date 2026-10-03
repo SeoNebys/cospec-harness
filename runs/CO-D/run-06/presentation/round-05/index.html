@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tuck — Bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18211b;
+      --muted: #69736c;
+      --paper: #f5f2e9;
+      --card: #fffdf8;
+      --line: #dedbd1;
+      --green: #245b46;
+      --green-dark: #173e30;
+      --mint: #dbe9dd;
+      --shadow: 0 18px 50px rgba(38, 51, 41, .09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 88% 5%, rgba(207, 222, 202, .7), transparent 24rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+
+    .shell {
+      width: min(960px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 80px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 68px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: -.02em;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      color: white;
+      background: var(--green);
+      border-radius: 9px 9px 13px 9px;
+      transform: rotate(-4deg);
+    }
+
+    .mark span { transform: rotate(4deg); }
+
+    .prototype-label {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    main { max-width: 760px; margin: 0 auto; }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 750;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 13px;
+    }
+
+    h1 {
+      max-width: 620px;
+      margin: 0 0 12px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(40px, 6vw, 64px);
+      line-height: .98;
+      letter-spacing: -.045em;
+      font-weight: 500;
+    }
+
+    .intro {
+      margin: 0 0 38px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .save-card {
+      padding: 28px;
+      background: var(--card);
+      border: 1px solid rgba(222, 219, 209, .85);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    label {
+      display: block;
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(36, 91, 70, .12);
+    }
+
+    input::placeholder { color: #9a9f9b; }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .hint { color: var(--muted); font-size: 13px; }
+
+    .save-button {
+      min-width: 150px;
+      height: 46px;
+      padding: 0 20px;
+      color: white;
+      background: var(--green);
+      border: 0;
+      border-radius: 10px;
+      font-weight: 720;
+      cursor: pointer;
+      box-shadow: 0 7px 16px rgba(36, 91, 70, .18);
+    }
+
+    .save-button:hover { background: var(--green-dark); }
+    .save-button:active { transform: translateY(1px); }
+
+    .error {
+      min-height: 20px;
+      margin: 12px 0 -8px;
+      color: #9e3027;
+      font-size: 13px;
+    }
+
+    .metadata-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 13px;
+      background: #f0f5ef;
+      border: 1px solid #d7e3d8;
+      border-radius: 11px;
+    }
+
+    .metadata-preview[hidden] { display: none; }
+
+    .metadata-icon {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      color: white;
+      background: var(--green);
+      border-radius: 9px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .metadata-copy { min-width: 0; }
+
+    .metadata-status {
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .metadata-description {
+      overflow: hidden;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .metadata-preview.loading .metadata-icon {
+      color: transparent;
+      background: transparent;
+      border: 2px solid #c5d5c8;
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .collection { margin-top: 48px; }
+
+    .collection-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      font-weight: 500;
+      letter-spacing: -.02em;
+    }
+
+    .count { color: var(--muted); font-size: 13px; }
+
+    .empty {
+      padding: 36px 10px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty strong { display: block; color: var(--ink); margin-bottom: 5px; }
+
+    .bookmark {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 19px 4px;
+      border-bottom: 1px solid var(--line);
+      animation: arrive .28s ease-out;
+    }
+
+    @keyframes arrive {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .favicon {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      color: var(--green);
+      background: var(--mint);
+      border-radius: 11px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .bookmark-copy { min-width: 0; flex: 1; }
+
+    .bookmark-title {
+      display: block;
+      overflow: hidden;
+      color: var(--ink);
+      font-weight: 720;
+      text-decoration: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bookmark-title:hover { color: var(--green); text-decoration: underline; }
+
+    .bookmark-url {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bookmark-description {
+      display: block;
+      overflow: hidden;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .saved-note {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    @media (max-width: 650px) {
+      .shell { width: min(100% - 24px, 960px); padding-top: 18px; }
+      header { margin-bottom: 48px; }
+      .prototype-label { display: none; }
+      .form-row { grid-template-columns: 1fr; }
+      .save-card { padding: 20px; }
+      .actions { align-items: stretch; flex-direction: column; }
+      .save-button { width: 100%; }
+      .bookmark { align-items: flex-start; }
+      .saved-note { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="mark"><span>↘</span></span> Tuck</div>
+      <div class="prototype-label">First-flow prototype</div>
+    </header>
+
+    <main>
+      <div class="eyebrow">Your bookmark home</div>
+      <h1>Keep the good parts of the web.</h1>
+      <p class="intro">Save useful links here, so the things worth remembering don't disappear into open tabs.</p>
+
+      <form class="save-card" id="save-form" novalidate>
+        <div class="form-row">
+          <div>
+            <label for="url">Web address</label>
+            <input id="url" name="url" type="url" placeholder="https://example.com/article" autocomplete="url" required>
+          </div>
+          <div>
+            <label for="title">Title <span style="font-weight: 400; color: var(--muted)">(optional)</span></label>
+            <input id="title" name="title" type="text" placeholder="What do you want to remember?" autocomplete="off">
+          </div>
+        </div>
+        <div class="error" id="error" role="alert"></div>
+        <div class="metadata-preview" id="metadata-preview" aria-live="polite" hidden>
+          <div class="metadata-icon" id="metadata-icon">E</div>
+          <div class="metadata-copy">
+            <div class="metadata-status" id="metadata-status">Looking up page details…</div>
+            <div class="metadata-description" id="metadata-description"></div>
+          </div>
+        </div>
+        <div class="actions">
+          <span class="hint">Your link will appear in the collection below.</span>
+          <button class="save-button" type="submit">Save bookmark</button>
+        </div>
+      </form>
+
+      <section class="collection" aria-labelledby="collection-title">
+        <div class="collection-head">
+          <h2 id="collection-title">Saved links</h2>
+          <span class="count" id="count">0 bookmarks</span>
+        </div>
+        <div id="bookmark-list">
+          <div class="empty" id="empty"><strong>Nothing saved yet</strong>Your first useful link starts here.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const form = document.querySelector('#save-form');
+    const urlInput = document.querySelector('#url');
+    const titleInput = document.querySelector('#title');
+    const list = document.querySelector('#bookmark-list');
+    const error = document.querySelector('#error');
+    const count = document.querySelector('#count');
+    const preview = document.querySelector('#metadata-preview');
+    const previewIcon = document.querySelector('#metadata-icon');
+    const previewStatus = document.querySelector('#metadata-status');
+    const previewDescription = document.querySelector('#metadata-description');
+    let total = 0;
+    let lookupTimer;
+    let metadata = null;
+    let titleWasEdited = false;
+
+    titleInput.addEventListener('input', () => {
+      titleWasEdited = true;
+    });
+
+    urlInput.addEventListener('input', () => {
+      clearTimeout(lookupTimer);
+      metadata = null;
+      titleWasEdited = false;
+      preview.hidden = true;
+      error.textContent = '';
+
+      let parsed;
+      try {
+        parsed = new URL(urlInput.value.trim());
+        if (!['http:', 'https:'].includes(parsed.protocol)) return;
+      } catch {
+        return;
+      }
+
+      preview.hidden = false;
+      preview.classList.add('loading');
+      previewStatus.textContent = 'Looking up page details…';
+      previewDescription.textContent = 'Reading the page title, description and site icon';
+
+      lookupTimer = setTimeout(() => {
+        const isExample = parsed.hostname.replace(/^www\./, '') === 'example.com';
+        metadata = isExample
+          ? {
+              title: 'Example Domain',
+              description: 'A reserved domain used in examples and documentation.',
+              icon: 'E'
+            }
+          : {
+              title: parsed.hostname.replace(/^www\./, ''),
+              description: `A saved page from ${parsed.hostname.replace(/^www\./, '')}`,
+              icon: parsed.hostname.replace(/^www\./, '').charAt(0).toUpperCase()
+            };
+
+        if (!titleWasEdited) titleInput.value = metadata.title;
+        preview.classList.remove('loading');
+        previewIcon.textContent = metadata.icon;
+        previewStatus.textContent = 'Page details found — you can edit the title';
+        previewDescription.textContent = metadata.description;
+      }, 650);
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      error.textContent = '';
+
+      let parsed;
+      try {
+        parsed = new URL(urlInput.value.trim());
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported address');
+      } catch {
+        error.textContent = 'Enter a complete web address, such as https://example.com';
+        urlInput.focus();
+        return;
+      }
+
+      document.querySelector('#empty')?.remove();
+      total += 1;
+      const displayTitle = titleInput.value.trim() || metadata?.title || parsed.hostname.replace(/^www\./, '');
+      const item = document.createElement('article');
+      item.className = 'bookmark';
+
+      const icon = document.createElement('div');
+      icon.className = 'favicon';
+      icon.textContent = metadata?.icon || displayTitle.charAt(0);
+
+      const copy = document.createElement('div');
+      copy.className = 'bookmark-copy';
+      const link = document.createElement('a');
+      link.className = 'bookmark-title';
+      link.href = parsed.href;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = displayTitle;
+      const address = document.createElement('span');
+      address.className = 'bookmark-url';
+      address.textContent = parsed.href;
+      copy.append(link);
+      if (metadata?.description) {
+        const description = document.createElement('span');
+        description.className = 'bookmark-description';
+        description.textContent = metadata.description;
+        copy.append(description);
+      }
+      copy.append(address);
+
+      const note = document.createElement('span');
+      note.className = 'saved-note';
+      note.textContent = 'Just saved';
+      item.append(icon, copy, note);
+      list.prepend(item);
+
+      count.textContent = `${total} ${total === 1 ? 'bookmark' : 'bookmarks'}`;
+      form.reset();
+      metadata = null;
+      preview.hidden = true;
+      urlInput.focus();
+    });
+  </script>
+</body>
+</html>

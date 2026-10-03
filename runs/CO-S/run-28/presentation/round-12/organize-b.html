@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Organize — Version B (multiple tags)</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#1c2430;--muted:#6b7684;--line:#e3e7ec;--accent:#2f6bff;--shadow:0 1px 2px rgba(20,30,50,.06),0 4px 16px rgba(20,30,50,.05);}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;}
+  header.top{background:var(--card);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;}
+  header.top h1{font-size:18px;margin:0;}
+  header.top .dot{width:22px;height:22px;border-radius:7px;background:var(--accent);}
+  .badge{margin-left:auto;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px;}
+  main{max-width:820px;margin:0 auto;padding:20px;}
+  .saver{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:22px;}
+  .saver .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .saver input{flex:1 1 220px;padding:12px 14px;font-size:15px;border:1px solid var(--line);border-radius:10px;outline:none;}
+  .saver button{padding:12px 18px;font-size:15px;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:10px;cursor:pointer;}
+  .saver .hint{color:var(--muted);font-size:13px;margin:10px 2px 0;}
+  .tagbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center;}
+  .tagbar .lbl{font-size:13px;color:var(--muted);margin-right:2px;}
+  .tag{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--ink);}
+  .tag.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .tag .count{opacity:.7;margin-left:5px;font-size:12px;}
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+  li.item{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;}
+  li.item .title{font-size:16px;font-weight:600;color:var(--ink);text-decoration:none;}
+  li.item .title:hover{color:var(--accent);}
+  li.item .url{font-size:13px;color:var(--muted);word-break:break-all;margin-top:2px;}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .chip{font-size:12px;background:#eef1f5;color:#48566a;border-radius:999px;padding:3px 10px;cursor:pointer;}
+  .chip:hover{background:#dfe6f6;color:var(--accent);}
+  li.item .meta{font-size:12px;color:var(--muted);margin-top:6px;}
+</style>
+</head>
+<body>
+  <header class="top"><div class="dot"></div><h1>My Bookmarks</h1><span class="badge">Version B · multiple tags</span></header>
+  <main>
+    <form class="saver" id="saver" autocomplete="off">
+      <div class="row">
+        <input type="url" id="urlInput" placeholder="Paste a link to save…" />
+        <input type="text" id="tagInput" placeholder="Tags, comma-separated (e.g. work, read)" />
+        <button type="submit">Save link</button>
+      </div>
+      <div class="hint">Add any number of tags to a link. A link can belong to several at once.</div>
+    </form>
+
+    <div class="tagbar" id="tagbar"></div>
+    <ul class="list" id="list"></ul>
+  </main>
+<script>
+  const items=[
+    {url:'https://en.wikipedia.org/wiki/Bookmark',title:'Bookmark - Wikipedia',tags:['reading','reference'],when:'just now'},
+    {url:'https://developer.mozilla.org/en-US/docs/Web/JavaScript',title:'JavaScript | MDN',tags:['work','reference'],when:'2 minutes ago'},
+    {url:'https://www.seriouseats.com/the-food-lab',title:'The Food Lab | Serious Eats',tags:['recipes'],when:'yesterday'},
+    {url:'https://news.ycombinator.com',title:'Hacker News',tags:['reading','work'],when:'yesterday'},
+  ];
+  let active=null;
+  const listEl=document.getElementById('list');
+  const tagbarEl=document.getElementById('tagbar');
+  function tagCounts(){const c={};items.forEach(i=>i.tags.forEach(t=>c[t]=(c[t]||0)+1));return c;}
+  function renderTags(){
+    tagbarEl.innerHTML='<span class="lbl">Filter by tag:</span>';
+    const allb=document.createElement('button');allb.className='tag'+(active===null?' active':'');allb.innerHTML=`All <span class="count">${items.length}</span>`;allb.onclick=()=>{active=null;renderAll();};tagbarEl.appendChild(allb);
+    const c=tagCounts();
+    Object.keys(c).sort().forEach(t=>{const b=document.createElement('button');b.className='tag'+(active===t?' active':'');b.innerHTML=`#${t} <span class="count">${c[t]}</span>`;b.onclick=()=>{active=t;renderAll();};tagbarEl.appendChild(b);});
+  }
+  function render(){
+    listEl.innerHTML='';
+    items.filter(i=>active===null||i.tags.includes(active)).forEach(it=>{
+      const li=document.createElement('li');li.className='item';
+      const chips=it.tags.map(t=>`<span class="chip" data-t="${t}">#${t}</span>`).join('');
+      li.innerHTML=`<a class="title" href="${it.url}" target="_blank" rel="noopener">${it.title}</a><div class="url">${it.url}</div><div class="chips">${chips}</div><div class="meta">Saved ${it.when}</div>`;
+      li.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{active=ch.dataset.t;renderAll();});
+      listEl.appendChild(li);
+    });
+  }
+  function renderAll(){renderTags();render();}
+  document.getElementById('saver').addEventListener('submit',e=>{
+    e.preventDefault();const inp=document.getElementById('urlInput');let val=inp.value.trim();if(!val)return;
+    if(!/^https?:\/\//i.test(val))val='https://'+val;
+    const tags=document.getElementById('tagInput').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+    items.unshift({url:val,title:'(title would fill in)…',tags:tags.length?tags:['untagged'],when:'just now'});
+    inp.value='';document.getElementById('tagInput').value='';renderAll();
+  });
+  renderAll();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

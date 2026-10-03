@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #1c2430;
+    --muted: #6b7684;
+    --line: #e3e7ec;
+    --accent: #2f6bff;
+    --accent-ink: #ffffff;
+    --shadow: 0 1px 2px rgba(20,30,50,.06), 0 4px 16px rgba(20,30,50,.05);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  header.top {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  header.top h1 { font-size: 18px; margin: 0; letter-spacing: -.2px; }
+  header.top .dot { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); }
+  main { max-width: 760px; margin: 0 auto; padding: 20px; }
+
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 22px;
+  }
+  .saver .row { display: flex; gap: 10px; }
+  .saver input[type=url] {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 15px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    outline: none;
+  }
+  .saver input[type=url]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,107,255,.12); }
+  .saver button {
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .saver button:active { transform: translateY(1px); }
+  .saver .hint { color: var(--muted); font-size: 13px; margin: 10px 2px 0; }
+
+  .section-label { color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin: 0 2px 12px; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  li.item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: pop .18s ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .titlerow { display: flex; align-items: center; gap: 8px; }
+  li.item .title { font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none; }
+  li.item .title:hover { color: var(--accent); }
+  li.item .title.fetching { color: var(--muted); font-weight: 500; font-style: italic; }
+  .pencil { border: none; background: transparent; cursor: pointer; color: var(--muted); font-size: 15px; padding: 4px; border-radius: 8px; line-height: 1; }
+  .pencil:hover { background: #eef1f5; color: var(--ink); }
+  .editrow { display: flex; gap: 8px; align-items: center; }
+  .editrow input { flex: 1; padding: 9px 11px; font-size: 15px; border: 1px solid var(--accent); border-radius: 9px; outline: none; box-shadow: 0 0 0 3px rgba(47,107,255,.12); }
+  .editrow .save { padding: 9px 14px; border: none; background: var(--accent); color: #fff; font-weight: 600; border-radius: 9px; cursor: pointer; }
+  .editrow .cancel { padding: 9px 12px; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 9px; cursor: pointer; }
+  li.item .url { font-size: 13px; color: var(--muted); word-break: break-all; }
+  li.item .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .shimmer {
+    display: inline-block; width: 180px; max-width: 60%; height: 15px; border-radius: 5px;
+    background: linear-gradient(90deg, #eef1f5 25%, #e2e7ee 37%, #eef1f5 63%);
+    background-size: 400% 100%; animation: sh 1.2s ease infinite; vertical-align: middle;
+  }
+  @keyframes sh { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 48px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 14px;
+    background: var(--card);
+  }
+  .empty .big { font-size: 15px; color: var(--ink); font-weight: 600; margin-bottom: 6px; }
+
+  @media (max-width: 560px) {
+    .saver .row { flex-direction: column; }
+    main { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="dot"></div>
+    <h1>My Bookmarks</h1>
+  </header>
+
+  <main>
+    <form class="saver" id="saver" autocomplete="off">
+      <div class="row">
+        <input type="url" id="urlInput" placeholder="Paste a link to save…" aria-label="Link to save" />
+        <button type="submit">Save link</button>
+      </div>
+      <div class="hint">Paste any web address and press Save. It will appear at the top of your list.</div>
+    </form>
+
+    <div class="section-label">Recent</div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty">
+      <div class="big">Nothing saved yet</div>
+      <div>Save your first link above and it will show up here.</div>
+    </div>
+  </main>
+
+<script>
+  // Prototype only: in-memory store, resets on reload. Simulates external behaviour.
+  const items = [];
+  const listEl = document.getElementById('list');
+  const emptyEl = document.getElementById('empty');
+  const form = document.getElementById('saver');
+  const input = document.getElementById('urlInput');
+
+  // --- Simulated "read the page's real title" ---------------------------
+  // A real app would fetch the page and read its <title>. In this prototype
+  // we simulate that: a short "Fetching title…" moment, then the real page
+  // title appears. A few common links resolve to their genuine titles; any
+  // other link resolves to a realistic simulated page title.
+  const KNOWN_TITLES = {
+    'en.wikipedia.org/wiki/bookmark': 'Bookmark - Wikipedia',
+    'en.wikipedia.org/wiki/bookmark_(digital)': 'Bookmark (digital) - Wikipedia',
+    'developer.mozilla.org/en-us/docs/web/javascript': 'JavaScript | MDN',
+    'news.ycombinator.com': 'Hacker News',
+    'github.com': 'GitHub · Build and ship software on a single, collaborative platform',
+  };
+
+  function simulateFetchedTitle(raw) {
+    try {
+      const u = new URL(raw);
+      const key = (u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/$/, '')).toLowerCase();
+      if (KNOWN_TITLES[key]) return KNOWN_TITLES[key];
+      const host = u.hostname.replace(/^www\./, '');
+      const last = u.pathname.split('/').filter(Boolean).pop() || '';
+      const words = last.replace(/[-_]+/g, ' ').replace(/\.[a-z0-9]+$/i, '').trim();
+      const brand = host.split('.')[0];
+      const site = brand.charAt(0).toUpperCase() + brand.slice(1);
+      if (words) {
+        const cap = words.charAt(0).toUpperCase() + words.slice(1);
+        return cap + ' | ' + site;
+      }
+      return site + ' — Home';
+    } catch (e) {
+      return raw;
+    }
+  }
+
+  function render() {
+    listEl.innerHTML = '';
+    if (items.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    items.forEach(it => {
+      const li = document.createElement('li');
+      li.className = 'item';
+      if (it.editing) {
+        li.innerHTML = `<div class="editrow"><input type="text" value="${it.title.replace(/"/g,'&quot;')}" /><button class="save">Save</button><button class="cancel">Cancel</button></div><div class="url">${it.url}</div>`;
+        const inp = li.querySelector('input');
+        const commit = () => { const v = inp.value.trim(); if (v) it.title = v; it.editing = false; render(); };
+        li.querySelector('.save').onclick = commit;
+        li.querySelector('.cancel').onclick = () => { it.editing = false; render(); };
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { it.editing = false; render(); } });
+        setTimeout(() => { inp.focus(); inp.select(); }, 0);
+      } else if (it.fetching) {
+        li.innerHTML = `<div class="titlerow"><span class="title fetching"><span class="shimmer"></span></span></div><div class="url">${it.url}</div><div class="meta">Reading the page’s title…</div>`;
+      } else {
+        li.innerHTML = `<div class="titlerow"><a class="title" href="${it.url}" target="_blank" rel="noopener">${it.title}</a><button class="pencil" title="Rename">✎</button></div><div class="url">${it.url}</div><div class="meta">Saved ${it.when}</div>`;
+        li.querySelector('.pencil').onclick = () => { items.forEach(x => x.editing = false); it.editing = true; render(); };
+      }
+      listEl.appendChild(li);
+    });
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    let val = input.value.trim();
+    if (!val) return;
+    if (!/^https?:\/\//i.test(val)) val = 'https://' + val;
+    const item = { url: val, title: '', when: 'just now', fetching: true };
+    items.unshift(item);
+    input.value = '';
+    input.focus();
+    render();
+    // Simulate the brief moment of fetching the real page title.
+    setTimeout(() => {
+      item.title = simulateFetchedTitle(val);
+      item.fetching = false;
+      render();
+    }, 700);
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready', 'true');
+</script>
+</body>
+</html>

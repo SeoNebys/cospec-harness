@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e2e5ea; --ink:#1c2330; --muted:#6b7280; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:8px; }
+  .saver input { flex:1; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .saver button { padding:11px 18px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
+  .saver button:disabled { opacity:.5; cursor:default; }
+  .status { min-height:20px; margin:10px 2px 0; font-size:13px; color:var(--muted); }
+  .list { margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+  .empty { text-align:center; color:var(--muted); padding:56px 12px; border:1px dashed var(--line); border-radius:12px; }
+  .empty strong { display:block; color:var(--ink); font-size:15px; margin-bottom:6px; }
+  .bm { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; animation:pop .25s ease; display:flex; gap:12px; }
+  @keyframes pop { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  .fav { flex:0 0 34px; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; margin-top:2px; }
+  .bm .body { flex:1; min-width:0; }
+  .bm .title a { font-size:15px; font-weight:600; color:var(--ink); text-decoration:none; }
+  .bm .title a:hover { text-decoration:underline; }
+  .bm .desc { font-size:13px; color:#4b5563; margin:5px 0 0; }
+  .bm .url { font-size:11.5px; color:var(--muted); word-break:break-all; margin-top:7px; }
+  .bm .actions { margin-top:9px; }
+  .bm .actions button { background:none; border:0; color:var(--accent); font-size:12.5px; cursor:pointer; padding:0; }
+  .flash { background:#e8f0ff; border-color:#c7dbff; }
+  .edit { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+  .edit input, .edit textarea { padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-size:14px; font-family:inherit; }
+  .edit textarea { resize:vertical; min-height:52px; }
+  .edit .row { display:flex; gap:8px; }
+  .edit .row button { padding:7px 14px; border-radius:7px; font-size:13px; cursor:pointer; border:1px solid var(--line); background:#fff; }
+  .edit .row button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and it stays here so you can find it again.</p>
+</header>
+<main>
+  <div class="saver">
+    <input id="url" type="text" placeholder="Paste a link, e.g. https://…" autocomplete="off" />
+    <button id="save">Save</button>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="list" id="list"></div>
+</main>
+
+<script>
+// --- Prototype-only simulation of "the app picks up the page title automatically" ---
+// A small canned lookup so the auto-fill feels real during review. Unknown hosts
+// fall back to a readable title derived from the address.
+const KNOWN = {
+  "developer.mozilla.org": { title: "MDN Web Docs", desc: "Resources for developers, by developers." },
+  "github.com": { title: "GitHub", desc: "Let's build from here — the world's largest developer platform." },
+  "en.wikipedia.org": { title: "Wikipedia, the free encyclopedia", desc: "The free encyclopedia anyone can edit." },
+  "www.nytimes.com": { title: "The New York Times — Breaking News", desc: "Live news, investigations, opinion, photos and video." },
+  "news.ycombinator.com": { title: "Hacker News", desc: "News and discussion for the tech community." }
+};
+function normalizeUrl(raw){
+  let s = raw.trim();
+  if(!s) return null;
+  if(!/^https?:\/\//i.test(s)) s = "https://" + s;
+  try { return new URL(s); } catch(e){ return null; }
+}
+function fakeFetchInfo(u){
+  const host = u.hostname.replace(/^www\./,'');
+  const known = KNOWN[u.hostname] || KNOWN[host];
+  if(known) return known;
+  const path = u.pathname.replace(/\/$/,'').split('/').filter(Boolean).pop() || host;
+  const pretty = decodeURIComponent(path).replace(/[-_]/g,' ').replace(/\.\w+$/,'');
+  const title = pretty.charAt(0).toUpperCase() + pretty.slice(1) + " — " + host;
+  return { title, desc: "" };
+}
+// Prototype stand-in for a favicon: a coloured monogram from the site host, so
+// the layout is real without depending on external icon fetches during review.
+const FAV_COLORS = ["#2f6df6","#e2528b","#12a150","#f59e0b","#8b5cf6","#0891b2","#dc2626"];
+function faviconFor(u){
+  const host = u.hostname.replace(/^www\./,'');
+  let sum = 0; for(const c of host) sum += c.charCodeAt(0);
+  return { letter: host.charAt(0).toUpperCase(), color: FAV_COLORS[sum % FAV_COLORS.length] };
+}
+
+const bookmarks = [];
+const listEl = document.getElementById('list');
+const statusEl = document.getElementById('status');
+const urlEl = document.getElementById('url');
+const saveBtn = document.getElementById('save');
+
+function render(){
+  if(bookmarks.length === 0){
+    listEl.innerHTML = '<div class="empty"><strong>No bookmarks yet</strong>Paste a link above and press Save to keep your first one.</div>';
+    return;
+  }
+  listEl.innerHTML = '';
+  bookmarks.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'bm' + (b.flash ? ' flash' : '');
+    const fav = document.createElement('div');
+    fav.className = 'fav';
+    fav.style.background = b.fav.color;
+    fav.textContent = b.fav.letter;
+    el.appendChild(fav);
+
+    const body = document.createElement('div');
+    body.className = 'body';
+    el.appendChild(body);
+
+    if(b.editing){
+      body.innerHTML =
+        `<div class="edit">
+           <input class="e-title" type="text" />
+           <textarea class="e-desc" placeholder="Description or your own notes"></textarea>
+           <div class="row"><button class="primary e-save">Save changes</button><button class="e-cancel">Cancel</button></div>
+         </div>`;
+      body.querySelector('.e-title').value = b.title;
+      body.querySelector('.e-desc').value = b.desc || '';
+      body.querySelector('.e-save').addEventListener('click', () => {
+        b.title = body.querySelector('.e-title').value.trim() || b.title;
+        b.desc = body.querySelector('.e-desc').value.trim();
+        b.editing = false; render();
+        statusEl.textContent = "Your changes are saved.";
+      });
+      body.querySelector('.e-cancel').addEventListener('click', () => { b.editing = false; render(); });
+    } else {
+      const desc = b.desc ? `<p class="desc"></p>` : '';
+      body.innerHTML =
+        `<p class="title"><a href="${b.url}" target="_blank" rel="noopener"></a></p>` +
+        desc +
+        `<div class="url"></div>` +
+        `<div class="actions"><button class="e-edit">Edit details</button></div>`;
+      body.querySelector('.title a').textContent = b.title;
+      body.querySelector('.url').textContent = b.url;
+      if(b.desc) body.querySelector('.desc').textContent = b.desc;
+      body.querySelector('.e-edit').addEventListener('click', () => { b.editing = true; render(); });
+    }
+    listEl.appendChild(el);
+    b.flash = false;
+  });
+}
+
+function save(){
+  const u = normalizeUrl(urlEl.value);
+  if(!u){ statusEl.textContent = "That doesn't look like a valid link yet."; return; }
+  saveBtn.disabled = true;
+  statusEl.textContent = "Fetching page details…";
+  setTimeout(() => {
+    const info = fakeFetchInfo(u);
+    bookmarks.unshift({ url: u.href, title: info.title, desc: info.desc, fav: faviconFor(u), flash: true, editing: false });
+    render();
+    statusEl.textContent = "Saved — title picked up automatically.";
+    urlEl.value = "";
+    saveBtn.disabled = false;
+    urlEl.focus();
+  }, 550);
+}
+
+saveBtn.addEventListener('click', save);
+urlEl.addEventListener('keydown', e => { if(e.key === 'Enter') save(); });
+
+render();
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Edit details prototype</title>
+  <style>
+    :root { color-scheme:light; --ink:#17211d; --muted:#68736e; --line:#dce3df; --paper:#fbfcfa; --green:#245c45; --cream:#f3f0e8; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { height:68px; display:flex; align-items:center; border-bottom:1px solid var(--line); }
+    .shell { width:min(920px,calc(100% - 48px)); margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; font-size:18px; }
+    .mark { width:29px; height:34px; border-radius:4px 4px 9px 9px; background:var(--green); }
+    main { padding:64px 0; }
+    .eyebrow { color:var(--green); font-weight:700; font-size:12px; letter-spacing:.11em; text-transform:uppercase; }
+    h1 { margin:8px 0 36px; font:600 40px/1.08 Georgia,serif; letter-spacing:-.03em; }
+    .library-head { display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:13px; }
+    h2 { margin:0; font-size:17px; }
+    .count { color:var(--muted); font-size:13px; }
+    .card { display:grid; grid-template-columns:58px 1fr auto; gap:16px; padding:22px 4px; border-bottom:1px solid var(--line); align-items:start; }
+    .thumb { width:58px; height:58px; display:grid; place-items:center; border-radius:12px; background:var(--cream); color:var(--green); font:700 22px Georgia,serif; }
+    .domain { color:var(--green); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .title { margin:3px 0; font:600 20px/1.25 Georgia,serif; }
+    .summary { margin:0; color:var(--muted); }
+    button { height:40px; padding:0 15px; border:1px solid #bdc9c2; border-radius:8px; background:white; color:var(--ink); font:650 14px inherit; cursor:pointer; }
+    button.primary { border-color:var(--green); background:var(--green); color:white; }
+    dialog { width:min(540px,calc(100% - 36px)); padding:0; border:0; border-radius:14px; color:var(--ink); box-shadow:0 24px 70px rgba(23,33,29,.26); }
+    dialog::backdrop { background:rgba(23,33,29,.45); }
+    .dialog-head { padding:20px 22px 15px; border-bottom:1px solid var(--line); }
+    .dialog-head h2 { font:600 23px Georgia,serif; }
+    .editor { padding:20px 22px 22px; }
+    label { display:block; margin:0 0 6px; font-weight:680; }
+    input,textarea { width:100%; padding:10px 12px; border:1px solid #bdc9c2; border-radius:8px; background:white; color:var(--ink); font:inherit; }
+    textarea { min-height:84px; resize:vertical; }
+    .field + .field { margin-top:14px; }
+    .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+    @media(max-width:620px){.shell{width:min(100% - 28px,920px)}.card{grid-template-columns:48px 1fr}.thumb{width:48px;height:48px}.edit-button{grid-column:2}}
+  </style>
+</head>
+<body>
+  <header><div class="shell brand"><span class="mark" aria-hidden="true"></span><span>Keep</span></div></header>
+  <main class="shell" data-harness-ready="true">
+    <div class="eyebrow">Your bookmark library</div>
+    <h1>All bookmarks</h1>
+    <section>
+      <div class="library-head"><h2>Saved</h2><span class="count">1 bookmark</span></div>
+      <article class="card">
+        <div class="thumb" aria-hidden="true">A</div>
+        <div class="details">
+          <div class="domain">example.com</div>
+          <h3 class="title" id="shown-title">A practical guide to design systems</h3>
+          <p class="summary" id="shown-summary">How reusable foundations, components, and shared patterns help teams create consistent digital products.</p>
+        </div>
+        <button class="edit-button" id="edit-button" type="button">Edit details</button>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="dialog">
+    <div class="dialog-head"><h2>Edit bookmark details</h2></div>
+    <form class="editor" id="editor">
+      <div class="field"><label for="title">Title</label><input id="title" value="A practical guide to design systems"></div>
+      <div class="field"><label for="summary">Summary</label><textarea id="summary">How reusable foundations, components, and shared patterns help teams create consistent digital products.</textarea></div>
+      <div class="actions"><button id="cancel" type="button">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+    </form>
+  </dialog>
+  <script>
+    const dialog = document.querySelector('#dialog');
+    document.querySelector('#edit-button').addEventListener('click', () => { dialog.showModal(); document.querySelector('#title').focus(); });
+    document.querySelector('#cancel').addEventListener('click', () => dialog.close());
+    document.querySelector('#editor').addEventListener('submit', (event) => {
+      event.preventDefault();
+      document.querySelector('#shown-title').textContent = document.querySelector('#title').value;
+      document.querySelector('#shown-summary').textContent = document.querySelector('#summary').value;
+      dialog.close();
+    });
+  </script>
+</body>
+</html>

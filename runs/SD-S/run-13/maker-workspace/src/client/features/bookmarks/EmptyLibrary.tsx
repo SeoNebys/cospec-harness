@@ -1,0 +1,1 @@
+export function EmptyLibrary({onAdd}:{onAdd:()=>void}){return <section className="empty"><div className="empty-glyph">↗</div><h2>Your next great find starts here.</h2><p>Paste a link and Keepmark will collect the page details for you.</p><button className="button primary" onClick={onAdd}>Save your first bookmark</button></section>}

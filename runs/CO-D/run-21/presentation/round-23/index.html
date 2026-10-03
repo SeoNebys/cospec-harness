@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b7280; --accent:#2563eb; --warn:#b45309; --warnbg:#fff7ed; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; color: #111; background: #f6f7f9; }
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 16px 24px; }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; }
+  input[type=text], input[type=url], textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  textarea { resize: vertical; }
+  textarea#dNote { min-height: 110px; }
+  label { display:block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  button { padding: 9px 15px; border: 0; border-radius: 8px; background: var(--accent); color: #fff;
+           font-size: 14px; cursor: pointer; white-space: nowrap; }
+  button.secondary { background: #eef1f5; color: #111; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .warn { background: var(--warnbg); border: 1px solid #fed7aa; color: var(--warn);
+          border-radius: 8px; padding: 12px; font-size: 13px; margin-top: 10px; }
+  .list-head { display:flex; justify-content: space-between; align-items:center; margin-bottom: 10px; }
+  .list-head h2 { font-size: 15px; margin: 0; }
+  .count { color: var(--muted); font-size: 13px; }
+  .bm { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 10px; background:#fff;
+        display:flex; gap:12px; cursor:pointer; }
+  .bm:hover { border-color:#c7d2fe; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .bm .preview { width: 96px; height: 64px; border-radius: 8px; flex: 0 0 auto; overflow:hidden;
+        border:1px solid var(--line); background:#f3f4f6; }
+  .bm .preview img { width:100%; height:100%; object-fit:cover; display:block; }
+  .bm .body { flex: 1 1 auto; min-width: 0; }
+  .bm .titleline { display:flex; align-items:center; gap:8px; }
+  .bm .favicon { width:18px; height:18px; border-radius:4px; flex:0 0 auto; }
+  .unreadDot { width:8px; height:8px; border-radius:50%; background:var(--accent); flex:0 0 auto; }
+  .archBadge { background:#f3f4f6; color:#6b7280; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); }
+  .bm.archived-card { opacity:.75; }
+  .bm .title { font-weight: 600; font-size: 15px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .bm .url { color: var(--accent); font-size: 12px; word-break: break-all; text-decoration:none; }
+  .bm .desc { color: #374151; font-size: 13px; margin-top: 6px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .bm .note { font-size: 13px; margin-top: 8px; background:#f9fafb; border-left:3px solid #d1d5db; padding:8px 10px; }
+  .bm .note.clamped { max-height: 4.2em; overflow:hidden; }
+  .showmore { background:none; color:var(--accent); padding:4px 0; font-size:12px; }
+  .linklike { background:none; color:var(--accent); padding:0; font-size:12px; text-decoration:underline; }
+  .preserved { font-size:12px; color:#555; margin-top:8px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .preserved a { color:var(--accent); }
+  .okdot,.penddot,.faildot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .okdot { background:#16a34a; } .penddot { background:#d97706; } .faildot { background:#9ca3af; }
+  .listctl { display:flex; align-items:center; gap:8px; }
+  .listctl select { padding:6px 8px; border:1px solid var(--line); border-radius:8px; font-size:13px; }
+  .bulkbar { position:sticky; top:0; z-index:5; background:#eef2ff; border:1px solid #c7d2fe; border-radius:10px;
+    padding:10px 12px; margin-bottom:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .bulkbar .bulkcount { font-weight:600; font-size:13px; }
+  .bm.selected-card { border-color:#818cf8; box-shadow:0 0 0 2px #c7d2fe inset; }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; z-index:50; }
+  .modal { background:#fff; border-radius:12px; padding:18px; width:min(420px,92vw); box-shadow:0 10px 40px rgba(0,0,0,.2); }
+  .tplist { max-height:260px; overflow:auto; margin-top:10px; display:flex; flex-direction:column; gap:4px; }
+  .tpItem { text-align:left; background:#f3f4f6; color:#111; border-radius:8px; padding:8px 10px; font-size:13px; }
+  .tpItem:hover { background:#e0e7ff; }
+  .tpItem.tpnew { background:#ecfdf5; color:#065f46; }
+  .loadmore { display:block; margin:6px auto 20px; }
+  .showing { text-align:center; color:var(--muted); font-size:12px; margin-bottom:16px; }
+  .bm .note p { margin: 0 0 6px; } .bm .note ul { margin: 4px 0; padding-left: 18px; }
+  .tags { margin-top: 8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .tag { background:#eef2ff; color:#3730a3; font-size:11px; padding:3px 8px; border-radius:999px; }
+  .bm .tag { cursor:pointer; } .bm .tag:hover { background:#e0e7ff; }
+  .empty { color: var(--muted); font-size: 14px; text-align:center; padding: 24px; }
+  .spinner { color: var(--muted); font-size: 13px; }
+  .flash { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:8px; padding:10px; font-size:13px; margin-bottom:12px; }
+  .highlight { background: #fde68a; }
+  .suggest { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .suggest .lbl { color:var(--muted); font-size:12px; }
+  .suggest button.stag { background:#eef2ff; color:#3730a3; border:1px dashed #c7d2fe; font-size:11px; padding:3px 9px; border-radius:999px; }
+  .metaprev { display:flex; gap:12px; margin-top:12px; align-items:center; }
+  .metaprev img.fav { width:20px; height:20px; border-radius:4px; }
+  .metaprev .pv { width:120px; height:72px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .metaprev .pv img { width:100%; height:100%; object-fit:cover; display:block; }
+  @media (max-width: 520px){ .row { flex-direction: column; } .bm { flex-direction: column; } .bm .preview{width:100%;height:120px;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — core flow: save a link, add your context, find it again.</p>
+</header>
+<main>
+  <div id="flash"></div>
+
+  <div class="card">
+    <label for="url">Paste a link to save</label>
+    <div class="row">
+      <input type="url" id="url" placeholder="https://…" autocomplete="off" />
+      <button id="saveBtn">Save link</button>
+    </div>
+    <div id="saveArea"></div>
+  </div>
+
+  <div class="card">
+    <label for="search">Search your bookmarks</label>
+    <div class="row">
+      <input type="text" id="search" placeholder="Search by title, description, note, tag, or address…" autocomplete="off" />
+      <button class="secondary" id="clearSearch" style="display:none">Clear</button>
+    </div>
+    <div class="hint">Searches everything you saved, including your notes and tags.</div>
+  </div>
+
+  <div class="list-head">
+    <span class="count" id="count"></span>
+    <div class="listctl">
+      <label for="locationFilter" style="margin:0">View</label>
+      <select id="locationFilter">
+        <option value="active">Active</option>
+        <option value="archived">Archived</option>
+      </select>
+      <label for="statusFilter" style="margin:0">Show</label>
+      <select id="statusFilter">
+        <option value="all">All</option>
+        <option value="unread">Unread only</option>
+        <option value="read">Read only</option>
+      </select>
+      <label for="sort" style="margin:0">Sort</label>
+      <select id="sort">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="az">Title A–Z</option>
+        <option value="za">Title Z–A</option>
+      </select>
+    </div>
+  </div>
+  <div id="bulkBar" class="bulkbar" style="display:none"></div>
+  <div id="list"></div>
+</main>
+
+<script>
+// ---- Generated icon / preview (prototype: offline-safe stand-ins) ----
+// In the real app the icon and preview image are collected from the page.
+// Here we generate deterministic stand-ins so the behaviour can be experienced.
+function hashHue(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))%360; } return h; }
+function faviconFor(url){
+  let host='?'; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+  const letter=(host[0]||'?').toUpperCase(); const hue=hashHue(host);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+    +'<rect width="32" height="32" rx="6" fill="hsl('+hue+',60%,50%)"/>'
+    +'<text x="16" y="22" font-size="18" font-family="Arial" fill="#fff" text-anchor="middle">'+letter+'</text></svg>';
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+function previewFor(url, title){
+  let host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+  const hue=hashHue(host); const t=(title||host).slice(0,28);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160">'
+    +'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+    +'<stop offset="0" stop-color="hsl('+hue+',55%,55%)"/><stop offset="1" stop-color="hsl('+((hue+40)%360)+',55%,40%)"/>'
+    +'</linearGradient></defs><rect width="240" height="160" fill="url(#g)"/>'
+    +'<text x="16" y="150" font-size="13" font-family="Arial" fill="rgba(255,255,255,.85)">'+escapeHtml(host)+'</text>'
+    +'<text x="16" y="80" font-size="17" font-family="Arial" fill="#fff">'+escapeHtml(t)+'</text></svg>';
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+
+// ---- Simulated "auto-fill" metadata source (prototype only) ----
+const KNOWN = {
+  "https://developer.mozilla.org/en-us/docs/web/javascript/closures": {
+    title: "Closures - JavaScript | MDN",
+    description: "A closure is the combination of a function bundled together with references to its surrounding state." },
+  "https://reactjs.org/docs/hooks-intro.html": {
+    title: "Introducing Hooks – React",
+    description: "Hooks let you use state and other React features without writing a class." }
+};
+// demo: addresses we pretend we cannot read (unreachable / blocked / 404)
+const UNREADABLE = ["https://blocked.example/secret-report"];
+function autoFill(url){
+  const key = url.toLowerCase().replace(/\/+$/,'');
+  if (UNREADABLE.includes(key)){
+    return { readable:false, title:"", description:"",
+             favicon: faviconFor(url), preview: previewFor(url, "") };
+  }
+  let meta = KNOWN[key];
+  if (!meta){
+    let host = url; try { host = new URL(url).hostname.replace(/^www\./,''); } catch(e){}
+    let path = ''; try { path = new URL(url).pathname.replace(/[-/_]+/g,' ').trim(); } catch(e){}
+    const guess = (path || host).split(' ').filter(Boolean).slice(0,6)
+                   .map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+    meta = { title: guess ? guess + " — " + host : host, description: "Saved from " + host };
+  }
+  return { readable:true, title: meta.title, description: meta.description,
+           favicon: faviconFor(url), preview: previewFor(url, meta.title) };
+}
+// "Same address": host is case-insensitive and www-insensitive, a trailing
+// slash is ignored, but the PATH stays case-sensitive (it can be a different
+// page). Query string preserved as-is.
+function isPdf(url){ return /\.pdf($|\?|#)/i.test(url); }
+// prototype: a saved copy is simulated. In the real app this stores the actual
+// captured page (or the actual PDF file). Here we open a generated stand-in.
+function openSavedCopy(b){
+  const when = b.preserved && b.preserved.savedAt ? new Date(b.preserved.savedAt).toLocaleString() : 'unknown';
+  const kindLabel = (b.preserved && b.preserved.kind==='pdf') ? 'Preserved PDF (the original file was kept)'
+                                                              : 'Saved copy of the page as it was when you bookmarked it';
+  const bodyPreview = b.preserved && b.preserved.kind==='pdf'
+    ? '<div style="padding:40px;text-align:center;color:#555;border:1px dashed #bbb;border-radius:8px">[ Preserved PDF document ]<br><small>'+escapeHtml(b.title)+'</small></div>'
+    : '<h1>'+escapeHtml(b.title)+'</h1><p>'+escapeHtml(b.description||'')+'</p>'
+      +'<p style="color:#777">This is a stand-in for the captured page content in the prototype. '
+      +'In the real app, the full page as it appeared on '+escapeHtml(when)+' would be shown here, working offline.</p>';
+  const html='<!doctype html><meta charset=utf-8><title>Saved copy — '+escapeHtml(b.title)+'</title>'
+    +'<div style="background:#fef3c7;border-bottom:1px solid #fde68a;padding:10px 16px;font:14px system-ui;color:#92400e">'
+    +'📌 '+kindLabel+' — captured '+escapeHtml(when)+' · original address: '+escapeHtml(b.url)+'</div>'
+    +'<div style="max-width:720px;margin:24px auto;font:16px/1.6 system-ui;padding:0 16px">'+bodyPreview+'</div>';
+  const w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); }
+}
+function normalize(url){
+  try { const u = new URL(url);
+    const host = u.hostname.replace(/^www\./,'').toLowerCase();
+    const path = u.pathname.replace(/\/+$/,'');
+    return host + path + u.search; }
+  catch(e){ return url.trim().replace(/\/+$/,''); }
+}
+
+// ---- Store (prototype: in-memory, seeded) ----
+let bookmarks = [
+  { id: 1, url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures",
+    title: "Closures - JavaScript | MDN",
+    description: "A closure is the combination of a function bundled together with references to its surrounding state.",
+    favicon: faviconFor("https://developer.mozilla.org/x"),
+    preview: previewFor("https://developer.mozilla.org/x","Closures - JavaScript | MDN"),
+    tags: ["javascript","reference"], createdAt: 1000, read: false,
+    contentCollected: true, preserved: { status:'saved', savedAt: 1710000000000, kind:'page', archiveUrl: null },
+    note: "Re-read **before the interview**.\n- the counter example finally made it click\n- check the loop-variable gotcha" },
+  { id: 2, url: "https://example.com/rome-in-3-days",
+    title: "Rome in 3 days — a walking guide",
+    description: "A compact itinerary for the Colosseum, Forum and Trastevere.",
+    favicon: faviconFor("https://example.com/x"),
+    preview: previewFor("https://example.com/x","Rome in 3 days"),
+    tags: ["travel","article"], createdAt: 2000, read: false, contentCollected: true,
+    preserved: { status:'saved', savedAt: 1712000000000, kind:'page', archiveUrl: 'https://web.archive.org/web/2024/https://example.com/rome-in-3-days' },
+    note: "For the autumn trip. See the [official Colosseum site](https://parcocolosseo.it)." },
+  { id: 4, url: "https://example.com/papers/roman-aqueducts.pdf",
+    title: "The Engineering of Roman Aqueducts (PDF)",
+    description: "A 40-page paper on aqueduct construction and gradient control.",
+    favicon: faviconFor("https://example.com/p"),
+    preview: previewFor("https://example.com/p","Roman Aqueducts (PDF)"),
+    tags: ["travel","book"], createdAt: 3500, read: false, contentCollected: true,
+    preserved: { status:'saved', savedAt: 1712500000000, kind:'pdf', archiveUrl: null },
+    note: "Saved the **PDF itself** so I keep it even if the university takes it down." },
+  { id: 3, url: "https://example.com/spqr-mary-beard",
+    title: "SPQR: A History of Ancient Rome",
+    description: "Mary Beard's history of ancient Rome.",
+    favicon: faviconFor("https://example.com/y"),
+    preview: previewFor("https://example.com/y","SPQR"),
+    tags: ["travel","book"], createdAt: 3000, read: true, contentCollected: true,
+    preserved: { status:'saved', savedAt: 1711000000000, kind:'page', archiveUrl: null },
+    note: "Background reading for **Rome**." },
+];
+// demo: open with ?empty=1 to preview the brand-new / empty-collection state
+if (new URLSearchParams(location.search).get('empty')==='1'){ bookmarks = []; }
+// demo: open with ?demo=big to preview a large, mixed collection incl. long text
+if (new URLSearchParams(location.search).get('demo')==='big'){
+  const topics=[["Rust ownership model","rust,reference"],["Sourdough starter guide","cooking,article"],
+    ["Kubernetes networking","devops,reference"],["Watercolour basics","art,reading"],
+    ["Tax deadlines 2026","finance"],["SQLite internals","database,article"],
+    ["Trail running shoes review","fitness,reading"],["Roman history podcast","travel,book"]];
+  const longTitle="An Extremely Thorough, Exhaustive and Almost Comically Detailed Guide to Absolutely Everything You Never Realised You Needed to Know About Configuring Nginx Reverse Proxies Behind Corporate Load Balancers";
+  const longNote="Why I saved this:\n- it covers **every** edge case I keep hitting\n- section 4 explains the header rewriting that broke our staging site last month, and section 7 has the timeout matrix I always forget\n- the author promises a follow-up on TLS termination\nThis note is deliberately long to see how a big note behaves in the list, wrapping across many lines and pushing the card taller and taller and taller until it starts to dominate the screen.";
+  const many=[];
+  many.push({ id: 1000, url:"https://example.com/nginx-mega-guide", title:longTitle,
+    description:"A very long-winded description that just keeps going and going well beyond what a single line could reasonably hold, to check how overflow is handled on screen.",
+    favicon:faviconFor("https://example.com/n"), preview:previewFor("https://example.com/n",longTitle),
+    contentCollected:true, createdAt: 900000, read:false, tags:["reference","reading"],
+    preserved:{ status:'saved', savedAt: 1712300000000, kind:'page', archiveUrl:null }, note:longNote });
+  for(let i=0;i<200;i++){ const t=topics[i%topics.length];
+    const u="https://site"+i+".example.com/article-"+i;
+    many.push({ id:2000+i, url:u, title:t[0]+" #"+(i+1),
+      description:"Notes and reference on "+t[0].toLowerCase()+".",
+      favicon:faviconFor(u), preview:previewFor(u,t[0]), createdAt: 100000+i,
+      contentCollected:true, read:(i%3!==0), archived:(i%17===0), tags:t[1].split(','),
+      preserved:{ status:'saved', savedAt: 1712000000000 - i*86400000, kind:'page', archiveUrl: (i%4===0?'https://web.archive.org/web/*/'+u:null) },
+      note: (i%5===0? "Worth revisiting.":"") });
+  }
+  bookmarks = many;
+}
+let nextId = 5;
+let draft = null;
+let dupOf = null;
+let editingId = null;   // id of the bookmark currently open for editing (inline)
+let sortBy = 'new';     // new | old | az | za  (default: newest first)
+let statusFilter = 'all'; // all | unread | read
+let locationFilter = 'active'; // active | archived
+const selected = new Set(); // ids selected for bulk actions
+const PAGE = 20;        // how many to show per page
+let shownN = PAGE;      // how many currently rendered
+const expanded = new Set(); // ids whose full note is expanded
+
+const $ = s => document.querySelector(s);
+
+function allTags(){ const s=new Set(); bookmarks.forEach(b=>(b.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+
+function flash(msg){ $("#flash").innerHTML='<div class="flash">'+msg+'</div>';
+  setTimeout(()=>{ $("#flash").innerHTML=''; }, 4000); }
+
+// very small formatter: **bold**, lines starting with - become bullets, blank line = paragraph
+function formatNote(txt){
+  const lines=(txt||'').split('\n'); let html=''; let inList=false;
+  const inline=s=>{
+    // escape first (safety), then apply simple, safe markdown
+    let out=escapeHtml(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+    // [text](url) — only http/https links, opened safely
+    out=out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      (m,txt,url)=>'<a href="'+escapeAttr(url)+'" target="_blank" rel="noopener noreferrer">'+txt+'</a>');
+    return out;
+  };
+  for(const raw of lines){ const l=raw.trim();
+    if(l.startsWith('- ')){ if(!inList){html+='<ul>';inList=true;} html+='<li>'+inline(l.slice(2))+'</li>'; }
+    else { if(inList){html+='</ul>';inList=false;} if(l) html+='<p>'+inline(l)+'</p>'; } }
+  if(inList) html+='</ul>'; return html;
+}
+
+// generic: attach a narrowing "tags you already use" helper to a field + box
+function wireTagSuggest(field, box){
+  function draw(){
+    const val=field.value; const tokens=val.split(',');
+    const cur=tokens[tokens.length-1].trim().toLowerCase();
+    const already=tokens.slice(0,-1).map(t=>t.trim().toLowerCase());
+    const cand=allTags().filter(t=> !already.includes(t.toLowerCase())
+        && (cur==='' ? true : t.toLowerCase().includes(cur)) && t.toLowerCase()!==cur);
+    if(!cand.length){ box.innerHTML=''; return; }
+    box.innerHTML='<span class="lbl">Tags you already use:</span>'
+      + cand.slice(0,8).map(t=>'<button type="button" class="stag" data-t="'+escapeAttr(t)+'">'+escapeHtml(t)+'</button>').join('');
+    box.querySelectorAll('.stag').forEach(btn=>btn.onclick=()=>{
+      tokens[tokens.length-1]=' '+btn.dataset.t; field.value=tokens.join(',').replace(/^ /,'')+', ';
+      field.focus(); draw();
+    });
+  }
+  field.addEventListener('input', draw); field.addEventListener('focus', draw); draw();
+}
+
+function renderSaveArea(){
+  const area = $("#saveArea");
+  if (dupOf){
+    area.innerHTML =
+      '<div class="warn">You already saved this address on <b>'+escapeHtml(dupOf.title)+'</b>.'
+      + ' Saving again would create a duplicate.'
+      + '<div class="row" style="margin-top:10px">'
+      + '<button class="secondary" id="viewDup">Show the one I already have</button>'
+      + '<button class="secondary" id="cancelDup">Cancel</button></div></div>';
+    $("#viewDup").onclick = ()=>{ const t=dupOf; dupOf=null; $("#url").value=''; renderSaveArea();
+        flash('Opening the bookmark you already had, so you can update it.'); openEdit(t.id); };
+    $("#cancelDup").onclick = ()=>{ dupOf=null; $("#url").value=''; renderSaveArea(); };
+    return;
+  }
+  if (!draft){ area.innerHTML=''; return; }
+  const unreadableBanner = (draft.readable===false)
+    ? '<div class="warn" style="margin-top:12px">We couldn\'t read this page (it may be unavailable, private, or blocked). '
+      + 'You can still save it — just fill in the title and details yourself. We\'ll keep the address.</div>'
+    : '<div class="hint" style="margin-top:12px">We filled in the title, description, icon and preview for you — edit anything that\'s off.</div>';
+  area.innerHTML = unreadableBanner
+    + '<div class="metaprev"><img class="fav" src="'+draft.favicon+'"><div class="pv"><img src="'+draft.preview+'"></div>'
+    + '<span class="hint">Icon &amp; preview collected from the page</span></div>'
+    + '<label>Title</label><input type="text" id="dTitle" value="'+escapeAttr(draft.title)+'">'
+    + '<label>Description</label><textarea id="dDesc">'+escapeHtml(draft.description)+'</textarea>'
+    + '<label>Tags (comma separated)</label><input type="text" id="dTags" value="'+escapeAttr(draft.tags||'')+'" placeholder="e.g. javascript, reading">'
+    + '<div class="suggest" id="tagSuggest"></div>'
+    + '<label>Your note (why you saved it)</label>'
+    + '<textarea id="dNote" placeholder="A longer note to your future self…&#10;Use **bold** and start lines with - for bullets.">'+escapeHtml(draft.note||'')+'</textarea>'
+    + '<div class="hint">Supports simple formatting: **bold** and - bullet lists.</div>'
+    + '<label style="display:flex;align-items:center;gap:8px;margin-top:12px;color:#111;font-size:14px">'
+    + '<input type="checkbox" id="dReadLater" checked style="width:auto"> Read later (leave unread)</label>'
+    + '<div class="hint">Uncheck to save it as already read (e.g. a reference you\'re not planning to read through).</div>'
+    + (draft.readable===false ? ''
+        : '<label style="display:flex;align-items:center;gap:8px;margin-top:10px;color:#111;font-size:14px">'
+          + '<input type="checkbox" id="dArchiveOrg" style="width:auto"> Also save a copy to the Internet Archive</label>'
+          + '<div class="hint">A copy of this page is always kept privately in your bookmarks'
+          + (isPdf(draft.url)?' (the PDF file itself is preserved)':'')
+          + '. Check this to also submit it to the public Internet Archive.</div>')
+    + '<div class="row" style="margin-top:12px"><button id="confirmSave">Add to my bookmarks</button>'
+    + '<button class="secondary" id="cancelSave">Cancel</button></div>';
+  $("#confirmSave").onclick = confirmSave;
+  $("#cancelSave").onclick = ()=>{ draft=null; $("#url").value=''; renderSaveArea(); };
+  wireTagSuggest($("#dTags"), $("#tagSuggest"));
+}
+
+function startSave(){
+  const url = $("#url").value.trim(); if (!url) return;
+  dupOf=null; draft=null;
+  const existing = bookmarks.find(b => normalize(b.url) === normalize(url));
+  if (existing){ dupOf=existing; renderSaveArea(); return; }
+  $("#saveArea").innerHTML = '<div class="spinner" style="margin-top:12px">Looking up the page…</div>';
+  setTimeout(()=>{ const meta=autoFill(url);
+    draft={ url, title:meta.title, description:meta.description, favicon:meta.favicon, preview:meta.preview,
+            tags:'', note:'', readable:meta.readable };
+    renderSaveArea();
+  }, 500);
+}
+
+// reuse an existing tag when it matches case-insensitively, so we never create
+// a differently-capitalized duplicate ("Javascript" -> existing "javascript")
+function canonTag(t){
+  const hit = allTags().find(e => e.toLowerCase() === t.toLowerCase());
+  return hit || t;
+}
+function confirmSave(){
+  const seen = new Set(); const tags = [];
+  $("#dTags").value.split(',').map(t=>t.trim()).filter(Boolean).forEach(t=>{
+    const c = canonTag(t); const k = c.toLowerCase();
+    if(!seen.has(k)){ seen.add(k); tags.push(c); }
+  });
+  const b = { id: nextId++, url: draft.url,
+    title: $("#dTitle").value.trim() || draft.url,
+    description: $("#dDesc").value.trim(),
+    favicon: draft.favicon, preview: draft.preview,
+    contentCollected: draft.readable !== false,
+    createdAt: Date.now(), read: !$("#dReadLater").checked,
+    tags: tags,
+    note: $("#dNote").value.trim() };
+  // preservation: a private local copy is always kept for a readable page/PDF;
+  // optionally also submitted to the Internet Archive (simulated in prototype)
+  if(draft.readable===false){
+    b.preserved = { status:'none', savedAt:null, kind: isPdf(b.url)?'pdf':'page', archiveUrl:null };
+  } else {
+    const wantArchive = $("#dArchiveOrg") && $("#dArchiveOrg").checked;
+    b.preserved = { status:'saved', savedAt: Date.now(), kind: isPdf(b.url)?'pdf':'page',
+      archiveUrl: wantArchive ? ('https://web.archive.org/web/*/'+b.url) : null };
+  }
+  bookmarks.unshift(b);
+  draft=null; $("#url").value=''; renderSaveArea();
+  flash('Saved. It\'s in your list below.'); render(); jumpTo(b.id);
+}
+
+function jumpTo(id){ setTimeout(()=>{ const el=document.getElementById('bm-'+id);
+  if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'),1500); } }, 60); }
+
+// ---- Query language ----
+// operands: word | "phrase" | #tag ; operators: AND OR NOT + parentheses ;
+// space between operands = implicit AND. AND/OR/NOT are operators only when
+// unquoted; quote them ("and") to search the literal word.
+function tokenize(q){
+  const toks=[]; let i=0;
+  while(i<q.length){
+    const c=q[i];
+    if(/\s/.test(c)){ i++; continue; }
+    if(c==='('){ toks.push({t:'('}); i++; continue; }
+    if(c===')'){ toks.push({t:')'}); i++; continue; }
+    if(c==='"'){ let j=i+1,s=''; while(j<q.length&&q[j]!=='"'){ s+=q[j]; j++; }
+      toks.push({t:'op',kind:'phrase',v:s}); i=(j<q.length)?j+1:j; continue; }
+    // bare token: read until whitespace or parenthesis
+    let j=i,s=''; while(j<q.length && !/[\s()]/.test(q[j])){ s+=q[j]; j++; } i=j;
+    if(/^(and|or|not)$/i.test(s)){ toks.push({t:s.toLowerCase()}); continue; }
+    if(s[0]==='#'){ toks.push({t:'op',kind:'tag',v:s.slice(1)}); continue; }
+    toks.push({t:'op',kind:'word',v:s});
+  }
+  return toks;
+}
+function parseQuery(q){
+  const toks=tokenize(q); let p=0;
+  const peek=()=>toks[p]; const next=()=>toks[p++];
+  function parseOr(){ let l=parseAnd();
+    while(peek()&&peek().t==='or'){ next(); const r=parseAnd(); const a=l,b=r; l=x=>a(x)||b(x); }
+    return l; }
+  function parseAnd(){ let l=parseNot();
+    for(;;){ const tk=peek(); if(!tk) break;
+      if(tk.t==='and'){ next(); const r=parseNot(); const a=l,b=r; l=x=>a(x)&&b(x); continue; }
+      if(tk.t==='op'||tk.t==='('||tk.t==='not'){ const r=parseNot(); const a=l,b=r; l=x=>a(x)&&b(x); continue; }
+      break; }
+    return l; }
+  function parseNot(){ if(peek()&&peek().t==='not'){ next(); const r=parseNot(); return x=>!r(x); }
+    return parsePrimary(); }
+  function parsePrimary(){ const tk=peek();
+    if(!tk) return ()=>true;
+    if(tk.t==='('){ next(); const e=parseOr(); if(peek()&&peek().t===')') next(); return e; }
+    if(tk.t==='op'){ next(); return operand(tk); }
+    next(); return ()=>true; }
+  function operand(tk){ const v=(tk.v||'').toLowerCase();
+    if(tk.kind==='tag') return b=> (b.tags||[]).some(t=>t.toLowerCase()===v);
+    // word / phrase: search across all fields including tags
+    return b=> [b.title,b.description,b.note,b.url,(b.tags||[]).join(' ')]
+                 .some(f=>(f||'').toLowerCase().includes(v)); }
+  const fn=parseOr(); return fn;
+}
+function matches(b, q){ if(!q||!q.trim()) return true;
+  try{ return parseQuery(q)(b); }
+  catch(e){ const s=q.toLowerCase();
+    return [b.title,b.description,b.note,b.url,(b.tags||[]).join(' ')].some(f=>(f||'').toLowerCase().includes(s)); } }
+
+// a note needs a "Show more" if it has multiple lines or is long
+function noteNeedsClamp(note){ return (note||'').includes('\n') || (note||'').length>140; }
+
+function preservedLineHtml(b){
+  const p=b.preserved; if(!p) return '';
+  if(p.status==='saved'){
+    const when=p.savedAt?new Date(p.savedAt).toLocaleDateString():'';
+    const label=p.kind==='pdf'?'Saved PDF':'Saved copy';
+    return '<div class="preserved"><span class="okdot"></span>'
+      + '<button class="linklike savedCopyBtn" data-id="'+b.id+'">'+label+(when?' · '+when:'')+'</button>'
+      + (p.archiveUrl?' · <a href="'+escapeAttr(p.archiveUrl)+'" target="_blank" rel="noopener">Internet Archive copy</a>'
+                     :' · <button class="linklike toArchiveBtn" data-id="'+b.id+'">Send to Internet Archive</button>')
+      + '</div>';
+  }
+  if(p.status==='pending'){ return '<div class="preserved"><span class="penddot"></span>Saving a copy…</div>'; }
+  // status none / failed: no real copy exists
+  return '<div class="preserved"><span class="faildot"></span>No saved copy yet</div>';
+}
+
+function openTagPicker(mode){
+  const count=selected.size; if(!count) return;
+  const selBookmarks=()=>bookmarks.filter(b=>selected.has(b.id));
+  const candidates = mode==='add' ? allTags()
+     : [...new Set(selBookmarks().flatMap(b=>b.tags||[]))].sort();
+  const ov=document.createElement('div'); ov.className='overlay';
+  ov.innerHTML='<div class="modal">'
+    +'<h3 style="margin:0 0 10px;font-size:15px">'+(mode==='add'?'Add tag to ':'Remove tag from ')+count+' bookmark'+(count>1?'s':'')+'</h3>'
+    +'<input type="text" id="tpSearch" placeholder="'+(mode==='add'?'Search or type a new tag…':'Search tags on selected…')+'">'
+    +'<div id="tpList" class="tplist"></div>'
+    +'<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="secondary" id="tpCancel">Cancel</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  document.getElementById('tpCancel').onclick=close;
+  const search=document.getElementById('tpSearch'); const listEl=document.getElementById('tpList');
+  function apply(tag){
+    if(mode==='add'){ const c=canonTag(tag);
+      selBookmarks().forEach(b=>{ if(!(b.tags||[]).some(x=>x.toLowerCase()===c.toLowerCase())) (b.tags=b.tags||[]).push(c); });
+      flash('Added tag "'+c+'" to '+count+' bookmarks.');
+    } else { const lc=tag.toLowerCase();
+      selBookmarks().forEach(b=>{ b.tags=(b.tags||[]).filter(x=>x.toLowerCase()!==lc); });
+      flash('Removed tag "'+tag+'" from '+count+' bookmarks.');
+    }
+    selected.clear(); close(); render();
+  }
+  function draw(){
+    const qq=search.value.trim().toLowerCase();
+    let cs=candidates.filter(t=> qq==='' || t.toLowerCase().includes(qq));
+    let html=cs.map(t=>'<button type="button" class="tpItem" data-t="'+escapeAttr(t)+'">'+escapeHtml(t)+'</button>').join('');
+    if(mode==='add' && qq && !candidates.some(t=>t.toLowerCase()===qq)){
+      html+='<button type="button" class="tpItem tpnew" data-t="'+escapeAttr(search.value.trim())+'">+ Create new tag: “'+escapeHtml(search.value.trim())+'”</button>';
+    }
+    if(!html) html='<div class="hint" style="padding:8px">'+(mode==='add'?'No existing tags yet. Type to create one.':'The selected bookmarks have no tags to remove.')+'</div>';
+    listEl.innerHTML=html;
+    listEl.querySelectorAll('.tpItem').forEach(el=>el.onclick=()=>apply(el.dataset.t));
+  }
+  search.addEventListener('input',draw); draw(); search.focus();
+}
+
+function renderBulkBar(matched){
+  const bar=$("#bulkBar");
+  if(selected.size===0){ bar.style.display='none'; bar.innerHTML=''; return; }
+  bar.style.display='';
+  const inArch = locationFilter==='archived';
+  bar.innerHTML = '<span class="bulkcount">'+selected.size+' selected</span>'
+    + (selected.size<matched.length ? '<button class="secondary" id="selAll">Select all '+matched.length+' matching</button>' : '')
+    + '<button class="secondary" id="bAddTag">Add tag…</button>'
+    + '<button class="secondary" id="bDelTag">Remove tag…</button>'
+    + '<button class="secondary" id="bRead">Mark read</button>'
+    + '<button class="secondary" id="bUnread">Mark unread</button>'
+    + (inArch ? '<button class="secondary" id="bRestore">Restore</button>'
+              : '<button class="secondary" id="bArchive">Archive</button>')
+    + '<button class="secondary" id="bDelete" style="color:#b91c1c">Delete</button>'
+    + '<button class="secondary" id="bClear" style="margin-left:auto">Clear selection</button>';
+  const sel=()=>bookmarks.filter(b=>selected.has(b.id));
+  const done=(msg)=>{ selected.clear(); flash(msg); render(); };
+  const s=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onclick=fn; };
+  s('selAll',()=>{ matched.forEach(b=>selected.add(b.id)); render(); });
+  s('bClear',()=>{ selected.clear(); render(); });
+  s('bRead',()=>{ sel().forEach(b=>b.read=true); done('Marked '+selected.size+' as read.'); });
+  s('bUnread',()=>{ sel().forEach(b=>b.read=false); done('Marked '+selected.size+' as unread.'); });
+  s('bArchive',()=>{ const n=selected.size; sel().forEach(b=>b.archived=true); done('Archived '+n+' bookmarks.'); });
+  s('bRestore',()=>{ const n=selected.size; sel().forEach(b=>b.archived=false); done('Restored '+n+' bookmarks.'); });
+  s('bAddTag',()=>openTagPicker('add'));
+  s('bDelTag',()=>openTagPicker('remove'));
+  s('bDelete',()=>{ const n=selected.size;
+    if(confirm('Permanently delete '+n+' bookmarks?\nThis cannot be undone (and removes their saved copies).')){
+      bookmarks=bookmarks.filter(b=>!selected.has(b.id)); done('Permanently deleted '+n+' bookmarks.'); } });
+}
+
+function render(){
+  const q=$("#search").value.trim();
+  let matched=bookmarks.filter(b=>matches(b,q))
+    .filter(b=> locationFilter==='archived' ? !!b.archived : !b.archived)
+    .filter(b=> statusFilter==='all' ? true : (statusFilter==='unread' ? !b.read : !!b.read));
+  // sort the WHOLE matched set before paging
+  const cmp={ new:(a,b)=>b.createdAt-a.createdAt, old:(a,b)=>a.createdAt-b.createdAt,
+    az:(a,b)=>a.title.localeCompare(b.title), za:(a,b)=>b.title.localeCompare(a.title) }[sortBy];
+  matched=matched.slice().sort(cmp);
+  // count always describes the whole result set, not just what's visible
+  $("#count").textContent = matched.length + (matched.length===1?' bookmark':' bookmarks') + (q?' matching "'+q+'"':'');
+  const list=$("#list");
+  $("#clearSearch").style.display = q ? '' : 'none';
+  if(!matched.length){ list.innerHTML='<div class="empty">'
+      + (q?'No bookmarks match "'+escapeHtml(q)+'".'
+          :'No bookmarks yet — save your first link above.<br><span style="font-size:13px">You\'ll also be able to import your existing browser bookmarks here.</span>')
+      + '</div>'; return; }
+  const page=matched.slice(0, shownN);
+  list.innerHTML = page.map(b =>
+    (b.id===editingId ? editFormHtml(b) :
+    '<div class="bm'+(b.archived?' archived-card':'')+(selected.has(b.id)?' selected-card':'')+'" id="bm-'+b.id+'">'
+    + '<input type="checkbox" class="selBox" data-id="'+b.id+'"'+(selected.has(b.id)?' checked':'')+' title="Select" style="align-self:flex-start;margin-top:4px;width:auto">'
+    + '<div class="preview"><img src="'+b.preview+'" alt=""></div>'
+    + '<div class="body">'
+    + '<div class="titleline"><img class="favicon" src="'+b.favicon+'" alt="">'
+    + (b.read?'':'<span class="unreadDot" title="Unread"></span>')
+    + '<span class="title">'+escapeHtml(b.title)+'</span>'
+    + (b.archived?'<span class="archBadge">Archived</span>':'')
+    + '<span class="cardActions" style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
+    + (b.archived
+        ? '<button class="secondary restoreBtn" data-id="'+b.id+'" style="padding:4px 10px;font-size:12px">Restore</button>'
+        : '<button class="secondary readBtn" data-id="'+b.id+'" style="padding:4px 10px;font-size:12px">'+(b.read?'Mark unread':'Mark read')+'</button>'
+          + '<button class="secondary editBtn" data-id="'+b.id+'" style="padding:4px 10px;font-size:12px">Edit</button>'
+          + '<button class="secondary archiveBtn" data-id="'+b.id+'" style="padding:4px 10px;font-size:12px">Archive</button>')
+    + '<button class="secondary deleteBtn" data-id="'+b.id+'" style="padding:4px 10px;font-size:12px;color:#b91c1c">Delete</button>'
+    + '</span></div>'
+    + '<a class="url" href="'+escapeAttr(b.url)+'" target="_blank" rel="noopener">'+escapeHtml(b.url)+'</a>'
+    + (b.description?'<div class="desc">'+escapeHtml(b.description)+'</div>':'')
+    + (b.contentCollected===false
+        ? '<div class="warn" style="margin-top:8px">Page couldn\'t be read — details entered by you, and <b>the page was not preserved</b> (the image is a placeholder). '
+          + '<button class="secondary retryBtn" data-id="'+b.id+'" style="padding:3px 9px;font-size:12px;margin-left:4px">Retry now</button></div>'
+        : '')
+    + preservedLineHtml(b)
+    + (b.note?'<div class="note'+((noteNeedsClamp(b.note)&&!expanded.has(b.id))?' clamped':'')+'">'+formatNote(b.note)+'</div>'
+        + (noteNeedsClamp(b.note)?'<button class="showmore" data-id="'+b.id+'">'+(expanded.has(b.id)?'Show less':'Show more')+'</button>':'') :'')
+    + ((b.tags&&b.tags.length)?'<div class="tags">'+b.tags.map(t=>'<span class="tag" data-tag="'+escapeAttr(t)+'" title="Filter to this tag">'+escapeHtml(t)+'</span>').join('')+'</div>':'')
+    + '</div></div>')
+  ).join('');
+  // paging footer
+  if(matched.length>page.length){
+    list.innerHTML += '<div class="showing">Showing '+page.length+' of '+matched.length+'</div>'
+      + '<button class="loadmore" id="loadMore">Load more</button>';
+  } else if(matched.length>PAGE){
+    list.innerHTML += '<div class="showing">Showing all '+matched.length+'</div>';
+  }
+  const lm=document.getElementById('loadMore');
+  if(lm) lm.onclick=()=>{ shownN+=PAGE; render(); };
+  list.querySelectorAll('.showmore').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const id=+el.dataset.id; if(expanded.has(id)) expanded.delete(id); else expanded.add(id); render(); });
+  list.querySelectorAll('.tag[data-tag]').forEach(el=>el.onclick=()=>{
+    $("#search").value = '#'+el.dataset.tag; shownN=PAGE; render();
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+  list.querySelectorAll('.editBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); openEdit(+el.dataset.id); });
+  list.querySelectorAll('.retryBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); retryFetch(+el.dataset.id); });
+  list.querySelectorAll('.readBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const b=bookmarks.find(x=>x.id===+el.dataset.id); if(b){ b.read=!b.read; render(); } });
+  list.querySelectorAll('.archiveBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const b=bookmarks.find(x=>x.id===+el.dataset.id); if(b){ b.archived=true; flash('Archived. Find it under View → Archived.'); render(); } });
+  list.querySelectorAll('.restoreBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const b=bookmarks.find(x=>x.id===+el.dataset.id); if(b){ b.archived=false; flash('Restored to your active bookmarks.'); render(); } });
+  list.querySelectorAll('.selBox').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const id=+el.dataset.id; if(el.checked) selected.add(id); else selected.delete(id);
+    renderBulkBar(matched); const card=document.getElementById('bm-'+id);
+    if(card) card.classList.toggle('selected-card', el.checked); });
+  renderBulkBar(matched);
+  list.querySelectorAll('.savedCopyBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const b=bookmarks.find(x=>x.id===+el.dataset.id); if(b) openSavedCopy(b); });
+  list.querySelectorAll('.toArchiveBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const b=bookmarks.find(x=>x.id===+el.dataset.id); if(!b) return;
+    flash('Submitting to the Internet Archive…');
+    setTimeout(()=>{ b.preserved.archiveUrl='https://web.archive.org/web/*/'+b.url;
+      flash('Also saved to the Internet Archive.'); render(); }, 500); });
+  list.querySelectorAll('.deleteBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation();
+    const b=bookmarks.find(x=>x.id===+el.dataset.id); if(!b) return;
+    if(confirm('Permanently delete "'+b.title+'"?\nThis cannot be undone. (Archiving keeps it; deleting removes it for good.)')){
+      bookmarks = bookmarks.filter(x=>x.id!==b.id); flash('Permanently deleted.'); render(); } });
+  // clicking anywhere on a card opens the original page, except on the Edit
+  // button, a tag chip, or the address link (which handle their own clicks)
+  list.querySelectorAll('.bm').forEach(card=>{ if(card.querySelector('#eUrl')) return;
+    card.onclick=(e)=>{ if(e.target.closest('.editBtn,.tag,a')) return;
+      const b=bookmarks.find(x=>'bm-'+x.id===card.id); if(b) window.open(b.url,'_blank','noopener'); }; });
+  wireEditForm();
+}
+
+function editFormHtml(b){
+  return '<div class="bm" id="bm-'+b.id+'" style="display:block">'
+    + '<div class="hint">Editing this bookmark — change anything, then save.</div>'
+    + '<label>Address</label><input type="url" id="eUrl" value="'+escapeAttr(b.url)+'">'
+    + '<div id="eDupWarn"></div>'
+    + '<label>Title</label><input type="text" id="eTitle" value="'+escapeAttr(b.title)+'">'
+    + '<label>Description</label><textarea id="eDesc">'+escapeHtml(b.description||'')+'</textarea>'
+    + '<label>Tags (comma separated)</label><input type="text" id="eTags" value="'+escapeAttr((b.tags||[]).join(', '))+'">'
+    + '<div class="suggest" id="eTagSuggest"></div>'
+    + '<label>Your note</label><textarea id="eNote" style="min-height:110px">'+escapeHtml(b.note||'')+'</textarea>'
+    + '<div class="hint">Supports **bold**, - bullet lists, and [links](https://…).</div>'
+    + '<div class="row" style="margin-top:12px"><button id="eSave">Save changes</button>'
+    + '<button class="secondary" id="eCancel">Cancel</button></div></div>';
+}
+function wireEditForm(){
+  if(editingId===null) return;
+  const tagsField=$("#eTags"); if(!tagsField) return;
+  wireTagSuggest(tagsField, $("#eTagSuggest"));
+  $("#eCancel").onclick=()=>{ editingId=null; render(); };
+  $("#eSave").onclick=saveEdit;
+}
+function openEdit(id){ editingId=id; render();
+  setTimeout(()=>{ const el=document.getElementById('bm-'+id);
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
+      const f=document.getElementById('eTitle'); if(f) f.focus(); } }, 60);
+}
+function retryFetch(id){
+  const b=bookmarks.find(x=>x.id===id); if(!b) return;
+  flash('Trying to read the page again…');
+  setTimeout(()=>{
+    // DEMO: simulate that the page has since become accessible on retry.
+    const key=b.url.toLowerCase().replace(/\/+$/,'');
+    const idx=UNREADABLE.indexOf(key); if(idx>=0) UNREADABLE.splice(idx,1);
+    const meta=autoFill(b.url);
+    if(meta.readable!==false){
+      if(!b.title || b.title===b.url) b.title=meta.title||b.title;
+      if(!b.description) b.description=meta.description;
+      b.favicon=meta.favicon; b.preview=meta.preview; b.contentCollected=true;
+      b.preserved = { status:'saved', savedAt: Date.now(), kind: isPdf(b.url)?'pdf':'page',
+        archiveUrl: (b.preserved&&b.preserved.archiveUrl)||null };
+      flash('Read the page, collected its details, and saved a copy.'); render(); jumpTo(b.id);
+    } else {
+      flash('Still couldn\'t read the page — try again later.');
+    }
+  }, 500);
+}
+function saveEdit(){
+  const b=bookmarks.find(x=>x.id===editingId); if(!b) return;
+  const newUrl=$("#eUrl").value.trim() || b.url;
+  // if the address now matches a DIFFERENT bookmark, block (avoid duplicate)
+  const clash=bookmarks.find(x=>x.id!==b.id && normalize(x.url)===normalize(newUrl));
+  if(clash){ $("#eDupWarn").innerHTML='<div class="warn">That address is already saved as <b>'
+      +escapeHtml(clash.title)+'</b>. Two bookmarks can\'t share the same address.</div>'; return; }
+  const seen=new Set(); const tags=[];
+  $("#eTags").value.split(',').map(t=>t.trim()).filter(Boolean).forEach(t=>{
+    const c=canonTag(t); const k=c.toLowerCase(); if(!seen.has(k)){ seen.add(k); tags.push(c); } });
+  const urlChanged = normalize(newUrl)!==normalize(b.url);
+  b.url=newUrl; b.title=$("#eTitle").value.trim()||newUrl;
+  b.description=$("#eDesc").value.trim(); b.tags=tags; b.note=$("#eNote").value.trim();
+  if(urlChanged){ b.favicon=faviconFor(newUrl); b.preview=previewFor(newUrl,b.title); }
+  editingId=null; flash('Changes saved.'); render(); jumpTo(b.id);
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escapeAttr(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+$("#saveBtn").onclick = startSave;
+$("#url").addEventListener('keydown', e=>{ if(e.key==='Enter') startSave(); });
+$("#search").addEventListener('input', ()=>{ shownN=PAGE; render(); });
+$("#clearSearch").onclick = ()=>{ $("#search").value=''; shownN=PAGE; render(); $("#search").focus(); };
+$("#sort").addEventListener('change', (e)=>{ sortBy=e.target.value; shownN=PAGE; render(); });
+$("#statusFilter").addEventListener('change', (e)=>{ statusFilter=e.target.value; shownN=PAGE; render(); });
+$("#locationFilter").addEventListener('change', (e)=>{ locationFilter=e.target.value; shownN=PAGE; render(); });
+
+render();
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#245f49">
+  <title>Keepwell</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <section class="login-page" id="loginView" data-harness-ready="true" hidden>
+    <form class="login-card" id="loginForm">
+      <div class="brand brand-large"><span class="brand-mark" aria-hidden="true"></span>Keepwell</div>
+      <h1>Welcome back</h1>
+      <p>Your private library is waiting.</p>
+      <div class="alert alert-error" id="loginError" role="alert" hidden><strong>We couldn’t sign you in</strong><span>Check your email and password, then try again.</span></div>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required value="alex@example.com">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="button primary wide" type="submit">Sign in</button>
+      <p class="review-credentials">Review password: <code>bookmarks</code></p>
+    </form>
+  </section>
+
+  <div class="app-shell" id="appView" hidden>
+    <header class="site-header">
+      <a class="brand" href="#library" aria-label="Keepwell library"><span class="brand-mark" aria-hidden="true"></span>Keepwell</a>
+      <div class="header-actions"><span class="account-email" id="accountEmail"></span><button class="icon-button" id="logoutButton">Sign out</button></div>
+    </header>
+    <main class="page-shell" data-harness-ready="true">
+      <aside class="sidebar" aria-label="Library sections">
+        <button class="nav-button active" data-section="library"><span>Library</span><span class="nav-count" id="libraryCount">0</span></button>
+        <button class="nav-button" data-section="later"><span>Read later</span><span class="nav-count" id="laterCount">0</span></button>
+      </aside>
+      <section class="workspace">
+        <div class="page-heading"><div><p class="eyebrow" id="sectionEyebrow">Personal collection</p><h1 id="sectionTitle">Your library</h1><p id="sectionSubtitle">Everything you’ve saved, ready to find again.</p></div></div>
+
+        <form class="save-bar" id="saveForm" novalidate>
+          <span aria-hidden="true" class="bar-icon">＋</span>
+          <input id="urlInput" aria-label="Web address" placeholder="Paste a web address" autocomplete="url">
+          <button class="button primary" type="submit">Continue</button>
+        </form>
+        <p class="field-error" id="urlError" role="alert" hidden></p>
+        <p class="demo-hint">Try a reliable sample: <button class="text-button" id="demoLink" type="button">Rome walking guide</button></p>
+
+        <form class="search-bar" id="searchForm">
+          <span aria-hidden="true" class="bar-icon">⌕</span>
+          <input id="searchInput" aria-label="Search your library" placeholder='Search everything, or try Rome AND tag:articles'>
+          <button class="text-button" id="clearSearch" type="button" hidden>Clear</button>
+          <button class="button secondary" type="submit">Search</button>
+        </form>
+        <div class="alert alert-error" id="searchError" role="alert" hidden></div>
+        <div class="interpretation" id="interpretation" hidden><strong>We understood this as:</strong><span id="interpretationText"></span></div>
+
+        <div class="list-meta"><span id="resultCount">0 bookmarks</span><span id="loadingText" hidden>Updating…</span></div>
+        <section class="bookmark-list" id="bookmarkList" aria-live="polite"></section>
+        <section class="empty-state" id="emptyState" hidden>
+          <div class="empty-symbol" id="emptySymbol">⌁</div>
+          <h2 id="emptyTitle">Your first good find belongs here</h2>
+          <p id="emptyCopy">Paste a web address above to begin your library.</p>
+          <button class="button primary" id="emptyAction" type="button" hidden>Browse library</button>
+        </section>
+      </section>
+    </main>
+    <div class="toast" id="toast" role="status" hidden></div>
+  </div>
+
+  <dialog id="bookmarkDialog" class="dialog">
+    <form id="bookmarkForm" method="dialog" class="dialog-content">
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow" id="bookmarkDialogEyebrow">New bookmark</p>
+      <h2 id="bookmarkDialogTitle">Review before saving</h2>
+      <p class="dialog-lead" id="bookmarkDialogLead">We found these details. You have the final say.</p>
+      <div class="alert alert-warning" id="captureWarning" hidden><strong>We couldn’t reach this page yet</strong><span>You can save it now. Keepwell will keep trying automatically for details and a readable copy.</span></div>
+      <div class="alert alert-info" id="duplicateNotice" hidden><strong>Already in your library</strong><span>No second copy will be created. Update your existing bookmark here.</span></div>
+      <div class="page-source"><span class="source-icon" id="previewIcon">K</span><div><strong id="previewHost">Page</strong><span id="previewUrl"></span></div></div>
+      <label for="bookmarkTitleInput">Title</label>
+      <input id="bookmarkTitleInput" required maxlength="500">
+      <label for="bookmarkDescriptionInput" id="descriptionLabel">Description</label>
+      <textarea id="bookmarkDescriptionInput" rows="3" maxlength="2000"></textarea>
+      <label for="bookmarkNotesInput">Your notes <span class="optional">(optional)</span></label>
+      <textarea id="bookmarkNotesInput" rows="3"></textarea>
+      <label for="bookmarkTagInput">Tags <span class="optional">(optional)</span></label>
+      <div class="tag-input-wrap">
+        <input id="bookmarkTagInput" autocomplete="off" placeholder="Start typing a tag">
+        <div class="tag-suggestions" id="bookmarkTagSuggestions" hidden></div>
+      </div>
+      <div class="selected-tags" id="bookmarkSelectedTags"></div>
+      <label class="check-row"><input id="bookmarkReadLater" type="checkbox"><span>Add to Read later</span></label>
+      <p class="field-error" id="bookmarkFormError" role="alert" hidden></p>
+      <div class="dialog-actions"><button class="button secondary" value="cancel">Cancel</button><button class="button primary" id="bookmarkSubmit" type="submit">Save bookmark</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="deleteDialog" class="dialog dialog-small">
+    <form method="dialog" class="dialog-content" id="deleteForm">
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+      <p class="eyebrow danger-text">Permanent action</p>
+      <h2>Delete this bookmark permanently?</h2>
+      <p class="dialog-lead" id="deleteName"></p>
+      <div class="alert alert-danger">This removes the bookmark, your notes, its Read later membership, and the saved copy. The original website is not affected.</div>
+      <div class="dialog-actions"><button class="button secondary" value="cancel">Cancel</button><button class="button danger" id="deleteConfirm" type="submit">Delete permanently</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="archiveDialog" class="dialog archive-dialog">
+    <div class="archive-shell">
+      <div class="archive-top"><div><strong>Saved copy</strong><span id="archiveProvenance"></span></div><button class="dialog-close inline-close" id="archiveClose" aria-label="Close">×</button></div>
+      <article class="archive-article"><p class="eyebrow">Preserved page</p><h2 id="archiveTitle"></h2><p class="archive-deck" id="archiveDescription"></p><p class="archive-byline" id="archiveByline"></p><img id="archiveImage" alt="" hidden><div class="archive-body" id="archiveBody"></div></article>
+    </div>
+  </dialog>
+
+  <dialog id="unavailableDialog" class="dialog dialog-small">
+    <div class="dialog-content"><button class="dialog-close" id="unavailableClose" aria-label="Close">×</button><p class="eyebrow danger-text">Original unavailable</p><h2>This page can’t be reached anymore</h2><p class="dialog-lead">Your bookmark is safe, and its captured readable copy is ready.</p><div class="dialog-actions"><button class="button primary" id="unavailableArchive">Open saved copy</button></div></div>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

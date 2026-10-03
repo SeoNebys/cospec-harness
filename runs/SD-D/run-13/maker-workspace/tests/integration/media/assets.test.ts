@@ -1,0 +1,9 @@
+import { describe,expect,it } from 'vitest';
+import sharp from 'sharp';
+import { createTestDatabase } from '../../fixtures/database.js';
+import { processImage } from '../../../src/server/media/process-image.js';
+import { MediaRepository } from '../../../src/server/db/repositories/media-repository.js';
+import { MetadataDraftRepository } from '../../../src/server/db/repositories/metadata-draft-repository.js';
+import { BookmarkRepository } from '../../../src/server/db/repositories/bookmark-repository.js';
+import { EMPTY_NOTE } from '../../../src/shared/notes/schema.js';
+describe('media assets and drafts',()=>{it('deduplicates processed bytes, expires drafts, and preserves referenced assets',async()=>{let now=1000;const db=createTestDatabase();const media=new MediaRepository(db,()=>now);const input=await sharp({create:{width:16,height:16,channels:3,background:'red'}}).png().toBuffer();const asset=await processImage(input,'icon');media.put(asset);media.put(asset);expect((db.prepare('SELECT count(*) AS count FROM media_assets').get() as {count:number}).count).toBe(1);const drafts=new MetadataDraftRepository(db,()=>now,()=> 'draft-id');drafts.create({normalizedUrl:'https://example.com/',sourceUrl:'https://example.com',finalUrl:'https://example.com/',title:'Example',description:null,iconAssetId:asset.id,previewAssetId:null,warnings:[]});expect(drafts.get('draft-id')).not.toBeNull();now+=31*60*1000;expect(drafts.get('draft-id')).toBeNull();const bookmarks=new BookmarkRepository(db,()=>now,()=> 'bookmark-id');bookmarks.create({url:'https://example.com',normalizedUrl:'https://example.com/',title:'Example',description:null,notes:EMPTY_NOTE,notesText:'',tags:[],favorite:false,toRead:false,iconAssetId:asset.id});drafts.deleteExpired();expect(media.cleanupUnreferenced()).toBe(0);expect(media.get(asset.id)).not.toBeNull();bookmarks.delete('bookmark-id');expect(media.cleanupUnreferenced()).toBe(1);db.close();});});

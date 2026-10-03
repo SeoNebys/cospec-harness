@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS saved_views (id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE CHECK(length(trim(name)) BETWEEN 1 AND 100), query TEXT NOT NULL CHECK(length(query)<=2048), tag_ids TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS preferences (id INTEGER PRIMARY KEY CHECK(id=1), default_sort TEXT NOT NULL CHECK(default_sort IN ('title','created_at','updated_at')), sort_direction TEXT NOT NULL CHECK(sort_direction IN ('asc','desc')), text_size TEXT NOT NULL CHECK(text_size IN ('small','medium','large')));
+INSERT OR IGNORE INTO preferences(id,default_sort,sort_direction,text_size) VALUES(1,'created_at','desc','medium');
+CREATE TABLE IF NOT EXISTS import_runs (id TEXT PRIMARY KEY,status TEXT NOT NULL,filename TEXT,created_count INTEGER NOT NULL DEFAULT 0,duplicate_count INTEGER NOT NULL DEFAULT 0,skipped_count INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS import_issues (id INTEGER PRIMARY KEY AUTOINCREMENT,import_id TEXT NOT NULL REFERENCES import_runs(id) ON DELETE CASCADE,line INTEGER,message TEXT NOT NULL);

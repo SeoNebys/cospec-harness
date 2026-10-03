@@ -1,0 +1,1 @@
+"use client";export function MetadataPreview({status,icon}:{status:string;icon:string}){if(!status)return null;return <div className={status.startsWith("Couldn")?"error":"preview"}>{icon&&<img src={icon} alt="" width="28" height="28" style={{borderRadius:6,verticalAlign:"middle",marginRight:10}}/>}{status}</div>}

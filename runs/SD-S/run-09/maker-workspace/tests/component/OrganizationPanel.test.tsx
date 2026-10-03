@@ -1,0 +1,3 @@
+// @vitest-environment jsdom
+import { fireEvent,render,screen } from "@testing-library/react";import { describe,expect,it,vi } from "vitest";import { OrganizationSidebar } from "../../src/client/features/organization/OrganizationSidebar.js";
+describe("organization sidebar",()=>{it("selects combinable organization filters",()=>{const setQuery=vi.fn();render(<OrganizationSidebar folders={[{id:1,name:"Reading",count:2}]} tags={[{id:2,name:"Design",count:1}]} total={3} query={{q:"",folderId:"",tagId:"",favorite:false,sort:"newest"}} setQuery={setQuery} onRefresh={async()=>{}}/>);fireEvent.click(screen.getByRole("button",{name:/Reading/}));expect(setQuery).toHaveBeenCalledWith({folderId:"1"});});});

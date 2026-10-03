@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Search bookmarks</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .search-shell { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 70px; }
+    .search-head { padding: 58px 0 32px; }
+    .search-head h1 { font-size: 52px; }
+    .search-box { position: relative; margin-top: 28px; }
+    .search-box span { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 20px; }
+    .search-box input { width: 100%; height: 58px; border: 1px solid #bfc6bd; border-radius: 13px; padding: 0 18px 0 49px; background: var(--card); color: var(--ink); font-size: 16px; outline: none; box-shadow: 0 12px 30px rgba(35,48,40,.06); }
+    .search-box input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(35,77,59,.12); }
+    .search-summary { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 15px; }
+    .search-summary h2 { margin: 0; font-family: Georgia, serif; font-size: 26px; font-weight: 500; }
+    .search-summary span { color: var(--muted); font-size: 12px; }
+    .search-list { display: grid; gap: 13px; }
+    .search-card { display: grid; grid-template-columns: 92px 1fr; gap: 16px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .search-image { min-height: 92px; border-radius: 9px; background: linear-gradient(140deg, #183d4d, #e79a54); }
+    .search-card:nth-child(2) .search-image { background: linear-gradient(140deg, #54416f, #d5b3d4); }
+    .search-card:nth-child(3) .search-image { background: linear-gradient(140deg, #3d624a, #e8d596); }
+    .search-content { align-self: center; min-width: 0; }
+    .search-content h3 { margin: 0 0 5px; font-family: Georgia, serif; font-size: 19px; }
+    .search-description { margin: 0 0 7px; color: var(--muted); font-size: 12px; }
+    .match-line { margin: 0; padding: 6px 8px; border-radius: 6px; background: #edf2ec; color: #385343; font-size: 11px; }
+    .match-line strong { color: var(--green); }
+    mark { padding: 0 2px; background: #f6d9a9; color: inherit; }
+    .no-results { padding: 48px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="search-shell" data-harness-ready="true">
+    <header class="topbar">
+      <a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a>
+      <span class="prototype-badge">Search prototype</span>
+    </header>
+    <section class="search-head">
+      <p class="eyebrow">YOUR COLLECTION</p>
+      <h1>Find what you remember.</h1>
+      <div class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search titles, descriptions, notes, and URLs" autofocus></div>
+    </section>
+    <section>
+      <div class="search-summary"><h2 id="search-title">All bookmarks</h2><span id="search-count">3 bookmarks</span></div>
+      <div id="search-list" class="search-list">
+        <article class="search-card" data-title="A calmer way to keep what you discover online" data-description="Building a personal reading collection that stays useful." data-note="Use this for the workshop on personal knowledge systems." data-url="fieldnotes.example/calm-bookmarking">
+          <div class="search-image"></div><div class="search-content"><h3>A calmer way to keep what you discover online</h3><p class="search-description">Building a personal reading collection that stays useful.</p><p class="match-line" hidden></p></div>
+        </article>
+        <article class="search-card" data-title="How small teams make better product decisions" data-description="Simple research habits for teams moving quickly." data-note="Share with the product group." data-url="workbench.example/product-decisions">
+          <div class="search-image"></div><div class="search-content"><h3>How small teams make better product decisions</h3><p class="search-description">Simple research habits for teams moving quickly.</p><p class="match-line" hidden></p></div>
+        </article>
+        <article class="search-card" data-title="Designing systems that age gracefully" data-description="A field guide to maintainable design systems." data-note="Good examples of token naming." data-url="commonpractice.example/design-systems">
+          <div class="search-image"></div><div class="search-content"><h3>Designing systems that age gracefully</h3><p class="search-description">A field guide to maintainable design systems.</p><p class="match-line" hidden></p></div>
+        </article>
+      </div>
+      <div id="no-results" class="no-results" hidden>No bookmarks match that search.</div>
+    </section>
+  </main>
+  <script>
+    const input = document.querySelector('#search');
+    const cards = [...document.querySelectorAll('.search-card')];
+    const title = document.querySelector('#search-title');
+    const count = document.querySelector('#search-count');
+    const noResults = document.querySelector('#no-results');
+    const labels = { title: 'title', description: 'description', note: 'your note', url: 'URL' };
+    input.addEventListener('input', () => {
+      const query = input.value.trim().toLowerCase();
+      let visible = 0;
+      cards.forEach((card) => {
+        const field = ['title', 'description', 'note', 'url'].find((name) => card.dataset[name].toLowerCase().includes(query));
+        const matches = !query || Boolean(field);
+        card.hidden = !matches;
+        const matchLine = card.querySelector('.match-line');
+        matchLine.hidden = !query || !field;
+        if (query && field) matchLine.innerHTML = `<strong>Matched in ${labels[field]}:</strong> ${card.dataset[field]}`;
+        if (matches) visible += 1;
+      });
+      title.textContent = query ? `Results for “${input.value.trim()}”` : 'All bookmarks';
+      count.textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+      noResults.hidden = visible !== 0;
+    });
+  </script>
+</body>
+</html>

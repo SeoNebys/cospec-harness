@@ -1,0 +1,2 @@
+import { NextResponse } from "next/server";import { requireApiSession } from "@/lib/auth/session";import { listTags } from "@/lib/bookmarks/repository";import { apiError } from "@/lib/http/errors";
+export async function GET(request:Request){const session=await requireApiSession(request);if(!session)return apiError(request,401,"UNAUTHORIZED","Sign in to continue.");return NextResponse.json({items:listTags(session.user.id)});}

@@ -1,0 +1,2 @@
+import { test,expect } from '@playwright/test';
+test('formatted note renders headings and lists without scripts',async({page,request})=>{const stamp=Date.now();const item=await (await request.post('/api/bookmarks',{data:{url:`https://notes.test/${stamp}`,title:`Formatted ${stamp}`,noteSource:'## Context\n- useful\n<script>window.BAD=true</script>'}})).json();await page.goto(`/bookmarks/${item.id}`);await expect(page.getByRole('heading',{name:'Context'})).toBeVisible();expect(await page.evaluate(()=>Reflect.get(window,'BAD'))).toBeUndefined()});

@@ -1,0 +1,5 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Bookmark } from '../../../shared/api/types.js';
+import { api } from '../../lib/api-client.js';
+import { queryKeys } from '../../lib/query-keys.js';
+export function ArchiveButton({id,onDone}:{id:string;onDone?:()=>void}){const client=useQueryClient();const mutation=useMutation({mutationFn:()=>api<Bookmark>(`/api/bookmarks/${id}/archive`,{method:'POST'}),onMutate:async()=>{await client.cancelQueries({queryKey:queryKeys.bookmark(id)});const previous=client.getQueryData<Bookmark>(queryKeys.bookmark(id));if(previous)client.setQueryData(queryKeys.bookmark(id),{...previous,archivedAt:new Date().toISOString()});return{previous};},onError:(_error,_value,context)=>{if(context?.previous)client.setQueryData(queryKeys.bookmark(id),context.previous);},onSuccess:value=>{client.setQueryData(queryKeys.bookmark(id),value);onDone?.();},onSettled:()=>client.invalidateQueries({queryKey:['bookmarks']})});return <button className="button quiet" disabled={mutation.isPending} onClick={()=>mutation.mutate()}>Archive</button>;}

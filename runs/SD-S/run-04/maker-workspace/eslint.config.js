@@ -1,0 +1,17 @@
+import js from '@eslint/js';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+import hooks from 'eslint-plugin-react-hooks';
+
+export default tseslint.config(
+  { ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'data/**', '.specify/**'] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ['src/client/**/*.{ts,tsx}'],
+    languageOptions: { globals: globals.browser },
+    plugins: { 'react-hooks': hooks },
+    rules: hooks.configs.recommended.rules,
+  },
+  { files: ['src/server/**/*.ts', 'tests/**/*.ts'], languageOptions: { globals: globals.node } },
+);

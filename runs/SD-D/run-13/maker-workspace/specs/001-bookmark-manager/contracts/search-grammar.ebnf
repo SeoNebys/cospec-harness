@@ -1,0 +1,77 @@
+(* Bookmark Manager search language, version 1 *)
+
+query          = whitespace, [ or_expression ], whitespace ;
+
+or_expression  = and_expression,
+                 { required_whitespace, or_operator,
+                   required_whitespace, and_expression } ;
+
+and_expression = primary,
+                 { ( required_whitespace, and_operator,
+                     required_whitespace, primary )
+                   | ( required_whitespace, primary ) } ;
+
+primary        = condition
+               | "(", whitespace, or_expression, whitespace, ")" ;
+
+condition      = tag_condition
+               | quoted_phrase
+               | word ;
+
+tag_condition  = tag_prefix, ( quoted_tag | unquoted_tag ) ;
+tag_prefix     = "tag:" ;
+
+quoted_phrase  = quote, { quoted_character }, quote ;
+quoted_tag     = quote, { quoted_character }, quote ;
+
+quoted_character = escaped_quote
+                 | escaped_backslash
+                 | ? any Unicode scalar value except quote, backslash, or control ? ;
+
+escaped_quote     = backslash, quote ;
+escaped_backslash = backslash, backslash ;
+
+word           = word_character, { word_character } ;
+unquoted_tag   = tag_character, { tag_character } ;
+
+word_character = ? any Unicode scalar value except whitespace, quote, "(", ")", or backslash ? ;
+tag_character  = ? any word_character except characters consumed by a Boolean operator token ? ;
+
+and_operator   = "AND" ;
+or_operator    = "OR" ;
+
+quote          = '"' ;
+backslash      = "\\" ;
+whitespace     = { " " | "\t" | "\n" | "\r" } ;
+required_whitespace = ( " " | "\t" | "\n" | "\r" ), whitespace ;
+
+(* Lexical and evaluation rules:
+
+1. AND, OR, and tag: are ASCII case-insensitive.
+2. AND and OR are operators only when they form a complete unquoted token.
+   To search for either literal word, quote it.
+3. Adjacent primaries have an implicit AND.
+4. AND and implicit AND bind more tightly than OR. Parentheses override precedence.
+5. A quoted phrase is one case-insensitive contiguous substring condition.
+6. A word is one case-insensitive partial-substring condition.
+7. Ordinary words and phrases match title, original URL, description, note plain text,
+   or tag display text. Separate AND operands may match different fields.
+8. tag:value and tag:"value with spaces" compare one exact normalized tag.
+9. Empty quoted phrases/tags and empty parentheses are invalid.
+10. A query is bounded to 500 Unicode scalar values, 64 conditions, and nesting depth 10.
+11. Lexer/parser failures report a zero-based start and end offset into the original query.
+12. An empty/whitespace-only query has no expression and matches all records in the
+    current view after explicit UI filters.
+
+Examples:
+
+  accessibility
+  "design systems"
+  tag:research
+  tag:"machine learning"
+  accessibility AND tag:research
+  accessibility tag:research
+  (design OR usability) AND tag:"work notes"
+  "research AND development" OR tag:r&d
+
+*)

@@ -1,0 +1,1 @@
+export function TitleEditor({value,onChange}:{value:string;onChange:(value:string)=>void}){return <div className="field"><label htmlFor="edit-title">Title</label><input id="edit-title" className="input" value={value} onChange={(e)=>onChange(e.target.value)} minLength={1} maxLength={300} required/></div>}

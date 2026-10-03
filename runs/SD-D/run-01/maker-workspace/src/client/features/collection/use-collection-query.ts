@@ -1,0 +1,2 @@
+import { useSearchParams } from 'react-router-dom';
+export function useCollectionQuery(){const[params,setParams]=useSearchParams();const set=(key:string,value:string|undefined)=>{const next=new URLSearchParams(params);if(value===undefined||value==='')next.delete(key);else next.set(key,value);setParams(next,{replace:true});};return{params,set,replace:(next:URLSearchParams)=>setParams(next,{replace:true}),clear:()=>setParams({}, {replace:true})};}

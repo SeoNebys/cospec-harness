@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {isPublicAddress,validateFetchUrl} from '../../src/server/metadata/address-policy.ts';
+test('blocks private and reserved addresses',()=>{assert.equal(isPublicAddress('127.0.0.1',4),false);assert.equal(isPublicAddress('10.1.2.3',4),false);assert.equal(isPublicAddress('8.8.8.8',4),true);assert.throws(()=>validateFetchUrl('http://example.com:8080'))});

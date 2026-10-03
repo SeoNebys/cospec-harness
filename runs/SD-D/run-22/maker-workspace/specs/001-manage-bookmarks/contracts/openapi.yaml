@@ -1,0 +1,230 @@
+openapi: 3.1.0
+info:
+  title: Personal Bookmark Manager API
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /metadata/preview:
+    post:
+      summary: Retrieve safe bookmark metadata suggestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri, maxLength: 4096 }
+      responses:
+        '200':
+          description: Complete, partial, or failed preview for a valid public URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetadataPreviewEnvelope' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /bookmarks:
+    get:
+      summary: List and search bookmarks
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 1000 } }
+        - name: tag
+          in: query
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+        - { name: scope, in: query, schema: { type: string, enum: [all, unread-read-later], default: all } }
+        - { name: sort, in: query, schema: { type: string, enum: [createdAt, title], default: createdAt } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Matching bookmark view
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [items, query]
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/Bookmark' } }
+                      query: { $ref: '#/components/schemas/QuerySummary' }
+        '400': { $ref: '#/components/responses/SearchError' }
+    post:
+      summary: Create a bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '201':
+          description: Bookmark created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkEnvelope' }
+        '409': { $ref: '#/components/responses/DuplicateError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /bookmarks/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      summary: Update user-controlled bookmark fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkPatch' }
+      responses:
+        '200':
+          description: Bookmark updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkEnvelope' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '409': { $ref: '#/components/responses/DuplicateError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      summary: Delete a bookmark after client confirmation
+      responses:
+        '204': { description: Bookmark deleted }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+  /bookmarks/{id}/reading-status:
+    patch:
+      summary: Change read-later membership or read state
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [readLater, isRead]
+              properties:
+                readLater: { type: boolean }
+                isRead: { type: boolean, description: Must be false when readLater is false }
+      responses:
+        '200':
+          description: Reading state updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkEnvelope' }
+        '404': { $ref: '#/components/responses/NotFoundError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /tags:
+    get:
+      summary: List tags and bookmark counts
+      responses:
+        '200':
+          description: Tags available for filtering
+components:
+  schemas:
+    Bookmark:
+      type: object
+      required: [id, url, title, tags, readLater, isRead, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        iconUrl: { type: [string, 'null'] }
+        notes: { type: [string, 'null'], maxLength: 10000 }
+        tags: { type: array, items: { type: string, minLength: 1, maxLength: 100 }, uniqueItems: true }
+        readLater: { type: boolean }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BookmarkInput:
+      type: object
+      required: [url, title]
+      properties:
+        url: { type: string, format: uri, maxLength: 4096 }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        iconToken: { type: [string, 'null'], description: Opaque token from metadata preview }
+        notes: { type: [string, 'null'], maxLength: 10000 }
+        tags: { type: array, items: { type: string, minLength: 1, maxLength: 100 }, uniqueItems: true }
+        readLater: { type: boolean, default: false }
+    BookmarkPatch:
+      type: object
+      minProperties: 1
+      properties:
+        url: { type: string, format: uri, maxLength: 4096 }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        iconToken: { type: [string, 'null'], description: Opaque token from metadata preview }
+        notes: { type: [string, 'null'], maxLength: 10000 }
+        tags: { type: array, items: { type: string, minLength: 1, maxLength: 100 }, uniqueItems: true }
+    MetadataField:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [found, missing, invalid, fetch_failed] }
+        value: { type: [string, 'null'] }
+        source: { type: [string, 'null'] }
+    MetadataPreviewEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [requestedUrl, outcome, fields, warnings]
+          properties:
+            requestedUrl: { type: string, format: uri }
+            finalUrl: { type: [string, 'null'], format: uri }
+            outcome: { type: string, enum: [complete, partial, failed] }
+            fields:
+              type: object
+              required: [title, description, icon]
+              properties:
+                title: { $ref: '#/components/schemas/MetadataField' }
+                description: { $ref: '#/components/schemas/MetadataField' }
+                icon: { $ref: '#/components/schemas/MetadataField' }
+            iconToken: { type: [string, 'null'] }
+            warnings: { type: array, items: { type: string } }
+    QuerySummary:
+      type: object
+      required: [raw, ast, labels]
+      properties:
+        raw: { type: string }
+        ast: { type: object, additionalProperties: true }
+        labels: { type: array, items: { type: string } }
+    BookmarkEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Bookmark' }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fieldErrors: { type: object, additionalProperties: { type: array, items: { type: string } } }
+            existingId: { type: string, format: uuid }
+            span:
+              type: object
+              properties:
+                start: { type: integer, minimum: 0 }
+                end: { type: integer, minimum: 0 }
+  responses:
+    ValidationError:
+      description: Invalid input or URL not eligible for public metadata retrieval
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    SearchError:
+      description: Malformed search query
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    DuplicateError:
+      description: Normalized URL already exists; error includes existingId
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFoundError:
+      description: Bookmark not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

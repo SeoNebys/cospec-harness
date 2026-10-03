@@ -1,0 +1,1 @@
+import { BookmarkForm } from "@/components/bookmarks/bookmark-form";export default function Page(){return <><div className="eyebrow">Add to your library</div><h1 className="headline">Save a link</h1><p className="muted" style={{marginBottom:24}}>Paste the address. We’ll do the first pass; you stay in control.</p><BookmarkForm/></>}

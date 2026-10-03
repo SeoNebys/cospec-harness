@@ -1,0 +1,2 @@
+import type { Tag } from '@bookmarks/shared';
+export function TagFilter({tags,value,onChange}:{tags:Tag[];value:string;onChange:(v:string)=>void}){if(!tags.length)return null;return <div className="filter-strip" aria-label="Filter by tag"><button className={!value?'selected':''} onClick={()=>onChange('')}>All</button>{tags.map(t=><button key={t.id} className={value===t.name?'selected':''} onClick={()=>onChange(t.name)}>#{t.name}</button>)}</div>}

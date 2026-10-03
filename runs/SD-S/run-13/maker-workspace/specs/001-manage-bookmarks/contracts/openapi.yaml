@@ -1,0 +1,254 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager API
+  version: 1.0.0
+  description: HTTP contract for the approved single-user bookmark manager.
+  license:
+    name: Private project
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: /api
+security: []
+paths:
+  /health:
+    get:
+      summary: Check application readiness
+      operationId: getHealth
+      responses:
+        '200':
+          description: Application is ready to serve requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    const: ok
+        '503':
+          description: Application is not ready to serve requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+  /bookmarks:
+    get:
+      summary: List and query bookmarks
+      operationId: listBookmarks
+      parameters:
+        - in: query
+          name: query
+          schema: { type: string, maxLength: 200, default: '' }
+        - in: query
+          name: tag
+          schema: { type: string, maxLength: 40 }
+        - in: query
+          name: favorite
+          schema: { type: boolean }
+        - in: query
+          name: sort
+          schema: { type: string, enum: [newest, oldest, title], default: newest }
+      responses:
+        '200':
+          description: Matching bookmarks and available tag counts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkList'
+        '400': { $ref: '#/components/responses/ValidationError' }
+    post:
+      summary: Create a bookmark
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookmarkInput'
+      responses:
+        '201':
+          description: Bookmark created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: Normalized URL already exists and explicit confirmation is required.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      error:
+                        properties:
+                          code: { const: DUPLICATE_BOOKMARK }
+                          existingBookmarkId: { type: string, format: uuid }
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    put:
+      summary: Update a bookmark
+      operationId: updateBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '200':
+          description: Bookmark updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Updated normalized URL conflicts with another bookmark.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    delete:
+      summary: Delete a bookmark
+      operationId: deleteBookmark
+      responses:
+        '204': { description: Bookmark permanently deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /page-metadata:
+    post:
+      summary: Retrieve editable page details
+      operationId: retrievePageMetadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url: { type: string, minLength: 1, maxLength: 2048 }
+      responses:
+        '200':
+          description: Retrieved metadata or a non-fatal fallback. Retrieval limitations use fallback status rather than an HTTP error so saving can continue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetadataResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403':
+          description: Destination is not an allowed public HTTP(S) address.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+components:
+  parameters:
+    BookmarkId:
+      in: path
+      name: bookmarkId
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    ValidationError:
+      description: Request values are invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Bookmark does not exist.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required: [id, url, title, description, notes, tags, isFavorite, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri, maxLength: 2048 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 500 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 40 }
+        isFavorite: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [url, title, description, notes, tags, isFavorite]
+      properties:
+        url: { type: string, minLength: 1, maxLength: 2048 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 500 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 40 }
+        isFavorite: { type: boolean }
+    CreateBookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [url, title, description, notes, tags, isFavorite]
+      properties:
+        url: { type: string, minLength: 1, maxLength: 2048 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 500 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 40 }
+        isFavorite: { type: boolean }
+        allowDuplicate: { type: boolean, default: false }
+    BookmarkList:
+      type: object
+      additionalProperties: false
+      required: [items, total, tags]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Bookmark' }
+        total: { type: integer, minimum: 0 }
+        tags:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, count]
+            properties:
+              name: { type: string }
+              count: { type: integer, minimum: 1 }
+    MetadataResult:
+      type: object
+      additionalProperties: false
+      required: [requestedUrl, finalUrl, title, description, status, warningCode]
+      properties:
+        requestedUrl: { type: string, format: uri }
+        finalUrl: { type: string, format: uri }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 500 }
+        status: { type: string, enum: [retrieved, fallback] }
+        warningCode:
+          type: [string, 'null']
+          enum: [null, TIMEOUT, UNREACHABLE, NON_HTML, RESPONSE_TOO_LARGE, MISSING_METADATA, TOO_MANY_REDIRECTS]
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            field: { type: string }
+            existingBookmarkId: { type: string, format: uuid }

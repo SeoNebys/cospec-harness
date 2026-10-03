@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --muted:#6b7280; --faint:#9aa1ac; --accent:#2563eb; --accent-soft:#eff4ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:#1f2430; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:10px; }
+  .saver input { flex:1; padding:11px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .saver input:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .saver button { padding:11px 18px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .saver button:disabled { opacity:.55; cursor:default; }
+  .hint { color:var(--muted); font-size:12px; margin:8px 2px 0; }
+  .listhead { margin:26px 2px 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; }
+  .card.justadded { animation: pop 1s ease; border-color:var(--accent); }
+  @keyframes pop { 0%{background:var(--accent-soft);} 100%{background:var(--card);} }
+  .thumb { flex:0 0 96px; width:96px; height:72px; border-radius:8px; overflow:hidden; background:#eef1f5; }
+  .thumb img, .thumb svg { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb.none { display:none; }
+  .body { flex:1; min-width:0; }
+  .titlerow { display:flex; align-items:center; gap:8px; }
+  .favi { flex:0 0 18px; width:18px; height:18px; border-radius:4px; display:inline-block; }
+  .title { font-size:15px; font-weight:600; color:#111827; text-decoration:none; }
+  .title:hover { text-decoration:underline; }
+  .desc { color:#3f4653; font-size:13px; margin-top:5px; line-height:1.45; }
+  .sub { color:var(--faint); font-size:12px; margin-top:7px; }
+  .sub .site { color:var(--muted); }
+  .sub .url { color:var(--faint); }
+  .filling { color:var(--accent); font-size:14px; font-weight:500; }
+  .skel { color:var(--faint); font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A personal place to save links and find them again.</p>
+</header>
+<div class="wrap">
+  <div class="saver">
+    <input id="url" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+    <button id="save">Save</button>
+  </div>
+  <div class="hint">Paste a link and press Save — the title, description, site icon and preview are filled in for you.</div>
+
+  <div class="listhead">Saved</div>
+  <div id="list"></div>
+</div>
+
+<script>
+// --- Prototype-only simulation of "auto-fill details" ---------------------
+// Simulates fetching a page's title, description, site icon and preview image
+// so the client can experience the behaviour. No real network calls are made.
+function ico(bg, glyph){ return 'data:image/svg+xml;utf8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="'+bg+'"/><text x="16" y="22" font-family="Arial" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">'+glyph+'</text></svg>'); }
+function preview(c1, c2, label){ return 'data:image/svg+xml;utf8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 144"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient></defs><rect width="192" height="144" fill="url(#g)"/><text x="96" y="80" font-family="Arial" font-size="16" fill="#ffffff" opacity="0.9" text-anchor="middle">'+label+'</text></svg>'); }
+
+const CANNED = {
+  "en.wikipedia.org": { title:"Photosynthesis — Wikipedia", site:"Wikipedia", desc:"The process by which green plants convert light energy into chemical energy stored in glucose.", icon:ico('#111','W'), preview:null },
+  "nytimes.com":      { title:"How Cities Are Rethinking Public Space", site:"The New York Times", desc:"Planners are turning parking lots and empty lots into parks, plazas and community gardens.", icon:ico('#000','T'), preview:preview('#4b6cb7','#182848','NYT') },
+  "github.com":       { title:"torvalds/linux: Linux kernel source tree", site:"GitHub", desc:"The official mirror of the Linux kernel source, maintained by Linus Torvalds and contributors.", icon:ico('#24292f','G'), preview:preview('#2b3137','#57606a','GitHub') },
+  "youtube.com":      { title:"Building a Standing Desk from Scratch", site:"YouTube", desc:"A step-by-step woodworking build of an adjustable standing desk using simple hand tools.", icon:ico('#ff0000','▶'), preview:preview('#c4302b','#7a0f0c','▶') },
+  "medium.com":       { title:"The Quiet Power of Note-Taking", site:"Medium", desc:"Why writing things down changes how you think, not just what you remember.", icon:ico('#000','M'), preview:preview('#3a3a3a','#111','Medium') },
+};
+function domainOf(raw){ try { let u = new URL(raw.includes("://")? raw : "https://"+raw); return u.hostname.replace(/^www\./,""); } catch(e){ return null; } }
+function titleCase(s){ return s.replace(/[-_]+/g," ").replace(/\b\w/g, c=>c.toUpperCase()); }
+function guessMeta(raw){
+  const host = domainOf(raw);
+  if(!host) return null;
+  if(CANNED[host]) return CANNED[host];
+  let site = titleCase(host.split(".")[0]);
+  let title, desc;
+  try {
+    const u = new URL(raw.includes("://")? raw : "https://"+raw);
+    const seg = u.pathname.split("/").filter(Boolean).pop();
+    title = seg ? titleCase(decodeURIComponent(seg).replace(/\.\w+$/,"")) + " — " + site : site + " — Home";
+  } catch(e){ title = site; }
+  desc = "A page on " + site + ". A short description would be pulled from the page when available.";
+  const letter = site.charAt(0).toUpperCase();
+  return { title, site, desc, icon:ico('#2563eb', letter), preview:null };
+}
+
+// --- Seed list (assumption: a few existing saves so the list has context) --
+let items = [
+  { id:2, title:"A Field Guide to Getting Lost", site:"Longreads", desc:"Rebecca Solnit on wandering, uncertainty, and the value of not always knowing where you are headed.", url:"https://longreads.com/field-guide", icon:ico('#e2574c','L'), preview:preview('#e2574c','#8a2b24','Longreads'), when:"2 days ago" },
+  { id:1, title:"CSS Grid: A Complete Guide", site:"CSS-Tricks", desc:"A comprehensive reference to every property in the CSS Grid layout module, with visual examples.", url:"https://css-tricks.com/snippets/css/complete-guide-grid", icon:ico('#ff7f50','C'), preview:null, when:"5 days ago" },
+];
+let nextId = 3;
+
+const listEl = document.getElementById("list");
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function render(justId){
+  listEl.innerHTML = "";
+  items.forEach(it=>{
+    const card = document.createElement("div");
+    card.className = "card" + (it.id===justId ? " justadded" : "");
+    if(it.filling){
+      card.innerHTML =
+        '<div class="thumb none"></div>'+
+        '<div class="body"><div class="filling">Getting details…</div>'+
+        '<div class="skel">'+esc(it.url)+'</div></div>';
+    } else {
+      const thumb = it.preview
+        ? '<div class="thumb"><img alt="" src="'+it.preview+'"></div>'
+        : '<div class="thumb none"></div>';
+      card.innerHTML =
+        thumb +
+        '<div class="body">'+
+          '<div class="titlerow"><img class="favi" alt="" src="'+it.icon+'">'+
+            '<a class="title" href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.title)+'</a></div>'+
+          '<div class="desc">'+esc(it.desc)+'</div>'+
+          '<div class="sub"><span class="site">'+esc(it.site)+'</span> · saved '+(it.when||"just now")+
+            ' · <span class="url">'+esc(it.url)+'</span></div>'+
+        '</div>';
+    }
+    listEl.appendChild(card);
+  });
+}
+
+const input = document.getElementById("url");
+const saveBtn = document.getElementById("save");
+function doSave(){
+  const raw = input.value.trim();
+  if(!raw) return;
+  const meta = guessMeta(raw);
+  if(!meta){ input.focus(); return; }
+  saveBtn.disabled = true;
+  const full = raw.includes("://")?raw:"https://"+raw;
+  const item = { id: nextId++, url: full, when:"just now", filling:true };
+  items.unshift(item);
+  render();
+  setTimeout(()=>{
+    item.title=meta.title; item.site=meta.site; item.desc=meta.desc; item.icon=meta.icon; item.preview=meta.preview; item.filling=false;
+    render(item.id);
+    input.value = ""; saveBtn.disabled = false; input.focus();
+  }, 750);
+}
+saveBtn.addEventListener("click", doSave);
+input.addEventListener("keydown", e=>{ if(e.key==="Enter") doSave(); });
+
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

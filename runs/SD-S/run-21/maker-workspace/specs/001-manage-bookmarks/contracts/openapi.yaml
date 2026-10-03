@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Management Application API
+  version: 1.0.0
+  description: JSON boundary used by the bookmark web application.
+servers:
+  - url: /api
+paths:
+  /metadata/preview:
+    post:
+      summary: Gather available page information for review
+      operationId: previewMetadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        "200":
+          description: Metadata result, including partial results with warnings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MetadataPreview" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "504": { $ref: "#/components/responses/Problem" }
+  /bookmarks:
+    get:
+      summary: List bookmarks for one scoped view
+      operationId: listBookmarks
+      parameters:
+        - { name: scope, in: query, schema: { type: string, enum: [active, to_read, favorites, archived], default: active } }
+        - { name: q, in: query, schema: { type: string, maxLength: 300 } }
+        - { name: tag, in: query, schema: { type: string } }
+        - { name: favorite, in: query, schema: { type: boolean } }
+        - { name: readingStatus, in: query, schema: { $ref: "#/components/schemas/ReadingStatus" } }
+        - { name: sort, in: query, schema: { type: string, enum: [created_desc, title_asc, updated_desc], default: created_desc } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 24 } }
+      responses:
+        "200":
+          description: Scoped, filtered page of bookmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Bookmark" } }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  total: { type: integer }
+        "400": { $ref: "#/components/responses/Problem" }
+    post:
+      summary: Create a bookmark after metadata review
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookmarkInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "409":
+          description: Potential duplicate; resubmit with allowDuplicate after user confirmation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: "#/components/schemas/Problem" }
+                  - type: object
+                    properties:
+                      duplicate: { $ref: "#/components/schemas/Bookmark" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /bookmarks/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/BookmarkId" }
+    get:
+      summary: Get one bookmark
+      operationId: getBookmark
+      responses:
+        "200":
+          description: Found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      summary: Update bookmark content and statuses
+      operationId: updateBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookmarkPatch" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      summary: Permanently delete after UI confirmation
+      operationId: deleteBookmark
+      responses:
+        "204": { description: Permanently deleted }
+        "404": { $ref: "#/components/responses/Problem" }
+  /bookmarks/{id}/archive:
+    parameters:
+      - { $ref: "#/components/parameters/BookmarkId" }
+    post:
+      summary: Archive an active bookmark
+      operationId: archiveBookmark
+      responses:
+        "200":
+          description: Archived
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /bookmarks/{id}/restore:
+    parameters:
+      - { $ref: "#/components/parameters/BookmarkId" }
+    post:
+      summary: Restore an archived bookmark
+      operationId: restoreBookmark
+      responses:
+        "200":
+          description: Restored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+  /tags:
+    get:
+      summary: List tags currently used by bookmarks
+      operationId: listTags
+      responses:
+        "200":
+          description: Canonical tags with usage counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tag" }
+components:
+  parameters:
+    BookmarkId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    Problem:
+      description: Request could not be completed
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    ReadingStatus:
+      type: string
+      enum: [to_read, read]
+    Bookmark:
+      type: object
+      required: [id, url, title, favorite, readingStatus, archived, tags, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        url: { type: string, format: uri }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        siteIconUrl: { type: [string, "null"], format: uri }
+        previewImageUrl: { type: [string, "null"], format: uri }
+        favorite: { type: boolean }
+        readingStatus: { $ref: "#/components/schemas/ReadingStatus" }
+        archived: { type: boolean }
+        archivedAt: { type: [string, "null"], format: date-time }
+        tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BookmarkInput:
+      type: object
+      required: [url, title]
+      properties:
+        url: { type: string, format: uri }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description: { type: [string, "null"], maxLength: 1000 }
+        notes: { type: [string, "null"], maxLength: 10000 }
+        siteIconUrl: { type: [string, "null"], format: uri }
+        previewImageUrl: { type: [string, "null"], format: uri }
+        favorite: { type: boolean, default: false }
+        readingStatus: { $ref: "#/components/schemas/ReadingStatus" }
+        tags: { type: array, maxItems: 30, items: { type: string, minLength: 1, maxLength: 50 } }
+        allowDuplicate: { type: boolean, default: false }
+    BookmarkPatch:
+      type: object
+      minProperties: 1
+      properties:
+        url: { type: string, format: uri }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description: { type: [string, "null"], maxLength: 1000 }
+        notes: { type: [string, "null"], maxLength: 10000 }
+        favorite: { type: boolean }
+        readingStatus: { $ref: "#/components/schemas/ReadingStatus" }
+        tags: { type: array, maxItems: 30, items: { type: string, minLength: 1, maxLength: 50 } }
+        allowDuplicate: { type: boolean, default: false }
+    MetadataPreview:
+      type: object
+      required: [requestedUrl, finalUrl, title, description, siteIconUrl, previewImageUrl, warnings]
+      properties:
+        requestedUrl: { type: string, format: uri }
+        finalUrl: { type: string, format: uri }
+        title: { type: [string, "null"] }
+        description: { type: [string, "null"] }
+        siteIconUrl: { type: [string, "null"], format: uri }
+        previewImageUrl: { type: [string, "null"], format: uri }
+        warnings:
+          type: array
+          items: { type: string, enum: [missing_title, missing_description, missing_icon, missing_image, partial_response] }
+    Tag:
+      type: object
+      required: [id, name, bookmarkCount]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        bookmarkCount: { type: integer, minimum: 1 }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }

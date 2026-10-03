@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Note formatting — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 18px; }
+  .variant-name { display:inline-block; font-size:12px; font-weight:700; color:var(--accent); background:#eaf1fe; border-radius:999px; padding:5px 12px; margin-bottom:16px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  label.fl { display:block; font-size:12px; color:var(--muted); margin:0 0 6px; font-weight:600; }
+  .toolbar { display:flex; gap:4px; border:1px solid var(--line); border-bottom:none; border-radius:8px 8px 0 0; padding:6px; background:#fafbfc; }
+  .toolbar button { border:1px solid transparent; background:transparent; border-radius:6px; padding:5px 9px; font-size:13px; cursor:pointer; color:var(--ink); }
+  .toolbar button:hover { background:#eef2f8; }
+  .wysiwyg { border:1px solid var(--line); border-radius:0 0 8px 8px; min-height:150px; padding:12px 14px; font-size:14px; outline:none; }
+  .wysiwyg h3 { margin:.3em 0; font-size:16px; }
+  .wysiwyg ul { margin:.3em 0; padding-left:20px; }
+  .split { display:flex; gap:12px; }
+  .split .col { flex:1; }
+  textarea.md { width:100%; min-height:170px; border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace; outline:none; resize:vertical; }
+  textarea.md:focus { border-color:var(--accent); }
+  .preview-box { border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:#fbfcfd; font-size:14px; }
+  .preview-box h3 { margin:.3em 0; font-size:16px; }
+  .preview-box ul { margin:.3em 0; padding-left:20px; }
+  .plabel { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; font-weight:700; }
+  .method-hint { font-size:12px; color:var(--muted); margin-top:10px; }
+  /* saved view */
+  .savedwrap { margin-top:26px; }
+  .savedwrap h2 { font-size:14px; color:var(--muted); font-weight:600; margin:0 0 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 6px; }
+  .card .note { background:#fbf6e9; border-left:3px solid #e5c96b; padding:12px 14px; border-radius:0 6px 6px 0; font-size:14px; }
+  .card .note h3 { margin:.2em 0 .4em; font-size:15px; }
+  .card .note ul { margin:.3em 0; padding-left:20px; }
+  .card .note a { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Writing a note with formatting</h1>
+  <p class="sub">Two ways to add headings, lists, links and emphasis — same result when viewed.</p>
+  <div class="variant-name" id="vname"></div>
+
+  <div class="panel">
+    <label class="fl">Your note — why you saved it</label>
+    <div id="editor"></div>
+    <div class="method-hint" id="hint"></div>
+  </div>
+
+  <div class="savedwrap">
+    <h2>How the note looks when you view the bookmark</h2>
+    <div class="card">
+      <div class="title">The Quiet Art of Reading Later</div>
+      <div class="note" id="rendered"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const sample = {
+  html: '<h3>Why I saved this</h3><ul><li>Great point on <strong>slow reading</strong></li><li>Quote for my <em>weekend post</em></li></ul><p>Follow-up: <a href="https://example.org/focus">focus techniques</a></p>',
+  md: '### Why I saved this\n\n- Great point on **slow reading**\n- Quote for my *weekend post*\n\nFollow-up: [focus techniques](https://example.org/focus)'
+};
+function mdToHtml(src){
+  const lines=src.split(/\n/); let out=""; let inList=false;
+  const inline=s=>s
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g,'<em>$1</em>');
+  for(let ln of lines){
+    if(/^###\s+/.test(ln)){ if(inList){out+="</ul>";inList=false;} out+="<h3>"+inline(ln.replace(/^###\s+/,''))+"</h3>"; }
+    else if(/^[-*]\s+/.test(ln)){ if(!inList){out+="<ul>";inList=true;} out+="<li>"+inline(ln.replace(/^[-*]\s+/,''))+"</li>"; }
+    else if(ln.trim()===""){ if(inList){out+="</ul>";inList=false;} }
+    else { if(inList){out+="</ul>";inList=false;} out+="<p>"+inline(ln)+"</p>"; }
+  }
+  if(inList)out+="</ul>";
+  return out;
+}
+
+const variant=(new URLSearchParams(location.search).get("variant")||"toolbar").toLowerCase();
+const names={toolbar:"Option 1 · Formatting buttons (no marks to remember)", markdown:"Option 2 · Type simple marks with a live preview"};
+document.getElementById("vname").textContent=names[variant]||names.toolbar;
+const editor=document.getElementById("editor");
+const hint=document.getElementById("hint");
+
+if(variant==="toolbar"){
+  editor.innerHTML=
+    '<div class="toolbar">'+
+      '<button title="Heading"><b>H</b></button>'+
+      '<button title="Bold"><b>B</b></button>'+
+      '<button title="Italic"><i>I</i></button>'+
+      '<button title="Bulleted list">• List</button>'+
+      '<button title="Link">🔗 Link</button>'+
+    '</div>'+
+    '<div class="wysiwyg" contenteditable="true">'+sample.html+'</div>';
+  hint.textContent="Select text and click a button — like a normal document editor. No symbols to remember.";
+} else {
+  editor.innerHTML=
+    '<div class="split">'+
+      '<div class="col"><div class="plabel">You type</div><textarea class="md" id="md">'+sample.md.replace(/</g,'&lt;')+'</textarea></div>'+
+      '<div class="col"><div class="plabel">Live preview</div><div class="preview-box" id="pv"></div></div>'+
+    '</div>';
+  hint.innerHTML="Type light marks — <code>### Heading</code>, <code>- item</code> for lists, <code>**bold**</code>, <code>*italic*</code>, <code>[text](link)</code> — and see it render live on the right.";
+  const md=document.getElementById("md"), pv=document.getElementById("pv");
+  const upd=()=>pv.innerHTML=mdToHtml(md.value);
+  md.addEventListener("input",upd); upd();
+}
+document.getElementById("rendered").innerHTML=sample.html;
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

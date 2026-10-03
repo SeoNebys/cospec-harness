@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — sign in</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e4e7ec; --text:#1a1d23; --muted:#6b7280; --accent:#2563eb; --accent-soft:#eff4ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:32px; width:360px; max-width:92vw; box-shadow:0 6px 24px rgba(0,0,0,.05); }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 22px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:14px 0 4px; }
+  input { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  input:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .primary { width:100%; margin-top:20px; background:var(--accent); color:#fff; border:none; border-radius:8px; padding:12px; font-size:15px; cursor:pointer; }
+  .primary:hover { background:#1d4ed8; }
+  .toggle { text-align:center; margin-top:18px; font-size:13px; color:var(--muted); }
+  .toggle a { color:var(--accent); cursor:pointer; }
+  .stay { display:flex; align-items:center; gap:8px; margin-top:16px; font-size:13px; color:var(--text); }
+  .stay input { width:auto; }
+  .msg { margin-top:16px; font-size:13px; padding:10px 12px; border-radius:8px; display:none; }
+  .msg.ok { display:block; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; }
+  .msg.err { display:block; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="heading">Welcome back</h1>
+  <p class="sub" id="subhead">Sign in to see your bookmarks on this device.</p>
+
+  <label for="email">Email</label>
+  <input id="email" type="email" placeholder="you@example.com" />
+
+  <label for="pw">Password</label>
+  <input id="pw" type="password" placeholder="Your password" />
+
+  <div id="confirmRow" style="display:none;">
+    <label for="pw2">Confirm password</label>
+    <input id="pw2" type="password" placeholder="Repeat your password" />
+  </div>
+
+  <label class="stay"><input id="stay" type="checkbox" checked /> Keep me signed in on this device</label>
+
+  <button class="primary" id="submit">Sign in</button>
+  <div class="msg" id="msg"></div>
+
+  <div class="toggle" id="toggle">First time here? <a id="toggleLink">Create your account</a></div>
+</div>
+<script>
+  let mode = "signin";
+  const heading = document.getElementById("heading");
+  const subhead = document.getElementById("subhead");
+  const submit = document.getElementById("submit");
+  const confirmRow = document.getElementById("confirmRow");
+  const toggle = document.getElementById("toggle");
+  const msg = document.getElementById("msg");
+  function setMode(m) {
+    mode = m; msg.className = "msg"; msg.textContent = "";
+    if (m === "register") {
+      heading.textContent = "Create your account";
+      subhead.textContent = "Set up your account once, then sign in from any device.";
+      confirmRow.style.display = "block";
+      submit.textContent = "Create account";
+      toggle.innerHTML = 'Already have an account? <a id="toggleLink">Sign in</a>';
+    } else {
+      heading.textContent = "Welcome back";
+      subhead.textContent = "Sign in to see your bookmarks on this device.";
+      confirmRow.style.display = "none";
+      submit.textContent = "Sign in";
+      toggle.innerHTML = 'First time here? <a id="toggleLink">Create your account</a>';
+    }
+    document.getElementById("toggleLink").onclick = () => setMode(mode === "signin" ? "register" : "signin");
+  }
+  submit.onclick = () => {
+    const email = document.getElementById("email").value.trim();
+    const pw = document.getElementById("pw").value;
+    if (!email || !pw) { msg.className = "msg err"; msg.textContent = "Please enter your email and password."; return; }
+    if (mode === "register" && pw !== document.getElementById("pw2").value) {
+      msg.className = "msg err"; msg.textContent = "The two passwords don't match."; return;
+    }
+    msg.className = "msg ok";
+    msg.textContent = mode === "register"
+      ? "Account created. You'd now land in your bookmarks, and they'll be here on any device you sign in from."
+      : "Signed in. Your saved bookmarks would now load here, the same on every device.";
+  };
+  document.getElementById("toggleLink").onclick = () => setMode("register");
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

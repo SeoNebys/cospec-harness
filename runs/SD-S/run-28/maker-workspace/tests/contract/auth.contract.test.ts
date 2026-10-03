@@ -1,0 +1,1 @@
+import fs from "node:fs";import { describe,expect,it } from "vitest";const contract=fs.readFileSync("specs/001-manage-bookmarks/contracts/auth.md","utf8");describe("auth contract",()=>{it.each(["/sign-up/email","/sign-in/email","/request-password-reset","/reset-password","/sign-out"])("documents %s",(endpoint)=>expect(contract).toContain(endpoint));});

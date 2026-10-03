@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Correct bookmark details</title>
+  <style>
+    :root { color-scheme: light; --ink:#1f2721; --muted:#667069; --paper:#f7f5ef; --card:#fffefa; --line:#dcded5; --green:#315a43; --deep:#254635; --soft:#e4eee7; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button,input,textarea { font:inherit; }
+    button { cursor:pointer; }
+    .shell { min-height:100vh; display:grid; grid-template-columns:248px 1fr; }
+    aside { padding:32px 24px; border-right:1px solid var(--line); background:#eeefe8; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; font-size:20px; letter-spacing:-.02em; }
+    .brand-mark { width:32px; height:32px; border-radius:10px; background:var(--green); display:grid; place-items:center; color:white; font-family:Georgia,serif; font-size:21px; }
+    nav { margin-top:52px; }
+    .nav-label { color:#8a918b; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin:0 10px 10px; }
+    .nav-item { display:flex; gap:12px; align-items:center; padding:11px 12px; border-radius:9px; font-weight:650; background:#dde6df; color:var(--deep); }
+    main { width:min(930px,calc(100vw - 248px)); margin:0 auto; padding:48px 56px 80px; }
+    header { margin-bottom:34px; }
+    h1 { font-family:Georgia,"Times New Roman",serif; font-size:38px; line-height:1.1; margin:0; letter-spacing:-.025em; font-weight:600; }
+    .subhead { margin:9px 0 0; color:var(--muted); font-size:15px; }
+    .save-panel { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; box-shadow:0 10px 35px rgba(36,52,42,.05); }
+    .save-panel label { display:block; font-weight:700; margin-bottom:10px; font-size:14px; }
+    .url-row { display:grid; grid-template-columns:1fr auto; gap:10px; }
+    input,textarea { width:100%; border:1px solid #c9cec7; border-radius:10px; padding:12px 13px; color:var(--ink); background:white; outline:none; }
+    input:focus,textarea:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(49,90,67,.13); }
+    .primary { border:0; border-radius:10px; background:var(--green); color:white; padding:0 20px; font-weight:750; min-height:46px; }
+    .primary:hover { background:var(--deep); }
+    .save-panel .primary { opacity:.55; cursor:default; }
+    .hint { color:var(--muted); font-size:13px; margin:10px 0 0; }
+    .section-head { display:flex; justify-content:space-between; align-items:baseline; margin:34px 0 14px; }
+    h2 { font-size:18px; margin:0; }
+    .count { color:var(--muted); font-size:13px; }
+    .bookmark { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; display:grid; grid-template-columns:50px 1fr auto; align-items:start; gap:16px; box-shadow:0 7px 24px rgba(36,52,42,.045); }
+    .site-icon { width:50px; height:50px; border-radius:12px; background:#181818; color:white; display:grid; place-items:center; font-family:Georgia,serif; font-weight:700; font-size:23px; }
+    .bookmark h3 { margin:1px 0 7px; font-size:17px; }
+    .bookmark p { color:var(--muted); margin:0 0 12px; font-size:14px; line-height:1.45; max-width:580px; }
+    .domain { font-size:12px; color:#7a827c; }
+    .edit-btn { border:1px solid #ccd1ca; background:white; color:var(--deep); border-radius:9px; padding:8px 11px; font-weight:700; white-space:nowrap; }
+    .edit-btn:hover { background:var(--soft); border-color:#b9c6bc; }
+    .editor { display:none; }
+    .field { margin-bottom:15px; }
+    .field label { display:block; font-size:13px; font-weight:750; margin-bottom:7px; }
+    textarea { min-height:94px; resize:vertical; line-height:1.45; }
+    .actions { display:flex; justify-content:flex-end; gap:9px; margin-top:20px; }
+    .secondary { border:1px solid #ccd1ca; border-radius:9px; background:white; color:var(--ink); padding:10px 15px; font-weight:700; }
+    .actions .primary { min-height:auto; padding:11px 16px; }
+    .inline-editor { grid-column:2 / 4; border-top:1px solid var(--line); margin-top:5px; padding-top:20px; }
+    .bookmark.editing .bookmark-copy,.bookmark.editing>.edit-btn { display:none; }
+    .bookmark.editing .inline-editor { display:block; }
+    .overlay { position:fixed; inset:0; background:rgba(25,31,27,.38); display:none; place-items:center; padding:30px; z-index:10; }
+    .overlay.open { display:grid; }
+    .modal { width:min(560px,100%); background:var(--card); border-radius:16px; box-shadow:0 28px 90px rgba(20,28,23,.28); padding:26px; }
+    .modal h2,.drawer h2 { font-family:Georgia,serif; font-size:25px; font-weight:600; margin:0 0 6px; }
+    .editor-intro { color:var(--muted); font-size:14px; margin:0 0 23px; }
+    .drawer-wrap { position:fixed; inset:0; background:rgba(25,31,27,.25); display:none; justify-content:flex-end; z-index:10; }
+    .drawer-wrap.open { display:flex; }
+    .drawer { width:min(480px,92vw); height:100%; background:var(--card); padding:34px; box-shadow:-22px 0 70px rgba(20,28,23,.2); animation:slide .22s ease-out; }
+    @keyframes slide { from { transform:translateX(40px); opacity:.5; } }
+    .toast { position:fixed; right:28px; bottom:28px; background:var(--deep); color:white; border-radius:10px; padding:12px 16px; font-size:14px; opacity:0; transform:translateY(8px); pointer-events:none; transition:.2s; z-index:20; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    @media(max-width:760px){ .shell{grid-template-columns:1fr}.shell>aside{display:none}main{width:100%;padding:28px 20px}.url-row{grid-template-columns:1fr}.bookmark{grid-template-columns:44px 1fr}.bookmark>.edit-btn{grid-column:2}.inline-editor{grid-column:1/3} }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside aria-label="Main navigation">
+      <div class="brand"><span class="brand-mark">K</span> Keepwell</div>
+      <nav><p class="nav-label">Library</p><div class="nav-item"><span>⌂</span> All bookmarks</div></nav>
+    </aside>
+    <main data-harness-ready="true">
+      <header><h1>Your bookmarks</h1><p class="subhead">A place for links worth finding again.</p></header>
+      <section class="save-panel" aria-label="Save a new bookmark">
+        <label for="url">Save a new bookmark</label>
+        <div class="url-row"><input id="url" type="url" placeholder="Paste a page address"><button class="primary" type="button" disabled>Save bookmark</button></div>
+        <p class="hint">Paste a page address and Keepwell will fill in the useful details.</p>
+      </section>
+      <div class="section-head"><h2>All bookmarks</h2><span class="count">1 bookmark</span></div>
+      <article class="bookmark" id="bookmark">
+        <div class="site-icon">SE</div>
+        <div class="bookmark-copy">
+          <h3 id="shown-title">The Food Lab: Better Home Cooking Through Science</h3>
+          <p id="shown-description">Explore practical cooking techniques, tested recipes, and the science behind better results in the kitchen.</p>
+          <span class="domain">seriouseats.com</span>
+        </div>
+        <button class="edit-btn" id="edit" type="button">✎ Edit details</button>
+        <form class="editor inline-editor" id="inline-form">
+          <div class="field"><label for="inline-title">Title</label><input id="inline-title" name="title" value="The Food Lab: Better Home Cooking Through Science"></div>
+          <div class="field"><label for="inline-description">Description</label><textarea id="inline-description" name="description">Explore practical cooking techniques, tested recipes, and the science behind better results in the kitchen.</textarea></div>
+          <div class="actions"><button class="secondary cancel" type="button">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+        </form>
+      </article>
+    </main>
+  </div>
+
+  <div class="overlay" id="modal-wrap" role="presentation">
+    <form class="modal" id="modal-form" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title">Edit bookmark details</h2><p class="editor-intro">Correct anything that will make this link easier to recognize later.</p>
+      <div class="field"><label for="modal-name">Title</label><input id="modal-name" name="title" value="The Food Lab: Better Home Cooking Through Science"></div>
+      <div class="field"><label for="modal-description">Description</label><textarea id="modal-description" name="description">Explore practical cooking techniques, tested recipes, and the science behind better results in the kitchen.</textarea></div>
+      <div class="actions"><button class="secondary cancel" type="button">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+    </form>
+  </div>
+
+  <div class="drawer-wrap" id="drawer-wrap" role="presentation">
+    <form class="drawer" id="drawer-form" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <h2 id="drawer-title">Edit bookmark details</h2><p class="editor-intro">Correct anything that will make this link easier to recognize later.</p>
+      <div class="field"><label for="drawer-name">Title</label><input id="drawer-name" name="title" value="The Food Lab: Better Home Cooking Through Science"></div>
+      <div class="field"><label for="drawer-description">Description</label><textarea id="drawer-description" name="description">Explore practical cooking techniques, tested recipes, and the science behind better results in the kitchen.</textarea></div>
+      <div class="actions"><button class="secondary cancel" type="button">Cancel</button><button class="primary" type="submit">Save changes</button></div>
+    </form>
+  </div>
+  <div class="toast" id="toast" role="status">Bookmark details updated</div>
+  <script>
+    const mode = new URLSearchParams(location.search).get('mode') || 'inline';
+    const bookmark = document.querySelector('#bookmark');
+    const modalWrap = document.querySelector('#modal-wrap');
+    const drawerWrap = document.querySelector('#drawer-wrap');
+    const edit = document.querySelector('#edit');
+    const title = document.querySelector('#shown-title');
+    const description = document.querySelector('#shown-description');
+    const toast = document.querySelector('#toast');
+
+    const closeEditors = () => {
+      bookmark.classList.remove('editing');
+      modalWrap.classList.remove('open');
+      drawerWrap.classList.remove('open');
+    };
+    edit.addEventListener('click', () => {
+      if (mode === 'modal') {
+        modalWrap.classList.add('open');
+        document.querySelector('#modal-name').focus();
+      } else if (mode === 'drawer') {
+        drawerWrap.classList.add('open');
+        document.querySelector('#drawer-name').focus();
+      } else {
+        bookmark.classList.add('editing');
+        document.querySelector('#inline-title').focus();
+      }
+    });
+    document.querySelectorAll('.cancel').forEach(button => button.addEventListener('click', closeEditors));
+    document.querySelectorAll('form.editor, #modal-form, #drawer-form').forEach(form => form.addEventListener('submit', event => {
+      event.preventDefault();
+      title.textContent = new FormData(form).get('title');
+      description.textContent = new FormData(form).get('description');
+      closeEditors();
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 2200);
+    }));
+  </script>
+</body>
+</html>

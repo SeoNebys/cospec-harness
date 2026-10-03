@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — find (search &amp; filter) exploration</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --muted:#6b7280; --faint:#9aa1ac; --accent:#2563eb; --accent-soft:#eff4ff; --chip:#eef2f7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:#1f2430; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  .modebar { max-width:760px; margin:0 auto; padding:12px 24px 0; display:flex; gap:8px; align-items:center; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .modebar a { text-decoration:none; padding:5px 11px; border-radius:999px; border:1px solid var(--line); color:#374151; background:#fff; }
+  .modebar a.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .modedesc { max-width:760px; margin:8px auto 0; padding:0 24px; color:var(--muted); font-size:13px; }
+  .views { max-width:760px; margin:10px auto 0; padding:0 24px; display:flex; gap:8px; }
+  .views button { background:#fff; border:1px solid var(--line); color:#374151; border-radius:999px; padding:6px 14px; font-size:13px; cursor:pointer; }
+  .views button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .views .count { opacity:.7; font-size:12px; margin-left:4px; }
+  .wrap { max-width:760px; margin:0 auto; padding:16px 24px 32px; }
+  .findbar { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .search { width:100%; padding:10px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  input:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .tagfilter { margin-top:12px; display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+  .tagfilter .lbl { font-size:12px; color:var(--faint); margin-right:2px; }
+  .fchip { background:var(--chip); color:#374151; border:1px solid transparent; border-radius:999px; padding:4px 12px; font-size:12px; cursor:pointer; }
+  .fchip.on { background:var(--accent); color:#fff; }
+  .activefilter { max-width:760px; margin:12px auto 0; padding:0 24px; font-size:13px; color:var(--muted); display:none; align-items:center; gap:10px; }
+  .activefilter .pill { background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:4px 12px; font-weight:600; }
+  .activefilter .clear { cursor:pointer; text-decoration:underline; color:var(--muted); }
+  .listhead { margin:20px 2px 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; }
+  .thumb { flex:0 0 96px; width:96px; height:72px; border-radius:8px; overflow:hidden; background:#eef1f5; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb.none { display:none; }
+  .body { flex:1; min-width:0; }
+  .titlerow { display:flex; align-items:center; gap:8px; }
+  .favi { flex:0 0 18px; width:18px; height:18px; border-radius:4px; }
+  .title { font-size:15px; font-weight:600; color:#111827; text-decoration:none; }
+  .title:hover { text-decoration:underline; }
+  .desc { color:#3f4653; font-size:13px; margin-top:5px; line-height:1.45; }
+  .note { color:#5b4636; background:#fff8ec; border:1px solid #f1e2c4; border-radius:7px; padding:6px 9px; font-size:12.5px; margin-top:8px; }
+  .tags { margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chip { background:var(--chip); color:#374151; border-radius:999px; padding:3px 10px; font-size:12px; display:inline-flex; align-items:center; gap:6px; }
+  .chip.clickable { cursor:pointer; }
+  .chip.clickable:hover { background:#dfe7f3; color:var(--accent); }
+  .sub { color:var(--faint); font-size:12px; margin-top:9px; }
+  .sub .site { color:var(--muted); }
+  .empty { text-align:center; color:var(--faint); padding:44px 20px; }
+  .empty .big { font-size:15px; color:var(--muted); margin-bottom:6px; }
+  mark { background:#fff2a8; color:inherit; border-radius:2px; }
+</style>
+</head>
+<body>
+<header><h1>My Bookmarks</h1></header>
+<div class="modebar">
+  <span>How you filter by tag:</span>
+  <a href="?mode=f1" data-m="f1">F1 · A tag filter bar</a>
+  <a href="?mode=f2" data-m="f2">F2 · Click a tag on a card</a>
+</div>
+<div class="modedesc" id="modedesc"></div>
+<div class="views" id="views"></div>
+<div class="activefilter" id="activefilter"></div>
+
+<div class="wrap">
+  <div class="findbar">
+    <input class="search" id="search" type="text" placeholder="Search your bookmarks — title, description, note or tag…" autocomplete="off" />
+    <div class="tagfilter" id="tagfilter" style="display:none;"></div>
+  </div>
+  <div class="listhead" id="listhead">All</div>
+  <div id="list"></div>
+</div>
+
+<script>
+function ico(bg,g){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="'+bg+'"/><text x="16" y="22" font-family="Arial" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">'+g+'</text></svg>'); }
+function prev(c1,c2,l){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 144"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient></defs><rect width="192" height="144" fill="url(#g)"/><text x="96" y="80" font-family="Arial" font-size="16" fill="#fff" opacity="0.9" text-anchor="middle">'+l+'</text></svg>'); }
+
+let items=[
+  { id:5, title:"React — Learn", site:"React", desc:"The official React documentation: components, hooks, state and the modern learning path.", url:"https://react.dev/learn", icon:ico('#087ea4','R'), preview:prev('#087ea4','#053b4d','React'), when:"1 day ago", tags:["dev","reference"], note:"", readLater:true, archived:false },
+  { id:4, title:"Kinfolk — The Art of Slow Living", site:"Kinfolk", desc:"Essays and photography on slowing down, simple living and intentional everyday rituals.", url:"https://kinfolk.com/slow-living", icon:ico('#8a7f6d','K'), preview:prev('#8a7f6d','#4a4235','Kinfolk'), when:"2 days ago", tags:["reading","design"], note:"Read on a calm weekend.", readLater:true, archived:false },
+  { id:3, title:"A Field Guide to Getting Lost", site:"Longreads", desc:"Rebecca Solnit on wandering, uncertainty, and the value of not knowing where you are headed.", url:"https://longreads.com/field-guide", icon:ico('#e2574c','L'), preview:prev('#e2574c','#8a2b24','Longreads'), when:"4 days ago", tags:["reading","essays"], note:"", readLater:false, archived:false },
+  { id:2, title:"CSS Grid: A Complete Guide", site:"CSS-Tricks", desc:"A comprehensive reference to every property in the CSS Grid layout module, with visual examples.", url:"https://css-tricks.com/snippets/css/complete-guide-grid", icon:ico('#ff7f50','C'), preview:null, when:"5 days ago", tags:["dev","reference"], note:"Bookmark for the grid layout at work.", readLater:false, archived:false },
+  { id:1, title:"The Elements of Typographic Style", site:"Web", desc:"A reference on typography, spacing and the craft of setting text well.", url:"https://webtypography.net", icon:ico('#2563eb','W'), preview:null, when:"3 weeks ago", tags:["design","reference"], note:"Kept for reference, done reading.", readLater:false, archived:true },
+];
+let view="all", search="", activeTag=null;
+const mode=(new URLSearchParams(location.search).get("mode")||"f1").toLowerCase();
+const DESC={
+  f1:"Version F1 — A tag filter bar sits under the search box. Tap a tag to show only bookmarks with that tag; tap again to clear. Search and tag filter work together.",
+  f2:"Version F2 — There is no separate filter bar. Click any tag shown on a bookmark to filter to that tag. An active-filter note appears up top with a way to clear it.",
+};
+document.getElementById("modedesc").textContent=DESC[mode];
+document.querySelectorAll(".modebar a").forEach(a=>{ if(a.dataset.m===mode) a.classList.add("on"); });
+if(mode==="f1") document.getElementById("tagfilter").style.display="";
+
+const listEl=document.getElementById("list");
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function allTags(){ const s=new Set(); items.forEach(it=>(it.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+function hl(text){ if(!search) return esc(text); const i=text.toLowerCase().indexOf(search.toLowerCase()); if(i<0) return esc(text); return esc(text.slice(0,i))+"<mark>"+esc(text.slice(i,i+search.length))+"</mark>"+esc(text.slice(i+search.length)); }
+
+function counts(){ return { all:items.filter(i=>!i.archived).length, toread:items.filter(i=>i.readLater&&!i.archived).length, archived:items.filter(i=>i.archived).length }; }
+function renderViews(){
+  const c=counts(); const bar=document.getElementById("views");
+  const defs=[["all","All",c.all],["toread","To read",c.toread],["archived","Archived",c.archived]];
+  bar.innerHTML="";
+  defs.forEach(([k,label,n])=>{ const b=document.createElement("button"); b.className=(view===k?"on":""); b.innerHTML=label+' <span class="count">'+n+'</span>'; b.onclick=()=>{ view=k; render(); }; bar.appendChild(b); });
+}
+function renderTagFilter(){
+  if(mode!=="f1") return;
+  const box=document.getElementById("tagfilter"); box.innerHTML='<span class="lbl">Filter by tag:</span>';
+  allTags().forEach(t=>{ const c=document.createElement("span"); c.className="fchip"+(activeTag===t?" on":""); c.textContent=t; c.onclick=()=>{ activeTag=(activeTag===t?null:t); render(); }; box.appendChild(c); });
+}
+function renderActiveFilter(){
+  const el=document.getElementById("activefilter");
+  if(activeTag){ el.style.display="flex"; el.innerHTML='Showing tag <span class="pill">'+esc(activeTag)+'</span> <span class="clear">clear filter</span>'; el.querySelector(".clear").onclick=()=>{ activeTag=null; render(); }; }
+  else { el.style.display="none"; el.innerHTML=""; }
+}
+function inView(it){ if(view==="archived") return it.archived; if(view==="toread") return it.readLater&&!it.archived; return !it.archived; }
+function matchesSearch(it){ if(!search) return true; const q=search.toLowerCase(); return [it.title,it.desc,it.note,it.site,it.url].some(f=>(f||"").toLowerCase().includes(q)) || (it.tags||[]).some(t=>t.toLowerCase().includes(q)); }
+function matchesTag(it){ return !activeTag || (it.tags||[]).includes(activeTag); }
+function visible(){ return items.filter(it=>inView(it)&&matchesSearch(it)&&matchesTag(it)); }
+
+function render(){
+  renderViews(); renderTagFilter(); renderActiveFilter();
+  const label={all:"All",toread:"To read",archived:"Archived"}[view];
+  document.getElementById("listhead").textContent = label + (activeTag?" · #"+activeTag:"") + (search?' · “'+search+'”':"");
+  listEl.innerHTML="";
+  const vis=visible();
+  if(vis.length===0){
+    let big="No matches", small="Try a different word or clear the filters.";
+    if(!search && !activeTag){ if(view==="toread"){ big="Nothing to read yet"; small="Mark a link “Read later”."; } else if(view==="archived"){ big="No archived links"; small="Archive a link to tuck it away."; } else { big="No bookmarks yet"; small="Save your first link."; } }
+    listEl.innerHTML='<div class="empty"><div class="big">'+big+'</div><div>'+small+'</div></div>';
+    return;
+  }
+  vis.forEach(it=>{
+    const card=document.createElement("div"); card.className="card";
+    const thumb=it.preview?'<div class="thumb"><img alt="" src="'+it.preview+'"></div>':'<div class="thumb none"></div>';
+    const body=document.createElement("div"); body.className="body";
+    body.innerHTML='<div class="titlerow"><img class="favi" alt="" src="'+it.icon+'"><a class="title" href="'+esc(it.url)+'" target="_blank" rel="noopener">'+hl(it.title)+'</a></div>'+
+      '<div class="desc">'+hl(it.desc)+'</div>'+
+      (it.note?'<div class="note">📝 '+hl(it.note)+'</div>':'');
+    const tags=document.createElement("div"); tags.className="tags";
+    (it.tags||[]).forEach(t=>{ const c=document.createElement("span"); c.className="chip"+(mode==="f2"?" clickable":"")+(activeTag===t?" ":""); c.innerHTML=hl(t); if(activeTag===t){ c.style.background="var(--accent)"; c.style.color="#fff"; } if(mode==="f2"){ c.title="Filter by “"+t+"”"; c.onclick=()=>{ activeTag=(activeTag===t?null:t); render(); }; } tags.appendChild(c); });
+    body.appendChild(tags);
+    const sub=document.createElement("div"); sub.className="sub"; sub.innerHTML='<span class="site">'+esc(it.site)+'</span> · saved '+it.when;
+    body.appendChild(sub);
+    card.innerHTML=thumb; card.appendChild(body);
+    listEl.appendChild(card);
+  });
+}
+
+const searchEl=document.getElementById("search");
+searchEl.addEventListener("input", ()=>{ search=searchEl.value.trim(); render(); });
+
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

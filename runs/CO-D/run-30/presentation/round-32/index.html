@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks — Save a link</title>
+  <style>
+    :root {
+      --ink: #20251f;
+      --muted: #687066;
+      --line: #dfe3da;
+      --paper: #fbfcf8;
+      --panel: #ffffff;
+      --green: #285943;
+      --green-dark: #1d4332;
+      --green-soft: #e8f0e9;
+      --cream: #f4f2e8;
+      --shadow: 0 18px 50px rgba(39, 54, 43, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% -10%, #eef3e8 0, transparent 34rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    header {
+      height: 88px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(223, 227, 218, .8);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-weight: 750;
+      letter-spacing: -.02em;
+      font-size: 18px;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 36px;
+      border-radius: 7px 7px 10px 10px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--green);
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,.08);
+    }
+
+    .brand-mark svg { width: 17px; }
+
+    .primary {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 17px;
+      background: var(--green);
+      color: white;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 2px rgba(19, 59, 40, .08);
+      transition: background .15s ease, transform .15s ease;
+    }
+
+    .primary:hover { background: var(--green-dark); }
+    .primary:active { transform: translateY(1px); }
+    .primary:disabled { opacity: .65; cursor: wait; }
+
+    main { padding: 48px 0 80px; }
+
+    .heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 500;
+      font-size: clamp(34px, 5vw, 48px);
+      letter-spacing: -.035em;
+      margin: 0 0 8px;
+    }
+
+    .subtitle { color: var(--muted); margin: 0; font-size: 16px; }
+
+    .count {
+      color: var(--muted);
+      font-size: 14px;
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+    }
+
+    .empty {
+      min-height: 455px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,.75);
+    }
+
+    .empty-inner { max-width: 420px; padding: 48px 24px; }
+
+    .illustration {
+      width: 106px;
+      height: 106px;
+      margin: 0 auto 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .illustration svg { width: 49px; }
+
+    .empty h2 {
+      margin: 0 0 10px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 27px;
+      font-weight: 500;
+      letter-spacing: -.02em;
+    }
+
+    .empty p {
+      color: var(--muted);
+      margin: 0 auto 23px;
+      line-height: 1.55;
+    }
+
+    .grid {
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      position: relative;
+      min-height: 250px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 8px 26px rgba(36, 50, 40, .07);
+      animation: enter .3s ease-out both;
+    }
+
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .site {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      margin-bottom: 24px;
+    }
+
+    .favicon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: #cc2f26;
+      color: white;
+      font-family: Georgia, serif;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      line-height: 1.22;
+      font-weight: 600;
+      letter-spacing: -.018em;
+    }
+
+    .description {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .url {
+      margin-top: auto;
+      padding-top: 20px;
+      color: #7b8378;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-manage {
+      position: absolute;
+      top: 17px;
+      right: 17px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .edit-direct, .more-button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--green);
+      font-weight: 700;
+      border-radius: 8px;
+    }
+
+    .edit-direct { padding: 7px 11px; font-size: 12px; }
+    .delete-direct { padding: 7px 10px; border: 1px solid #ead4d0; border-radius: 8px; background: #fff; color: #a43d32; font-size: 12px; font-weight: 700; }
+    .delete-direct:hover { background: #fbefed; }
+    .more-button { width: 34px; height: 32px; font-size: 18px; line-height: 1; }
+    .edit-direct:hover, .more-button:hover { background: var(--green-soft); }
+
+    .card-menu {
+      display: none;
+      position: absolute;
+      z-index: 2;
+      top: 38px;
+      right: 0;
+      width: 150px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 12px 30px rgba(33, 47, 36, .15);
+    }
+
+    .card-menu.visible { display: block; }
+    .card-menu button { width: 100%; border: 0; border-radius: 7px; padding: 9px 10px; background: transparent; text-align: left; color: var(--ink); }
+    .card-menu button:hover { background: var(--green-soft); }
+
+    .source-lock {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 0 0 21px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f7f8f4;
+    }
+
+    .source-copy { min-width: 0; }
+    .source-copy strong { display: block; font-size: 13px; margin-bottom: 2px; }
+    .source-copy span { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .locked-note { margin: -11px 0 20px; color: var(--muted); font-size: 11px; }
+
+    .label-editor { display: none; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .label-editor.visible { display: block; }
+    .selected-labels, .bookmark-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+    .selected-labels { margin-bottom: 10px; }
+    .label-pill { display: inline-flex; align-items: center; min-height: 27px; padding: 4px 9px; border-radius: 999px; color: var(--green); background: var(--green-soft); font-size: 12px; font-weight: 700; }
+    .bookmark-tags { margin-top: 15px; }
+    .bookmark-tags .label-pill { min-height: 23px; padding: 3px 8px; font-size: 11px; }
+    .label-create-row { display: flex; gap: 8px; }
+    .label-create-row input { flex: 1; }
+    .label-create-row button { white-space: nowrap; }
+    .label-hint { margin: 7px 0 0; color: var(--muted); font-size: 11px; }
+    .label-choices { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+    .label-choice { position: relative; }
+    .label-choice input { position: absolute; opacity: 0; pointer-events: none; }
+    .label-choice span { display: inline-flex; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 650; cursor: pointer; }
+    .label-choice input:checked + span { border-color: var(--green); color: var(--green); background: var(--green-soft); }
+
+    dialog {
+      border: 0;
+      border-radius: 17px;
+      padding: 0;
+      width: min(540px, calc(100% - 30px));
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+      color: var(--ink);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    dialog::backdrop { background: rgba(27, 34, 27, .52); backdrop-filter: blur(2px); }
+
+    .dialog-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      padding: 25px 26px 18px;
+    }
+
+    .dialog-head h2 {
+      margin: 0 0 5px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      font-weight: 600;
+    }
+
+    .dialog-head p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .close {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .close:hover { background: #f2f3ef; }
+
+    form { padding: 4px 26px 26px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 750;
+      margin-bottom: 8px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid #cbd1c7;
+      border-radius: 10px;
+      padding: 12px 13px;
+      outline: none;
+      color: var(--ink);
+      background: white;
+    }
+
+    textarea { min-height: 92px; resize: vertical; line-height: 1.45; }
+
+    input:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(40,89,67,.12); }
+
+    .hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .field-error { display:none; margin:7px 0 0; color:#a43d32; font-size:12px; font-weight:650; }
+    input[aria-invalid="true"] { border-color:#b94a3e; box-shadow:0 0 0 3px rgba(185,74,62,.1); }
+    .save-error { display:none; margin:20px 0 0; padding:12px 13px; border:1px solid #e3c2bd; border-radius:10px; background:#fdf1ef; color:#81382f; font-size:13px; line-height:1.45; }
+    .save-error strong { display:block; margin-bottom:2px; color:#702e27; }
+
+    .details-fields {
+      display: none;
+      margin-top: 22px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      animation: enter .25s ease-out both;
+    }
+
+    .details-fields.visible { display: block; }
+    .details-fields .field + .field { margin-top: 15px; }
+    .details-heading { margin: 0 0 16px; font-size: 14px; font-weight: 750; color: var(--green); }
+    .metadata-warning { display:none; margin:0 0 16px; padding:11px 12px; border:1px solid #ecd7ab; border-radius:9px; background:#fff8e7; color:#775b24; font-size:13px; line-height:1.45; }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 25px;
+    }
+
+    .secondary {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 16px;
+      background: white;
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .danger { border: 0; border-radius: 10px; padding: 10px 16px; background: #a43d32; color: white; font-weight: 700; }
+    .danger:hover { background: #843128; }
+    .delete-from-editor { display: none; margin-right: auto; border-color: #ead4d0; color: #a43d32; }
+    .confirmation-copy { padding: 0 26px 5px; color: var(--muted); line-height: 1.55; }
+    .confirmation-copy strong { color: var(--ink); }
+
+    .spinner {
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgba(255,255,255,.45);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 28px, 1120px); }
+      header { height: 72px; }
+      header .primary span { display: none; }
+      main { padding-top: 32px; }
+      .heading { align-items: start; }
+      .count { margin-top: 8px; }
+      .empty { min-height: 410px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" id="app" data-harness-ready="true">
+    <header>
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 3.8h12v16.4l-6-3.5-6 3.5z"/></svg>
+        </span>
+        Bookmarks
+      </div>
+      <button class="primary open-dialog" type="button" aria-label="Add bookmark">
+        <b aria-hidden="true">＋</b><span>Add bookmark</span>
+      </button>
+    </header>
+
+    <main>
+      <div class="heading">
+        <div>
+          <h1>Your collection</h1>
+          <p class="subtitle">Everything worth coming back to.</p>
+        </div>
+        <span class="count" id="count">0 saved</span>
+      </div>
+
+      <section class="empty" id="empty-state">
+        <div class="empty-inner">
+          <div class="illustration" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3"><path d="M19 11h26v42L32 45 19 53z"/><path d="M27 25h10M32 20v10" stroke-linecap="round"/></svg>
+          </div>
+          <h2>Save your first good find</h2>
+          <p>Paste a link and its useful details will be brought in for you.</p>
+          <button class="primary open-dialog" type="button">Add your first bookmark</button>
+        </div>
+      </section>
+
+      <section class="grid" id="bookmark-grid" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <dialog id="add-dialog">
+    <div class="dialog-head">
+      <div>
+        <h2>Add a bookmark</h2>
+        <p>Just paste the link. We’ll handle the details.</p>
+      </div>
+      <button class="close" type="button" aria-label="Close">×</button>
+    </div>
+    <form id="bookmark-form">
+      <label for="url">Web address</label>
+      <input id="url" name="url" type="url" placeholder="https://example.com/article" autocomplete="url" required>
+      <p class="hint">The page title, description, and site icon will be added automatically.</p>
+      <p class="field-error" id="url-error">Enter a full web address beginning with http:// or https://.</p>
+      <section class="details-fields" id="details-fields" aria-live="polite">
+        <p class="details-heading">Details found — adjust anything you like</p>
+        <p class="metadata-warning" id="metadata-warning"></p>
+        <div class="field">
+          <label for="bookmark-title">Title</label>
+          <input id="bookmark-title" name="title" type="text" required disabled>
+        </div>
+        <div class="field">
+          <label for="bookmark-description">Description</label>
+          <textarea id="bookmark-description" name="description" required disabled></textarea>
+        </div>
+        <section class="label-editor" id="save-label-editor">
+          <label>Labels</label>
+          <div id="save-label-editor-content"></div>
+        </section>
+      </section>
+      <div class="save-error" id="save-error" role="alert"><strong>Couldn’t save this bookmark</strong>Your details are still here. Check your connection and try again.</div>
+      <div class="dialog-actions">
+        <button class="secondary cancel" type="button">Cancel</button>
+        <button class="primary" id="save-button" type="submit">Save bookmark</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="edit-dialog">
+    <div class="dialog-head">
+      <div>
+        <h2>Edit bookmark</h2>
+        <p>Adjust how this page appears in your collection.</p>
+      </div>
+      <button class="close edit-close" type="button" aria-label="Close">×</button>
+    </div>
+    <form id="edit-form">
+      <div class="source-lock">
+        <span class="favicon">S</span>
+        <div class="source-copy">
+          <strong>Serious Eats</strong>
+          <span>seriouseats.com/the-best-roast-potatoes-ever-recipe</span>
+        </div>
+      </div>
+      <p class="locked-note">The source stays connected to the original page.</p>
+      <div class="field">
+        <label for="edit-title">Title</label>
+        <input id="edit-title" type="text" required>
+      </div>
+      <div class="field" style="margin-top:15px">
+        <label for="edit-description">Description</label>
+        <textarea id="edit-description" required></textarea>
+      </div>
+      <section class="label-editor" id="label-editor">
+        <label>Labels</label>
+        <div id="label-editor-content"></div>
+      </section>
+      <div class="dialog-actions">
+        <button class="secondary delete-from-editor" id="delete-from-editor" type="button">Delete bookmark</button>
+        <button class="secondary edit-cancel" type="button">Cancel</button>
+        <button class="primary" type="submit">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="delete-dialog">
+    <div class="dialog-head">
+      <div>
+        <h2>Delete bookmark?</h2>
+        <p>This removes it from your collection.</p>
+      </div>
+      <button class="close delete-close" type="button" aria-label="Close">×</button>
+    </div>
+    <p class="confirmation-copy">Are you sure you want to delete <strong id="delete-bookmark-name"></strong>?</p>
+    <div class="dialog-actions" style="padding:0 26px 26px">
+      <button class="secondary delete-cancel" type="button">Keep bookmark</button>
+      <button class="danger" id="confirm-delete" type="button">Delete</button>
+    </div>
+  </dialog>
+
+  <script>
+    const dialog = document.querySelector('#add-dialog');
+    const input = document.querySelector('#url');
+    const form = document.querySelector('#bookmark-form');
+    const saveButton = document.querySelector('#save-button');
+    const emptyState = document.querySelector('#empty-state');
+    const grid = document.querySelector('#bookmark-grid');
+    const count = document.querySelector('#count');
+    const detailsFields = document.querySelector('#details-fields');
+    const titleInput = document.querySelector('#bookmark-title');
+    const descriptionInput = document.querySelector('#bookmark-description');
+    const editDialog = document.querySelector('#edit-dialog');
+    const editForm = document.querySelector('#edit-form');
+    const editTitle = document.querySelector('#edit-title');
+    const editDescription = document.querySelector('#edit-description');
+    const deleteDialog = document.querySelector('#delete-dialog');
+    const parameters = new URLSearchParams(window.location.search);
+    const mode = parameters.get('edit');
+    const manageMode = parameters.get('manage');
+    const duplicateMode = parameters.get('duplicate') === 'true';
+    const labelMode = parameters.get('labelEditor');
+    const labelSaveMode = parameters.get('labelSave');
+    const deleteMode = parameters.get('delete');
+    const metadataErrorMode = parameters.get('metadataError');
+    const invalidCase = parameters.get('invalidCase') === 'true';
+    const duplicateLabelCase = parameters.get('duplicateLabel') === 'true';
+    const duplicateLabelState = parameters.get('duplicateLabelState');
+    const saveErrorMode = parameters.get('saveError') === 'true';
+    let loadedMetadata = null;
+    let automaticTimer = null;
+    let currentUrl = '';
+    let currentMetadata = null;
+    let currentTitle = '';
+    let currentDescription = '';
+    let currentLabels = [];
+    let draftLabels = [];
+    let saveDraftLabels = [];
+    let labelNotice = '';
+    let saveAttempts = 0;
+
+    if (mode === 'guided') {
+      document.querySelector('.dialog-head p').textContent = 'Paste the link first, then review what we find.';
+      saveButton.textContent = 'Get details';
+    } else if (mode === 'automatic') {
+      document.querySelector('.dialog-head p').textContent = 'Paste the link and its details will appear here.';
+      saveButton.disabled = true;
+    }
+    if (invalidCase) {
+      form.noValidate = true;
+      saveButton.disabled = false;
+    }
+
+    document.querySelectorAll('.open-dialog').forEach(button => {
+      button.addEventListener('click', () => {
+        dialog.showModal();
+        requestAnimationFrame(() => input.focus());
+      });
+    });
+
+    function closeDialog() {
+      dialog.close();
+      form.reset();
+      detailsFields.classList.remove('visible');
+      titleInput.disabled = true;
+      descriptionInput.disabled = true;
+      loadedMetadata = null;
+      saveDraftLabels = [];
+      document.querySelector('#save-label-editor').classList.remove('visible');
+      document.querySelector('#metadata-warning').style.display = 'none';
+      document.querySelector('#url-error').style.display = 'none';
+      document.querySelector('#save-error').style.display = 'none';
+      input.removeAttribute('aria-invalid');
+      descriptionInput.required = true;
+      window.clearTimeout(automaticTimer);
+      saveButton.disabled = mode === 'automatic';
+      saveButton.textContent = mode === 'guided' ? 'Get details' : 'Save bookmark';
+    }
+
+    document.querySelector('.close').addEventListener('click', closeDialog);
+    document.querySelector('.cancel').addEventListener('click', closeDialog);
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) closeDialog();
+    });
+
+    function closeEditDialog() {
+      editDialog.close();
+      draftLabels = [];
+      document.querySelector('#label-editor').classList.remove('visible');
+    }
+    document.querySelector('.edit-close').addEventListener('click', closeEditDialog);
+    document.querySelector('.edit-cancel').addEventListener('click', closeEditDialog);
+    editDialog.addEventListener('click', event => {
+      if (event.target === editDialog) closeEditDialog();
+    });
+
+    function openDeleteDialog() {
+      if (editDialog.open) editDialog.close();
+      document.querySelector('#delete-bookmark-name').textContent = `“${currentTitle}”`;
+      deleteDialog.showModal();
+    }
+    function closeDeleteDialog() { deleteDialog.close(); }
+    document.querySelector('.delete-close').addEventListener('click', closeDeleteDialog);
+    document.querySelector('.delete-cancel').addEventListener('click', closeDeleteDialog);
+    document.querySelector('#delete-from-editor').addEventListener('click', openDeleteDialog);
+    deleteDialog.addEventListener('click', event => { if (event.target === deleteDialog) closeDeleteDialog(); });
+    document.querySelector('#confirm-delete').addEventListener('click', () => {
+      grid.replaceChildren();
+      grid.style.display = 'none';
+      emptyState.style.display = 'grid';
+      count.textContent = '0 saved';
+      deleteDialog.close();
+    });
+
+    if (deleteMode === 'editor') document.querySelector('#delete-from-editor').style.display = 'inline-flex';
+
+    const exampleMetadata = {
+      title: 'The Best Crispy Roast Potatoes Ever',
+      description: 'These roast potatoes maximize the crisp-to-creamy contrast in every chunk, with a crunchy shell and a fluffy center.',
+      site: 'Serious Eats',
+      letter: 'S'
+    };
+
+    function detailsFor(url) {
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      const isExample = host.includes('seriouseats.com');
+      return isExample ? {...exampleMetadata} : {
+        title: 'A page worth coming back to',
+        description: 'The page description has been collected automatically so you can recognize this bookmark later.',
+        site: host,
+        letter: host.charAt(0).toUpperCase()
+      };
+    }
+
+    function showEditableDetails(metadata) {
+      loadedMetadata = metadata;
+      titleInput.disabled = false;
+      descriptionInput.disabled = false;
+      titleInput.value = metadata.title;
+      descriptionInput.value = metadata.description;
+      descriptionInput.required = true;
+      document.querySelector('#metadata-warning').style.display = 'none';
+      document.querySelector('.details-heading').textContent = 'Details found — adjust anything you like';
+      detailsFields.classList.add('visible');
+      if (labelSaveMode === 'picker') setupSaveLabelEditor();
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save bookmark';
+      titleInput.focus();
+      titleInput.select();
+    }
+
+    function showMetadataProblem(url) {
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      const manual = metadataErrorMode === 'manual';
+      loadedMetadata = {title: manual ? '' : host, description: '', site: host, letter: host.charAt(0).toUpperCase()};
+      titleInput.disabled = false;
+      descriptionInput.disabled = false;
+      descriptionInput.required = false;
+      titleInput.value = loadedMetadata.title;
+      descriptionInput.value = '';
+      document.querySelector('.details-heading').textContent = 'Page details unavailable';
+      const warning = document.querySelector('#metadata-warning');
+      warning.textContent = manual ? 'We couldn’t collect this page’s details. Add a title to save it; the description is optional.' : 'We couldn’t collect this page’s details, so we used the site name. You can save now or adjust it first.';
+      warning.style.display = 'block';
+      detailsFields.classList.add('visible');
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save bookmark';
+      titleInput.focus();
+    }
+
+    function setupSaveLabelEditor(focusNew = false) {
+      const section = document.querySelector('#save-label-editor');
+      const content = document.querySelector('#save-label-editor-content');
+      section.classList.add('visible');
+      const choices = [...new Set(['Recipes', 'Work', 'Travel', 'Home', ...saveDraftLabels])];
+      content.innerHTML = `<div class="label-choices">${choices.map(label => `<label class="label-choice"><input type="checkbox" value="${label}" ${saveDraftLabels.includes(label) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><div class="label-create-row"><input id="new-save-label" type="text" placeholder="New label"><button class="secondary" id="create-save-label" type="button">Create & add</button></div>`;
+      content.querySelectorAll('input[type="checkbox"]').forEach(box => box.addEventListener('change', () => {
+        saveDraftLabels = [...content.querySelectorAll('input[type="checkbox"]:checked')].map(item => item.value);
+      }));
+      document.querySelector('#create-save-label').addEventListener('click', () => {
+        const label = document.querySelector('#new-save-label').value.trim();
+        if (label && !saveDraftLabels.some(item => item.toLowerCase() === label.toLowerCase())) saveDraftLabels.push(label);
+        setupSaveLabelEditor(true);
+      });
+      if (focusNew) document.querySelector('#new-save-label').focus();
+    }
+
+    function openExistingEditor(reason = 'standard') {
+      document.querySelector('#edit-dialog .dialog-head p').textContent = reason === 'duplicate'
+        ? 'You already saved this page. Update the existing bookmark instead.'
+        : 'Adjust how this page appears in your collection.';
+      editTitle.value = currentTitle;
+      editDescription.value = currentDescription;
+      if (labelMode) setupLabelEditor();
+      editDialog.showModal();
+      requestAnimationFrame(() => editTitle.focus());
+    }
+
+    function renderCard(url, metadata, finalTitle, finalDescription) {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="site"><span class="favicon">${metadata.letter}</span>${metadata.site}</div>
+        <h2>${finalTitle}</h2>
+        <p class="description">${finalDescription}</p>
+        ${currentLabels.length ? `<div class="bookmark-tags">${currentLabels.map(label => `<span class="label-pill">${label}</span>`).join('')}</div>` : ''}
+        <div class="url">${url}</div>
+      `;
+
+      if (manageMode === 'direct') {
+        const manage = document.createElement('div');
+        manage.className = 'card-manage';
+        manage.innerHTML = `<button class="edit-direct" type="button">Edit</button>${deleteMode === 'direct' ? '<button class="delete-direct" type="button">Delete</button>' : ''}`;
+        manage.querySelector('.edit-direct').addEventListener('click', openExistingEditor);
+        manage.querySelector('.delete-direct')?.addEventListener('click', openDeleteDialog);
+        card.append(manage);
+      } else if (manageMode === 'menu') {
+        const manage = document.createElement('div');
+        manage.className = 'card-manage';
+        manage.innerHTML = '<button class="more-button" type="button" aria-label="Bookmark actions">•••</button><div class="card-menu"><button type="button">Edit bookmark</button></div>';
+        const menu = manage.querySelector('.card-menu');
+        manage.querySelector('.more-button').addEventListener('click', () => menu.classList.toggle('visible'));
+        menu.querySelector('button').addEventListener('click', openExistingEditor);
+        card.append(manage);
+      }
+
+      grid.replaceChildren(card);
+      emptyState.style.display = 'none';
+      grid.style.display = 'grid';
+      count.textContent = '1 saved';
+    }
+
+    function addDraftLabel(value) {
+      const label = value.trim();
+      if (!label) return;
+      const known = ['Recipes', 'Work', 'Travel', 'Home'];
+      const existing = known.find(item => item.toLowerCase() === label.toLowerCase());
+      if (duplicateLabelCase && existing) {
+        if (!draftLabels.includes(existing)) draftLabels.push(existing);
+        labelNotice = `Used your existing “${existing}” label.`;
+      } else {
+        if (draftLabels.some(item => item.toLowerCase() === label.toLowerCase())) return;
+        draftLabels.push(label);
+      }
+      setupLabelEditor(true);
+    }
+
+    function setupLabelEditor(focusNew = false) {
+      const section = document.querySelector('#label-editor');
+      const content = document.querySelector('#label-editor-content');
+      section.classList.add('visible');
+      if (!draftLabels.length) draftLabels = [...currentLabels];
+
+      if (labelMode === 'type') {
+        content.innerHTML = `<div class="selected-labels">${draftLabels.map(label => `<span class="label-pill">${label}</span>`).join('')}</div><input id="new-label" type="text" placeholder="Type a new label"><p class="label-hint">Press Enter to add another label.</p>`;
+        const newLabel = document.querySelector('#new-label');
+        newLabel.addEventListener('keydown', event => {
+          if (event.key !== 'Enter') return;
+          event.preventDefault();
+          addDraftLabel(newLabel.value);
+        });
+        if (focusNew) newLabel.focus();
+      } else {
+        const choices = [...new Set(['Recipes', 'Work', 'Travel', 'Home', ...draftLabels])];
+        content.innerHTML = `<div class="label-choices">${choices.map(label => `<label class="label-choice"><input type="checkbox" value="${label}" ${draftLabels.includes(label) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div><div class="label-create-row"><input id="new-label" type="text" placeholder="New label"><button class="secondary" id="create-label" type="button">Create & add</button></div>${labelNotice ? `<p class="label-hint">${labelNotice}</p>` : ''}`;
+        content.querySelectorAll('input[type="checkbox"]').forEach(box => box.addEventListener('change', () => {
+          draftLabels = [...content.querySelectorAll('input[type="checkbox"]:checked')].map(item => item.value);
+        }));
+        document.querySelector('#create-label').addEventListener('click', () => addDraftLabel(document.querySelector('#new-label').value));
+        if (focusNew) document.querySelector('#new-label').focus();
+      }
+    }
+
+    function saveCard(url, metadata) {
+      currentUrl = url;
+      currentMetadata = metadata;
+      currentTitle = mode ? titleInput.value.trim() : metadata.title;
+      currentDescription = mode ? descriptionInput.value.trim() : metadata.description;
+      if (labelSaveMode === 'picker') currentLabels = [...saveDraftLabels];
+      renderCard(currentUrl, currentMetadata, currentTitle, currentDescription);
+      saveButton.disabled = mode === 'automatic';
+      saveButton.textContent = mode === 'guided' ? 'Get details' : 'Save bookmark';
+      dialog.close();
+      form.reset();
+      detailsFields.classList.remove('visible');
+      titleInput.disabled = true;
+      descriptionInput.disabled = true;
+      loadedMetadata = null;
+      saveDraftLabels = [];
+      document.querySelector('#save-label-editor').classList.remove('visible');
+    }
+
+    editForm.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!editForm.reportValidity()) return;
+      currentTitle = editTitle.value.trim();
+      currentDescription = editDescription.value.trim();
+      if (labelMode) currentLabels = [...draftLabels];
+      renderCard(currentUrl, currentMetadata, currentTitle, currentDescription);
+      editDialog.close();
+      draftLabels = [];
+    });
+
+    if (mode === 'automatic') {
+      input.addEventListener('input', () => {
+        window.clearTimeout(automaticTimer);
+        loadedMetadata = null;
+        detailsFields.classList.remove('visible');
+        titleInput.disabled = true;
+        descriptionInput.disabled = true;
+        saveButton.disabled = true;
+        saveButton.textContent = 'Save bookmark';
+        document.querySelector('#url-error').style.display = 'none';
+        document.querySelector('#save-error').style.display = 'none';
+        input.removeAttribute('aria-invalid');
+        if (!input.validity.valid) { if (invalidCase) saveButton.disabled = false; return; }
+
+        automaticTimer = window.setTimeout(() => {
+          if (duplicateMode && input.value.trim() === currentUrl) {
+            saveButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> Checking collection…';
+            window.setTimeout(() => {
+              closeDialog();
+              openExistingEditor('duplicate');
+            }, 650);
+            return;
+          }
+          saveButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> Getting details…';
+          window.setTimeout(() => metadataErrorMode ? showMetadataProblem(input.value.trim()) : showEditableDetails(detailsFor(input.value.trim())), 650);
+        }, 350);
+      });
+    }
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (invalidCase && !/^https?:\/\//i.test(input.value.trim())) {
+        input.setAttribute('aria-invalid', 'true');
+        document.querySelector('#url-error').style.display = 'block';
+        input.focus();
+        return;
+      }
+      if (!form.reportValidity()) return;
+
+      const url = input.value.trim();
+
+      if (mode && loadedMetadata) {
+        if (saveErrorMode && saveAttempts++ === 0) {
+          document.querySelector('#save-error').style.display = 'block';
+          saveButton.disabled = false;
+          saveButton.textContent = 'Try again';
+          return;
+        }
+        saveCard(url, loadedMetadata);
+        return;
+      }
+
+      saveButton.disabled = true;
+      saveButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> Getting details…';
+
+      window.setTimeout(() => {
+        const metadata = detailsFor(url);
+        if (mode === 'guided') {
+          showEditableDetails(metadata);
+          return;
+        }
+        saveCard(url, metadata);
+      }, 800);
+    });
+
+    if (manageMode) {
+      currentUrl = 'https://www.seriouseats.com/the-best-roast-potatoes-ever-recipe-5217326';
+      currentMetadata = {...exampleMetadata};
+      currentTitle = exampleMetadata.title;
+      currentDescription = exampleMetadata.description;
+      currentLabels = labelMode ? (duplicateLabelCase ? (duplicateLabelState === 'saved' ? ['Work', 'Recipes'] : ['Work']) : ['Recipes']) : [];
+      renderCard(currentUrl, currentMetadata, currentTitle, currentDescription);
+      if (duplicateLabelState === 'notice') {
+        openExistingEditor();
+        draftLabels = ['Work', 'Recipes'];
+        labelNotice = 'Used your existing “Recipes” label.';
+        setupLabelEditor();
+        document.querySelector('#new-label').value = 'recipes';
+        document.querySelector('#label-editor').scrollIntoView({block: 'nearest'});
+      }
+    }
+  </script>
+</body>
+</html>

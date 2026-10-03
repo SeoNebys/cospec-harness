@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7ec; --text:#1a1d24; --muted:#6b7280; --accent:#2563eb; --accent-soft:#eaf1ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 20px; position:sticky; top:0; z-index:5; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  main { max-width:720px; margin:0 auto; padding:20px; }
+  .save-box { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:20px; box-shadow:0 1px 2px rgba(16,24,40,0.04); }
+  .save-row { display:flex; gap:8px; }
+  .save-row input { flex:1; padding:12px 14px; font-size:15px; border:1px solid var(--line); border-radius:8px; outline:none; }
+  .save-row input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .save-row button { padding:12px 18px; font-size:15px; font-weight:600; color:#fff; background:var(--accent); border:none; border-radius:8px; cursor:pointer; white-space:nowrap; }
+  .save-row button:disabled { opacity:0.5; cursor:default; }
+  .hint { color:var(--muted); font-size:12px; margin-top:8px; }
+  .status { font-size:13px; margin-top:10px; min-height:18px; }
+  .status.saving { color:var(--accent); } .status.saved { color:#059669; } .status.error { color:#dc2626; }
+  .search-box { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:4px 12px; margin-bottom:16px; }
+  .search-box:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .search-box .search-icon { color:var(--muted); font-size:18px; }
+  .search-box input { flex:1; border:none; outline:none; padding:9px 0; font-size:15px; background:transparent; }
+  .search-box .clear-search { border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:14px; padding:4px; }
+  mark { background:#fef3c7; color:inherit; border-radius:3px; padding:0 1px; }
+  .tabs { display:flex; gap:6px; margin-bottom:16px; }
+  .tabs button { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:999px; padding:7px 14px; font-size:13px; cursor:pointer; display:inline-flex; gap:6px; align-items:center; }
+  .tabs button .count { background:var(--bg); color:var(--muted); border-radius:999px; padding:0 7px; font-size:12px; }
+  .tabs button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tabs button.on .count { background:rgba(255,255,255,0.25); color:#fff; }
+  .list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+  .item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; box-shadow:0 1px 2px rgba(16,24,40,0.04); }
+  .item .title { font-size:16px; font-weight:600; margin:0 0 2px; }
+  .item .title a { color:var(--text); text-decoration:none; }
+  .item .title a:hover { text-decoration:underline; }
+  .item .meta { font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .item .favicon { width:16px; height:16px; border-radius:4px; background:var(--accent-soft); display:inline-flex; align-items:center; justify-content:center; font-size:10px; color:var(--accent); font-weight:700; }
+  .item .desc { font-size:14px; color:#384150; margin:8px 0 0; }
+  .note { font-size:14px; color:#374151; margin:10px 0 0; padding:10px 12px; background:#fafafa; border-left:3px solid var(--line); border-radius:4px; }
+  .note p { margin:0 0 6px; } .note p:last-child { margin-bottom:0; }
+  .note ul { margin:4px 0; padding-left:20px; } .note li { margin:2px 0; }
+  .note a { color:var(--accent); }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .tag { font-size:12px; background:var(--accent-soft); color:#1e40af; border-radius:999px; padding:3px 10px; }
+  .item-actions { margin-top:10px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .link-btn { border:none; background:transparent; color:var(--accent); font-size:13px; cursor:pointer; padding:4px 0; font-weight:600; }
+  .toread-btn { border:none; background:transparent; color:var(--muted); font-size:13px; cursor:pointer; padding:4px 0; font-weight:600; }
+  .toread-btn.on { color:#d97706; }
+  .item.is-toread { border-color:#fcd8a6; }
+  .toread-flag { font-size:12px; color:#d97706; font-weight:600; margin-left:auto; }
+  .muted-btn { border:none; background:transparent; color:var(--muted); font-size:13px; cursor:pointer; padding:4px 0; font-weight:600; }
+  .danger-btn { border:none; background:transparent; color:#dc2626; font-size:13px; cursor:pointer; padding:4px 0; font-weight:600; }
+  .confirm { display:flex; gap:12px; align-items:center; margin-top:10px; padding:8px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:13px; color:#991b1b; flex-wrap:wrap; }
+  .item.is-archived { opacity:0.72; }
+  .item.flash { animation:flash 1.6s ease; }
+  @keyframes flash { 0%,100% { box-shadow:0 1px 2px rgba(16,24,40,0.04); } 20% { box-shadow:0 0 0 3px #fcd34d; } }
+  .editor { margin-top:12px; border-top:1px dashed var(--line); padding-top:12px; }
+  .editor label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.03em; }
+  .field { margin-bottom:14px; position:relative; }
+  .chip-input { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .chip-input:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .chip-input input { flex:1; min-width:140px; border:none; outline:none; font:inherit; font-size:14px; padding:4px; }
+  .editable-tag { display:inline-flex; align-items:center; gap:5px; font-size:12px; background:var(--accent-soft); color:#1e40af; border-radius:999px; padding:3px 8px 3px 10px; }
+  .editable-tag button { border:none; background:transparent; color:#1e40af; cursor:pointer; font-size:12px; line-height:1; padding:0; }
+  .suggest { position:absolute; left:0; right:0; top:100%; margin-top:4px; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 20px rgba(16,24,40,0.12); z-index:10; overflow:hidden; }
+  .suggest button { display:block; width:100%; text-align:left; border:none; background:#fff; padding:8px 12px; font:inherit; font-size:14px; cursor:pointer; }
+  .suggest button:hover, .suggest button.active { background:var(--accent-soft); }
+  .suggest .new-hint { color:var(--muted); font-size:12px; }
+  .editor textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; font-size:14px; resize:vertical; outline:none; }
+  .editor textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .editor-actions { display:flex; gap:8px; margin-top:4px; align-items:center; }
+  .editor-actions .save-edit { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-weight:600; cursor:pointer; font-size:14px; }
+  .editor-actions .cancel-edit { background:transparent; color:var(--muted); border:none; cursor:pointer; font-size:14px; }
+  .empty { text-align:center; color:var(--muted); padding:48px 20px; border:1px dashed var(--line); border-radius:12px; background:var(--card); }
+  .empty .big { font-size:15px; color:var(--text); margin-bottom:4px; }
+  .section-label { font-size:12px; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin:0 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link, organise it with tags and a note, and find it again by searching.</p>
+</header>
+<main>
+  <div class="save-box">
+    <div class="save-row">
+      <input id="url" type="text" placeholder="Paste a link here, e.g. https://…" autocomplete="off">
+      <button id="saveBtn">Save</button>
+    </div>
+    <div class="hint">Tip: paste any web address and press Save.</div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="search-box" id="searchBox" style="display:none;">
+    <span class="search-icon">⌕</span>
+    <input id="search" type="text" placeholder="Search by word, site, address, tag, or note…" autocomplete="off">
+    <button id="clearSearch" class="clear-search" style="display:none;" title="Clear search">✕</button>
+  </div>
+
+  <div class="tabs" id="tabs" style="display:none;">
+    <button data-view="all" class="on">All <span class="count" id="countAll">0</span></button>
+    <button data-view="toread">To read <span class="count" id="countToread">0</span></button>
+    <button data-view="archived">Archived <span class="count" id="countArchived">0</span></button>
+  </div>
+
+  <p class="section-label" id="listLabel" style="display:none;">Saved links</p>
+  <ul class="list" id="list"></ul>
+
+  <div class="empty" id="noResults" style="display:none;">
+    <div class="big">No matching links</div>
+    <div id="noResultsMsg"></div>
+  </div>
+  <div class="empty" id="empty">
+    <div class="big">No links saved yet</div>
+    <div>Paste a link above and press Save to add your first bookmark.</div>
+  </div>
+</main>
+
+<script>
+  function domainOf(url) { try { let u=url.trim(); if(!/^https?:\/\//i.test(u)) u="https://"+u; return new URL(u).hostname.replace(/^www\./,""); } catch(e){ return null; } }
+  function titleCase(s){ return s.replace(/[-_]/g," ").replace(/\b\w/g,c=>c.toUpperCase()); }
+  const KNOWN = {
+    "nytimes.com":{title:"The Science of a Good Night's Sleep",site:"The New York Times",desc:"What researchers now understand about sleep cycles, and small habits that improve rest."},
+    "wikipedia.org":{title:"Bookmark (World Wide Web) — Wikipedia",site:"Wikipedia",desc:"A bookmark is a URI that is stored for later retrieval in any of various storage formats."},
+    "github.com":{title:"GitHub — Where the world builds software",site:"GitHub",desc:"GitHub is where over 100 million developers shape the future of software, together."},
+    "medium.com":{title:"How I Finally Organised My Reading List",site:"Medium",desc:"A personal system for saving articles you actually come back to."},
+    "arstechnica.com":{title:"The long, strange history of the web bookmark",site:"Ars Technica",desc:"How saving links evolved from a browser afterthought into its own category of tools."}
+  };
+  function lookup(url){ const host=domainOf(url); if(!host) return null; for(const k in KNOWN){ if(host===k||host.endsWith("."+k)) return Object.assign({host},KNOWN[k]); }
+    let path=""; try{ let u=url.trim(); if(!/^https?:\/\//i.test(u)) u="https://"+u; path=new URL(u).pathname.split("/").filter(Boolean).pop()||""; }catch(e){}
+    const root=host.split(".")[0]; const guessed=path?titleCase(path.replace(/\.\w+$/,"")):titleCase(root); return {host,title:guessed||host,site:titleCase(root),desc:""}; }
+
+  const KEY="proto_bookmarks_v4";
+  let items=null; try{ items=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){}
+  if(!items){
+    const now=Date.now();
+    const SEED=[
+      {url:"https://www.nytimes.com/article",host:"nytimes.com",title:"The Science of a Good Night's Sleep",site:"The New York Times",desc:"What researchers now understand about sleep cycles, and small habits that improve rest.",ago:2,tags:["health","reading"],note:"",toRead:true},
+      {url:"https://arstechnica.com/the-history-of-the-web-bookmark",host:"arstechnica.com",title:"The long, strange history of the web bookmark",site:"Ars Technica",desc:"How saving links evolved from a browser afterthought into its own category of tools.",ago:26,tags:["reading","tech"],note:"",toRead:true},
+      {url:"https://medium.com/organising-my-reading-list",host:"medium.com",title:"How I Finally Organised My Reading List",site:"Medium",desc:"A personal system for saving articles you actually come back to.",ago:50,tags:["productivity","reading"],note:"Worth revisiting:\n- the folder idea in section 3\n- their weekly review habit\nSee also [their follow-up](https://medium.com/follow-up).",toRead:false},
+      {url:"https://github.com",host:"github.com",title:"GitHub — Where the world builds software",site:"GitHub",desc:"GitHub is where over 100 million developers shape the future of software, together.",ago:90,tags:["tech","tools"],note:"",toRead:false},
+      {url:"https://en.wikipedia.org/wiki/Bookmark_(World_Wide_Web)",host:"wikipedia.org",title:"Bookmark (World Wide Web) — Wikipedia",site:"Wikipedia",desc:"A bookmark is a URI that is stored for later retrieval in any of various storage formats.",ago:120,tags:["reference"],note:"",toRead:false,archived:true}
+    ];
+    items=SEED.map((s,i)=>({id:now-1000-i,url:s.url,host:s.host,title:s.title,site:s.site,desc:s.desc,savedAt:now-s.ago*3600000,tags:s.tags,note:s.note,toRead:s.toRead,archived:!!s.archived}));
+    localStorage.setItem(KEY,JSON.stringify(items));
+  }
+
+  let query="", editingId=null, draftTags=[], sugIndex=-1, currentView="all", confirmDeleteId=null, flashId=null;
+  function persist(){ localStorage.setItem(KEY,JSON.stringify(items)); }
+  function allTags(){ const s=new Set(); items.forEach(it=>(it.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+  function timeAgo(ts){ const s=Math.floor((Date.now()-ts)/1000); if(s<60)return"just now"; const m=Math.floor(s/60); if(m<60)return m+" min ago"; const h=Math.floor(m/60); if(h<24)return h+" h ago"; return Math.floor(h/24)+" d ago"; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+  function normTag(t){ return t.trim().replace(/\s+/g," ").toLowerCase(); }
+  function addDraftTag(raw){ const t=normTag(raw); if(t&&!draftTags.includes(t)) draftTags.push(t); }
+
+  // Render a note's light formatting: bullet lists ("- ") and [text](url) links.
+  function renderNote(src,q){
+    const lines=src.split(/\r?\n/); let html="", i=0;
+    function inline(t){ let e=highlight(t,q); e=e.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,(m,label,url)=>`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`); return e; }
+    while(i<lines.length){
+      if(/^\s*-\s+/.test(lines[i])){ html+="<ul>"; while(i<lines.length&&/^\s*-\s+/.test(lines[i])){ html+="<li>"+inline(lines[i].replace(/^\s*-\s+/,""))+"</li>"; i++; } html+="</ul>"; }
+      else if(lines[i].trim()===""){ i++; }
+      else { html+="<p>"+inline(lines[i])+"</p>"; i++; }
+    }
+    return html;
+  }
+
+  const listEl=document.getElementById("list"), emptyEl=document.getElementById("empty"), listLabel=document.getElementById("listLabel");
+  const searchBox=document.getElementById("searchBox"), noResults=document.getElementById("noResults"), noResultsMsg=document.getElementById("noResultsMsg"), clearSearchBtn=document.getElementById("clearSearch");
+  const tabsEl=document.getElementById("tabs"), countAll=document.getElementById("countAll"), countToread=document.getElementById("countToread"), countArchived=document.getElementById("countArchived");
+
+  function matches(it,q){ const hay=[it.title,it.site,it.host,it.url,it.desc,(it.tags||[]).join(" "),it.note||""].join(" ").toLowerCase(); return q.split(/\s+/).filter(Boolean).every(t=>hay.includes(t)); }
+  function highlight(text,q){ let out=escapeHtml(text); const terms=q.split(/\s+/).filter(Boolean).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")); if(!terms.length)return out; return out.replace(new RegExp("("+terms.join("|")+")","gi"),"<mark>$1</mark>"); }
+
+  function inView(it){
+    if(currentView==="archived") return !!it.archived;
+    if(currentView==="toread") return !it.archived && !!it.toRead;
+    return !it.archived; // all
+  }
+
+  function render(){
+    listEl.innerHTML=""; const q=query.trim().toLowerCase();
+    countAll.textContent=items.filter(it=>!it.archived).length;
+    countToread.textContent=items.filter(it=>!it.archived&&it.toRead).length;
+    countArchived.textContent=items.filter(it=>it.archived).length;
+    if(items.length===0){ emptyEl.style.display="block"; noResults.style.display="none"; searchBox.style.display="none"; tabsEl.style.display="none"; listLabel.style.display="none"; return; }
+    emptyEl.style.display="none"; searchBox.style.display="flex"; tabsEl.style.display="flex"; clearSearchBtn.style.display=q?"block":"none";
+    tabsEl.querySelectorAll("button").forEach(b=>b.classList.toggle("on", b.dataset.view===currentView));
+    const visible=items.filter(it=>inView(it)&&(q?matches(it,q):true));
+    if(visible.length===0){
+      listLabel.style.display="none"; noResults.style.display="block";
+      const emptyMsg = currentView==="toread" ? "Nothing marked to read right now." : currentView==="archived" ? "Nothing archived yet." : "No links here yet.";
+      noResultsMsg.textContent = q ? `Nothing matched “${query.trim()}”.` : emptyMsg;
+      return;
+    }
+    noResults.style.display="none"; listLabel.style.display="block";
+    const base = currentView==="toread" ? "To read" : currentView==="archived" ? "Archived links" : "Saved links";
+    listLabel.textContent = q ? `${visible.length} matching link${visible.length>1?"s":""}` : base;
+    visible.forEach(it=>{
+      const li=document.createElement("li"); li.className="item"+(it.toRead&&!it.archived?" is-toread":"")+(it.archived?" is-archived":"")+(flashId===it.id?" flash":"");
+      const initial=(it.site||it.host||"?").charAt(0).toUpperCase();
+      const tagsHtml=(it.tags&&it.tags.length)?`<div class="tags">${it.tags.map(t=>`<span class="tag">${highlight(t,q)}</span>`).join("")}</div>`:"";
+      const noteHtml=it.note?`<div class="note">${renderNote(it.note,q)}</div>`:"";
+      let body=`
+        <p class="title"><a href="${it.url}" target="_blank" rel="noopener">${highlight(it.title,q)}</a></p>
+        <div class="meta"><span class="favicon">${escapeHtml(initial)}</span><span>${highlight(it.site||it.host,q)}</span><span>·</span><span>${highlight(it.host,q)}</span><span>·</span><span>saved ${timeAgo(it.savedAt)}</span></div>
+        ${it.desc?`<p class="desc">${highlight(it.desc,q)}</p>`:""}
+        ${tagsHtml}${noteHtml}`;
+      if(editingId===it.id){
+        const chips=draftTags.map(t=>`<span class="editable-tag">${escapeHtml(t)}<button type="button" data-remove="${escapeHtml(t)}">✕</button></span>`).join("");
+        body+=`<div class="editor">
+          <div class="field"><label>Tags</label>
+            <div class="chip-input" id="chipInput">${chips}<input id="chipEntry" placeholder="Type a tag, press Enter" autocomplete="off"></div>
+            <div class="suggest" id="suggest" style="display:none;"></div>
+            <div class="hint">Press Enter or comma to add. Matching tags you've used before will be suggested.</div></div>
+          <div class="field"><label>Note</label>
+            <textarea id="noteEntry" rows="3" placeholder="Add a note…">${escapeHtml(it.note||"")}</textarea>
+            <div class="hint">Formatting: start a line with “- ” for a bullet list; write a link as [text](https://…).</div></div>
+          <div class="editor-actions"><button class="save-edit" data-save="${it.id}">Save</button><button class="cancel-edit" data-cancel="1">Cancel</button></div>
+        </div>`;
+      } else if(confirmDeleteId===it.id){
+        body+=`<div class="confirm">
+          <span>Delete this link permanently? This can't be undone.</span>
+          <button class="danger-btn" data-delete-confirm="${it.id}">Delete</button>
+          <button class="muted-btn" data-delete-cancel="1">Cancel</button>
+        </div>`;
+      } else if(it.archived){
+        body+=`<div class="item-actions">
+          <button class="muted-btn" data-restore="${it.id}">↩ Restore</button>
+          <button class="danger-btn" data-delete="${it.id}">🗑 Delete</button>
+        </div>`;
+      } else {
+        body+=`<div class="item-actions">
+          <button class="link-btn" data-edit="${it.id}">${(it.tags&&it.tags.length)||it.note?"Edit tags & note":"＋ Add tags & note"}</button>
+          <button class="toread-btn ${it.toRead?"on":""}" data-toread="${it.id}">${it.toRead?"★ Marked to read":"☆ Read later"}</button>
+          <button class="muted-btn" data-archive="${it.id}">🗄 Archive</button>
+          <button class="danger-btn" data-delete="${it.id}">🗑 Delete</button>
+          ${it.toRead?`<span class="toread-flag">To read</span>`:""}
+        </div>`;
+      }
+      li.innerHTML=body; listEl.appendChild(li);
+    });
+    wireEditor();
+  }
+
+  function openEditor(id){ const it=items.find(x=>x.id===id); editingId=id; draftTags=(it.tags||[]).slice(); sugIndex=-1; render(); }
+  function closeEditor(){ editingId=null; draftTags=[]; render(); }
+  function saveEditor(id){ const it=items.find(x=>x.id===id); if(!it)return; const entry=document.getElementById("chipEntry"); if(entry&&entry.value.trim()) addDraftTag(entry.value); const noteEl=document.getElementById("noteEntry"); it.tags=draftTags.slice(); it.note=noteEl?noteEl.value.replace(/\s+$/,""):(it.note||""); persist(); editingId=null; draftTags=[]; render(); }
+
+  function suggestions(prefix){ const p=normTag(prefix); if(!p) return []; return allTags().filter(t=>t.includes(p)&&!draftTags.includes(t)).slice(0,6); }
+  function renderSuggest(){
+    const box=document.getElementById("suggest"), entry=document.getElementById("chipEntry"); if(!box||!entry) return;
+    const list=suggestions(entry.value);
+    if(list.length===0){ box.style.display="none"; sugIndex=-1; return; }
+    box.style.display="block";
+    box.innerHTML=list.map((t,i)=>`<button type="button" data-sug="${escapeHtml(t)}" class="${i===sugIndex?"active":""}">${escapeHtml(t)}</button>`).join("");
+    box.querySelectorAll("[data-sug]").forEach(b=>b.onmousedown=e=>{ e.preventDefault(); addDraftTag(b.dataset.sug); render(); setTimeout(()=>{const en=document.getElementById("chipEntry"); if(en) en.focus();},0); });
+  }
+
+  function wireEditor(){
+    document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openEditor(Number(b.dataset.edit)));
+    document.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=closeEditor);
+    document.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>saveEditor(Number(b.dataset.save)));
+    document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{ draftTags=draftTags.filter(t=>t!==b.dataset.remove); render(); });
+    document.querySelectorAll("[data-toread]").forEach(b=>b.onclick=()=>{ const it=items.find(x=>x.id===Number(b.dataset.toread)); if(it){ it.toRead=!it.toRead; persist(); render(); } });
+    document.querySelectorAll("[data-archive]").forEach(b=>b.onclick=()=>{ const it=items.find(x=>x.id===Number(b.dataset.archive)); if(it){ it.archived=true; it.toRead=false; persist(); render(); } });
+    document.querySelectorAll("[data-restore]").forEach(b=>b.onclick=()=>{ const it=items.find(x=>x.id===Number(b.dataset.restore)); if(it){ it.archived=false; persist(); render(); } });
+    document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>{ confirmDeleteId=Number(b.dataset.delete); render(); });
+    document.querySelectorAll("[data-delete-cancel]").forEach(b=>b.onclick=()=>{ confirmDeleteId=null; render(); });
+    document.querySelectorAll("[data-delete-confirm]").forEach(b=>b.onclick=()=>{ const id=Number(b.dataset.deleteConfirm); items=items.filter(x=>x.id!==id); confirmDeleteId=null; persist(); render(); });
+    if(editingId==null) return;
+    const entry=document.getElementById("chipEntry");
+    if(entry){
+      entry.focus();
+      entry.oninput=()=>{ sugIndex=-1; renderSuggest(); };
+      entry.onkeydown=e=>{
+        const list=suggestions(entry.value);
+        if(e.key==="ArrowDown"&&list.length){ e.preventDefault(); sugIndex=(sugIndex+1)%list.length; renderSuggest(); }
+        else if(e.key==="ArrowUp"&&list.length){ e.preventDefault(); sugIndex=(sugIndex-1+list.length)%list.length; renderSuggest(); }
+        else if(e.key==="Enter"||e.key===","){ e.preventDefault(); if(sugIndex>=0&&list[sugIndex]){ addDraftTag(list[sugIndex]); } else if(entry.value.trim()){ addDraftTag(entry.value); } entry.value=""; sugIndex=-1; render(); setTimeout(()=>{const en=document.getElementById("chipEntry"); if(en) en.focus();},0); }
+        else if(e.key==="Backspace"&&!entry.value&&draftTags.length){ draftTags.pop(); render(); setTimeout(()=>{const en=document.getElementById("chipEntry"); if(en) en.focus();},0); }
+        else if(e.key==="Escape"){ const box=document.getElementById("suggest"); if(box) box.style.display="none"; sugIndex=-1; }
+      };
+    }
+  }
+
+  const urlEl=document.getElementById("url"), btn=document.getElementById("saveBtn"), statusEl=document.getElementById("status");
+  function setStatus(msg,cls){ statusEl.textContent=msg; statusEl.className="status "+(cls||""); }
+  function normUrl(raw){ let n=raw.trim(); if(!/^https?:\/\//i.test(n)) n="https://"+n; try{ const u=new URL(n); return (u.hostname.replace(/^www\./,"")+u.pathname.replace(/\/$/,"")+u.search).toLowerCase(); }catch(e){ return n.toLowerCase(); } }
+  function save(){ const raw=urlEl.value.trim(); if(!raw){ setStatus("Please paste a link first.","error"); return; } const host=domainOf(raw); if(!host||!host.includes(".")){ setStatus("That doesn't look like a valid link.","error"); return; }
+    // Already saved? Don't create a duplicate — surface the existing one.
+    const key=normUrl(raw); const existing=items.find(it=>normUrl(it.url)===key);
+    if(existing){
+      query=""; searchEl.value=""; currentView = existing.archived ? "archived" : "all"; flashId=existing.id;
+      urlEl.value=""; render();
+      setStatus(existing.archived ? "You already saved this — it's in your Archived list." : "You already saved this link.","error");
+      setTimeout(()=>{ flashId=null; render(); },1700); setTimeout(()=>setStatus("",""),3500);
+      return;
+    }
+    btn.disabled=true; setStatus("Fetching details…","saving");
+    setTimeout(()=>{ const meta=lookup(raw); let n=raw; if(!/^https?:\/\//i.test(n)) n="https://"+n; items.unshift({id:Date.now(),url:n,host:meta.host,title:meta.title,site:meta.site,desc:meta.desc,savedAt:Date.now(),tags:[],note:"",toRead:false,archived:false}); persist(); render(); urlEl.value=""; btn.disabled=false; setStatus("Saved — details filled in automatically.","saved"); setTimeout(()=>setStatus("",""),2500); urlEl.focus(); },650);
+  }
+  btn.onclick=save; urlEl.onkeydown=e=>{ if(e.key==="Enter") save(); };
+  const searchEl=document.getElementById("search");
+  searchEl.oninput=e=>{ query=e.target.value; render(); };
+  clearSearchBtn.onclick=()=>{ query=""; searchEl.value=""; searchEl.focus(); render(); };
+  tabsEl.querySelectorAll("button").forEach(b=>b.onclick=()=>{ currentView=b.dataset.view; render(); });
+
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

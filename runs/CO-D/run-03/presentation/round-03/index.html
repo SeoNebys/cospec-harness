@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background:var(--bg); color:var(--ink); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px;
+           padding:16px; display:flex; gap:10px; align-items:center; }
+  .saver input { flex:1; border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+                 font-size:15px; outline:none; }
+  .saver input:focus { border-color: var(--accent); }
+  .saver button { background:var(--accent); color:#fff; border:none; border-radius:8px;
+                  padding:12px 20px; font-size:15px; font-weight:600; cursor:pointer; }
+  .saver button:disabled { opacity:.5; cursor:default; }
+  .hint { color:var(--muted); font-size:13px; margin:10px 2px 0; min-height:18px; }
+  .list { margin-top: 28px; display:flex; flex-direction:column; gap:12px; }
+  .empty { color:var(--muted); text-align:center; padding:48px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:16px 18px; animation: pop .25s ease; }
+  @keyframes pop { from { transform: translateY(-6px); opacity:0; } to { transform:none; opacity:1; } }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 4px; line-height:1.35; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+  .fav { width:16px; height:16px; border-radius:4px; background:#dfe6f5; display:inline-flex;
+         align-items:center; justify-content:center; font-size:10px; color:var(--accent); font-weight:700; }
+  .card a.link { color:var(--muted); font-size:13px; text-decoration:none; word-break:break-all; }
+  .filling { color: var(--accent); }
+  .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent);
+         animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">A readable place to save links and find them again.</p>
+
+  <div class="saver">
+    <input id="url" type="text" placeholder="Paste a link and press Save…" autocomplete="off" />
+    <button id="save">Save</button>
+  </div>
+  <div class="hint" id="hint"></div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+// --- Prototype only: simulates fetching a page's basic details. ---
+// A small built-in lookup for a few well-known sites, with a readable
+// fallback derived from the domain for anything else.
+const KNOWN = {
+  "en.wikipedia.org/wiki/Bookmark_(digital)": { title: "Bookmark (digital) — Wikipedia", site: "Wikipedia" },
+  "developer.mozilla.org/en-US/docs/Web/CSS/Flexbox": { title: "CSS Flexbox layout — MDN Web Docs", site: "MDN Web Docs" },
+  "www.nytimes.com/2026/01/12/technology/reading-later.html": { title: "The Quiet Art of Reading Later", site: "The New York Times" },
+  "github.com/rust-lang/rust": { title: "rust-lang/rust: The Rust programming language", site: "GitHub" }
+};
+
+function normalize(raw) {
+  let u = raw.trim();
+  if (!u) return null;
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try { return new URL(u); } catch { return null; }
+}
+function lookupMeta(url) {
+  const key = (url.host + url.pathname).replace(/\/$/, "");
+  if (KNOWN[key]) return KNOWN[key];
+  // Fallback: readable title from the last path segment or the domain.
+  const seg = url.pathname.split("/").filter(Boolean).pop();
+  const site = url.host.replace(/^www\./, "");
+  const title = seg
+    ? seg.replace(/[-_]/g, " ").replace(/\.\w+$/, "").replace(/\b\w/g, c => c.toUpperCase())
+    : site;
+  return { title, site };
+}
+
+const bookmarks = [];
+const listEl = document.getElementById("list");
+const urlEl = document.getElementById("url");
+const btn = document.getElementById("save");
+const hint = document.getElementById("hint");
+
+function render() {
+  if (bookmarks.length === 0) {
+    listEl.innerHTML = '<div class="empty">No bookmarks yet. Paste a link above to save your first one.</div>';
+    return;
+  }
+  listEl.innerHTML = "";
+  bookmarks.forEach(b => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const titleHtml = b.filling
+      ? '<span class="filling"><span class="dot"></span> Filling in details…</span>'
+      : b.title;
+    card.innerHTML =
+      '<div class="title">' + titleHtml + '</div>' +
+      '<div class="meta"><span class="fav">' + (b.site ? b.site[0].toUpperCase() : '?') + '</span>' +
+      '<span>' + (b.filling ? '' : b.site) + '</span></div>' +
+      '<a class="link" href="' + b.url + '" target="_blank" rel="noopener">' + b.url + '</a>';
+    listEl.appendChild(card);
+  });
+}
+
+function save() {
+  const url = normalize(urlEl.value);
+  if (!url) { hint.textContent = "That doesn't look like a link — please check it."; return; }
+  const b = { url: url.href, title: "", site: "", filling: true };
+  bookmarks.unshift(b);
+  urlEl.value = "";
+  hint.textContent = "Saved. Fetching its details for you…";
+  render();
+  // Simulate the brief auto-fill of basic details.
+  setTimeout(() => {
+    const meta = lookupMeta(url);
+    b.title = meta.title; b.site = meta.site; b.filling = false;
+    hint.textContent = "Details filled in automatically — nothing more to type.";
+    render();
+  }, 700);
+}
+
+btn.addEventListener("click", save);
+urlEl.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

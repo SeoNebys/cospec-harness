@@ -1,0 +1,1 @@
+export function largeLibrary(count=1000){return Array.from({length:count},(_,i)=>({url:`https://item-${i}.example.com`,title:`Item ${String(i).padStart(4,'0')}`,description:`Description ${i}`,tags:[`group-${i%10}`],favorite:i%5===0}));}

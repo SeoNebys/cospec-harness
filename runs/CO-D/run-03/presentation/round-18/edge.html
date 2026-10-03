@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge cases — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; --warn:#b5791f; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:720px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; gap:10px; }
+  .saver input { flex:1; border:1px solid var(--line); border-radius:8px; padding:11px 13px; font-size:15px; outline:none; }
+  .saver button { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:11px 20px; font-size:15px; font-weight:600; cursor:pointer; }
+
+  .emptyhero { text-align:center; padding:56px 20px; }
+  .emptyhero .ic { font-size:44px; }
+  .emptyhero h2 { font-size:19px; margin:14px 0 6px; }
+  .emptyhero p { color:var(--muted); font-size:14px; margin:0 auto; max-width:420px; line-height:1.5; }
+  .emptysmall { text-align:center; color:var(--muted); font-size:14px; padding:40px 20px; }
+  .emptysmall .ic { font-size:30px; display:block; margin-bottom:8px; }
+
+  .review { margin-top:16px; background:var(--card); border:1px solid var(--accent); border-radius:12px; overflow:hidden; box-shadow:0 4px 18px rgba(47,109,246,.12); }
+  .review .body { padding:16px 18px; }
+  .tagword { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  .placeholder { height:120px; display:flex; align-items:center; justify-content:center; background:repeating-linear-gradient(45deg,#eef0f3,#eef0f3 12px,#e7eaee 12px,#e7eaee 24px); color:#9aa2ad; font-size:13px; font-weight:600; }
+  .warnbar { background:#fdf5e6; border:1px solid #f0dcb0; color:var(--warn); border-radius:9px; padding:10px 13px; font-size:13px; margin:0 0 12px; display:flex; gap:8px; align-items:flex-start; }
+  label.fl { display:block; font-size:12px; color:var(--muted); margin:12px 0 5px; font-weight:600; }
+  .ein { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:14px; outline:none; }
+  .ein:focus { border-color:var(--accent); }
+  .actions { display:flex; gap:10px; margin-top:16px; }
+  .btn-primary { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+  .metaline { font-size:12.5px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub" id="sub"></p>
+  <div id="app"></div>
+</div>
+<script>
+const state=new URLSearchParams(location.search).get("state")||"empty";
+const sub=document.getElementById("sub");
+const app=document.getElementById("app");
+
+if(state==="empty"){
+  sub.textContent="A readable place to save links and find them again.";
+  app.innerHTML=
+    '<div class="saver"><input placeholder="Paste a link and press Save…"/><button>Save</button></div>'+
+    '<div class="emptyhero"><div class="ic">🔖</div>'+
+      '<h2>Save your first bookmark</h2>'+
+      '<p>Paste any link above and press Save. I\'ll fill in its title, description, icon and a preview for you — then you can add tags and a note so you remember why it mattered.</p>'+
+    '</div>';
+}
+else if(state==="autofail"){
+  sub.textContent="Saving a page whose details couldn't be read.";
+  app.innerHTML=
+    '<div class="saver"><input value="https://members.example.com/private/report" /><button>Save</button></div>'+
+    '<div class="review"><div class="placeholder">No preview available</div><div class="body">'+
+      '<span class="tagword">Review before saving</span>'+
+      '<div class="warnbar"><span>⚠️</span><span>I couldn\'t read this page\'s details (it may be offline, private, or blocking access). '+
+        'Nothing was made up — you can still save the link and fill in the details yourself.</span></div>'+
+      '<label class="fl">Title</label><input class="ein" value="members.example.com/private/report" />'+
+      '<div class="metaline">Suggested from the web address — edit it to whatever helps you recognise it.</div>'+
+      '<label class="fl">Description</label><input class="ein" placeholder="(none — add one if you like)" />'+
+      '<div class="actions"><button class="btn-primary">Save bookmark</button><button class="btn-ghost">Cancel</button></div>'+
+    '</div></div>';
+}
+else if(state==="long"){
+  sub.textContent="A bookmark with very long text and many tags — staying readable.";
+  const longTitle="A Remarkably and Almost Comically Long Article Title That Keeps Going Well Past What Anyone Would Reasonably Expect a Headline to Contain, Just to See How the Card Copes";
+  const longDesc="This description runs on and on with far more detail than usual, describing every nuance of the page, its arguments, its counter-arguments, and a great many asides, so we can confirm the card wraps gracefully and stays comfortable to read rather than overflowing or pushing the controls off-screen.";
+  const tags=["reading","focus","research","css","recipes","later","reference","weekend-writing","productivity","history","longform","to-revisit"];
+  app.innerHTML=
+    '<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;">'+
+      '<div style="height:120px;background:linear-gradient(135deg,#5a67d8,#434190);"></div>'+
+      '<div style="padding:15px 17px;">'+
+        '<div style="font-size:16px;font-weight:600;line-height:1.35;margin-bottom:6px;overflow-wrap:anywhere;">'+longTitle+'</div>'+
+        '<div style="font-size:13px;color:#4a5260;line-height:1.5;margin-bottom:10px;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+longDesc+'</div>'+
+        '<div style="font-size:12.5px;color:#5a5030;background:#fbf6e9;border-left:3px solid #e5c96b;padding:8px 10px;border-radius:0 5px 5px 0;margin-bottom:10px;overflow-wrap:anywhere;">📝 A personal note that is also quite long, reminding me exactly why this mattered and what I intended to do with it when I finally get around to reading it properly.</div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;">'+tags.map(t=>'<span style="background:#e7f0ff;color:#245;border-radius:999px;padding:3px 10px;font-size:12px;">'+t+'</span>').join('')+'</div>'+
+        '<div style="color:var(--muted);font-size:12px;overflow-wrap:anywhere;">https://www.example.com/very/long/path/segments/that/keep/going/2026/09/an-extremely-long-slug-for-testing-wrapping-behaviour?section=main</div>'+
+      '</div>'+
+    '</div>'+
+    '<p style="font-size:12.5px;color:var(--muted);margin-top:10px;">The description is shortened to three lines on the card; the full text shows when you open or edit the bookmark.</p>';
+}
+else if(state==="toread-empty"){
+  sub.textContent="To read view — when you're all caught up.";
+  app.innerHTML='<div class="emptysmall"><span class="ic">✅</span>You\'re all caught up — nothing left to read.<br>Switch to <b>All</b> or <b>Finished</b> to see the rest of your library.</div>';
+}
+else if(state==="archived-empty"){
+  sub.textContent="Archived view — when nothing is archived.";
+  app.innerHTML='<div class="emptysmall"><span class="ic">🗄</span>No archived bookmarks yet.<br>Archiving keeps a link without cluttering your main list — you can always restore it.</div>';
+}
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

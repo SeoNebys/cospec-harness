@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eef2ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .saver input[type=url] {
+    flex: 1 1 320px;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .saver button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .saver button:disabled { opacity: .55; cursor: default; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 2px 0; }
+  .list { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .favicon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--accent-soft);
+    display: grid; place-items: center;
+    font-weight: 700; color: var(--accent);
+    flex: none; font-size: 15px; overflow: hidden;
+  }
+  .favicon img { width: 22px; height: 22px; display: block; }
+  .card .body { flex: 1; min-width: 0; }
+  .card .preview {
+    width: 100%; height: 132px; object-fit: cover;
+    border-radius: 8px; margin-bottom: 8px; display: block;
+    border: 1px solid var(--line);
+  }
+  .card .title { font-weight: 600; font-size: 15px; margin: 0 0 3px; }
+  .card .title a { color: var(--ink); text-decoration: none; }
+  .card .title a:hover { text-decoration: underline; }
+  .card .col-actions { flex: none; }
+  .edit-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .edit-btn:hover { background: var(--bg); }
+  .note a { color: var(--accent); }
+  .note ul { margin: 4px 0; padding-left: 20px; }
+  .note code { background: #f3eecb; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+  .note p { margin: 4px 0; }
+  .note p:first-child { margin-top: 0; }
+  .note p:last-child { margin-bottom: 0; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: 0 0 6px; line-height: 1.4; }
+  .card .site { color: var(--accent); font-size: 12px; word-break: break-all; }
+  .card.saving { opacity: .7; }
+  .card.flash { animation: flash 1.4s ease; }
+  @keyframes flash {
+    0% { box-shadow: 0 0 0 0 rgba(37,99,235,.0); border-color: var(--accent); }
+    25% { box-shadow: 0 0 0 4px rgba(37,99,235,.18); border-color: var(--accent); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); border-color: var(--line); }
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 10px;
+    font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0;
+    transition: opacity .25s, transform .25s; pointer-events: none; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .tabs { display: flex; gap: 8px; margin-top: 22px; }
+  .tab {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab .count {
+    display: inline-block; min-width: 18px; text-align: center; font-size: 12px;
+    background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; margin-left: 4px;
+  }
+  .tab.active .count { background: rgba(255,255,255,.25); }
+  .col-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .readlater-btn {
+    border: 1px solid var(--line); background: #fff; color: var(--muted);
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+    white-space: nowrap;
+  }
+  .readlater-btn.on { background: #fff7e6; border-color: #f0c469; color: #b7791f; }
+  .toread-flag {
+    display: inline-block; font-size: 11px; font-weight: 700; color: #b7791f;
+    background: #fff7e6; border: 1px solid #f0c469; border-radius: 999px;
+    padding: 1px 8px; margin-bottom: 4px;
+  }
+  .card.clickable { cursor: pointer; transition: box-shadow .15s; }
+  .card.clickable:hover { box-shadow: 0 3px 12px rgba(0,0,0,.07); }
+  .note {
+    margin: 6px 0 0; font-size: 13px; color: var(--ink);
+    background: #fffbea; border: 1px solid #f4e6a8; border-radius: 8px; padding: 8px 10px;
+    white-space: pre-wrap;
+  }
+  .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 12px; background: var(--accent-soft); color: var(--accent);
+    padding: 3px 9px; border-radius: 999px; font-weight: 600;
+  }
+  /* editor modal */
+  .backdrop {
+    position: fixed; inset: 0; background: rgba(15,20,30,.45);
+    display: none; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; z-index: 50;
+  }
+  .backdrop.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 14px; width: 100%; max-width: 520px;
+    padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.25); animation: pop .2s ease;
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 18px; }
+  .modal .sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; word-break: break-all; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .field input[type=text], .field textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .chipbox {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px;
+  }
+  .chipbox .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600;
+    font-size: 12px; padding: 3px 4px 3px 9px; border-radius: 999px;
+  }
+  .chipbox .chip button {
+    border: none; background: transparent; color: var(--accent); cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 0 3px;
+  }
+  .chipbox input {
+    border: none; outline: none; flex: 1; min-width: 120px; font-size: 14px; padding: 4px;
+  }
+  .suggestions {
+    position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 60; overflow: hidden; display: none;
+  }
+  .suggestions.open { display: block; }
+  .suggestions .opt { padding: 9px 12px; font-size: 14px; cursor: pointer; }
+  .suggestions .opt:hover, .suggestions .opt.active { background: var(--accent-soft); color: var(--accent); }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .btn {
+    padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+  }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block; vertical-align: -3px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    text-align: center; color: var(--muted); padding: 48px 20px;
+    border: 1px dashed var(--line); border-radius: 12px; margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and I'll fill in the page details for you.</p>
+</header>
+<main>
+  <form class="saver" id="saver" autocomplete="off">
+    <input type="url" id="url" placeholder="Paste a link, e.g. https://…" required />
+    <button type="submit" id="saveBtn">Save</button>
+  </form>
+  <div class="hint">Paste any web address and press Save.</div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-view="all" type="button">All</button>
+    <button class="tab" data-view="toread" type="button">To read <span class="count" id="toreadCount"></span></button>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">No bookmarks yet. Paste a link above to save your first one.</div>
+</main>
+
+<div class="backdrop" id="backdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>Edit bookmark</h2>
+    <div class="field">
+      <label for="editAddr">Web address</label>
+      <input type="text" id="editAddr" />
+    </div>
+    <div class="field">
+      <label for="editTitle">Title</label>
+      <input type="text" id="editTitle" />
+    </div>
+    <div class="field">
+      <label for="editDesc">Description</label>
+      <textarea id="editDesc"></textarea>
+    </div>
+    <div class="field">
+      <label for="editNote">Your note</label>
+      <textarea id="editNote" placeholder="Why did you save this? Add a private note…"></textarea>
+    </div>
+    <div class="field" style="position:relative;">
+      <label for="tagInput">Tags</label>
+      <div class="chipbox" id="chipbox">
+        <input type="text" id="tagInput" placeholder="Type a tag and press Enter" autocomplete="off" />
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="cancelEdit" type="button">Cancel</button>
+      <button class="btn primary" id="saveEdit" type="button">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Prototype: simulated page-detail lookup (no real network needed) ---
+// Simulated preview image, so "preview when available" renders even offline.
+function previewImage(label, c1, c2) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='320'>
+    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/>
+    </linearGradient></defs>
+    <rect width='640' height='320' fill='url(#g)'/>
+    <text x='40' y='180' font-family='Segoe UI, Arial' font-size='44' font-weight='700' fill='#ffffff'>${label}</text>
+  </svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+const KNOWN = {
+  "github.com": { site: "GitHub", title: "GitHub · Build and ship software", desc: "The complete developer platform to build, scale, and deliver secure software.", preview: previewImage("GitHub", "#24292e", "#57606a") },
+  "en.wikipedia.org": { site: "Wikipedia", title: "Wikipedia, the free encyclopedia", desc: "A free online encyclopedia, created and edited by volunteers around the world.", preview: previewImage("Wikipedia", "#3366cc", "#111111") },
+  "nytimes.com": { site: "The New York Times", title: "The New York Times — Breaking News, World News & Multimedia", desc: "Live news, investigations, opinion, photos and video.", preview: previewImage("The New York Times", "#000000", "#333333") },
+  "youtube.com": { site: "YouTube", title: "YouTube", desc: "Enjoy the videos and music you love, upload original content, and share it all.", preview: previewImage("YouTube", "#ff0000", "#7a0000") },
+  "developer.mozilla.org": { site: "MDN Web Docs", title: "MDN Web Docs", desc: "Resources for developers, by developers. Documentation for web technologies.", preview: previewImage("MDN Web Docs", "#0b5fff", "#001b44") },
+  "medium.com": { site: "Medium", title: "Medium — Where good ideas find you", desc: "Read and write stories, deepen your understanding of the topics that matter.", preview: previewImage("Medium", "#000000", "#4d4d4d") },
+};
+function faviconUrl(host) {
+  return "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=64";
+}
+function normalizeUrl(url) {
+  let u = url.trim();
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try {
+    const p = new URL(u);
+    let path = p.pathname.replace(/\/$/, "");
+    return (p.hostname.replace(/^www\./, "") + path + p.search).toLowerCase();
+  } catch { return u.toLowerCase().replace(/\/$/, ""); }
+}
+function metadataFor(url) {
+  let host;
+  try { host = new URL(/^https?:\/\//i.test(url) ? url : "https://" + url).hostname.replace(/^www\./, ""); }
+  catch { host = url.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, ""); }
+  const base = KNOWN[host]
+    ? { ...KNOWN[host], host }
+    : (() => {
+        const name = (host.split(".")[0] || host).replace(/[-_]/g, " ");
+        const pretty = name.charAt(0).toUpperCase() + name.slice(1);
+        // Unknown sites: no preview image available.
+        return { site: pretty, title: pretty + " — " + host, desc: "Saved page from " + host + ".", host, preview: null };
+      })();
+  base.favicon = faviconUrl(host);
+  return base;
+}
+
+const list = document.getElementById("list");
+const empty = document.getElementById("empty");
+const form = document.getElementById("saver");
+const urlInput = document.getElementById("url");
+const saveBtn = document.getElementById("saveBtn");
+
+let bookmarks = [];
+
+function faviconHtml(b) {
+  const initial = (b.site || b.host || "?").trim().charAt(0).toUpperCase();
+  if (b.loading) return '<span class="spinner"></span>';
+  if (b.favicon) {
+    return `<img src="${b.favicon}" alt="" onerror="this.replaceWith(document.createTextNode('${initial}'))" />`;
+  }
+  return initial;
+}
+let currentView = "all";
+function visibleBookmarks() {
+  return bookmarks.filter(b => currentView === "toread" ? b.readLater : true);
+}
+function render() {
+  const toReadCount = bookmarks.filter(b => b.readLater).length;
+  const countEl = document.getElementById("toreadCount");
+  if (countEl) countEl.textContent = toReadCount ? String(toReadCount) : "";
+  const shown = visibleBookmarks();
+  empty.style.display = shown.length ? "none" : "block";
+  empty.textContent = bookmarks.length === 0
+    ? "No bookmarks yet. Paste a link above to save your first one."
+    : (currentView === "toread"
+        ? "Nothing marked to read later. Use “Read later” on any bookmark to add it here."
+        : "No bookmarks yet. Paste a link above to save your first one.");
+  list.innerHTML = "";
+  for (const b of shown) {
+    const card = document.createElement("div");
+    card.className = "card" + (b.loading ? " saving" : " clickable");
+    card.dataset.key = b.key;
+    const preview = (!b.loading && b.preview)
+      ? `<img class="preview" src="${b.preview}" alt="Page preview" />` : "";
+    const note = (!b.loading && b.note) ? `<div class="note">${renderMarkdown(b.note)}</div>` : "";
+    const tags = (!b.loading && b.tags && b.tags.length)
+      ? `<div class="tags">${b.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>` : "";
+    const href = openHref(b.url);
+    const titleHtml = b.loading
+      ? "Fetching page details…"
+      : `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(b.title)}</a>`;
+    const flag = (!b.loading && b.readLater) ? '<span class="toread-flag">To read</span><br>' : "";
+    const actions = b.loading ? "" : `
+      <div class="col-actions">
+        <button class="readlater-btn ${b.readLater ? "on" : ""}" type="button">${b.readLater ? "✓ To read" : "Read later"}</button>
+        <button class="edit-btn" type="button">Edit</button>
+      </div>`;
+    card.innerHTML = `
+      <div class="favicon">${faviconHtml(b)}</div>
+      <div class="body">
+        ${preview}
+        ${flag}
+        <p class="title">${titleHtml}</p>
+        <p class="desc">${b.loading ? "" : escapeHtml(b.desc)}</p>
+        <span class="site">${escapeHtml(b.url)}</span>
+        ${note}
+        ${tags}
+      </div>
+      ${actions}`;
+    if (!b.loading) {
+      // Clicking the card (or its title) opens the original page.
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".edit-btn") || e.target.closest(".readlater-btn") || e.target.closest("a")) return;
+        window.open(href, "_blank", "noopener");
+      });
+      card.querySelector(".edit-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        openEditor(b.key);
+      });
+      card.querySelector(".readlater-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        b.readLater = !b.readLater;
+        render();
+        if (b.readLater) showToast("Added to “To read”.");
+      });
+    }
+    list.appendChild(card);
+  }
+}
+let toastTimer;
+function showToast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function flashCard(key) {
+  const el = list.querySelector(`[data-key="${CSS.escape(key)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("flash");
+  void el.offsetWidth;
+  el.classList.add("flash");
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+}
+function openHref(url) {
+  return /^https?:\/\//i.test(url) ? url : "https://" + url;
+}
+function safeLink(url) {
+  // Only allow http/https links from note markdown.
+  return /^https?:\/\//i.test(url) ? url : null;
+}
+// Minimal, escaped-first Markdown for notes: paragraphs, bullet lists,
+// links, bold, italic, inline code.
+function renderMarkdown(src) {
+  const lines = (src || "").split(/\r?\n/);
+  let html = "", inList = false;
+  const inline = (t) => {
+    t = escapeHtml(t);
+    t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+    t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, txt, url) => {
+      const safe = safeLink(url.trim());
+      return safe ? `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener">${txt}</a>` : txt;
+    });
+    t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    t = t.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+    return t;
+  };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const li = line.match(/^\s*[-*]\s+(.*)$/);
+    if (li) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${inline(li[1])}</li>`;
+    } else {
+      if (inList) { html += "</ul>"; inList = false; }
+      if (line.trim()) html += `<p>${inline(line)}</p>`;
+    }
+  }
+  if (inList) html += "</ul>";
+  return html;
+}
+function allKnownTags() {
+  const set = new Map();
+  for (const b of bookmarks) for (const t of (b.tags || [])) {
+    const k = t.toLowerCase();
+    if (!set.has(k)) set.set(k, t);
+  }
+  return [...set.values()];
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  if (!url) return;
+  const key = normalizeUrl(url);
+  // Duplicate: don't add a second copy — bring up the one already saved.
+  const existing = bookmarks.find(b => b.key === key);
+  if (existing) {
+    urlInput.value = "";
+    if (existing.loading) { flashCard(key); return; }
+    showToast("You already saved this — opening it so you can update it.");
+    openEditor(key);
+    return;
+  }
+  const entry = { url, key, loading: true, id: Date.now() };
+  bookmarks.unshift(entry);
+  urlInput.value = "";
+  saveBtn.disabled = true;
+  render();
+  // Simulate the brief moment of fetching page details.
+  setTimeout(() => {
+    const meta = metadataFor(url);
+    Object.assign(entry, meta, { loading: false });
+    saveBtn.disabled = false;
+    render();
+  }, 650);
+});
+
+// --- Editor ---
+const backdrop = document.getElementById("backdrop");
+const editAddr = document.getElementById("editAddr");
+const editTitle = document.getElementById("editTitle");
+const editDesc = document.getElementById("editDesc");
+const editNote = document.getElementById("editNote");
+const chipbox = document.getElementById("chipbox");
+const tagInput = document.getElementById("tagInput");
+const suggestions = document.getElementById("suggestions");
+let editingKey = null;
+let draftTags = [];
+let activeSuggestion = -1;
+
+function renderChips() {
+  chipbox.querySelectorAll(".chip").forEach(c => c.remove());
+  draftTags.forEach((t, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${escapeHtml(t)} <button type="button" aria-label="Remove tag">×</button>`;
+    chip.querySelector("button").addEventListener("click", () => {
+      draftTags.splice(i, 1); renderChips();
+    });
+    chipbox.insertBefore(chip, tagInput);
+  });
+}
+function addTag(value) {
+  const raw = (value || "").trim().replace(/,$/, "").trim();
+  if (!raw) return;
+  if (!draftTags.some(t => t.toLowerCase() === raw.toLowerCase())) draftTags.push(raw);
+  tagInput.value = "";
+  renderChips();
+  renderSuggestions();
+}
+function addTagFromInput() { addTag(tagInput.value); }
+
+function currentSuggestions() {
+  const q = tagInput.value.trim().toLowerCase();
+  return allKnownTags().filter(t =>
+    !draftTags.some(d => d.toLowerCase() === t.toLowerCase()) &&
+    (q === "" ? false : t.toLowerCase().includes(q))
+  ).slice(0, 6);
+}
+function renderSuggestions() {
+  const opts = currentSuggestions();
+  activeSuggestion = -1;
+  if (!opts.length) { suggestions.classList.remove("open"); suggestions.innerHTML = ""; return; }
+  suggestions.innerHTML = opts.map((t, i) =>
+    `<div class="opt" data-i="${i}">${escapeHtml(t)}</div>`).join("");
+  suggestions.querySelectorAll(".opt").forEach(el => {
+    el.addEventListener("mousedown", (e) => { e.preventDefault(); addTag(opts[+el.dataset.i]); });
+  });
+  suggestions.classList.add("open");
+}
+tagInput.addEventListener("input", renderSuggestions);
+tagInput.addEventListener("keydown", (e) => {
+  const opts = currentSuggestions();
+  if (e.key === "ArrowDown" && opts.length) {
+    e.preventDefault(); activeSuggestion = Math.min(activeSuggestion + 1, opts.length - 1); highlightSuggestion();
+  } else if (e.key === "ArrowUp" && opts.length) {
+    e.preventDefault(); activeSuggestion = Math.max(activeSuggestion - 1, 0); highlightSuggestion();
+  } else if (e.key === "Enter" || e.key === ",") {
+    e.preventDefault();
+    if (activeSuggestion >= 0 && opts[activeSuggestion]) addTag(opts[activeSuggestion]);
+    else addTagFromInput();
+  } else if (e.key === "Backspace" && !tagInput.value && draftTags.length) {
+    draftTags.pop(); renderChips(); renderSuggestions();
+  }
+});
+function highlightSuggestion() {
+  suggestions.querySelectorAll(".opt").forEach((el, i) =>
+    el.classList.toggle("active", i === activeSuggestion));
+}
+tagInput.addEventListener("blur", () => {
+  addTagFromInput();
+  suggestions.classList.remove("open");
+});
+
+function openEditor(key) {
+  const b = bookmarks.find(x => x.key === key);
+  if (!b) return;
+  editingKey = key;
+  editAddr.value = b.url;
+  editTitle.value = b.title || "";
+  editDesc.value = b.desc || "";
+  editNote.value = b.note || "";
+  draftTags = (b.tags || []).slice();
+  tagInput.value = "";
+  renderChips();
+  renderSuggestions();
+  backdrop.classList.add("open");
+  editTitle.focus();
+}
+function closeEditor() {
+  backdrop.classList.remove("open");
+  editingKey = null;
+}
+document.getElementById("cancelEdit").addEventListener("click", closeEditor);
+backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeEditor(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && backdrop.classList.contains("open")) closeEditor(); });
+document.getElementById("saveEdit").addEventListener("click", () => {
+  addTagFromInput();
+  const b = bookmarks.find(x => x.key === editingKey);
+  if (b) {
+    const newAddr = editAddr.value.trim() || b.url;
+    const newKey = normalizeUrl(newAddr);
+    // Guard: don't let an edited address collide with a different bookmark.
+    const clash = bookmarks.find(x => x !== b && x.key === newKey);
+    if (clash) {
+      showToast("Another bookmark already uses that web address.");
+      return;
+    }
+    b.url = newAddr;
+    b.key = newKey;
+    b.title = editTitle.value.trim() || b.title;
+    b.desc = editDesc.value.trim();
+    b.note = editNote.value.trim();
+    b.tags = draftTags.slice();
+    editingKey = newKey;
+  }
+  const key = editingKey;
+  closeEditor();
+  render();
+  flashCard(key);
+  showToast("Saved your changes.");
+});
+
+// --- View tabs (All / To read) ---
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (!tab) return;
+  currentView = tab.dataset.view;
+  document.querySelectorAll("#tabs .tab").forEach(t => t.classList.toggle("active", t === tab));
+  render();
+});
+
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

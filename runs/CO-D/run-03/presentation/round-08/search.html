@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Search — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .searchbar { position:relative; }
+  .searchbar input { width:100%; border:1px solid var(--line); border-radius:10px; padding:13px 16px 13px 42px; font-size:15px; outline:none; background:#fff; }
+  .searchbar input:focus { border-color:var(--accent); }
+  .searchbar .mag { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; }
+  .count { color:var(--muted); font-size:13px; margin:12px 2px 0; }
+  .list { margin-top:14px; display:flex; flex-direction:column; gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 4px; }
+  .card .desc { font-size:13px; color:#4a5260; margin:0 0 8px; }
+  .card .note { font-size:12.5px; color:#5a5030; background:#fbf6e9; border-left:3px solid #e5c96b; padding:6px 10px; border-radius:0 5px 5px 0; margin:0 0 8px; }
+  .card .taglist { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+  .chip { display:inline-block; background:#e7f0ff; color:#245; border-radius:999px; padding:3px 10px; font-size:12px; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12.5px; }
+  .fav { width:16px; height:16px; border-radius:4px; }
+  .matchwhere { font-size:11px; color:var(--accent); margin-top:6px; font-weight:600; }
+  mark { background:#fff2a8; color:inherit; border-radius:3px; padding:0 1px; }
+  .empty { text-align:center; color:var(--muted); padding:44px 16px; background:#fff; border:1px dashed var(--line); border-radius:12px; }
+  .empty b { color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Find anything you've saved.</p>
+  <div class="searchbar">
+    <span class="mag">🔍</span>
+    <input id="q" type="text" placeholder="Search by title, tag, note or description…" autocomplete="off" />
+  </div>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site.replace(/^www\./,'')[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`); }
+
+const DATA=[
+  { title:"The Quiet Art of Reading Later", site:"nytimes.com", desc:"Why saving articles to read later can make you a calmer, more deliberate reader.",
+    note:"Read before writing my weekend post on focus.", tags:["reading","focus","weekend-writing"] },
+  { title:"CSS Flexbox layout — MDN Web Docs", site:"developer.mozilla.org", desc:"A one-dimensional layout method for arranging items in rows or columns.",
+    note:"Reference for the settings screen.", tags:["css","reference"] },
+  { title:"How to roast vegetables perfectly", site:"seriouseats.com", desc:"A guide to caramelised, evenly cooked roasted vegetables every time.",
+    note:"Try the high-heat method this weekend.", tags:["recipes","weekend-writing"] },
+  { title:"Rust ownership explained", site:"doc.rust-lang.org", desc:"Understanding ownership, borrowing and lifetimes in Rust.",
+    note:"Come back to the borrowing section.", tags:["rust","reference","reading"] },
+  { title:"A calm approach to focus at work", site:"blog.example.org", desc:"Small habits that protect attention during the day.",
+    note:"Good quotes on deep work and focus.", tags:["focus","productivity"] }
+];
+
+const qEl=document.getElementById("q");
+const listEl=document.getElementById("list");
+const countEl=document.getElementById("count");
+function esc(s){ return (s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function hl(text,q){ if(!q) return esc(text); const i=text.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0) return esc(text); return esc(text.slice(0,i))+"<mark>"+esc(text.slice(i,i+q.length))+"</mark>"+esc(text.slice(i+q.length)); }
+
+function matchFields(b,q){
+  const ql=q.toLowerCase(); const where=[];
+  if(b.title.toLowerCase().includes(ql)) where.push("title");
+  if(b.tags.some(t=>t.toLowerCase().includes(ql))) where.push("tag");
+  if(b.note.toLowerCase().includes(ql)) where.push("note");
+  if(b.desc.toLowerCase().includes(ql)) where.push("description");
+  if(b.site.toLowerCase().includes(ql)) where.push("site");
+  return where;
+}
+
+function render(){
+  const q=qEl.value.trim();
+  const rows = q ? DATA.map(b=>({b,where:matchFields(b,q)})).filter(r=>r.where.length) : DATA.map(b=>({b,where:[]}));
+  countEl.textContent = q ? (rows.length+" of "+DATA.length+" bookmarks match “"+q+"”") : (DATA.length+" bookmarks");
+  if(rows.length===0){
+    listEl.innerHTML='<div class="empty">No bookmarks match <b>“'+esc(q)+'”</b>.<br>Try a different word, or check a tag or note you might have used.</div>';
+    return;
+  }
+  listEl.innerHTML="";
+  rows.forEach(({b,where})=>{
+    const card=document.createElement("div"); card.className="card";
+    card.innerHTML=
+      '<div class="title">'+hl(b.title,q)+'</div>'+
+      '<div class="desc">'+hl(b.desc,q)+'</div>'+
+      '<div class="note">📝 '+hl(b.note,q)+'</div>'+
+      '<div class="taglist">'+b.tags.map(t=>'<span class="chip">'+hl(t,q)+'</span>').join('')+'</div>'+
+      '<div class="meta"><img class="fav" src="'+favSVG(b.site)+'"/> <span>'+hl(b.site,q)+'</span></div>'+
+      (q && where.length ? '<div class="matchwhere">matched in '+where.join(", ")+'</div>' : '');
+    listEl.appendChild(card);
+  });
+}
+qEl.addEventListener("input",render);
+// optional preset query for screenshots
+const pq=new URLSearchParams(location.search).get("q");
+if(pq!==null) qEl.value=pq;
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

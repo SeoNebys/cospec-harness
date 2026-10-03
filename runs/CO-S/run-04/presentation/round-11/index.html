@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1d2430;
+    --muted: #6b7580;
+    --line: #e4e7eb;
+    --accent: #2f6fed;
+    --accent-ink: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 24px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px; }
+
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+  }
+  .saver input {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 15px;
+    outline: none;
+  }
+  .saver input:focus { border-color: var(--accent); }
+  .saver button {
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: 8px;
+    padding: 0 20px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .saver button:disabled { opacity: .55; cursor: default; }
+
+  .viewbar { margin-top: 18px; display: flex; gap: 6px; border-bottom: 1px solid var(--line); }
+  .viewtab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer;
+    margin-bottom: -1px;
+  }
+  .viewtab.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .viewtab .count { font-weight: 500; color: var(--muted); font-size: 12px; margin-left: 5px; }
+
+  .finder { margin-top: 16px; }
+  .finder #search {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; font-size: 15px; outline: none; background: #fff;
+  }
+  .finder #search:focus { border-color: var(--accent); }
+  .searchhint { margin-top: 7px; color: var(--muted); font-size: 12px; }
+  .searchhint code { background: #eef1f5; border-radius: 4px; padding: 1px 5px; font-size: 11.5px; }
+  .filterbar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+  .filterbar .flabel { font-size: 12px; color: var(--muted); margin-right: 2px; }
+  .filter-chip {
+    background: #f3f4f6; color: #444; border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 11px; font-size: 12.5px; cursor: pointer;
+  }
+  .filter-chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .clearf { font-size: 12px; color: var(--accent); cursor: pointer; background:none; border:none; font-weight:600; }
+  .resultmeta { margin-top: 16px; color: var(--muted); font-size: 12.5px; min-height: 16px; }
+
+  .list { margin-top: 8px; display: flex; flex-direction: column; gap: 14px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    animation: rise .25s ease;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+  .card .thumb {
+    width: 150px;
+    min-width: 150px;
+    background: #eef1f5 center/cover no-repeat;
+    border-right: 1px solid var(--line);
+  }
+  .card .body { padding: 14px 16px; flex: 1; min-width: 0; }
+  .card .title-row { display: flex; align-items: center; gap: 8px; }
+  .card .favicon { width: 16px; height: 16px; border-radius: 3px; flex: none; }
+  .card .title { font-size: 16px; font-weight: 600; margin: 0; line-height: 1.3; }
+  .card .title a { color: inherit; text-decoration: none; }
+  .card .desc { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+  .card .host { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+  .badge { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; flex: none; }
+  .badge.readlater { background: #fff3e0; color: #b0621a; border: 1px solid #f6ddb8; }
+  .badge.archived { background: #eef0f2; color: #667080; border: 1px solid #dfe3e8; }
+  .linkbtn.muted { color: var(--muted); }
+
+  .card .actions { margin-top: 10px; display: flex; gap: 12px; }
+  .linkbtn {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--accent); font-size: 12.5px; font-weight: 600;
+  }
+  .editor { margin-top: 4px; }
+  .editor label { display:block; font-size: 11px; color: var(--muted); margin: 8px 0 3px; text-transform: uppercase; letter-spacing:.03em;}
+  .editor input, .editor textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 7px;
+    padding: 8px 9px; font-size: 14px; font-family: inherit; outline: none;
+  }
+  .editor input:focus, .editor textarea:focus { border-color: var(--accent); }
+  .editor textarea { resize: vertical; min-height: 54px; }
+  .editor .row { display:flex; gap:8px; margin-top: 12px; }
+  .editor .row button { border-radius:7px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--line);}
+  .editor .save { background: var(--accent); color:#fff; border-color: var(--accent);}
+  .editor .cancel { background:#fff; color: var(--ink); }
+  .edited-flag { color: var(--muted); font-size: 11px; font-style: italic; }
+
+  .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    background: #eef3ff; color: #2554b0; border: 1px solid #d7e2fb;
+    border-radius: 999px; padding: 3px 10px; font-size: 12px; display:inline-flex; align-items:center; gap:6px;
+  }
+  .chip .x { cursor: pointer; font-weight: 700; color: #6f8bc7; }
+  .note {
+    margin-top: 10px; background: #fffdf3; border: 1px solid #efe6c4;
+    border-radius: 8px; padding: 9px 11px; font-size: 13px; color: #5f5636; white-space: pre-wrap;
+  }
+  .panel { margin-top: 4px; }
+  .panel .chip-input { display:flex; flex-wrap:wrap; gap:6px; border:1px solid var(--line); border-radius:7px; padding:6px; }
+  .panel .chip-input input { border:none; outline:none; flex:1; min-width:120px; font-size:14px; padding:3px; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip.suggest { background:#f3f4f6; color:#444; border-color:#e4e7eb; cursor:pointer; }
+  .chip.suggest.on { background:#eef3ff; color:#2554b0; border-color:#d7e2fb; }
+  .note ul { margin:4px 0; padding-left:20px; }
+  .note li { margin:2px 0; }
+  .note code { background:#efe9d0; border-radius:4px; padding:1px 4px; font-size:12px; }
+  .note a { color:#2f6fed; }
+  .note div { margin:2px 0; }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    margin-top: 20px;
+  }
+
+  .card.pending .body { display: flex; flex-direction: column; justify-content: center; }
+  .skeleton { background: #eef1f5; border-radius: 6px; height: 12px; }
+  .skeleton.t { height: 16px; width: 55%; margin-bottom: 10px; }
+  .skeleton.d { width: 90%; margin-bottom: 6px; }
+  .skeleton.d2 { width: 70%; }
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid var(--line); border-top-color: var(--accent); border-radius:50%; animation: sp .7s linear infinite; vertical-align:-2px; margin-right:6px;}
+  @keyframes sp { to { transform: rotate(360deg);} }
+  .fetching { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bookmarks</h1>
+  <p>Your personal place for links.</p>
+</header>
+<main>
+  <form class="saver" id="saver" autocomplete="off">
+    <input id="url" type="text" placeholder="Paste a link to save…" aria-label="Link to save" />
+    <button id="saveBtn" type="submit">Save</button>
+  </form>
+
+  <nav class="viewbar" id="viewbar">
+    <button class="viewtab on" data-view="all">All</button>
+    <button class="viewtab" data-view="readlater">Read Later</button>
+    <button class="viewtab" data-view="archive">Archive</button>
+  </nav>
+
+  <div class="finder" id="finder">
+    <input id="search" type="search" placeholder="Search…  e.g.  testing AND #frontend   or   &quot;test suite&quot; NOT css" aria-label="Search bookmarks" />
+    <div class="searchhint">Try words, <code>"exact phrases"</code>, <code>#tag</code>, and <code>AND</code> / <code>OR</code> / <code>NOT</code> with <code>( )</code>. Not case-sensitive.</div>
+    <div class="filterbar" id="filterbar"></div>
+  </div>
+
+  <div class="resultmeta" id="resultmeta"></div>
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">No bookmarks yet. Paste a link above to save your first one.</div>
+  <div class="empty" id="noresults" style="display:none">No bookmarks match your search. Try a different word or clear the filters.</div>
+  <div class="empty" id="emptyreadlater" style="display:none">Nothing in your read-later list yet. On any bookmark, choose <strong>Read later</strong> to add it here.</div>
+  <div class="empty" id="emptyarchive" style="display:none">Your archive is empty. Archive a bookmark to keep it without cluttering your main list.</div>
+</main>
+
+<script>
+// --- Simulated page-detail fetch (prototype only) --------------------------
+// A prototype simulates external behaviour. Real fetching would read the live
+// page; here we return believable details for a few known links, and derive a
+// sensible fallback for anything else.
+const CATALOG = {
+  "https://martinfowler.com/articles/practical-test-pyramid.html": {
+    title: "The Practical Test Pyramid",
+    description: "A guide to the test pyramid: how to structure automated tests across unit, service and UI layers for fast, reliable feedback.",
+    host: "martinfowler.com",
+    favicon: "https://www.google.com/s2/favicons?domain=martinfowler.com&sz=64",
+    image: "https://martinfowler.com/articles/practical-test-pyramid/test-pyramid.png"
+  },
+  "https://en.wikipedia.org/wiki/bookmark_(digital)": {
+    title: "Bookmark (digital) — Wikipedia",
+    description: "A bookmark is a Uniform Resource Identifier (URI) that is stored for later retrieval in any of various storage formats.",
+    host: "en.wikipedia.org",
+    favicon: "https://www.google.com/s2/favicons?domain=en.wikipedia.org&sz=64",
+    image: ""
+  }
+};
+
+function fakeFetch(url) {
+  const key = url.toLowerCase().replace(/\/+$/,'');
+  return new Promise(resolve => {
+    setTimeout(() => {
+      if (CATALOG[key]) return resolve(CATALOG[key]);
+      let host = "";
+      try { host = new URL(url).hostname.replace(/^www\./,''); } catch(e) { host = url; }
+      const slug = (function(){
+        try {
+          const p = new URL(url).pathname.split('/').filter(Boolean).pop() || "";
+          return decodeURIComponent(p).replace(/[-_]+/g,' ').replace(/\.\w+$/,'');
+        } catch(e) { return ""; }
+      })();
+      resolve({
+        title: slug ? (slug.charAt(0).toUpperCase()+slug.slice(1)) : host,
+        description: "Saved from " + host + ".",
+        host: host,
+        favicon: "https://www.google.com/s2/favicons?domain=" + host + "&sz=64",
+        image: ""
+      });
+    }, 900);
+  });
+}
+
+// --- State -----------------------------------------------------------------
+const bookmarks = [
+  { url:"https://martinfowler.com/articles/practical-test-pyramid.html",
+    title:"The Practical Test Pyramid",
+    description:"How to structure automated tests across unit, service and UI layers for fast, reliable feedback.",
+    host:"martinfowler.com",
+    favicon:"https://www.google.com/s2/favicons?domain=martinfowler.com&sz=64",
+    image:"https://martinfowler.com/articles/practical-test-pyramid/test-pyramid.png",
+    tags:["testing","engineering"], note:"**Key idea:** balance unit vs UI tests." },
+  { url:"https://www.smashingmagazine.com/2020/07/css-grid-guide/",
+    title:"A Complete Guide to CSS Grid",
+    description:"Everything you need to know about CSS Grid layout, with examples.",
+    host:"smashingmagazine.com",
+    favicon:"https://www.google.com/s2/favicons?domain=smashingmagazine.com&sz=64",
+    image:"", tags:["css","frontend","reference"], note:"" },
+  { url:"https://www.nngroup.com/articles/usability-heuristics/",
+    title:"10 Usability Heuristics for User Interface Design",
+    description:"Jakob Nielsen's ten general principles for interaction design.",
+    host:"nngroup.com",
+    favicon:"https://www.google.com/s2/favicons?domain=nngroup.com&sz=64",
+    image:"", tags:["design","reference","read-later"], note:"- revisit before the redesign" },
+  { url:"https://kentcdodds.com/blog/write-tests",
+    title:"Write tests. Not too many. Mostly integration.",
+    description:"A pragmatic take on how many tests to write and at what level.",
+    host:"kentcdodds.com",
+    favicon:"https://www.google.com/s2/favicons?domain=kentcdodds.com&sz=64",
+    image:"", tags:["testing","frontend"], note:"" }
+];
+let query = "";
+let view = "all";
+const filterTags = [];
+const listEl = document.getElementById('list');
+const emptyEl = document.getElementById('empty');
+const noResultsEl = document.getElementById('noresults');
+const filterBarEl = document.getElementById('filterbar');
+const resultMetaEl = document.getElementById('resultmeta');
+
+function normalizeUrl(raw) {
+  let u = raw.trim();
+  if (!u) return "";
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  return u;
+}
+
+function haystack(b) {
+  return [b.title, b.description, b.note, b.url, (b.tags||[]).join(' '), b.host]
+    .join(' ').toLowerCase();
+}
+
+// Compile a search expression into a predicate.
+// Supports: words, "quoted phrases", #tag, AND / OR / NOT, and ( parentheses ).
+// Adjacent terms are combined with implicit AND. Everything is case-insensitive.
+function buildMatcher(input) {
+  const tokens = [];
+  const re = /\s*("[^"]*"|#[^\s()]+|\(|\)|[^\s()]+)/g;
+  let m;
+  while ((m = re.exec(input)) !== null) tokens.push(m[1]);
+  if (!tokens.length) return null;
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const eat = () => tokens[pos++];
+  const isOp = (t, op) => t && t.toUpperCase() === op;
+
+  function term(tok) {
+    if (tok.startsWith('#')) {
+      const name = tok.slice(1).toLowerCase();
+      return b => (b.tags||[]).some(tg => tg.toLowerCase() === name);
+    }
+    let text = tok;
+    if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) text = text.slice(1,-1);
+    text = text.toLowerCase();
+    if (!text) return () => true;
+    return b => haystack(b).includes(text);
+  }
+  function parseAtom() {
+    const t = peek();
+    if (t === '(') { eat(); const e = parseOr(); if (peek() === ')') eat(); return e; }
+    eat();
+    return term(t);
+  }
+  function parseNot() {
+    if (isOp(peek(),'NOT') || peek() === '-') { eat(); const inner = parseNot(); return b => !inner(b); }
+    return parseAtom();
+  }
+  function parseAnd() {
+    let left = parseNot();
+    while (peek() && !isOp(peek(),'OR') && peek() !== ')') {
+      if (isOp(peek(),'AND')) eat();
+      const right = parseNot(); const l = left; left = b => l(b) && right(b);
+    }
+    return left;
+  }
+  function parseOr() {
+    let left = parseAnd();
+    while (isOp(peek(),'OR')) { eat(); const right = parseAnd(); const l = left; left = b => l(b) || right(b); }
+    return left;
+  }
+  try { return parseOr(); }
+  catch (e) { const q = input.trim().toLowerCase(); return b => haystack(b).includes(q); }
+}
+
+let compiledQuery = null;
+function inView(b) {
+  if (view === "archive") return !!b.archived;
+  if (b.archived) return false;              // archived items leave the main views
+  if (view === "readlater") return !!b.readLater;
+  return true;                               // "all" — the main library
+}
+
+function matches(b) {
+  if (b.pending) return true;
+  if (!inView(b)) return false;
+  if (filterTags.length && !filterTags.every(t => (b.tags||[]).includes(t))) return false;
+  if (!query.trim()) return true;
+  if (!compiledQuery) return true;
+  try { return compiledQuery(b); } catch (e) { return true; }
+}
+
+function renderFilterBar() {
+  const tags = allTags();
+  filterBarEl.innerHTML = "";
+  if (!tags.length) return;
+  const lbl = document.createElement('span'); lbl.className = 'flabel'; lbl.textContent = 'Filter by tag:';
+  filterBarEl.appendChild(lbl);
+  tags.forEach(t => {
+    const c = document.createElement('span');
+    c.className = 'filter-chip' + (filterTags.includes(t) ? ' on' : '');
+    c.textContent = t;
+    c.addEventListener('click', () => {
+      const i = filterTags.indexOf(t);
+      if (i >= 0) filterTags.splice(i,1); else filterTags.push(t);
+      render();
+    });
+    filterBarEl.appendChild(c);
+  });
+  if (filterTags.length || query) {
+    const clr = document.createElement('button'); clr.className = 'clearf'; clr.textContent = 'Clear';
+    clr.addEventListener('click', () => { filterTags.length = 0; query = ""; document.getElementById('search').value = ""; render(); });
+    filterBarEl.appendChild(clr);
+  }
+}
+
+function renderViewTabs() {
+  const readCount = bookmarks.filter(b => !b.pending && b.readLater && !b.archived).length;
+  const archiveCount = bookmarks.filter(b => !b.pending && b.archived).length;
+  document.querySelectorAll('.viewtab').forEach(tab => {
+    const v = tab.getAttribute('data-view');
+    tab.classList.toggle('on', v === view);
+    let label = v === 'all' ? 'All' : (v === 'readlater' ? 'Read Later' : 'Archive');
+    if (v === 'readlater') label += ` <span class="count">${readCount}</span>`;
+    if (v === 'archive') label += ` <span class="count">${archiveCount}</span>`;
+    tab.innerHTML = label;
+  });
+}
+
+function render() {
+  compiledQuery = query.trim() ? buildMatcher(query) : null;
+  renderViewTabs();
+  renderFilterBar();
+  const visible = bookmarks.filter(matches);
+  const isFinding = !!(query.trim() || filterTags.length);
+  const emptyReadLaterEl = document.getElementById('emptyreadlater');
+  const emptyArchiveEl = document.getElementById('emptyarchive');
+  emptyEl.style.display = bookmarks.length ? "none" : "block";
+  noResultsEl.style.display = (bookmarks.length && !visible.length && isFinding) ? "block" : "none";
+  emptyReadLaterEl.style.display = (bookmarks.length && !visible.length && !isFinding && view === "readlater") ? "block" : "none";
+  emptyArchiveEl.style.display = (bookmarks.length && !visible.length && !isFinding && view === "archive") ? "block" : "none";
+  if (isFinding && bookmarks.length) {
+    resultMetaEl.textContent = visible.length + (visible.length === 1 ? " match" : " matches")
+      + (filterTags.length ? " · tags: " + filterTags.join(', ') : "")
+      + (query.trim() ? ' · "' + query.trim() + '"' : "");
+  } else {
+    resultMetaEl.textContent = "";
+  }
+  listEl.innerHTML = "";
+  visible.forEach(b => {
+    const card = document.createElement('div');
+    card.className = "card" + (b.pending ? " pending" : "");
+    if (b.pending) {
+      card.innerHTML = `
+        <div class="thumb"></div>
+        <div class="body">
+          <div class="fetching"><span class="spin"></span>Fetching page details…</div>
+          <div class="skeleton t" style="margin-top:10px"></div>
+          <div class="skeleton d"></div>
+          <div class="skeleton d2"></div>
+        </div>`;
+    } else if (b.editing) {
+      card.innerHTML = `
+        <div class="thumb" style="${b.image ? `background-image:url('${b.image}')` : ''}"></div>
+        <div class="body">
+          <div class="editor">
+            <label>Link (URL)</label>
+            <input class="edit-url" type="text" value="${escapeHtml(b.url)}" />
+            <label style="text-transform:none;letter-spacing:0;">
+              <input class="edit-refetch" type="checkbox" style="width:auto;vertical-align:-1px;margin-right:6px;" />
+              Re-fetch page details from this link when I save
+            </label>
+            <label>Title</label>
+            <input class="edit-title" type="text" value="${escapeHtml(b.title)}" />
+            <label>Description</label>
+            <textarea class="edit-desc">${escapeHtml(b.description)}</textarea>
+            <div class="row">
+              <button class="save" data-act="save">Save changes</button>
+              <button class="cancel" data-act="cancel">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      card.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const newUrl = normalizeUrl(card.querySelector('.edit-url').value) || b.url;
+        const refetch = card.querySelector('.edit-refetch').checked;
+        b.url = newUrl;
+        if (refetch) {
+          b.editing = false; b.pending = true; render();
+          const details = await fakeFetch(newUrl);
+          Object.assign(b, details, { pending: false, edited: true });
+          render();
+          return;
+        }
+        b.title = card.querySelector('.edit-title').value.trim() || b.title;
+        b.description = card.querySelector('.edit-desc').value.trim();
+        // keep favicon/host in sync with the (possibly) changed link
+        try { b.host = new URL(newUrl).hostname.replace(/^www\./,''); b.favicon = "https://www.google.com/s2/favicons?domain=" + b.host + "&sz=64"; } catch(e) {}
+        b.edited = true;
+        b.editing = false;
+        render();
+      });
+      card.querySelector('[data-act="cancel"]').addEventListener('click', () => {
+        b.editing = false; render();
+      });
+    } else if (b.organizing) {
+      card.innerHTML = `
+        <div class="thumb" style="${b.image ? `background-image:url('${b.image}')` : ''}"></div>
+        <div class="body">
+          <div class="editor panel">
+            <label>Your tags</label>
+            <div class="row suggest-row" id="suggestRow"></div>
+            <label>Add new</label>
+            <div class="chip-input" id="chipbox">
+              <input class="tag-entry" type="text" placeholder="New tag, press Enter…" />
+            </div>
+            <label>Note <span style="text-transform:none;letter-spacing:0;font-style:italic;">(private · simple Markdown)</span></label>
+            <textarea class="note-entry" placeholder="Add a private note… **bold**, *italic*, - lists, [links](url)">${escapeHtml(b.note||'')}</textarea>
+            <div class="row">
+              <button class="save" data-act="orgsave">Save</button>
+              <button class="cancel" data-act="orgcancel">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      const draft = (b.tags || []).slice();
+      const existing = allTags();
+      const suggestRow = card.querySelector('#suggestRow');
+      const chipbox = card.querySelector('#chipbox');
+      const entry = card.querySelector('.tag-entry');
+      const renderSuggest = () => {
+        suggestRow.innerHTML = '';
+        existing.forEach(t => {
+          const s = document.createElement('span');
+          s.className = 'chip suggest' + (draft.includes(t) ? ' on' : '');
+          s.textContent = t;
+          s.addEventListener('click', () => {
+            if (draft.includes(t)) draft.splice(draft.indexOf(t),1); else draft.push(t);
+            renderSuggest(); renderNew();
+          });
+          suggestRow.appendChild(s);
+        });
+        if (!existing.length) suggestRow.innerHTML = '<span style="color:#6b7580;font-size:12px;">No tags yet — add your first below.</span>';
+      };
+      const renderNew = () => {
+        chipbox.querySelectorAll('.chip').forEach(c => c.remove());
+        draft.filter(t => !existing.includes(t)).forEach(t => {
+          const s = document.createElement('span'); s.className = 'chip';
+          s.innerHTML = `${escapeHtml(t)}<span class="x">×</span>`;
+          chipbox.insertBefore(s, entry);
+          s.querySelector('.x').addEventListener('click', () => { draft.splice(draft.indexOf(t),1); renderNew(); renderSuggest(); });
+        });
+      };
+      renderSuggest(); renderNew();
+      entry.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ',') {
+          ev.preventDefault();
+          const v = entry.value.trim().replace(/,$/,'');
+          if (v && !draft.includes(v)) { draft.push(v); entry.value=''; renderNew(); renderSuggest(); }
+        }
+      });
+      card.querySelector('[data-act="orgsave"]').addEventListener('click', () => {
+        const v = entry.value.trim(); if (v && !draft.includes(v)) draft.push(v);
+        b.tags = draft; b.note = card.querySelector('.note-entry').value.trim();
+        b.organizing = false; render();
+      });
+      card.querySelector('[data-act="orgcancel"]').addEventListener('click', () => {
+        b.organizing = false; render();
+      });
+    } else {
+      card.innerHTML = `
+        <div class="thumb" style="${b.image ? `background-image:url('${b.image}')` : ''}"></div>
+        <div class="body">
+          <div class="title-row">
+            <img class="favicon" src="${b.favicon}" alt="" onerror="this.style.visibility='hidden'"/>
+            <h3 class="title"><a href="${b.url}" target="_blank" rel="noopener">${escapeHtml(b.title)}</a></h3>
+            ${b.readLater && !b.archived ? '<span class="badge readlater">Read later</span>' : ''}
+            ${b.archived ? '<span class="badge archived">Archived</span>' : ''}
+          </div>
+          <p class="desc">${escapeHtml(b.description)}</p>
+          <p class="host">${escapeHtml(b.host)} ${b.edited ? '<span class="edited-flag">· edited</span>' : ''}</p>
+          ${(b.tags && b.tags.length) ? `<div class="tags">${b.tags.map(t=>`<span class="chip">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+          ${b.note ? `<div class="note">${renderMarkdown(b.note)}</div>` : ''}
+          <div class="actions">
+            ${b.archived ? `
+              <button class="linkbtn" data-act="restore">Restore to library</button>
+            ` : `
+              <button class="linkbtn" data-act="edit">Edit</button>
+              <button class="linkbtn" data-act="organize">${(b.tags&&b.tags.length)||b.note ? 'Tags &amp; note' : 'Add tags &amp; note'}</button>
+              <button class="linkbtn" data-act="readlater">${b.readLater ? 'Remove from read later' : 'Read later'}</button>
+              <button class="linkbtn muted" data-act="archive">Archive</button>
+            `}
+          </div>
+        </div>`;
+      if (b.archived) {
+        card.querySelector('[data-act="restore"]').addEventListener('click', () => {
+          b.archived = false; render();
+        });
+      } else {
+        card.querySelector('[data-act="edit"]').addEventListener('click', () => {
+          bookmarks.forEach(x => { x.editing = false; x.organizing = false; });
+          b.editing = true; render();
+        });
+        card.querySelector('[data-act="organize"]').addEventListener('click', () => {
+          bookmarks.forEach(x => { x.editing = false; x.organizing = false; });
+          b.organizing = true; render();
+        });
+        card.querySelector('[data-act="readlater"]').addEventListener('click', () => {
+          b.readLater = !b.readLater; render();
+        });
+        card.querySelector('[data-act="archive"]').addEventListener('click', () => {
+          b.archived = true; render();
+        });
+      }
+    }
+    listEl.appendChild(card);
+  });
+}
+
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function allTags(){
+  const set = [];
+  bookmarks.forEach(b => (b.tags||[]).forEach(t => { if(!set.includes(t)) set.push(t); }));
+  return set.sort((a,b)=>a.localeCompare(b));
+}
+
+// Minimal, safe Markdown for notes: escape first, then apply a small subset.
+function renderMarkdown(src){
+  const lines = (src||"").split(/\r?\n/);
+  let html = "", inList = false;
+  const inline = (t) => escapeHtml(t)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+  lines.forEach(line => {
+    if (/^\s*[-*]\s+/.test(line)) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += "<li>" + inline(line.replace(/^\s*[-*]\s+/, "")) + "</li>";
+    } else {
+      if (inList) { html += "</ul>"; inList = false; }
+      if (line.trim() === "") html += "";
+      else html += "<div>" + inline(line) + "</div>";
+    }
+  });
+  if (inList) html += "</ul>";
+  return html;
+}
+
+document.getElementById('saver').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('url');
+  const btn = document.getElementById('saveBtn');
+  const url = normalizeUrl(input.value);
+  if (!url) return;
+  const entry = { url, pending: true };
+  bookmarks.unshift(entry);
+  input.value = "";
+  btn.disabled = true;
+  render();
+  const details = await fakeFetch(url);
+  Object.assign(entry, details, { pending: false });
+  btn.disabled = false;
+  render();
+});
+
+document.getElementById('search').addEventListener('input', (e) => {
+  query = e.target.value;
+  render();
+});
+
+document.querySelectorAll('.viewtab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    view = tab.getAttribute('data-view');
+    render();
+  });
+});
+
+render();
+window.addEventListener('load', () => document.body.setAttribute('data-harness-ready','true'));
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+import { expect,type Page } from "@playwright/test";
+export async function signIn(page:Page){await page.goto("/sign-in");await page.getByLabel("Email").fill("reviewer@example.com");await page.getByLabel("Password").fill("Review-Bookmark-2026!");await page.getByRole("button",{name:"Sign in"}).click();await expect(page).toHaveURL(/\/bookmarks$/);await expect(page.locator('[data-harness-ready="true"]')).toBeVisible();}
+export async function saveFallback(page:Page,path:string){await page.getByLabel("Web address").fill(`http://127.0.0.1:9/${path}`);await page.getByRole("button",{name:/Save link/}).click();await expect(page.getByRole("heading",{name:new RegExp(path.replaceAll("-"," "),"i")})).toBeVisible();}

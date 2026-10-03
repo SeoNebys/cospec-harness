@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Bookmarks — prototype</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f5f6f8; color: #1c1e21; }
+    header { background: #fff; border-bottom: 1px solid #e3e5e8; padding: 18px 24px; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: #65676b; font-size: 13px; }
+    main { max-width: 720px; margin: 0 auto; padding: 24px; }
+    .card { background: #fff; border: 1px solid #e3e5e8; border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+    .cardhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .card h2 { margin: 0; font-size: 15px; color: #444; }
+    label { display: block; font-size: 13px; color: #444; margin: 12px 0 4px; }
+    .hint { font-weight: 400; color: #8a8d91; }
+    input[type=text], input[type=url], input[type=search], textarea {
+      width: 100%; padding: 9px 11px; border: 1px solid #ccd0d5; border-radius: 7px; font-size: 14px; font-family: inherit; background: #fff;
+    }
+    textarea { resize: vertical; min-height: 52px; }
+    .details { display: none; } .details.show { display: block; }
+    .status { font-size: 12px; color: #8a8d91; margin-top: 6px; min-height: 16px; } .status.filled { color: #1a7f37; }
+    .editchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .editchips .ec { background: #eef1f5; color: #4a5568; font-size: 12px; padding: 3px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+    .editchips .ec b { cursor: pointer; color: #99a; font-weight: 700; }
+    button { margin-top: 16px; background: #2f6fed; color: #fff; border: none; padding: 10px 18px; border-radius: 7px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #255ad0; } button:disabled { background: #b7c2d6; cursor: default; }
+    .toggle { margin: 0; background: #eef1f5; color: #3c4043; padding: 7px 13px; font-size: 12px; font-weight: 600; }
+    .toggle:hover { background: #e2e6eb; }
+    .search-wrap { position: relative; margin-bottom: 12px; }
+    #search { padding-left: 34px; }
+    .search-wrap::before { content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; opacity: .6; }
+    .seg { display: inline-flex; border: 1px solid #ccd0d5; border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+    .seg button { margin: 0; background: #fff; color: #3c4043; font-size: 12px; font-weight: 500; padding: 7px 14px; border: none; border-right: 1px solid #e3e5e8; border-radius: 0; cursor: pointer; }
+    .seg button:last-child { border-right: none; }
+    .seg button.active { background: #2f6fed; color: #fff; }
+    .seg.hidden { display: none; }
+    .topics-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .chip { border: 1px solid #ccd0d5; background: #fff; color: #3c4043; font-size: 12px; padding: 5px 11px; border-radius: 999px; cursor: pointer; }
+    .chip.active { background: #2f6fed; border-color: #2f6fed; color: #fff; }
+    .archive-note { background: #f3f0fb; color: #4c3a7a; font-size: 12px; padding: 8px 11px; border-radius: 7px; margin-bottom: 14px; }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .item { display: flex; gap: 12px; padding: 16px 0; border-top: 1px solid #eceef0; }
+    .item:first-child { border-top: none; }
+    .item.read .body a { color: #6b7280; }
+    .favicon { width: 32px; height: 32px; border-radius: 6px; flex: 0 0 32px; background: #eaf0fb; color: #2f6fed; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; overflow: hidden; }
+    .favicon img { width: 32px; height: 32px; display: block; }
+    .body { flex: 1; min-width: 0; }
+    .titleline { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .body a { color: #2f6fed; text-decoration: none; font-size: 15px; font-weight: 600; }
+    .body a:hover { text-decoration: underline; }
+    .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+    .badge.toread { background: #fde7d2; color: #92610a; }
+    .badge.read { background: #e3f4e7; color: #1a7f37; }
+    .badge.arch { background: #ece7f8; color: #5b3fa0; }
+    .topictags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .topictag { display: inline-block; background: #eef1f5; color: #4a5568; font-size: 11px; padding: 2px 9px; border-radius: 999px; cursor: pointer; }
+    .topictag:hover { background: #dde3ea; }
+    .desc { color: #3c4043; font-size: 13px; margin-top: 4px; }
+    .note { color: #6a4b00; font-size: 13px; margin-top: 6px; background: #fff8e6; border-left: 3px solid #f0c040; padding: 6px 9px; border-radius: 4px; }
+    .note .tag { font-weight: 600; opacity: .8; }
+    .url { color: #65676b; font-size: 12px; margin-top: 6px; word-break: break-all; }
+    .rowfoot { display: flex; align-items: center; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
+    .meta { color: #8a8d91; font-size: 12px; }
+    .linkbtn { margin: 0; background: none; color: #2f6fed; border: none; padding: 0; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .linkbtn:hover { text-decoration: underline; background: none; }
+    .count { color: #65676b; font-size: 13px; margin: 0 0 12px; }
+    .empty { text-align: center; color: #8a8d91; padding: 30px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>My Bookmarks</h1>
+    <p>Your personal place to save links and find them again.</p>
+  </header>
+  <main id="app">
+    <section class="card" id="saveCard">
+      <h2 style="margin-bottom:12px;">Save a link</h2>
+      <form id="addForm" autocomplete="off">
+        <label for="url">Link address</label>
+        <input type="url" id="url" placeholder="Paste a link address here…" required />
+        <div class="status" id="status"></div>
+        <div class="details" id="details">
+          <label for="title">Title</label>
+          <input type="text" id="title" />
+          <label for="desc">Description <span class="hint">(from the page)</span></label>
+          <textarea id="desc"></textarea>
+          <label for="note">Your note <span class="hint">(optional)</span></label>
+          <textarea id="note" placeholder="Why you saved it, what to remember…"></textarea>
+          <label for="topicInput">Topics <span class="hint">(add as many as you like — press Enter after each)</span></label>
+          <input type="text" id="topicInput" list="topicList" placeholder="e.g. Cooking, then Enter" />
+          <datalist id="topicList"></datalist>
+          <div class="editchips" id="editChips"></div>
+        </div>
+        <button type="submit" id="saveBtn" disabled>Save</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="cardhead">
+        <h2 id="listHeading">Saved links</h2>
+        <button type="button" class="toggle" id="archiveToggle">View archive</button>
+      </div>
+      <div class="search-wrap"><input type="search" id="search" placeholder="Search title, description, your note, or address…" /></div>
+      <div class="seg" id="statusSeg">
+        <button data-status="All" class="active">All</button>
+        <button data-status="unread">To read</button>
+        <button data-status="read">Read</button>
+      </div>
+      <div class="archive-note" id="archiveNote" style="display:none;">You're viewing archived links. They're kept out of your main collection but stay fully searchable here. Restore any to bring it back.</div>
+      <div class="topics-bar" id="topicsBar"></div>
+      <p class="count" id="count"></p>
+      <ul class="list" id="list"></ul>
+    </section>
+  </main>
+
+  <script>
+    const KEY = 'bm_proto_v7';
+    const load = () => JSON.parse(localStorage.getItem(KEY) || 'null');
+    const save = (items) => localStorage.setItem(KEY, JSON.stringify(items));
+    const SEED = [
+      { url: 'https://www.seriouseats.com/the-food-lab-perfect-roast-chicken', title: 'The Food Lab: Perfect Roast Chicken — Serious Eats', desc: 'A step-by-step method for a crisp-skinned, juicy roast chicken.', note: 'Try this for Sunday dinner.', topics: ['Cooking','Weeknight'], unread: true, archived: false, host: 'seriouseats.com' },
+      { url: 'https://developer.mozilla.org/en-US/docs/Web/CSS/flexbox', title: 'CSS Flexbox Layout Guide — MDN', desc: 'Reference and examples for laying out elements with CSS flexbox.', note: '', topics: ['Programming','CSS'], unread: false, archived: false, host: 'developer.mozilla.org' },
+      { url: 'https://www.nomadicmatt.com/travel-guides/portugal/', title: 'Portugal Travel Guide — Nomadic Matt', desc: 'Budget tips, itineraries, and things to do across Portugal.', note: 'For the trip in spring.', topics: ['Travel'], unread: true, archived: false, host: 'nomadicmatt.com' },
+      { url: 'https://www.investopedia.com/terms/i/indexfund.asp', title: 'What Is an Index Fund? — Investopedia', desc: 'An explanation of index funds and how they work.', note: '', topics: ['Finance','Investing'], unread: false, archived: false, host: 'investopedia.com' },
+      { url: 'https://overreacted.io/a-complete-guide-to-useeffect/', title: 'A Complete Guide to useEffect — overreacted.io', desc: 'A deep dive into the React useEffect hook.', note: 'Re-read before refactoring.', topics: ['Programming','React'], unread: true, archived: false, host: 'overreacted.io' },
+      { url: 'https://www.bonappetit.com/recipe/basically-marinara-sauce', title: 'Basically Marinara Sauce — Bon Appétit', desc: 'A simple weeknight tomato sauce recipe.', note: '', topics: ['Cooking','Weeknight'], unread: false, archived: false, host: 'bonappetit.com' },
+      { url: 'https://www.nngroup.com/articles/usability-heuristics/', title: '10 Usability Heuristics for UI Design — NN/g', desc: 'Classic principles for interaction design.', note: '', topics: ['Design','UX'], unread: true, archived: false, host: 'nngroup.com' },
+      { url: 'https://www.wikipedia.org/wiki/Compound_interest', title: 'Compound Interest — Wikipedia', desc: 'How compound interest works, with examples.', note: '', topics: ['Finance','Investing'], unread: false, archived: false, host: 'en.wikipedia.org' },
+      { url: 'https://www.example.com/old-tax-guide-2019', title: 'Tax Filing Guide 2019 — Example', desc: 'An older tax-year filing walkthrough kept for reference.', note: 'Outdated but worth keeping.', topics: ['Finance'], unread: false, archived: true, host: 'example.com' },
+      { url: 'https://www.oldblog.example.org/discontinued-framework-intro', title: 'Intro to a Discontinued Framework — Old Blog', desc: 'A guide to a framework no longer maintained.', note: '', topics: ['Programming'], unread: false, archived: true, host: 'oldblog.example.org' },
+    ];
+    function ensureSeed(){let items=load();if(items===null){const base=Date.now()-SEED.length*86400000;items=SEED.map((s,i)=>({id:base+i,created:base+i*86400000,...s}));save(items);}return items;}
+    const el=id=>document.getElementById(id);
+    const urlEl=el('url'),statusEl=el('status'),detailsEl=el('details'),titleEl=el('title'),descEl=el('desc'),noteEl=el('note'),topicInput=el('topicInput'),editChips=el('editChips'),saveBtn=el('saveBtn'),searchEl=el('search');
+    let activeTopic='All';
+    let activeStatus='All';
+    let viewingArchive=false;
+    let pendingTopics=[];
+    function hostOf(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch{return'';}}
+    function titleCase(s){return s.replace(/[-_]+/g,' ').replace(/\s+/g,' ').trim().replace(/\b\w/g,c=>c.toUpperCase());}
+    function deriveMeta(u){const host=hostOf(u);let slug='';try{const p=new URL(u).pathname.split('/').filter(Boolean).pop()||'';slug=decodeURIComponent(p).replace(/\.(html?|php|aspx)$/i,'');}catch{}const site=titleCase(host.split('.')[0]||'Site');return{host,title:slug?titleCase(slug)+' — '+site:site,desc:slug?'An article about '+titleCase(slug).toLowerCase()+', from '+host+'.':'A page from '+host+'.'};}
+    let fillTimer=null;
+    function tryAutofill(){const u=urlEl.value.trim();if(!urlEl.checkValidity()||!u){detailsEl.classList.remove('show');statusEl.textContent='';statusEl.className='status';saveBtn.disabled=true;return;}statusEl.textContent='Reading the page details…';statusEl.className='status';clearTimeout(fillTimer);fillTimer=setTimeout(()=>{const m=deriveMeta(u);if(!titleEl.value)titleEl.value=m.title;if(!descEl.value)descEl.value=m.desc;detailsEl.classList.add('show');statusEl.textContent='Title and description filled in — edit them if you like.';statusEl.className='status filled';saveBtn.disabled=false;},500);}
+    urlEl.addEventListener('input',tryAutofill);urlEl.addEventListener('paste',()=>setTimeout(tryAutofill,0));
+    function renderEditChips(){editChips.innerHTML='';pendingTopics.forEach((t,idx)=>{const c=document.createElement('span');c.className='ec';c.innerHTML=esc(t)+' <b>&times;</b>';c.querySelector('b').onclick=()=>{pendingTopics.splice(idx,1);renderEditChips();};editChips.appendChild(c);});}
+    function addPending(){const v=topicInput.value.trim();if(v&&!pendingTopics.includes(v))pendingTopics.push(v);topicInput.value='';renderEditChips();}
+    topicInput.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addPending();}});
+    topicInput.addEventListener('blur',addPending);
+    el('statusSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;activeStatus=b.dataset.status;[...el('statusSeg').children].forEach(c=>c.classList.toggle('active',c===b));render();});
+    el('archiveToggle').addEventListener('click',()=>{viewingArchive=!viewingArchive;activeTopic='All';render();});
+    function faviconEl(host){const w=document.createElement('div');w.className='favicon';w.textContent=(host[0]||'?').toUpperCase();if(host){const img=document.createElement('img');img.src='https://www.google.com/s2/favicons?domain='+host+'&sz=64';img.alt='';img.onload=()=>{w.textContent='';w.appendChild(img);};}return w;}
+    function fmt(ts){return new Date(ts).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});}
+    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+    function highlight(t,q){if(!q)return esc(t);const i=t.toLowerCase().indexOf(q.toLowerCase());if(i<0)return esc(t);return esc(t.slice(0,i))+'<mark>'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length));}
+    function allTopics(items){const s=new Set();items.forEach(it=>(it.topics||[]).forEach(t=>s.add(t)));return[...s].sort();}
+    function renderTopicsBar(items){const bar=el('topicsBar');bar.innerHTML='';['All',...allTopics(items)].forEach(t=>{const c=document.createElement('span');c.className='chip'+(t===activeTopic?' active':'');c.textContent=t;c.onclick=()=>{activeTopic=t;render();};bar.appendChild(c);});const dl=el('topicList');dl.innerHTML='';allTopics(items).forEach(t=>{const o=document.createElement('option');o.value=t;dl.appendChild(o);});}
+    function setUnread(id,val){const items=load()||[];const it=items.find(x=>x.id===id);if(it){it.unread=val;save(items);render();}}
+    function setArchived(id,val){const items=load()||[];const it=items.find(x=>x.id===id);if(it){it.archived=val;save(items);render();}}
+    function render(){
+      const q=searchEl.value.trim();
+      const everything=(load()||[]).sort((a,b)=>b.created-a.created);
+      const archivedCount=everything.filter(it=>it.archived).length;
+      // scope: archive view vs main collection
+      const scopeAll=everything.filter(it=>!!it.archived===viewingArchive);
+      el('listHeading').textContent=viewingArchive?'Archived links':'Saved links';
+      el('archiveToggle').textContent=viewingArchive?'Back to collection':('View archive'+(archivedCount?' ('+archivedCount+')':''));
+      el('statusSeg').classList.toggle('hidden',viewingArchive);
+      el('archiveNote').style.display=viewingArchive?'block':'none';
+      el('saveCard').style.display=viewingArchive?'none':'block';
+      renderTopicsBar(scopeAll);
+      let items=scopeAll;
+      if(!viewingArchive){
+        if(activeStatus==='unread')items=items.filter(it=>it.unread);
+        else if(activeStatus==='read')items=items.filter(it=>!it.unread);
+      }
+      if(activeTopic!=='All')items=items.filter(it=>(it.topics||[]).includes(activeTopic));
+      if(q)items=items.filter(it=>(it.title+' '+(it.desc||'')+' '+(it.note||'')+' '+it.url).toLowerCase().includes(q.toLowerCase()));
+      const list=el('list'),count=el('count');list.innerHTML='';
+      if(scopeAll.length===0){count.textContent='';const li=document.createElement('li');li.className='empty';li.textContent=viewingArchive?'No archived links. Archive a link to keep it out of your main view.':'No links saved yet. Paste a link above to save your first.';list.appendChild(li);return;}
+      if(items.length===0){count.textContent='';const li=document.createElement('li');li.className='empty';
+        li.textContent = q ? 'No links match “'+q+'”'+(activeTopic!=='All'?' in '+activeTopic:'')+'.' :
+                         activeStatus==='unread'&&!viewingArchive ? 'Nothing left to read here — your reading queue is clear.' :
+                         activeStatus==='read'&&!viewingArchive ? 'No read links here yet.' :
+                         'No links in '+activeTopic+' yet.';
+        list.appendChild(li);return;}
+      const scope=viewingArchive?'archived':(activeStatus==='unread'?'to read':activeStatus==='read'?'read':'');
+      count.textContent=items.length+(items.length===1?' link':' links')+(scope?' '+scope:'')+(activeTopic!=='All'?' in '+activeTopic:'');
+      for(const it of items){const li=document.createElement('li');li.className='item'+(!it.unread&&!it.archived?' read':'');const body=document.createElement('div');body.className='body';
+        const tl=document.createElement('div');tl.className='titleline';
+        const a=document.createElement('a');a.href=it.url;a.target='_blank';a.rel='noopener';a.innerHTML=highlight(it.title,q);tl.appendChild(a);
+        if(it.archived){const b=document.createElement('span');b.className='badge arch';b.textContent='Archived';tl.appendChild(b);}
+        else{const badge=document.createElement('span');badge.className='badge '+(it.unread?'toread':'read');badge.textContent=it.unread?'To read':'Read';tl.appendChild(badge);}
+        body.appendChild(tl);
+        if((it.topics||[]).length){const wrap=document.createElement('div');wrap.className='topictags';it.topics.forEach(t=>{const tg=document.createElement('span');tg.className='topictag';tg.textContent=t;tg.onclick=()=>{activeTopic=t;render();};wrap.appendChild(tg);});body.appendChild(wrap);}
+        if(it.desc){const d=document.createElement('div');d.className='desc';d.innerHTML=highlight(it.desc,q);body.appendChild(d);}
+        if(it.note){const n=document.createElement('div');n.className='note';n.innerHTML='<span class="tag">Note: </span>'+highlight(it.note,q);body.appendChild(n);}
+        const url=document.createElement('div');url.className='url';url.innerHTML=highlight(it.url,q);body.appendChild(url);
+        const foot=document.createElement('div');foot.className='rowfoot';
+        const meta=document.createElement('span');meta.className='meta';meta.textContent='Saved '+fmt(it.created);foot.appendChild(meta);
+        if(viewingArchive){const r=document.createElement('button');r.className='linkbtn';r.textContent='Restore to collection';r.onclick=()=>setArchived(it.id,false);foot.appendChild(r);}
+        else{
+          const mark=document.createElement('button');mark.className='linkbtn';mark.textContent=it.unread?'Mark as read':'Move back to “to read”';mark.onclick=()=>setUnread(it.id,!it.unread);foot.appendChild(mark);
+          const arch=document.createElement('button');arch.className='linkbtn';arch.textContent='Archive';arch.onclick=()=>setArchived(it.id,true);foot.appendChild(arch);
+        }
+        body.appendChild(foot);
+        li.append(faviconEl(it.host||hostOf(it.url)),body);list.appendChild(li);}
+    }
+    searchEl.addEventListener('input',render);
+    el('addForm').addEventListener('submit',e=>{e.preventDefault();addPending();const url=urlEl.value.trim();if(!url)return;const items=load()||[];items.push({id:Date.now(),url,title:titleEl.value.trim()||hostOf(url),desc:descEl.value.trim(),note:noteEl.value.trim(),topics:[...pendingTopics],unread:true,archived:false,host:hostOf(url),created:Date.now()});save(items);e.target.reset();pendingTopics=[];renderEditChips();detailsEl.classList.remove('show');statusEl.textContent='';statusEl.className='status';saveBtn.disabled=true;urlEl.focus();render();});
+    ensureSeed();render();
+    el('app').setAttribute('data-harness-ready','true');
+  </script>
+</body>
+</html>

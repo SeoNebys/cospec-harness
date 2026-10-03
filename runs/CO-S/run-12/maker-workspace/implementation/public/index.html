@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#315c4b">
+  <title>Keepwell</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand plain" id="brand" aria-label="Show all bookmarks"><span class="brand-mark"></span><span>Keepwell</span></button>
+    <button class="button primary" id="newBookmark">+ Save bookmark</button>
+  </header>
+  <main class="app-shell" id="app">
+    <aside class="sidebar" aria-label="Bookmark views">
+      <nav class="main-nav" id="mainNav">
+        <button class="nav-item active" data-view="all"><span>All bookmarks</span><span id="allCount">0</span></button>
+        <button class="nav-item" data-view="later"><span>Read later</span><span id="laterCount">0</span></button>
+        <button class="nav-item" data-view="archive"><span>Archive</span><span id="archiveCount">0</span></button>
+      </nav>
+      <div id="tagSection" hidden>
+        <p class="sidebar-label">Tags</p>
+        <nav class="tag-nav" id="tagNav"></nav>
+      </div>
+    </aside>
+    <section class="collection" aria-live="polite">
+      <div class="collection-head">
+        <div><h1 id="viewTitle">Your bookmarks</h1><p id="viewSubtitle">The things you meant to keep.</p></div>
+        <span class="result-count" id="resultCount"></span>
+      </div>
+      <div class="search-wrap" id="searchWrap" hidden>
+        <span aria-hidden="true">⌕</span>
+        <input id="search" type="search" placeholder="Search titles, descriptions, and notes…" autocomplete="off">
+        <button class="clear-search plain" id="clearSearch" aria-label="Clear search" hidden>×</button>
+      </div>
+      <div class="notice" id="notice" role="status" hidden></div>
+      <div class="bookmark-grid" id="bookmarkGrid"></div>
+      <section class="empty-state" id="emptyState" hidden></section>
+    </section>
+  </main>
+
+  <dialog class="modal" id="saveDialog">
+    <form method="dialog" class="modal-frame" id="saveForm">
+      <div class="modal-head"><div><p class="overline" id="saveOverline">New bookmark</p><h2 id="saveHeading">Save a bookmark</h2></div><button class="close plain" id="closeSave" type="button" aria-label="Close">×</button></div>
+      <div id="urlStep">
+        <label for="bookmarkUrl">Web address</label>
+        <div class="url-row"><input id="bookmarkUrl" name="url" inputmode="url" placeholder="https://…"><button class="button primary" id="fetchDetails" type="button">Get details</button></div>
+        <p class="field-message" id="urlMessage">Paste a link and we’ll fill in the useful details.</p>
+      </div>
+      <div id="detailsStep" hidden>
+        <div class="fetch-warning" id="fetchWarning" hidden><strong>We couldn’t get this page’s details.</strong><span>Your link is safe. Add a title below and you can still save it.</span></div>
+        <div class="preview-row"><div class="preview-image" id="previewImage"><span>Page preview</span></div><div><div class="site-line"><img id="previewIcon" alt=""><span id="previewSite"></span></div><p class="helper">Review the details before saving.</p></div></div>
+        <input type="hidden" id="bookmarkId"><input type="hidden" id="bookmarkImage"><input type="hidden" id="bookmarkIcon"><input type="hidden" id="bookmarkSite">
+        <div class="form-grid">
+          <div><label for="bookmarkTitle">Title</label><input id="bookmarkTitle" name="title" maxlength="1000"><p class="field-message error" id="titleMessage" hidden>A title is required.</p></div>
+          <div><label for="bookmarkDescription">Description <span>(optional)</span></label><textarea id="bookmarkDescription" name="description" rows="3"></textarea></div>
+          <div><label for="bookmarkNotes">Your notes <span>(optional)</span></label><textarea id="bookmarkNotes" name="notes" rows="3" placeholder="Why did you save this? What do you want to remember?"></textarea></div>
+          <fieldset><legend>Tags</legend><div class="tag-choices" id="tagChoices"></div><div class="new-tag-row"><input id="newTag" placeholder="Create a new tag"><button class="button secondary" type="button" id="addTag">Create</button></div></fieldset>
+          <label class="later-check"><input id="bookmarkReadLater" type="checkbox"> Read this later</label>
+        </div>
+        <div class="dialog-actions"><button class="button secondary" type="button" id="retryFetch" hidden>Try automatic details again</button><button class="button primary" type="submit" id="saveChanges">Save bookmark</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal details-modal" id="detailsDialog">
+    <div class="modal-frame">
+      <div class="modal-head"><div><p class="overline" id="detailSite"></p><h2 id="detailTitle"></h2></div><button class="close plain" id="closeDetails" aria-label="Close">×</button></div>
+      <div class="duplicate-note" id="duplicateNote" hidden><strong>You already saved this page.</strong><span>Here’s the bookmark already in your collection.</span></div>
+      <img class="detail-image" id="detailImage" alt="" hidden>
+      <p class="detail-description" id="detailDescription"></p>
+      <div class="detail-tags" id="detailTags"></div>
+      <section class="note-block" id="noteBlock" hidden><p class="overline">Your note</p><p id="detailNotes"></p></section>
+      <div class="dialog-actions split"><button class="button secondary" id="editBookmark">Edit bookmark</button><a class="button primary" id="openBookmark" target="_blank" rel="noopener">Open page ↗</a></div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

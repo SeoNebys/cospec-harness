@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nest — Bookmark prototype</title>
+  <style>
+    :root {
+      --ink: #212523;
+      --muted: #707572;
+      --line: #dfe3df;
+      --paper: #fbfaf6;
+      --surface: #fff;
+      --accent: #315f4d;
+      --accent-soft: #e9f0ec;
+      --shadow: 0 18px 48px rgba(34, 45, 39, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { display: grid; grid-template-columns: 238px 1fr; min-height: 100vh; }
+    aside {
+      padding: 32px 24px;
+      border-right: 1px solid var(--line);
+      background: rgba(255,255,255,.54);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; font-family: Georgia, serif; font-size: 24px; margin-bottom: 42px; }
+    .brand-mark { width: 29px; height: 29px; border: 2px solid var(--accent); border-radius: 50% 50% 45% 45%; position: relative; }
+    .brand-mark::after { content: ""; position: absolute; width: 10px; height: 7px; border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); left: 8px; top: 7px; }
+    nav { display: grid; gap: 7px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 9px; color: #5d625f; font-size: 14px; }
+    button.nav-item { width: 100%; border: 0; background: transparent; text-align: left; }
+    .nav-item.active { color: var(--accent); background: var(--accent-soft); font-weight: 650; }
+    .nav-icon { width: 18px; text-align: center; font-size: 17px; }
+    main { padding: 38px 48px; max-width: 1180px; width: 100%; margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    h1 { font-family: Georgia, serif; font-size: 34px; font-weight: 500; margin: 0; letter-spacing: -.5px; }
+    .sub { color: var(--muted); margin-top: 7px; font-size: 14px; }
+    .primary { border: 0; border-radius: 9px; background: var(--accent); color: white; padding: 11px 17px; font-weight: 650; box-shadow: 0 4px 14px rgba(49,95,77,.18); }
+    .empty { min-height: 540px; display: grid; place-items: center; text-align: center; }
+    .empty-inner { margin-top: -40px; max-width: 360px; }
+    .empty-art { width: 84px; height: 84px; margin: 0 auto 24px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; color: var(--accent); font-size: 36px; }
+    .empty h2 { font-family: Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 10px; }
+    .empty p { color: var(--muted); line-height: 1.55; margin: 0; }
+    .cards { padding-top: 36px; display: grid; gap: 14px; }
+    .card { display: grid; grid-template-columns: 44px 1fr auto; gap: 15px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 20px; box-shadow: 0 5px 18px rgba(35,43,38,.04); }
+    .site-icon { width: 44px; height: 44px; border-radius: 10px; background: #171918; color: white; display: grid; place-items: center; font-family: Georgia, serif; font-size: 22px; }
+    .card h2 { font-size: 17px; margin: 1px 0 6px; }
+    .card p { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0 0 10px; max-width: 700px; }
+    .domain { color: #8a8e8b; font-size: 12px; }
+    .saved { color: var(--accent); background: var(--accent-soft); border-radius: 999px; font-size: 12px; font-weight: 650; padding: 6px 10px; }
+    .card-actions { display: flex; align-items: center; gap: 8px; }
+    .tag-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 13px; }
+    .tag { color: #604c2e; background: #f5ecda; border: 1px solid #ead9b8; border-radius: 999px; padding: 5px 9px; font-size: 12px; font-weight: 650; }
+    .tag-button { border: 1px dashed #b7bdb9; color: #656b67; background: transparent; border-radius: 999px; padding: 5px 9px; font-size: 12px; }
+    .edit-labels { border: 1px solid var(--line); color: #555b57; background: white; border-radius: 8px; padding: 7px 10px; font-size: 12px; }
+    .inline-entry { display: none; align-items: center; gap: 6px; }
+    .inline-entry.show { display: flex; }
+    .inline-entry input { width: 150px; padding: 6px 9px; border-radius: 999px; font-size: 12px; }
+    .hint { color: #8a8e8b; font-size: 11px; }
+    .search-tools { padding-top: 28px; }
+    .search-wrap { position: relative; max-width: 620px; }
+    .search-wrap::before { content: "⌕"; position: absolute; left: 15px; top: 9px; font-size: 22px; color: #737a75; }
+    .search-wrap input { padding: 13px 15px 13px 44px; background: white; box-shadow: 0 3px 14px rgba(35,43,38,.04); }
+    .result-summary { color: var(--muted); font-size: 13px; margin-top: 11px; min-height: 18px; }
+    mark { background: #f5df9e; color: inherit; padding: 0 2px; border-radius: 2px; }
+    .later-button { border: 1px solid #cdd2ce; color: var(--accent); background: white; border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .later-button.active { background: var(--accent-soft); border-color: #c4d6cc; }
+    .later-icon { width: 34px; height: 34px; border: 1px solid #cdd2ce; color: var(--accent); background: white; border-radius: 50%; font-size: 20px; line-height: 1; }
+    .later-icon.active { background: var(--accent); color: white; border-color: var(--accent); }
+    .empty-filter { padding: 76px 20px; text-align: center; color: var(--muted); }
+    .archive-button { border: 1px solid #cdd2ce; color: #5d625f; background: white; border-radius: 8px; padding: 7px 10px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .more-wrap { position: relative; }
+    .more-button { width: 34px; height: 34px; border: 1px solid #cdd2ce; color: #5d625f; background: white; border-radius: 50%; font-size: 18px; line-height: 1; }
+    .card-menu { position: absolute; z-index: 2; right: 0; top: 40px; width: 130px; padding: 6px; background: white; border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 28px rgba(34,45,39,.15); }
+    .card-menu button { width: 100%; border: 0; background: transparent; border-radius: 6px; padding: 8px 10px; text-align: left; color: #4e544f; font-size: 13px; }
+    .card-menu button:hover { background: var(--accent-soft); }
+    .warning { color: #7b551c; background: #fbf2df; border: 1px solid #edd7ae; border-radius: 999px; font-size: 12px; font-weight: 650; padding: 6px 10px; white-space: nowrap; }
+    .retry-button { border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 700; padding: 0; margin-top: 10px; }
+    .input-error { color: #a33b2f; font-size: 12px; margin-top: 7px; }
+    input.invalid { border-color: #b94b3c; box-shadow: 0 0 0 3px rgba(185,75,60,.1); }
+    .tag-error { color: #9a4f28; font-size: 12px; margin-top: 7px; }
+    .no-results { padding: 76px 24px; text-align: center; border: 1px dashed #d5dad6; border-radius: 13px; background: rgba(255,255,255,.45); }
+    .no-results h2 { font-family: Georgia, serif; font-size: 22px; font-weight: 500; margin: 0 0 8px; }
+    .no-results p { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+    .duplicate-notice { margin-top: 14px; padding: 11px 12px; border-radius: 9px; background: #fbf2df; color: #76501b; font-size: 13px; line-height: 1.4; }
+    dialog { border: 0; border-radius: 16px; width: min(520px, calc(100% - 32px)); padding: 0; box-shadow: var(--shadow); }
+    dialog::backdrop { background: rgba(23, 30, 26, .42); backdrop-filter: blur(2px); }
+    .modal { padding: 28px; }
+    .modal h2 { font-family: Georgia, serif; font-size: 25px; font-weight: 500; margin: 0 0 7px; }
+    .modal p { margin: 0 0 23px; color: var(--muted); font-size: 14px; }
+    label { display: block; font-size: 13px; font-weight: 650; margin-bottom: 8px; }
+    input { width: 100%; border: 1px solid #cdd2ce; border-radius: 9px; padding: 12px 13px; outline: none; }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(49,95,77,.12); }
+    .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+    .secondary { border: 1px solid var(--line); border-radius: 9px; background: white; padding: 10px 16px; color: #555b57; }
+    #save:disabled { opacity: .45; cursor: default; }
+    .fetching { display: none; margin-top: 14px; color: var(--accent); font-size: 13px; }
+    .fetching.show { display: block; }
+    @media (max-width: 720px) { .shell { grid-template-columns: 1fr; } aside { display: none; } main { padding: 28px 20px; } }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="brand-mark"></span>Nest</div>
+      <nav>
+        <button class="nav-item active" id="nav-all"><span class="nav-icon">▦</span>All bookmarks</button>
+        <button class="nav-item" id="nav-read-later"><span class="nav-icon">◷</span>Read later</button>
+        <button class="nav-item" id="nav-archive"><span class="nav-icon">□</span>Archive</button>
+      </nav>
+    </aside>
+    <main>
+      <header>
+        <div><h1>Your bookmarks</h1><div class="sub" id="count">No bookmarks yet</div></div>
+        <button class="primary" id="add">＋ Add bookmark</button>
+      </header>
+      <section class="search-tools" id="search-tools" hidden>
+        <div class="search-wrap"><input id="search-input" type="search" placeholder="Search titles, descriptions, sites, and labels" aria-label="Search bookmarks"></div>
+        <div class="result-summary" id="result-summary">5 bookmarks</div>
+      </section>
+      <section class="empty" id="empty">
+        <div class="empty-inner">
+          <div class="empty-art">⌁</div>
+          <h2>A calmer place for your links</h2>
+          <p>Save your first page and its useful details will appear here automatically.</p>
+        </div>
+      </section>
+      <section class="cards" id="cards" hidden></section>
+    </main>
+  </div>
+
+  <dialog id="dialog">
+    <form class="modal" method="dialog" id="form" novalidate>
+      <h2>Save a bookmark</h2>
+      <p>Paste a link. We’ll collect the page details for you.</p>
+      <label for="url">Web address</label>
+      <input id="url" type="url" placeholder="https://example.com/article" autocomplete="off" required>
+      <div class="input-error" id="url-error" role="alert" hidden>Enter a complete web address, such as https://example.com/article</div>
+      <div class="duplicate-notice" id="duplicate-notice" role="status" hidden>This bookmark is already in your collection, so another copy wasn’t added.</div>
+      <div class="fetching" id="fetching">Collecting the title and page details…</div>
+      <div class="actions">
+        <button type="button" class="secondary" id="cancel">Cancel</button>
+        <button type="submit" class="primary" id="save">Save bookmark</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="labels-dialog">
+    <form class="modal" method="dialog" id="labels-form">
+      <h2>Edit labels</h2>
+      <p>Add a topic that will help you find this bookmark again.</p>
+      <label for="label-input">Label</label>
+      <input id="label-input" type="text" placeholder="e.g. learning" autocomplete="off" required>
+      <div class="actions">
+        <button type="button" class="secondary" id="labels-cancel">Cancel</button>
+        <button type="submit" class="primary">Apply label</button>
+      </div>
+    </form>
+  </dialog>
+  <script>
+    const dialog = document.querySelector('#dialog');
+    const form = document.querySelector('#form');
+    const url = document.querySelector('#url');
+    const fetching = document.querySelector('#fetching');
+    const save = document.querySelector('#save');
+    const urlError = document.querySelector('#url-error');
+    const duplicateNotice = document.querySelector('#duplicate-notice');
+    const params = new URLSearchParams(location.search);
+    const labelMode = params.get('labels');
+    const labelsDialog = document.querySelector('#labels-dialog');
+    const labelsForm = document.querySelector('#labels-form');
+    const labelInput = document.querySelector('#label-input');
+    const searchData = [
+      { icon: 'A', title: 'A guide to building a personal knowledge garden', description: 'Practical ideas for collecting and connecting the things you discover online.', site: 'articles.example.com', labels: ['learning', 'knowledge'] },
+      { icon: 'N', title: 'How to take better notes from online courses', description: 'A practical method for learning actively and remembering more of what you study.', site: 'notes.example.org', labels: ['productivity'] },
+      { icon: 'D', title: 'Designing a peaceful home workspace', description: 'Small changes that make a desk more comfortable and less distracting.', site: 'designweekly.example', labels: ['design', 'home'] },
+      { icon: 'R', title: 'Roasted tomato and lentil soup', description: 'A warming weeknight recipe made from pantry staples.', site: 'table.example.net', labels: ['recipes'] },
+      { icon: 'T', title: 'A slow weekend in Lisbon', description: 'Neighborhood walks, bookstores, and places worth lingering over.', site: 'travelnotes.example', labels: ['travel'] }
+    ];
+
+    function highlight(text, query) {
+      if (!query) return text;
+      const safe = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return text.replace(new RegExp(`(${safe})`, 'ig'), '<mark>$1</mark>');
+    }
+
+    function searchCardMarkup(item, query) {
+      const tags = item.labels.map(label => `<span class="tag">${highlight(label, query)}</span>`).join('');
+      return `<article class="card">
+        <div class="site-icon">${item.icon}</div>
+        <div><h2>${highlight(item.title, query)}</h2>
+        <p>${highlight(item.description, query)}</p>
+        <div class="domain">${highlight(item.site, query)}</div>
+        <div class="tag-row">${tags}<button type="button" class="tag-button">＋ Add label</button></div></div>
+        <span class="saved">Saved</span>
+      </article>`;
+    }
+
+    function showSearchCollection() {
+      document.querySelector('#empty').hidden = true;
+      document.querySelector('#search-tools').hidden = false;
+      const cards = document.querySelector('#cards');
+      cards.hidden = false;
+      document.querySelector('#count').textContent = '5 bookmarks';
+      const input = document.querySelector('#search-input');
+      const summary = document.querySelector('#result-summary');
+      const render = () => {
+        const query = input.value.trim().toLowerCase();
+        const matches = searchData.filter(item => !query || [item.title, item.description, item.site, ...item.labels].some(value => value.toLowerCase().includes(query)));
+        cards.innerHTML = matches.length
+          ? matches.map(item => searchCardMarkup(item, query)).join('')
+          : `<div class="no-results"><h2>No bookmarks found</h2><p>Nothing matches “${input.value.trim()}”. Try a different word or clear the search.</p><button type="button" class="secondary" id="clear-search">Clear search</button></div>`;
+        summary.textContent = query ? `${matches.length} results for “${input.value.trim()}”` : '5 bookmarks';
+        document.querySelector('#clear-search')?.addEventListener('click', () => { input.value = ''; render(); input.focus(); });
+      };
+      input.addEventListener('input', render);
+      render();
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function showReadLaterCollection(mode) {
+      document.querySelector('#empty').hidden = true;
+      const cards = document.querySelector('#cards');
+      cards.hidden = false;
+      const items = searchData.slice(0, 3).map((item, index) => ({...item, id: index + 1, later: false}));
+      let currentView = 'all';
+      const allNav = document.querySelector('#nav-all');
+      const laterNav = document.querySelector('#nav-read-later');
+
+      const actionMarkup = item => mode === 'icon'
+        ? `<button type="button" class="later-icon ${item.later ? 'active' : ''}" data-later-id="${item.id}" aria-label="${item.later ? 'Remove from' : 'Save to'} read later" title="${item.later ? 'Remove from' : 'Save to'} read later">${item.later ? '✓' : '◷'}</button>`
+        : `<button type="button" class="later-button ${item.later ? 'active' : ''}" data-later-id="${item.id}">${item.later ? '✓ In read later' : '＋ Read later'}</button>`;
+
+      const render = () => {
+        const shown = currentView === 'later' ? items.filter(item => item.later) : items;
+        document.querySelector('h1').textContent = currentView === 'later' ? 'Read later' : 'Your bookmarks';
+        document.querySelector('#count').textContent = `${shown.length} ${shown.length === 1 ? 'bookmark' : 'bookmarks'}`;
+        allNav.classList.toggle('active', currentView === 'all');
+        laterNav.classList.toggle('active', currentView === 'later');
+        cards.innerHTML = shown.length ? shown.map(item => {
+          const tags = item.labels.map(label => `<span class="tag">${label}</span>`).join('');
+          return `<article class="card">
+            <div class="site-icon">${item.icon}</div>
+            <div><h2>${item.title}</h2><p>${item.description}</p><div class="domain">${item.site}</div><div class="tag-row">${tags}<button type="button" class="tag-button">＋ Add label</button></div></div>
+            ${actionMarkup(item)}
+          </article>`;
+        }).join('') : `<div class="empty-filter">Nothing in your reading pile yet.</div>`;
+        cards.querySelectorAll('[data-later-id]').forEach(button => button.addEventListener('click', () => {
+          const item = items.find(entry => entry.id === Number(button.dataset.laterId));
+          item.later = !item.later;
+          render();
+        }));
+      };
+      allNav.addEventListener('click', () => { currentView = 'all'; render(); });
+      laterNav.addEventListener('click', () => { currentView = 'later'; render(); });
+      render();
+    }
+
+    function showArchiveCollection(mode) {
+      document.querySelector('#empty').hidden = true;
+      const cards = document.querySelector('#cards');
+      cards.hidden = false;
+      const items = searchData.slice(0, 3).map((item, index) => ({...item, id: index + 1, archived: false}));
+      let currentView = 'all';
+      const allNav = document.querySelector('#nav-all');
+      const archiveNav = document.querySelector('#nav-archive');
+
+      const actionMarkup = item => mode === 'menu'
+        ? `<div class="more-wrap"><button type="button" class="more-button" data-menu-id="${item.id}" aria-label="More actions">•••</button><div class="card-menu" id="menu-${item.id}" hidden><button type="button" data-archive-id="${item.id}">Archive</button></div></div>`
+        : `<button type="button" class="archive-button" data-archive-id="${item.id}">Archive</button>`;
+
+      const render = () => {
+        const shown = currentView === 'archive' ? items.filter(item => item.archived) : items.filter(item => !item.archived);
+        document.querySelector('h1').textContent = currentView === 'archive' ? 'Archive' : 'Your bookmarks';
+        document.querySelector('#count').textContent = `${shown.length} ${shown.length === 1 ? 'bookmark' : 'bookmarks'}`;
+        allNav.classList.toggle('active', currentView === 'all');
+        archiveNav.classList.toggle('active', currentView === 'archive');
+        cards.innerHTML = shown.length ? shown.map(item => {
+          const tags = item.labels.map(label => `<span class="tag">${label}</span>`).join('');
+          return `<article class="card">
+            <div class="site-icon">${item.icon}</div>
+            <div><h2>${item.title}</h2><p>${item.description}</p><div class="domain">${item.site}</div><div class="tag-row">${tags}<button type="button" class="tag-button">＋ Add label</button></div></div>
+            ${currentView === 'all' ? actionMarkup(item) : '<span class="saved">Archived</span>'}
+          </article>`;
+        }).join('') : `<div class="empty-filter">${currentView === 'archive' ? 'Nothing archived yet.' : 'No active bookmarks.'}</div>`;
+        cards.querySelectorAll('[data-menu-id]').forEach(button => button.addEventListener('click', () => {
+          document.querySelector(`#menu-${button.dataset.menuId}`).hidden = false;
+        }));
+        cards.querySelectorAll('[data-archive-id]').forEach(button => button.addEventListener('click', () => {
+          items.find(entry => entry.id === Number(button.dataset.archiveId)).archived = true;
+          render();
+        }));
+      };
+      allNav.addEventListener('click', () => { currentView = 'all'; render(); });
+      archiveNav.addEventListener('click', () => { currentView = 'archive'; render(); });
+      render();
+    }
+
+    function showArchiveFromLater() {
+      document.querySelector('#empty').hidden = true;
+      const cards = document.querySelector('#cards');
+      cards.hidden = false;
+      const item = {...searchData[0], id: 1, later: true, archived: false};
+      let currentView = 'all';
+      const navs = {
+        all: document.querySelector('#nav-all'),
+        later: document.querySelector('#nav-read-later'),
+        archive: document.querySelector('#nav-archive')
+      };
+      const render = () => {
+        const visible = currentView === 'archive' ? item.archived : currentView === 'later' ? item.later && !item.archived : !item.archived;
+        document.querySelector('h1').textContent = currentView === 'archive' ? 'Archive' : currentView === 'later' ? 'Read later' : 'Your bookmarks';
+        document.querySelector('#count').textContent = visible ? '1 bookmark' : '0 bookmarks';
+        Object.entries(navs).forEach(([name, nav]) => nav.classList.toggle('active', currentView === name));
+        if (!visible) {
+          const message = currentView === 'later' ? 'Nothing in your reading pile yet.' : currentView === 'archive' ? 'Nothing archived yet.' : 'No active bookmarks.';
+          cards.innerHTML = `<div class="empty-filter">${message}</div>`;
+          return;
+        }
+        const tags = item.labels.map(label => `<span class="tag">${label}</span>`).join('');
+        const actions = currentView === 'archive'
+          ? '<span class="saved">Archived</span>'
+          : `<div class="card-actions"><button type="button" class="later-button active">✓ In read later</button><div class="more-wrap"><button type="button" class="more-button" id="combined-more" aria-label="More actions">•••</button><div class="card-menu" id="combined-menu" hidden><button type="button" id="combined-archive">Archive</button></div></div></div>`;
+        cards.innerHTML = `<article class="card"><div class="site-icon">${item.icon}</div><div><h2>${item.title}</h2><p>${item.description}</p><div class="domain">${item.site}</div><div class="tag-row">${tags}<button type="button" class="tag-button">＋ Add label</button></div></div>${actions}</article>`;
+        document.querySelector('#combined-more')?.addEventListener('click', () => { document.querySelector('#combined-menu').hidden = false; });
+        document.querySelector('#combined-archive')?.addEventListener('click', () => { item.archived = true; item.later = false; render(); });
+      };
+      Object.entries(navs).forEach(([name, nav]) => nav.addEventListener('click', () => { currentView = name; render(); }));
+      render();
+    }
+
+    function cardMarkup(mode = '') {
+      const duplicateEdge = params.get('edge') === 'duplicate';
+      const labelControl = mode === 'inline'
+        ? `<div class="tag-row">${duplicateEdge ? '<span class="tag">learning</span>' : ''}<button type="button" class="tag-button" id="inline-add">＋ Add label</button><span class="inline-entry" id="inline-entry"><input id="inline-input" aria-label="New label" placeholder="Type a label"><span class="hint">Press Enter</span></span></div><div class="tag-error" id="tag-error" role="status" hidden>This bookmark already has that label.</div>`
+        : mode === 'dialog'
+          ? `<div class="tag-row" id="tag-row"></div>`
+          : '';
+      const action = mode === 'dialog' ? `<button type="button" class="edit-labels" id="edit-labels">Edit labels</button>` : `<span class="saved">Saved</span>`;
+      return `<article class="card">
+        <div class="site-icon">A</div>
+        <div><h2>A guide to building a personal knowledge garden</h2>
+        <p>Practical ideas for collecting, connecting, and returning to the things you learn online.</p>
+        <div class="domain">articles.example.com</div>${labelControl}</div>
+        <div class="card-actions">${action}</div>
+      </article>`;
+    }
+
+    function showSavedCard(mode = '') {
+      document.querySelector('#empty').hidden = true;
+      const cards = document.querySelector('#cards');
+      cards.hidden = false;
+      cards.innerHTML = cardMarkup(mode);
+      document.querySelector('#count').textContent = '1 bookmark';
+      if (mode === 'inline') {
+        document.querySelector('#inline-add').addEventListener('click', () => {
+          document.querySelector('#inline-add').hidden = true;
+          document.querySelector('#inline-entry').classList.add('show');
+          document.querySelector('#inline-input').focus();
+        });
+        document.querySelector('#inline-input').addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && event.target.value.trim()) {
+            event.preventDefault();
+            const existing = [...document.querySelectorAll('.tag')].some(tag => tag.textContent.toLowerCase() === event.target.value.trim().toLowerCase());
+            if (existing) {
+              document.querySelector('#tag-error').hidden = false;
+              return;
+            }
+            const row = event.target.closest('.tag-row');
+            row.innerHTML = `<span class="tag">${event.target.value.trim()}</span><button type="button" class="tag-button">＋ Add label</button>`;
+          }
+        });
+      }
+      if (mode === 'dialog') {
+        document.querySelector('#edit-labels').addEventListener('click', () => { labelsDialog.showModal(); setTimeout(() => labelInput.focus(), 50); });
+      }
+    }
+    function showFailedMetadataCard() {
+      document.querySelector('#empty').hidden = true;
+      const cards = document.querySelector('#cards');
+      cards.hidden = false;
+      cards.innerHTML = `<article class="card">
+        <div class="site-icon">U</div>
+        <div><h2>unavailable.example/article</h2>
+        <p>We couldn’t load this page’s title or description. The link is still saved.</p>
+        <div class="domain">unavailable.example</div>
+        <button type="button" class="retry-button" id="retry-details">Try getting details again</button></div>
+        <span class="warning">Needs details</span>
+      </article>`;
+      document.querySelector('#count').textContent = '1 bookmark';
+      document.querySelector('#retry-details').addEventListener('click', event => {
+        event.target.textContent = 'Still unavailable — try again later';
+      });
+    }
+    document.querySelector('#add').addEventListener('click', () => { dialog.showModal(); setTimeout(() => url.focus(), 50); });
+    document.querySelector('#cancel').addEventListener('click', () => { dialog.close(); form.reset(); });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      let validAddress = false;
+      try {
+        const parsed = new URL(url.value);
+        validAddress = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch (_) {}
+      if (!validAddress) {
+        url.classList.add('invalid');
+        urlError.hidden = false;
+        url.focus();
+        return;
+      }
+      if (params.get('feature') === 'duplicate-url') {
+        duplicateNotice.hidden = false;
+        return;
+      }
+      fetching.classList.add('show');
+      save.disabled = true;
+      setTimeout(() => {
+        dialog.close();
+        fetching.classList.remove('show');
+        save.disabled = false;
+        form.reset();
+        if (params.get('feature') === 'save-error') showFailedMetadataCard();
+        else showSavedCard();
+      }, 750);
+    });
+    url.addEventListener('input', () => { url.classList.remove('invalid'); urlError.hidden = true; duplicateNotice.hidden = true; });
+    document.querySelector('#labels-cancel').addEventListener('click', () => { labelsDialog.close(); labelsForm.reset(); });
+    labelsForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const value = labelInput.value.trim();
+      if (!value) return;
+      document.querySelector('#tag-row').innerHTML = `<span class="tag">${value}</span>`;
+      labelsDialog.close();
+      labelsForm.reset();
+    });
+    if (params.get('state') === 'saved') showSavedCard(labelMode || '');
+    if (params.get('state') === 'collection' && params.get('feature') === 'search') showSearchCollection();
+    if (params.get('state') === 'collection' && params.get('feature') === 'readlater') showReadLaterCollection(params.get('mode') || 'button');
+    if (params.get('state') === 'collection' && params.get('feature') === 'archive') showArchiveCollection(params.get('mode') || 'button');
+    if (params.get('state') === 'collection' && params.get('feature') === 'archive-from-later') showArchiveFromLater();
+    if (params.get('state') === 'saved' && params.get('feature') === 'duplicate-url') showSavedCard('inline');
+  </script>
+</body>
+</html>

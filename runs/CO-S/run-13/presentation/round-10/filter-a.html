@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — tag filtering (Version A)</title>
+<link rel="stylesheet" href="app.css" />
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A private place for your links — prototype for review</p>
+</header>
+<div class="variant a"><strong>Version A — a filter bar of tags.</strong> A row of your tags sits above the list; click one to show only those bookmarks, click "All" to clear. (Switch to <a href="filter-b.html">Version B</a>.)</div>
+<main>
+  <div id="flash" class="flash"></div>
+
+  <section class="panel">
+    <h2>Save a link</h2>
+    <label for="url">Web address</label>
+    <div class="row-url">
+      <input id="url" type="url" placeholder="Paste a web address, e.g. https://example.com/article" autocomplete="off" />
+      <button id="fetchBtn" class="btn-ghost" type="button">Get details</button>
+    </div>
+    <div id="fetchNote" class="fetch-note"></div>
+    <div id="auto" class="auto">
+      <div class="auto-label">Collected automatically</div>
+      <div class="auto-body">
+        <div id="autoPreview"></div>
+        <div class="site-row"><span id="autoFavicon"></span><span id="autoSite" class="site"></span></div>
+      </div>
+    </div>
+    <label for="title">Title</label>
+    <input id="title" type="text" placeholder="The page title will appear here — edit if you like" />
+    <label for="desc">Description</label>
+    <textarea id="desc" placeholder="A short summary of the page"></textarea>
+    <label for="tags">Tags (comma separated)</label>
+    <div class="tagwrap">
+      <input id="tags" type="text" placeholder="Start typing — e.g. re…" autocomplete="off" />
+      <div id="tagSuggest" class="tagsuggest"></div>
+    </div>
+    <label for="note">Your note</label>
+    <textarea id="note" placeholder="Why you saved this, or anything to remember"></textarea>
+    <div class="save-row"><button id="saveBtn" class="btn-primary" type="button" disabled>Save bookmark</button></div>
+  </section>
+
+  <section class="panel">
+    <div id="filterBar" class="filterbar"></div>
+    <div class="searchwrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="search" placeholder="Search your bookmarks — title, site, address, tag or note" autocomplete="off" />
+    </div>
+    <div class="list-head"><h2 style="margin:0">Your bookmarks</h2><span id="count" class="count"></span></div>
+    <div id="empty" class="empty" style="display:none"></div>
+    <ul id="list" class="bm"></ul>
+  </section>
+</main>
+
+<script src="tags-shared.js"></script>
+<script src="app-core.js"></script>
+<script>
+// Version A filter: a dedicated bar of tag chips.
+window.TAGS_CLICKABLE = false;
+window.onInit = function(){
+  const bar=$("filterBar");
+  const chips = ['<span class="flabel">Filter by tag:</span>',
+    '<span class="fchip" data-tag="">All</span>']
+    .concat(existingTags().map(t=>'<span class="fchip" data-tag="'+escapeHtml(t)+'">'+escapeHtml(t)+'</span>'));
+  bar.innerHTML = chips.join("");
+  bar.querySelectorAll(".fchip").forEach(el=>el.addEventListener("click",()=>{
+    const t=el.getAttribute("data-tag");
+    activeTag = (t==="" ? null : (activeTag && activeTag.toLowerCase()===t.toLowerCase() ? null : t));
+    render();
+  }));
+};
+window.onRender = function(){
+  $("filterBar").querySelectorAll(".fchip").forEach(el=>{
+    const t=el.getAttribute("data-tag");
+    const on = (t==="" && !activeTag) || (activeTag && t.toLowerCase()===activeTag.toLowerCase());
+    el.classList.toggle("active", !!on);
+  });
+};
+initCore();
+</script>
+</body>
+</html>

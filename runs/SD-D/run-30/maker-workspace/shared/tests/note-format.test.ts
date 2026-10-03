@@ -1,0 +1,2 @@
+import { describe,expect,it } from 'vitest';import { noteToText } from '../src/notes/format.js';
+describe('note formatting',()=>{it('extracts searchable text from headings, links, and lists',()=>expect(noteToText('## Heading\n- [Useful link](https://example.com)')).toBe('Heading Useful link'));it('strips raw tags from searchable text',()=>expect(noteToText('<script>alert(1)</script>')).not.toContain('<script>'))});

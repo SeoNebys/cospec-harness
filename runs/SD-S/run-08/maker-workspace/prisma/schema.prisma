@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Bookmark {
+  id          String        @id
+  url         String
+  urlKey      String        @unique
+  urlSearch   String
+  title       String
+  titleSearch String
+  titleOrigin String
+  note        String        @default("")
+  noteSearch  String        @default("")
+  iconAsset   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tags        BookmarkTag[]
+
+  @@index([createdAt, id])
+  @@index([titleSearch, id])
+}
+
+model Tag {
+  id        Int           @id @default(autoincrement())
+  name      String
+  nameKey   String        @unique
+  bookmarks BookmarkTag[]
+}
+
+model BookmarkTag {
+  bookmarkId String
+  tagId      Int
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([bookmarkId, tagId])
+  @@index([tagId, bookmarkId])
+}

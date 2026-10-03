@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --line:#e2e2e6; --muted:#6b7280; --accent:#2563eb; --warn:#b45309; --warnbg:#fff7ed; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; color: #111; background: #f6f7f9; }
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 16px 24px; }
+  header h1 { margin: 0; font-size: 18px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; }
+  input[type=text], input[type=url], textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  textarea { resize: vertical; }
+  textarea#dNote { min-height: 110px; }
+  label { display:block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  button { padding: 9px 15px; border: 0; border-radius: 8px; background: var(--accent); color: #fff;
+           font-size: 14px; cursor: pointer; white-space: nowrap; }
+  button.secondary { background: #eef1f5; color: #111; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .warn { background: var(--warnbg); border: 1px solid #fed7aa; color: var(--warn);
+          border-radius: 8px; padding: 12px; font-size: 13px; margin-top: 10px; }
+  .list-head { display:flex; justify-content: space-between; align-items:center; margin-bottom: 10px; }
+  .list-head h2 { font-size: 15px; margin: 0; }
+  .count { color: var(--muted); font-size: 13px; }
+  .bm { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 10px; background:#fff;
+        display:flex; gap:12px; cursor:pointer; }
+  .bm:hover { border-color:#c7d2fe; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .bm .preview { width: 96px; height: 64px; border-radius: 8px; flex: 0 0 auto; overflow:hidden;
+        border:1px solid var(--line); background:#f3f4f6; }
+  .bm .preview img { width:100%; height:100%; object-fit:cover; display:block; }
+  .bm .body { flex: 1 1 auto; min-width: 0; }
+  .bm .titleline { display:flex; align-items:center; gap:8px; }
+  .bm .favicon { width:18px; height:18px; border-radius:4px; flex:0 0 auto; }
+  .bm .title { font-weight: 600; font-size: 15px; }
+  .bm .url { color: var(--accent); font-size: 12px; word-break: break-all; text-decoration:none; }
+  .bm .desc { color: #374151; font-size: 13px; margin-top: 6px; }
+  .bm .note { font-size: 13px; margin-top: 8px; background:#f9fafb; border-left:3px solid #d1d5db; padding:8px 10px; }
+  .bm .note p { margin: 0 0 6px; } .bm .note ul { margin: 4px 0; padding-left: 18px; }
+  .tags { margin-top: 8px; display:flex; gap:6px; flex-wrap:wrap; }
+  .tag { background:#eef2ff; color:#3730a3; font-size:11px; padding:3px 8px; border-radius:999px; }
+  .bm .tag { cursor:pointer; } .bm .tag:hover { background:#e0e7ff; }
+  .empty { color: var(--muted); font-size: 14px; text-align:center; padding: 24px; }
+  .spinner { color: var(--muted); font-size: 13px; }
+  .flash { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:8px; padding:10px; font-size:13px; margin-bottom:12px; }
+  .highlight { background: #fde68a; }
+  .suggest { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .suggest .lbl { color:var(--muted); font-size:12px; }
+  .suggest button.stag { background:#eef2ff; color:#3730a3; border:1px dashed #c7d2fe; font-size:11px; padding:3px 9px; border-radius:999px; }
+  .metaprev { display:flex; gap:12px; margin-top:12px; align-items:center; }
+  .metaprev img.fav { width:20px; height:20px; border-radius:4px; }
+  .metaprev .pv { width:120px; height:72px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .metaprev .pv img { width:100%; height:100%; object-fit:cover; display:block; }
+  @media (max-width: 520px){ .row { flex-direction: column; } .bm { flex-direction: column; } .bm .preview{width:100%;height:120px;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — core flow: save a link, add your context, find it again.</p>
+</header>
+<main>
+  <div id="flash"></div>
+
+  <div class="card">
+    <label for="url">Paste a link to save</label>
+    <div class="row">
+      <input type="url" id="url" placeholder="https://…" autocomplete="off" />
+      <button id="saveBtn">Save link</button>
+    </div>
+    <div id="saveArea"></div>
+  </div>
+
+  <div class="card">
+    <label for="search">Search your bookmarks</label>
+    <div class="row">
+      <input type="text" id="search" placeholder="Search by title, description, note, tag, or address…" autocomplete="off" />
+      <button class="secondary" id="clearSearch" style="display:none">Clear</button>
+    </div>
+    <div class="hint">Searches everything you saved, including your notes and tags.</div>
+  </div>
+
+  <div class="list-head">
+    <h2>Saved</h2>
+    <span class="count" id="count"></span>
+  </div>
+  <div id="list"></div>
+</main>
+
+<script>
+// ---- Generated icon / preview (prototype: offline-safe stand-ins) ----
+// In the real app the icon and preview image are collected from the page.
+// Here we generate deterministic stand-ins so the behaviour can be experienced.
+function hashHue(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))%360; } return h; }
+function faviconFor(url){
+  let host='?'; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+  const letter=(host[0]||'?').toUpperCase(); const hue=hashHue(host);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+    +'<rect width="32" height="32" rx="6" fill="hsl('+hue+',60%,50%)"/>'
+    +'<text x="16" y="22" font-size="18" font-family="Arial" fill="#fff" text-anchor="middle">'+letter+'</text></svg>';
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+function previewFor(url, title){
+  let host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+  const hue=hashHue(host); const t=(title||host).slice(0,28);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160">'
+    +'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+    +'<stop offset="0" stop-color="hsl('+hue+',55%,55%)"/><stop offset="1" stop-color="hsl('+((hue+40)%360)+',55%,40%)"/>'
+    +'</linearGradient></defs><rect width="240" height="160" fill="url(#g)"/>'
+    +'<text x="16" y="150" font-size="13" font-family="Arial" fill="rgba(255,255,255,.85)">'+escapeHtml(host)+'</text>'
+    +'<text x="16" y="80" font-size="17" font-family="Arial" fill="#fff">'+escapeHtml(t)+'</text></svg>';
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+
+// ---- Simulated "auto-fill" metadata source (prototype only) ----
+const KNOWN = {
+  "https://developer.mozilla.org/en-us/docs/web/javascript/closures": {
+    title: "Closures - JavaScript | MDN",
+    description: "A closure is the combination of a function bundled together with references to its surrounding state." },
+  "https://reactjs.org/docs/hooks-intro.html": {
+    title: "Introducing Hooks – React",
+    description: "Hooks let you use state and other React features without writing a class." }
+};
+// demo: addresses we pretend we cannot read (unreachable / blocked / 404)
+const UNREADABLE = ["https://blocked.example/secret-report"];
+function autoFill(url){
+  const key = url.toLowerCase().replace(/\/+$/,'');
+  if (UNREADABLE.includes(key)){
+    return { readable:false, title:"", description:"",
+             favicon: faviconFor(url), preview: previewFor(url, "") };
+  }
+  let meta = KNOWN[key];
+  if (!meta){
+    let host = url; try { host = new URL(url).hostname.replace(/^www\./,''); } catch(e){}
+    let path = ''; try { path = new URL(url).pathname.replace(/[-/_]+/g,' ').trim(); } catch(e){}
+    const guess = (path || host).split(' ').filter(Boolean).slice(0,6)
+                   .map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+    meta = { title: guess ? guess + " — " + host : host, description: "Saved from " + host };
+  }
+  return { readable:true, title: meta.title, description: meta.description,
+           favicon: faviconFor(url), preview: previewFor(url, meta.title) };
+}
+// "Same address": host is case-insensitive and www-insensitive, a trailing
+// slash is ignored, but the PATH stays case-sensitive (it can be a different
+// page). Query string preserved as-is.
+function normalize(url){
+  try { const u = new URL(url);
+    const host = u.hostname.replace(/^www\./,'').toLowerCase();
+    const path = u.pathname.replace(/\/+$/,'');
+    return host + path + u.search; }
+  catch(e){ return url.trim().replace(/\/+$/,''); }
+}
+
+// ---- Store (prototype: in-memory, seeded) ----
+let bookmarks = [
+  { id: 1, url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures",
+    title: "Closures - JavaScript | MDN",
+    description: "A closure is the combination of a function bundled together with references to its surrounding state.",
+    favicon: faviconFor("https://developer.mozilla.org/x"),
+    preview: previewFor("https://developer.mozilla.org/x","Closures - JavaScript | MDN"),
+    tags: ["javascript","reference"],
+    note: "Re-read **before the interview**.\n- the counter example finally made it click\n- check the loop-variable gotcha" },
+  { id: 2, url: "https://example.com/rome-in-3-days",
+    title: "Rome in 3 days — a walking guide",
+    description: "A compact itinerary for the Colosseum, Forum and Trastevere.",
+    favicon: faviconFor("https://example.com/x"),
+    preview: previewFor("https://example.com/x","Rome in 3 days"),
+    tags: ["travel","article"],
+    note: "For the autumn trip. See the [official Colosseum site](https://parcocolosseo.it)." },
+  { id: 3, url: "https://example.com/spqr-mary-beard",
+    title: "SPQR: A History of Ancient Rome",
+    description: "Mary Beard's history of ancient Rome.",
+    favicon: faviconFor("https://example.com/y"),
+    preview: previewFor("https://example.com/y","SPQR"),
+    tags: ["travel","book"],
+    note: "Background reading for **Rome**." },
+];
+// demo: open with ?empty=1 to preview the brand-new / empty-collection state
+if (new URLSearchParams(location.search).get('empty')==='1'){ bookmarks = []; }
+let nextId = 4;
+let draft = null;
+let dupOf = null;
+let editingId = null;   // id of the bookmark currently open for editing (inline)
+
+const $ = s => document.querySelector(s);
+
+function allTags(){ const s=new Set(); bookmarks.forEach(b=>(b.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+
+function flash(msg){ $("#flash").innerHTML='<div class="flash">'+msg+'</div>';
+  setTimeout(()=>{ $("#flash").innerHTML=''; }, 4000); }
+
+// very small formatter: **bold**, lines starting with - become bullets, blank line = paragraph
+function formatNote(txt){
+  const lines=(txt||'').split('\n'); let html=''; let inList=false;
+  const inline=s=>{
+    // escape first (safety), then apply simple, safe markdown
+    let out=escapeHtml(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+    // [text](url) — only http/https links, opened safely
+    out=out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      (m,txt,url)=>'<a href="'+escapeAttr(url)+'" target="_blank" rel="noopener noreferrer">'+txt+'</a>');
+    return out;
+  };
+  for(const raw of lines){ const l=raw.trim();
+    if(l.startsWith('- ')){ if(!inList){html+='<ul>';inList=true;} html+='<li>'+inline(l.slice(2))+'</li>'; }
+    else { if(inList){html+='</ul>';inList=false;} if(l) html+='<p>'+inline(l)+'</p>'; } }
+  if(inList) html+='</ul>'; return html;
+}
+
+// generic: attach a narrowing "tags you already use" helper to a field + box
+function wireTagSuggest(field, box){
+  function draw(){
+    const val=field.value; const tokens=val.split(',');
+    const cur=tokens[tokens.length-1].trim().toLowerCase();
+    const already=tokens.slice(0,-1).map(t=>t.trim().toLowerCase());
+    const cand=allTags().filter(t=> !already.includes(t.toLowerCase())
+        && (cur==='' ? true : t.toLowerCase().includes(cur)) && t.toLowerCase()!==cur);
+    if(!cand.length){ box.innerHTML=''; return; }
+    box.innerHTML='<span class="lbl">Tags you already use:</span>'
+      + cand.slice(0,8).map(t=>'<button type="button" class="stag" data-t="'+escapeAttr(t)+'">'+escapeHtml(t)+'</button>').join('');
+    box.querySelectorAll('.stag').forEach(btn=>btn.onclick=()=>{
+      tokens[tokens.length-1]=' '+btn.dataset.t; field.value=tokens.join(',').replace(/^ /,'')+', ';
+      field.focus(); draw();
+    });
+  }
+  field.addEventListener('input', draw); field.addEventListener('focus', draw); draw();
+}
+
+function renderSaveArea(){
+  const area = $("#saveArea");
+  if (dupOf){
+    area.innerHTML =
+      '<div class="warn">You already saved this address on <b>'+escapeHtml(dupOf.title)+'</b>.'
+      + ' Saving again would create a duplicate.'
+      + '<div class="row" style="margin-top:10px">'
+      + '<button class="secondary" id="viewDup">Show the one I already have</button>'
+      + '<button class="secondary" id="cancelDup">Cancel</button></div></div>';
+    $("#viewDup").onclick = ()=>{ const t=dupOf; dupOf=null; $("#url").value=''; renderSaveArea();
+        flash('Opening the bookmark you already had, so you can update it.'); openEdit(t.id); };
+    $("#cancelDup").onclick = ()=>{ dupOf=null; $("#url").value=''; renderSaveArea(); };
+    return;
+  }
+  if (!draft){ area.innerHTML=''; return; }
+  const unreadableBanner = (draft.readable===false)
+    ? '<div class="warn" style="margin-top:12px">We couldn\'t read this page (it may be unavailable, private, or blocked). '
+      + 'You can still save it — just fill in the title and details yourself. We\'ll keep the address.</div>'
+    : '<div class="hint" style="margin-top:12px">We filled in the title, description, icon and preview for you — edit anything that\'s off.</div>';
+  area.innerHTML = unreadableBanner
+    + '<div class="metaprev"><img class="fav" src="'+draft.favicon+'"><div class="pv"><img src="'+draft.preview+'"></div>'
+    + '<span class="hint">Icon &amp; preview collected from the page</span></div>'
+    + '<label>Title</label><input type="text" id="dTitle" value="'+escapeAttr(draft.title)+'">'
+    + '<label>Description</label><textarea id="dDesc">'+escapeHtml(draft.description)+'</textarea>'
+    + '<label>Tags (comma separated)</label><input type="text" id="dTags" value="'+escapeAttr(draft.tags||'')+'" placeholder="e.g. javascript, reading">'
+    + '<div class="suggest" id="tagSuggest"></div>'
+    + '<label>Your note (why you saved it)</label>'
+    + '<textarea id="dNote" placeholder="A longer note to your future self…&#10;Use **bold** and start lines with - for bullets.">'+escapeHtml(draft.note||'')+'</textarea>'
+    + '<div class="hint">Supports simple formatting: **bold** and - bullet lists.</div>'
+    + '<div class="row" style="margin-top:12px"><button id="confirmSave">Add to my bookmarks</button>'
+    + '<button class="secondary" id="cancelSave">Cancel</button></div>';
+  $("#confirmSave").onclick = confirmSave;
+  $("#cancelSave").onclick = ()=>{ draft=null; $("#url").value=''; renderSaveArea(); };
+  wireTagSuggest($("#dTags"), $("#tagSuggest"));
+}
+
+function startSave(){
+  const url = $("#url").value.trim(); if (!url) return;
+  dupOf=null; draft=null;
+  const existing = bookmarks.find(b => normalize(b.url) === normalize(url));
+  if (existing){ dupOf=existing; renderSaveArea(); return; }
+  $("#saveArea").innerHTML = '<div class="spinner" style="margin-top:12px">Looking up the page…</div>';
+  setTimeout(()=>{ const meta=autoFill(url);
+    draft={ url, title:meta.title, description:meta.description, favicon:meta.favicon, preview:meta.preview,
+            tags:'', note:'', readable:meta.readable };
+    renderSaveArea();
+  }, 500);
+}
+
+// reuse an existing tag when it matches case-insensitively, so we never create
+// a differently-capitalized duplicate ("Javascript" -> existing "javascript")
+function canonTag(t){
+  const hit = allTags().find(e => e.toLowerCase() === t.toLowerCase());
+  return hit || t;
+}
+function confirmSave(){
+  const seen = new Set(); const tags = [];
+  $("#dTags").value.split(',').map(t=>t.trim()).filter(Boolean).forEach(t=>{
+    const c = canonTag(t); const k = c.toLowerCase();
+    if(!seen.has(k)){ seen.add(k); tags.push(c); }
+  });
+  const b = { id: nextId++, url: draft.url,
+    title: $("#dTitle").value.trim() || draft.url,
+    description: $("#dDesc").value.trim(),
+    favicon: draft.favicon, preview: draft.preview,
+    tags: tags,
+    note: $("#dNote").value.trim() };
+  bookmarks.unshift(b);
+  draft=null; $("#url").value=''; renderSaveArea();
+  flash('Saved. It\'s in your list below.'); render(); jumpTo(b.id);
+}
+
+function jumpTo(id){ setTimeout(()=>{ const el=document.getElementById('bm-'+id);
+  if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'),1500); } }, 60); }
+
+// ---- Query language ----
+// operands: word | "phrase" | #tag ; operators: AND OR NOT + parentheses ;
+// space between operands = implicit AND. AND/OR/NOT are operators only when
+// unquoted; quote them ("and") to search the literal word.
+function tokenize(q){
+  const toks=[]; let i=0;
+  while(i<q.length){
+    const c=q[i];
+    if(/\s/.test(c)){ i++; continue; }
+    if(c==='('){ toks.push({t:'('}); i++; continue; }
+    if(c===')'){ toks.push({t:')'}); i++; continue; }
+    if(c==='"'){ let j=i+1,s=''; while(j<q.length&&q[j]!=='"'){ s+=q[j]; j++; }
+      toks.push({t:'op',kind:'phrase',v:s}); i=(j<q.length)?j+1:j; continue; }
+    // bare token: read until whitespace or parenthesis
+    let j=i,s=''; while(j<q.length && !/[\s()]/.test(q[j])){ s+=q[j]; j++; } i=j;
+    if(/^(and|or|not)$/i.test(s)){ toks.push({t:s.toLowerCase()}); continue; }
+    if(s[0]==='#'){ toks.push({t:'op',kind:'tag',v:s.slice(1)}); continue; }
+    toks.push({t:'op',kind:'word',v:s});
+  }
+  return toks;
+}
+function parseQuery(q){
+  const toks=tokenize(q); let p=0;
+  const peek=()=>toks[p]; const next=()=>toks[p++];
+  function parseOr(){ let l=parseAnd();
+    while(peek()&&peek().t==='or'){ next(); const r=parseAnd(); const a=l,b=r; l=x=>a(x)||b(x); }
+    return l; }
+  function parseAnd(){ let l=parseNot();
+    for(;;){ const tk=peek(); if(!tk) break;
+      if(tk.t==='and'){ next(); const r=parseNot(); const a=l,b=r; l=x=>a(x)&&b(x); continue; }
+      if(tk.t==='op'||tk.t==='('||tk.t==='not'){ const r=parseNot(); const a=l,b=r; l=x=>a(x)&&b(x); continue; }
+      break; }
+    return l; }
+  function parseNot(){ if(peek()&&peek().t==='not'){ next(); const r=parseNot(); return x=>!r(x); }
+    return parsePrimary(); }
+  function parsePrimary(){ const tk=peek();
+    if(!tk) return ()=>true;
+    if(tk.t==='('){ next(); const e=parseOr(); if(peek()&&peek().t===')') next(); return e; }
+    if(tk.t==='op'){ next(); return operand(tk); }
+    next(); return ()=>true; }
+  function operand(tk){ const v=(tk.v||'').toLowerCase();
+    if(tk.kind==='tag') return b=> (b.tags||[]).some(t=>t.toLowerCase()===v);
+    // word / phrase: search across all fields including tags
+    return b=> [b.title,b.description,b.note,b.url,(b.tags||[]).join(' ')]
+                 .some(f=>(f||'').toLowerCase().includes(v)); }
+  const fn=parseOr(); return fn;
+}
+function matches(b, q){ if(!q||!q.trim()) return true;
+  try{ return parseQuery(q)(b); }
+  catch(e){ const s=q.toLowerCase();
+    return [b.title,b.description,b.note,b.url,(b.tags||[]).join(' ')].some(f=>(f||'').toLowerCase().includes(s)); } }
+
+function render(){
+  const q=$("#search").value.trim();
+  const shown=bookmarks.filter(b=>matches(b,q));
+  $("#count").textContent = shown.length + (shown.length===1?' bookmark':' bookmarks') + (q?' matching "'+q+'"':'');
+  const list=$("#list");
+  $("#clearSearch").style.display = q ? '' : 'none';
+  if(!shown.length){ list.innerHTML='<div class="empty">'
+      + (q?'No bookmarks match "'+escapeHtml(q)+'".'
+          :'No bookmarks yet — save your first link above.<br><span style="font-size:13px">You\'ll also be able to import your existing browser bookmarks here.</span>')
+      + '</div>'; return; }
+  list.innerHTML = shown.map(b =>
+    (b.id===editingId ? editFormHtml(b) :
+    '<div class="bm" id="bm-'+b.id+'">'
+    + '<div class="preview"><img src="'+b.preview+'" alt=""></div>'
+    + '<div class="body">'
+    + '<div class="titleline"><img class="favicon" src="'+b.favicon+'" alt=""><span class="title">'+escapeHtml(b.title)+'</span>'
+    + '<button class="secondary editBtn" data-id="'+b.id+'" style="margin-left:auto;padding:4px 10px;font-size:12px">Edit</button></div>'
+    + '<a class="url" href="'+escapeAttr(b.url)+'" target="_blank" rel="noopener">'+escapeHtml(b.url)+'</a>'
+    + (b.description?'<div class="desc">'+escapeHtml(b.description)+'</div>':'')
+    + (b.note?'<div class="note">'+formatNote(b.note)+'</div>':'')
+    + ((b.tags&&b.tags.length)?'<div class="tags">'+b.tags.map(t=>'<span class="tag" data-tag="'+escapeAttr(t)+'" title="Filter to this tag">'+escapeHtml(t)+'</span>').join('')+'</div>':'')
+    + '</div></div>')
+  ).join('');
+  list.querySelectorAll('.tag[data-tag]').forEach(el=>el.onclick=()=>{
+    $("#search").value = '#'+el.dataset.tag; render();
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+  list.querySelectorAll('.editBtn').forEach(el=>el.onclick=(e)=>{ e.stopPropagation(); openEdit(+el.dataset.id); });
+  // clicking anywhere on a card opens the original page, except on the Edit
+  // button, a tag chip, or the address link (which handle their own clicks)
+  list.querySelectorAll('.bm').forEach(card=>{ if(card.querySelector('#eUrl')) return;
+    card.onclick=(e)=>{ if(e.target.closest('.editBtn,.tag,a')) return;
+      const b=bookmarks.find(x=>'bm-'+x.id===card.id); if(b) window.open(b.url,'_blank','noopener'); }; });
+  wireEditForm();
+}
+
+function editFormHtml(b){
+  return '<div class="bm" id="bm-'+b.id+'" style="display:block">'
+    + '<div class="hint">Editing this bookmark — change anything, then save.</div>'
+    + '<label>Address</label><input type="url" id="eUrl" value="'+escapeAttr(b.url)+'">'
+    + '<div id="eDupWarn"></div>'
+    + '<label>Title</label><input type="text" id="eTitle" value="'+escapeAttr(b.title)+'">'
+    + '<label>Description</label><textarea id="eDesc">'+escapeHtml(b.description||'')+'</textarea>'
+    + '<label>Tags (comma separated)</label><input type="text" id="eTags" value="'+escapeAttr((b.tags||[]).join(', '))+'">'
+    + '<div class="suggest" id="eTagSuggest"></div>'
+    + '<label>Your note</label><textarea id="eNote" style="min-height:110px">'+escapeHtml(b.note||'')+'</textarea>'
+    + '<div class="hint">Supports **bold**, - bullet lists, and [links](https://…).</div>'
+    + '<div class="row" style="margin-top:12px"><button id="eSave">Save changes</button>'
+    + '<button class="secondary" id="eCancel">Cancel</button></div></div>';
+}
+function wireEditForm(){
+  if(editingId===null) return;
+  const tagsField=$("#eTags"); if(!tagsField) return;
+  wireTagSuggest(tagsField, $("#eTagSuggest"));
+  $("#eCancel").onclick=()=>{ editingId=null; render(); };
+  $("#eSave").onclick=saveEdit;
+}
+function openEdit(id){ editingId=id; render();
+  setTimeout(()=>{ const el=document.getElementById('bm-'+id);
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'});
+      const f=document.getElementById('eTitle'); if(f) f.focus(); } }, 60);
+}
+function saveEdit(){
+  const b=bookmarks.find(x=>x.id===editingId); if(!b) return;
+  const newUrl=$("#eUrl").value.trim() || b.url;
+  // if the address now matches a DIFFERENT bookmark, block (avoid duplicate)
+  const clash=bookmarks.find(x=>x.id!==b.id && normalize(x.url)===normalize(newUrl));
+  if(clash){ $("#eDupWarn").innerHTML='<div class="warn">That address is already saved as <b>'
+      +escapeHtml(clash.title)+'</b>. Two bookmarks can\'t share the same address.</div>'; return; }
+  const seen=new Set(); const tags=[];
+  $("#eTags").value.split(',').map(t=>t.trim()).filter(Boolean).forEach(t=>{
+    const c=canonTag(t); const k=c.toLowerCase(); if(!seen.has(k)){ seen.add(k); tags.push(c); } });
+  const urlChanged = normalize(newUrl)!==normalize(b.url);
+  b.url=newUrl; b.title=$("#eTitle").value.trim()||newUrl;
+  b.description=$("#eDesc").value.trim(); b.tags=tags; b.note=$("#eNote").value.trim();
+  if(urlChanged){ b.favicon=faviconFor(newUrl); b.preview=previewFor(newUrl,b.title); }
+  editingId=null; flash('Changes saved.'); render(); jumpTo(b.id);
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escapeAttr(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+$("#saveBtn").onclick = startSave;
+$("#url").addEventListener('keydown', e=>{ if(e.key==='Enter') startSave(); });
+$("#search").addEventListener('input', render);
+$("#clearSearch").onclick = ()=>{ $("#search").value=''; render(); $("#search").focus(); };
+
+render();
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

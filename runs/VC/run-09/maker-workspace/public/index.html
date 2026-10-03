@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookmarks</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">🔖</span>
+        <span class="brand-name">Bookmarks</span>
+      </div>
+
+      <button id="add-btn" class="btn btn-primary btn-block">+ Add bookmark</button>
+
+      <nav class="scopes">
+        <button class="scope" data-scope="active">All</button>
+        <button class="scope" data-scope="read_later">Read later</button>
+        <button class="scope" data-scope="favorite">Favorites</button>
+        <button class="scope" data-scope="archived">Archived</button>
+      </nav>
+
+      <div class="side-section">
+        <div class="side-head">
+          <span>Saved views</span>
+          <button id="save-view-btn" class="link-btn" title="Save current filters as a view">+ Save</button>
+        </div>
+        <ul id="views-list" class="views-list"></ul>
+      </div>
+
+      <div class="side-section side-tags">
+        <div class="side-head">
+          <span>Tags</span>
+          <span class="hint" title="Click to include, click again to exclude">click to filter</span>
+        </div>
+        <ul id="tags-list" class="tags-list"></ul>
+      </div>
+
+      <div class="side-section side-io">
+        <button id="import-btn" class="link-btn">Import…</button>
+        <button id="export-btn" class="link-btn">Export</button>
+        <input type="file" id="import-file" accept=".html,text/html" hidden />
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search-wrap">
+          <input id="search" type="search" placeholder='Search everything — try  "exact phrase"  cat OR dog  react NOT native' autocomplete="off" />
+        </div>
+        <select id="sort" class="select" title="Sort order">
+          <option value="created_desc">Newest first</option>
+          <option value="created_asc">Oldest first</option>
+          <option value="updated_desc">Recently updated</option>
+          <option value="title_asc">Title A→Z</option>
+          <option value="title_desc">Title Z→A</option>
+        </select>
+      </header>
+
+      <div id="active-filters" class="active-filters" hidden></div>
+
+      <div id="bulk-bar" class="bulk-bar">
+        <label class="check"><input type="checkbox" id="select-all" /> <span id="select-count">Select all</span></label>
+        <div class="bulk-actions" id="bulk-actions" hidden>
+          <button class="btn btn-sm" data-bulk="read_later">Read later</button>
+          <button class="btn btn-sm" data-bulk="favorite">Favorite</button>
+          <button class="btn btn-sm" data-bulk="add_tags">Add tags…</button>
+          <button class="btn btn-sm" data-bulk="remove_tags">Remove tags…</button>
+          <button class="btn btn-sm" data-bulk="archived">Archive</button>
+          <button class="btn btn-sm" data-bulk="unarchive">Unarchive</button>
+          <button class="btn btn-sm btn-danger" data-bulk="delete">Delete</button>
+          <button class="btn btn-sm btn-ghost" id="clear-select">Clear</button>
+        </div>
+      </div>
+
+      <div id="list" class="list"></div>
+      <div id="empty" class="empty" hidden></div>
+    </main>
+  </div>
+
+  <!-- Add / edit modal -->
+  <div id="modal" class="modal-backdrop" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modal-title">Add bookmark</h2>
+        <button class="icon-btn" id="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div id="dup-note" class="note" hidden></div>
+      <form id="bookmark-form" class="form">
+        <input type="hidden" id="f-id" />
+        <label>URL
+          <input id="f-url" type="text" required placeholder="https://example.com/article" />
+        </label>
+        <label>Title
+          <input id="f-title" type="text" placeholder="(auto-fetched if blank)" />
+        </label>
+        <label>Description
+          <textarea id="f-description" rows="2" placeholder="(auto-fetched if blank)"></textarea>
+        </label>
+        <label>Notes
+          <textarea id="f-notes" rows="2" placeholder="Your private notes"></textarea>
+        </label>
+        <label>Tags
+          <input id="f-tags" type="text" placeholder="comma, separated, tags" />
+        </label>
+        <div class="form-row">
+          <label class="inline"><input type="checkbox" id="f-favorite" /> Favorite</label>
+          <label class="inline"><input type="checkbox" id="f-read_later" /> Read later</label>
+          <label class="inline"><input type="checkbox" id="f-archived" /> Archived</label>
+        </div>
+        <div class="form-row form-media">
+          <label class="grow">Favicon URL <input id="f-favicon" type="text" /></label>
+          <label class="grow">Preview image URL <input id="f-preview_image" type="text" /></label>
+        </div>
+        <div id="f-preview" class="f-preview" hidden><img id="f-preview-img" alt="preview" /></div>
+        <div id="f-snapshot-row" class="snapshot-row" hidden>
+          <span>Snapshot:</span> <a id="f-snapshot-link" href="#" target="_blank">view local copy</a>
+        </div>
+        <div class="modal-foot">
+          <div class="foot-left">
+            <button type="button" class="btn btn-ghost" id="f-fetch">↻ Fetch metadata</button>
+            <button type="button" class="btn btn-ghost" id="f-snapshot">Save snapshot</button>
+          </div>
+          <div class="foot-right">
+            <button type="button" class="btn btn-danger" id="f-delete" hidden>Delete</button>
+            <button type="submit" class="btn btn-primary" id="f-save">Save</button>
+          </div>
+        </div>
+        <div id="f-status" class="f-status"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

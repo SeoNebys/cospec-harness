@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tuck — Add tags</title>
+  <style>
+    :root { --ink:#18211b; --muted:#69736c; --paper:#f5f2e9; --card:#fffdf8; --line:#dedbd1; --green:#245b46; --mint:#dbe9dd; --soft:#edf1eb; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); background:radial-gradient(circle at 88% 5%,#cfdeca,transparent 24rem),var(--paper); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button,input { font:inherit; }
+    .shell { width:min(760px,calc(100% - 32px)); margin:0 auto; padding:28px 0 80px; }
+    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:62px; }
+    .brand { display:inline-flex; align-items:center; gap:10px; font-family:Georgia,"Times New Roman",serif; font-size:22px; font-weight:700; }
+    .mark { display:grid; place-items:center; width:32px; height:32px; color:white; background:var(--green); border-radius:9px 9px 13px 9px; }
+    .label { color:var(--muted); font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+    .eyebrow { color:var(--green); font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    h1 { margin:9px 0 10px; font-family:Georgia,"Times New Roman",serif; font-size:46px; line-height:1; font-weight:500; letter-spacing:-.035em; }
+    .intro { margin:0 0 28px; color:var(--muted); font-size:16px; line-height:1.5; }
+    .card { padding:27px; background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:0 18px 50px rgba(38,51,41,.09); }
+    .page-details { display:flex; align-items:center; gap:13px; margin-bottom:24px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+    .favicon { display:grid; place-items:center; width:42px; height:42px; color:white; background:var(--green); border-radius:10px; font-family:Georgia,"Times New Roman",serif; font-size:18px; font-weight:700; }
+    .page-title { display:block; font-weight:750; }
+    .page-description,.page-url { display:block; overflow:hidden; margin-top:3px; color:var(--muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+    label { display:block; margin-bottom:8px; font-size:13px; font-weight:750; }
+    .entry-wrap { position:relative; }
+    .tag-entry { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:49px; padding:6px; background:white; border:1px solid var(--line); border-radius:10px; }
+    .tag-entry:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(36,91,70,.12); }
+    .tag-entry input { flex:1 1 170px; min-width:140px; height:34px; padding:0 7px; border:0; outline:0; }
+    .chip { display:inline-flex; align-items:center; gap:5px; padding:6px 9px; color:var(--green); background:var(--mint); border-radius:999px; font-size:12px; font-weight:750; }
+    .chip button { padding:0; color:var(--green); background:transparent; border:0; cursor:pointer; font-weight:800; }
+    .suggestions { position:absolute; z-index:3; top:55px; left:0; right:0; padding:7px; background:white; border:1px solid var(--line); border-radius:10px; box-shadow:0 13px 30px rgba(24,33,27,.14); }
+    .suggestions[hidden] { display:none; }
+    .suggestion { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 11px; color:var(--ink); background:transparent; border:0; border-radius:7px; cursor:pointer; text-align:left; }
+    .suggestion:hover,.suggestion.active { background:var(--soft); }
+    .suggestion-name { font-weight:700; }
+    .used { color:var(--muted); font-size:11px; }
+    .hint { min-height:19px; margin-top:8px; color:var(--muted); font-size:12px; }
+    .save { width:100%; height:46px; margin-top:18px; color:white; background:var(--green); border:0; border-radius:10px; font-weight:750; cursor:pointer; }
+    .preview { min-height:84px; margin-top:20px; padding:14px; background:var(--soft); border-radius:11px; }
+    .preview-label { color:var(--muted); font-size:11px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+    .preview-title { margin-top:8px; font-weight:750; }
+    .preview-tags { display:flex; gap:6px; margin-top:9px; }
+    .preview-empty { margin-top:9px; color:var(--muted); font-size:13px; }
+    @media(max-width:600px){.label{display:none}.card{padding:20px}h1{font-size:40px}}
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header><div class="brand"><span class="mark">↘</span> Tuck</div><div class="label">Tagging flow</div></header>
+    <main>
+      <div class="eyebrow">Organize this bookmark</div>
+      <h1>Add the labels you'll remember.</h1>
+      <p class="intro">Reuse a tag you've used before, or type a new one and press Enter.</p>
+      <section class="card">
+        <div class="page-details"><span class="favicon">M</span><span><span class="page-title">HTML: HyperText Markup Language</span><span class="page-description">A reference for the language used to structure web pages.</span><span class="page-url">developer.mozilla.org/en-US/docs/Web/HTML</span></span></div>
+        <label for="tag-input">Tags <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+        <div class="entry-wrap">
+          <div class="tag-entry"><span id="chips"></span><input id="tag-input" autocomplete="off" placeholder="Type a tag and press Enter" aria-autocomplete="list" aria-controls="suggestions"></div>
+          <div class="suggestions" id="suggestions" role="listbox" hidden></div>
+        </div>
+        <div class="hint" id="hint">Previously used tags will appear as you type.</div>
+        <button class="save" type="button">Save bookmark</button>
+        <div class="preview" aria-live="polite"><div class="preview-label">Saved bookmark</div><div class="preview-empty">Add tags and save to see the result.</div></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const existingTags = [
+      {name:'reading', uses:12},
+      {name:'recipes', uses:8},
+      {name:'work', uses:7},
+      {name:'research', uses:4},
+      {name:'travel', uses:3}
+    ];
+    const selected = new Set();
+    const input = document.querySelector('#tag-input');
+    const chips = document.querySelector('#chips');
+    const suggestions = document.querySelector('#suggestions');
+    const hint = document.querySelector('#hint');
+
+    function addTag(name) {
+      const tag = name.trim().toLowerCase();
+      if (!tag || selected.has(tag)) return;
+      selected.add(tag);
+      input.value = '';
+      renderChips();
+      renderSuggestions();
+      input.focus();
+    }
+
+    function renderChips() {
+      chips.innerHTML = '';
+      selected.forEach((tag) => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.append(document.createTextNode(tag));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = '×';
+        remove.setAttribute('aria-label', `Remove ${tag} tag`);
+        remove.addEventListener('click', () => { selected.delete(tag); renderChips(); input.focus(); });
+        chip.append(remove);
+        chips.append(chip);
+      });
+    }
+
+    function renderSuggestions() {
+      const query = input.value.trim().toLowerCase();
+      const matches = query ? existingTags.filter(tag => tag.name.includes(query) && !selected.has(tag.name)) : [];
+      suggestions.innerHTML = '';
+      matches.forEach((tag, index) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = `suggestion${index === 0 ? ' active' : ''}`;
+        option.setAttribute('role', 'option');
+        option.innerHTML = `<span class="suggestion-name">${tag.name}</span><span class="used">used ${tag.uses} times</span>`;
+        option.addEventListener('click', () => addTag(tag.name));
+        suggestions.append(option);
+      });
+      suggestions.hidden = matches.length === 0;
+      hint.textContent = matches.length ? `${matches.length} existing ${matches.length === 1 ? 'tag' : 'tags'} found` : 'Previously used tags will appear as you type.';
+    }
+
+    input.addEventListener('input', renderSuggestions);
+    input.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ',') return;
+      event.preventDefault();
+      const firstSuggestion = suggestions.querySelector('.suggestion');
+      if (firstSuggestion && !suggestions.hidden) firstSuggestion.click();
+      else addTag(input.value.replace(/,$/, ''));
+    });
+
+    document.querySelector('.save').addEventListener('click', () => {
+      const preview = document.querySelector('.preview');
+      preview.innerHTML = `<div class="preview-label">Saved bookmark</div><div class="preview-title">HTML: HyperText Markup Language</div><div class="preview-tags">${[...selected].map(tag => `<span class="chip">${tag}</span>`).join('')}</div>`;
+    });
+  </script>
+</body>
+</html>

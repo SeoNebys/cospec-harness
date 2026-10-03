@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tags — variant 1</title>
+<link rel="stylesheet" href="tags.css" />
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — adding tags &amp; notes</p>
+  <span class="variant-tag">Variant 1 of 3</span>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <p class="title">Artemis II - NASA</p>
+    <p class="site">nasa.gov</p>
+    <p class="desc">Artemis II will be the first crewed mission of NASA's Artemis campaign, sending four astronauts around the Moon.</p>
+
+    <div class="field-label">Tags</div>
+    <div class="taginput" id="taginput">
+      <!-- chips injected here -->
+      <input id="tagField" type="text" placeholder="Type a tag, press Enter…" autocomplete="off" />
+    </div>
+
+    <div class="field-label">Note</div>
+    <textarea id="note" placeholder="Add your own note…"></textarea>
+    <div class="saved-note" id="savedNote"></div>
+  </div>
+  <p class="hint">This is one of three ways to add tags. Try adding a couple of tags, then compare with the other two.</p>
+</div>
+
+<script>
+  const tags = [];
+  const box = document.getElementById("taginput");
+  const field = document.getElementById("tagField");
+
+  function renderChips() {
+    box.querySelectorAll(".chip").forEach(c => c.remove());
+    tags.forEach((t, i) => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.innerHTML = `${t} <button title="remove">×</button>`;
+      chip.querySelector("button").onclick = () => { tags.splice(i, 1); renderChips(); };
+      box.insertBefore(chip, field);
+    });
+  }
+
+  field.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const v = field.value.trim();
+      if (v && !tags.includes(v)) { tags.push(v); field.value = ""; renderChips(); }
+    } else if (e.key === "Backspace" && !field.value && tags.length) {
+      tags.pop(); renderChips();
+    }
+  });
+  box.addEventListener("click", () => field.focus());
+
+  const note = document.getElementById("note");
+  const savedNote = document.getElementById("savedNote");
+  note.addEventListener("blur", () => {
+    savedNote.textContent = note.value.trim() ? "Saved note: " + note.value.trim() : "";
+  });
+
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

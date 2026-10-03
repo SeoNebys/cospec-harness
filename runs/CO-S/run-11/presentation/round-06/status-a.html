@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — read status (version A)</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --ink:#1f2933; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --accent-soft:#eff4ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:22px 28px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .variant-tag { display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:3px 10px; }
+  main { max-width:760px; margin:0 auto; padding:28px 20px 60px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:24px; }
+  .panel h2 { margin:0 0 14px; font-size:15px; }
+  .empty { text-align:center; color:var(--muted); padding:30px 10px; font-size:14px; }
+  ul.list { list-style:none; margin:0; padding:0; }
+  li.item { border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  li.item.finished { background:#fafafa; }
+  li.item.finished .title a { color:var(--muted); }
+  li.item .title { font-weight:600; font-size:15px; }
+  li.item .title a { color:var(--ink); text-decoration:none; }
+  li.item .url { font-size:12px; color:var(--muted); margin-top:2px; word-break:break-all; }
+  li.item .desc { font-size:13px; color:#4b5563; margin-top:8px; }
+  .chips { margin-top:10px; }
+  .chip { display:inline-block; font-size:12px; color:#334155; background:#eef2f7; border:1px solid #e2e8f0; border-radius:999px; padding:3px 10px; margin:0 6px 6px 0; }
+  .itemhead { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .toggle { flex:none; font-size:12px; font-weight:600; border:1px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px; cursor:pointer; white-space:nowrap; }
+  .toggle.done { background:#ecfdf5; border-color:#a7f3d0; color:#047857; }
+  .filters { display:flex; gap:8px; margin-bottom:16px; }
+  .filters button { font-size:13px; border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 14px; cursor:pointer; color:var(--muted); }
+  .filters button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .count { color:var(--muted); font-size:12px; font-weight:400; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype for review — behaviour exploration only</p>
+  <span class="variant-tag">Read status — Version A: one list, a To read / Read toggle per item, filter buttons on top</span>
+</header>
+<main>
+  <section class="panel">
+    <h2>Saved <span id="count" class="count"></span></h2>
+    <div class="filters">
+      <button data-f="all" class="active">All</button>
+      <button data-f="toread">To read</button>
+      <button data-f="finished">Finished</button>
+    </div>
+    <div id="empty" class="empty" style="display:none">Nothing here.</div>
+    <ul id="list" class="list"></ul>
+  </section>
+</main>
+<script>
+  const bookmarks=[
+    {url:"https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures",title:"Closures — JavaScript | MDN",desc:"A closure is the combination of a function bundled together with references to its surrounding state.",tags:["javascript","reference"],finished:false},
+    {url:"https://www.nytimes.com/2026/09/10/technology/ai-agents.html",title:"The Rise of AI Agents",desc:"How autonomous software agents are changing daily work.",tags:["reading","ai"],finished:false},
+    {url:"https://en.wikipedia.org/wiki/Bookmark_(digital)",title:"Bookmark (digital) — Wikipedia",desc:"A digital bookmark is a saved shortcut that directs a browser to a web page.",tags:["reference"],finished:true}
+  ];
+  let filter="all";
+  const listEl=document.getElementById("list"),emptyEl=document.getElementById("empty"),countEl=document.getElementById("count");
+  function visible(){return bookmarks.filter(b=>filter==="all"?true:filter==="toread"?!b.finished:b.finished);}
+  function render(){
+    const items=visible();
+    listEl.innerHTML="";countEl.textContent="("+items.length+")";emptyEl.style.display=items.length?"none":"block";
+    items.forEach(b=>{
+      const li=document.createElement("li");li.className="item"+(b.finished?" finished":"");
+      const head=document.createElement("div");head.className="itemhead";
+      const left=document.createElement("div");
+      const t=document.createElement("div");t.className="title";const a=document.createElement("a");a.href=b.url;a.textContent=b.title||b.url;a.target="_blank";t.appendChild(a);
+      const url=document.createElement("div");url.className="url";url.textContent=b.url;
+      left.appendChild(t);left.appendChild(url);
+      const toggle=document.createElement("button");toggle.className="toggle"+(b.finished?" done":"");toggle.textContent=b.finished?"✓ Finished":"To read";
+      toggle.addEventListener("click",()=>{b.finished=!b.finished;render();});
+      head.appendChild(left);head.appendChild(toggle);li.appendChild(head);
+      if(b.desc){const d=document.createElement("div");d.className="desc";d.textContent=b.desc;li.appendChild(d);}
+      if(b.tags&&b.tags.length){const c=document.createElement("div");c.className="chips";b.tags.forEach(tag=>{const s=document.createElement("span");s.className="chip";s.textContent="#"+tag;c.appendChild(s);});li.appendChild(c);}
+      listEl.appendChild(li);
+    });
+  }
+  document.querySelectorAll(".filters button").forEach(btn=>btn.addEventListener("click",()=>{filter=btn.dataset.f;document.querySelectorAll(".filters button").forEach(b=>b.classList.remove("active"));btn.classList.add("active");render();}));
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

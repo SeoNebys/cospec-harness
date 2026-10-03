@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Trove — personalized address correction</title>
+  <style>
+    :root{--ink:#17211b;--muted:#68736c;--line:#dfe5df;--paper:#fbfcf8;--green:#256b4b;--wash:#eef5ee}
+    *{box-sizing:border-box} body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,sans-serif} header{height:72px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 6vw}.brand{font:700 21px Georgia,serif}.mark{display:inline-block;width:22px;height:27px;background:var(--green);border-radius:3px 3px 8px 8px;margin-right:10px;vertical-align:middle}
+    main{width:min(1040px,90vw);margin:0 auto;padding:54px 0 90px}.eyebrow{color:var(--green);font-weight:700;font-size:12px;letter-spacing:.13em;text-transform:uppercase}h1{font:500 43px/1.05 Georgia,serif;letter-spacing:-1.4px;margin:12px 0 12px}.intro{color:var(--muted);font-size:16px;line-height:1.5;margin:0 0 34px}
+    .versions{display:grid;grid-template-columns:1fr 1fr;gap:24px}.version{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 12px 32px rgba(30,54,40,.06)}.version h2{font:500 22px Georgia,serif;margin:0 0 5px}.version-note{color:var(--muted);font-size:13px;margin-bottom:18px}.card{border-top:1px solid var(--line);padding-top:18px}.thumb{height:138px;border-radius:11px;background:url('serious-eats-preview.jpg') center/cover;margin-bottom:16px}.domain{color:var(--green);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.card h3{font:500 23px/1.2 Georgia,serif;margin:8px 0}.desc{color:var(--muted);font-size:14px;line-height:1.45;min-height:42px}.personalized{display:inline-block;background:#f0e9d7;color:#785b17;border-radius:20px;padding:5px 9px;font-size:11px;font-weight:700;margin-top:7px}.edit{margin-top:18px;padding-top:15px;border-top:1px solid var(--line)}label{display:block;color:var(--muted);font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;border:1px solid #cdd7cf;border-radius:9px;padding:11px;font:inherit;color:var(--ink)}button{margin-top:10px;border:0;border-radius:9px;background:var(--green);color:#fff;padding:11px 15px;font-weight:700;cursor:pointer}.muted-btn{background:#fff;color:var(--green);border:1px solid #bfd1c4;margin-right:7px}.status{display:none;margin-top:14px;padding:11px 12px;background:var(--wash);border-radius:9px;color:#315a43;font-size:13px;line-height:1.4}
+    dialog{border:0;border-radius:16px;padding:0;box-shadow:0 25px 70px rgba(20,34,25,.24);width:min(450px,88vw)}dialog::backdrop{background:rgba(20,30,24,.42)}.dialog-body{padding:25px}.dialog-body h3{font:500 25px Georgia,serif;margin:0 0 9px}.dialog-body p{color:var(--muted);line-height:1.5;margin:0 0 15px}.comparison{background:var(--wash);border-radius:10px;padding:12px;font-size:13px;line-height:1.5;margin-bottom:8px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 25px 22px}.dialog-actions button{margin:0}
+    @media(max-width:760px){.versions{grid-template-columns:1fr}main{padding-top:36px}}
+  </style>
+</head>
+<body>
+  <header><div class="brand"><span class="mark"></span>Trove</div></header>
+  <main data-harness-ready="true">
+    <div class="eyebrow">Address correction</div><h1>Your words should stay yours.</h1>
+    <p class="intro">Both bookmarks begin with a title and description you wrote yourself.</p>
+    <div class="versions">
+      <section class="version" id="keep-version">
+        <h2>Version A</h2><div class="version-note">Correct the address directly</div>
+        <div class="card"><div class="thumb" id="keep-thumb"></div><div class="domain" id="keep-domain">seriouseats.com</div><h3 id="keep-title">Recipes I want to try</h3><p class="desc" id="keep-desc">Reliable cooking ideas for weekends.</p><span class="personalized">Personalized by you</span>
+          <div class="edit"><label for="keep-url">Web address</label><input id="keep-url" type="url" value="https://developer.mozilla.org/"><button id="keep-save">Save corrected address</button><div class="status" id="keep-status"></div></div>
+        </div>
+      </section>
+      <section class="version" id="ask-version">
+        <h2>Version B</h2><div class="version-note">Review what changes before saving</div>
+        <div class="card"><div class="thumb" id="ask-thumb"></div><div class="domain" id="ask-domain">seriouseats.com</div><h3 id="ask-title">Recipes I want to try</h3><p class="desc" id="ask-desc">Reliable cooking ideas for weekends.</p><span class="personalized">Personalized by you</span>
+          <div class="edit"><label for="ask-url">Web address</label><input id="ask-url" type="url" value="https://developer.mozilla.org/"><button id="ask-save">Save corrected address</button></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <dialog id="review-dialog"><div class="dialog-body"><h3>Keep your wording?</h3><p>The new page has its own title and description. Your personalized wording will not be replaced unless you choose to replace it.</p><div class="comparison"><strong>Your title:</strong> Recipes I want to try<br><strong>Page title:</strong> MDN Web Docs</div></div><div class="dialog-actions"><button class="muted-btn" id="use-page">Use page details</button><button id="keep-own">Keep my wording</button></div></dialog>
+  <script>
+    function corrected(prefix, keepWords){
+      document.querySelector(`#${prefix}-domain`).textContent='developer.mozilla.org';
+      document.querySelector(`#${prefix}-thumb`).style.background='linear-gradient(145deg,#d7e8dc,#90b69c)';
+      if(!keepWords){document.querySelector(`#${prefix}-title`).textContent='MDN Web Docs';document.querySelector(`#${prefix}-desc`).textContent='Resources for developers, by developers: documentation for web technologies.'}
+    }
+    document.querySelector('#keep-save').onclick=()=>{corrected('keep',true);const s=document.querySelector('#keep-status');s.textContent='Address and page identity updated. Your title and description were kept.';s.style.display='block'};
+    const dialog=document.querySelector('#review-dialog');
+    document.querySelector('#ask-save').onclick=()=>dialog.showModal();
+    document.querySelector('#keep-own').onclick=()=>{corrected('ask',true);dialog.close()};
+    document.querySelector('#use-page').onclick=()=>{corrected('ask',false);dialog.close()};
+  </script>
+</body>
+</html>

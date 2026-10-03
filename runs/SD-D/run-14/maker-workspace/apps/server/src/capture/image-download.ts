@@ -1,0 +1,4 @@
+import { assertPublicUrl } from './url-policy.js';
+export async function safeImageDownload(url:string,allowPrivate=false):Promise<{buffer:Buffer;mediaType:string;ext:'png'|'jpg'|'webp'|'ico'}|null>{
+  let current=url; for(let i=0;i<5;i++){current=await assertPublicUrl(current,allowPrivate);const res=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(8000)});if(res.status>=300&&res.status<400&&res.headers.get('location')){current=new URL(res.headers.get('location')!,current).toString();continue;}if(!res.ok)return null;const type=(res.headers.get('content-type')??'').split(';')[0]!;const map:Record<string,'png'|'jpg'|'webp'|'ico'>={'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/x-icon':'ico','image/vnd.microsoft.icon':'ico'};const ext=map[type];if(!ext)return null;const arr=await res.arrayBuffer();if(arr.byteLength>5_000_000)return null;return{buffer:Buffer.from(arr),mediaType:type,ext};}return null;
+}

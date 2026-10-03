@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge cases — saving</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#1f2430; --muted:#6b7280; --line:#e5e7eb; --accent:#2f6feb; --accent-soft:#eaf1fe; --warn:#b4360e; --warn-soft:#fdecea; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:24px; }
+  .saver label { display:block; font-size:13px; font-weight:600; margin-bottom:8px; }
+  .row { display:flex; gap:10px; }
+  .row input { flex:1; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .row input.bad { border-color:var(--warn); background:var(--warn-soft); }
+  button.primary { padding:11px 18px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  .msg { font-size:13px; margin-top:10px; display:none; }
+  .msg.err { color:var(--warn); } .msg.info { color:var(--accent); }
+  .fetching { font-size:13px; color:var(--muted); margin-top:10px; display:none; }
+  .hint { color:var(--muted); font-size:12px; margin-top:12px; line-height:1.7; }
+  .hint code { background:var(--accent-soft); color:var(--accent); padding:2px 6px; border-radius:5px; cursor:pointer; }
+  .count { color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:12px; }
+  .card.flash { box-shadow:0 0 0 2px var(--accent); }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 4px; word-break:break-word; }
+  .card .title a { color:var(--ink); text-decoration:none; }
+  .card .site { color:var(--accent); font-size:12px; margin:0 0 8px; word-break:break-all; }
+  .card .desc { color:var(--muted); font-size:13px; margin:0 0 8px; line-height:1.45; }
+  .card .flag { color:var(--warn); background:var(--warn-soft); border-radius:8px; padding:6px 10px; font-size:12px; display:inline-block; margin-bottom:8px; }
+  .card .meta { color:var(--muted); font-size:12px; }
+  .empty { text-align:center; color:var(--muted); padding:48px 20px; border:1px dashed var(--line); border-radius:12px; background:var(--card); }
+  .empty .big { font-size:28px; margin-bottom:8px; } .empty .t { font-weight:600; color:var(--ink); margin-bottom:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype — saving edge cases (starts empty, as a brand-new user)</p>
+</header>
+<div class="wrap">
+  <div class="saver">
+    <label for="url">Save a link</label>
+    <div class="row">
+      <input id="url" type="text" placeholder="Paste a link here…" autocomplete="off" />
+      <button id="save" class="primary">Save</button>
+    </div>
+    <div class="fetching" id="fetching">Reading the page details…</div>
+    <div class="msg err" id="err"></div>
+    <div class="msg info" id="info"></div>
+    <div class="hint">
+      Samples:
+      <code data-s="https://reactjs.org/docs/hooks-intro.html">a normal link</code>
+      <code data-s="https://unreachable.example/broken-page">a link that can't be read</code>
+      <code data-s="not a real address">a malformed address</code>
+    </div>
+  </div>
+  <div class="count" id="count"></div>
+  <div id="list"></div>
+</div>
+<script>
+  const CATALOG = {
+    "https://reactjs.org/docs/hooks-intro.html": { title:"Introducing Hooks - React", site:"reactjs.org", desc:"Use state and other React features without writing a class." }
+  };
+  function isValidUrl(u){ try { const x=new URL(u); return x.protocol==="http:"||x.protocol==="https:"; } catch(e){ return false; } }
+  function readDetails(url){
+    if(CATALOG[url]) return { ...CATALOG[url], unreadable:false };
+    // Simulate an unreadable page: no details available -> fall back to URL.
+    const unreadable = /unreachable\.example|\/broken/.test(url);
+    let site=url, path="";
+    try { const u=new URL(url); site=u.hostname.replace(/^www\./,""); path=u.pathname.replace(/\/$/,"").split("/").filter(Boolean).pop()||""; } catch(e){}
+    const title = path ? path.replace(/[-_]+/g," ").replace(/\.\w+$/,"").replace(/\b\w/g,c=>c.toUpperCase()) : site;
+    return { title:title||url, site, desc:"", unreadable };
+  }
+  const bookmarks=[];
+  const listEl=document.getElementById("list"), countEl=document.getElementById("count");
+  const input=document.getElementById("url"), saveBtn=document.getElementById("save");
+  const fetching=document.getElementById("fetching"), err=document.getElementById("err"), info=document.getElementById("info");
+  function fmt(d){ return d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}); }
+  function clearMsgs(){ err.style.display="none"; info.style.display="none"; input.classList.remove("bad"); }
+  function render(flashId){
+    countEl.textContent = bookmarks.length ? bookmarks.length+(bookmarks.length===1?" link":" links") : "";
+    if(!bookmarks.length){
+      listEl.innerHTML = `<div class="empty"><div class="big">🔖</div><div class="t">No bookmarks yet</div>Paste a link above to save your first one. Saved links will show up here, ready to tag, search, and revisit.</div>`;
+      return;
+    }
+    listEl.innerHTML = bookmarks.map(b=>`
+      <div class="card ${b.id===flashId?'flash':''}">
+        <p class="title"><a href="${b.url}" target="_blank" rel="noreferrer">${b.title}</a></p>
+        <p class="site">${b.site}</p>
+        ${b.unreadable?`<div class="flag">⚠ Couldn't read this page's details — saved the link with what we could work out. You can edit the title, tags, and note.</div>`:""}
+        ${b.desc?`<p class="desc">${b.desc}</p>`:""}
+        <p class="meta">Saved ${fmt(b.savedAt)}</p>
+      </div>`).join("");
+  }
+  function save(){
+    clearMsgs();
+    const url=input.value.trim();
+    if(!url){ return; }
+    if(!isValidUrl(url)){
+      input.classList.add("bad");
+      err.textContent="That doesn't look like a web address. A link should start with http:// or https://";
+      err.style.display="block"; return;
+    }
+    const dup=bookmarks.find(b=>b.url===url);
+    if(dup){
+      info.textContent="You've already saved this link — here it is.";
+      info.style.display="block"; render(dup.id);
+      input.value=""; return;
+    }
+    saveBtn.disabled=true; fetching.style.display="block";
+    setTimeout(()=>{
+      const d=readDetails(url);
+      const bm={ id:Date.now(), url, title:d.title, site:d.site, desc:d.desc, unreadable:d.unreadable, savedAt:new Date() };
+      bookmarks.unshift(bm);
+      input.value=""; fetching.style.display="none"; saveBtn.disabled=false;
+      render(bm.id);
+    },600);
+  }
+  saveBtn.onclick=save;
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); });
+  document.querySelectorAll("code[data-s]").forEach(el=>el.onclick=()=>{ input.value=el.getAttribute("data-s"); clearMsgs(); input.focus(); });
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Your library</title>
+  <style>
+    :root { --ink:#17201d; --muted:#68736e; --line:#dfe6e2; --paper:#fff; --wash:#f3f6f3; --green:#28664f; --green2:#e5f1eb; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--wash); color:var(--ink); font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    header { height:68px; background:var(--paper); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 5vw; }
+    .brand { font:700 21px/1.2 Georgia,serif; letter-spacing:.01em; }
+    .brand i { display:inline-block; width:11px; height:15px; margin-right:9px; background:var(--green); border-radius:2px 2px 5px 5px; vertical-align:-2px; }
+    .save-link { color:var(--green); text-decoration:none; font-weight:700; }
+    main { width:min(980px,90vw); margin:54px auto; }
+    .eyebrow { color:var(--green); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; }
+    h1 { font:600 clamp(34px,5vw,48px)/1.08 Georgia,serif; margin:8px 0 26px; letter-spacing:-.025em; }
+    .search-wrap { position:relative; margin-bottom:14px; }
+    .search-wrap span { position:absolute; left:16px; top:13px; color:var(--muted); font-size:18px; }
+    #search { width:100%; height:50px; border:1px solid #c8d2cd; border-radius:12px; padding:0 16px 0 46px; font:16px system-ui,sans-serif; outline:none; background:#fff; }
+    #search:focus { border-color:var(--green); box-shadow:0 0 0 3px var(--green2); }
+    .count { color:var(--muted); font-size:13px; margin:0 0 20px; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; min-height:252px; }
+    .image { height:104px; background:linear-gradient(145deg,#d4e3da,#839f8e); }
+    .image.food { background:linear-gradient(145deg,#f0cda2,#bd7655); }
+    .image.work { background:linear-gradient(145deg,#c8d8e5,#6787a0); }
+    .body { padding:16px; }
+    .site { color:var(--green); font-size:11px; font-weight:800; letter-spacing:.06em; }
+    h2 { font:600 19px/1.25 Georgia,serif; margin:7px 0 7px; }
+    .description { color:var(--muted); font-size:13px; margin:0; }
+    .empty { display:none; padding:52px; text-align:center; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:14px; }
+    @media(max-width:720px){ .grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><i></i>Keep</div><a class="save-link" href="/">+ Save a link</a></header>
+  <main data-harness-ready="true">
+    <div class="eyebrow">Your library</div>
+    <h1>Find what you saved.</h1>
+    <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search titles and descriptions…" aria-label="Search saved bookmarks"></div>
+    <p class="count" id="count">3 bookmarks</p>
+    <section class="grid" id="grid">
+      <article class="card" data-search="simple weeknight pasta recipe tomatoes garlic">
+        <div class="image food"></div><div class="body"><div class="site">KITCHEN NOTES</div><h2>Simple weeknight pasta</h2><p class="description">A flexible tomato pasta recipe for busy evenings.</p></div>
+      </article>
+      <article class="card" data-search="practical guide focused work attention meaningful">
+        <div class="image work"></div><div class="body"><div class="site">EXAMPLE.COM</div><h2>A practical guide to focused work</h2><p class="description">Ideas for protecting your attention and making time for meaningful work.</p></div>
+      </article>
+      <article class="card" data-search="live presence age productivity reflection purpose quiet">
+        <div class="image"></div><div class="body"><div class="site">THE MARGINALIAN</div><h2>How to live with presence</h2><p class="description">A reflection on attention, purpose, and the quiet work of being fully alive.</p></div>
+      </article>
+    </section>
+    <div class="empty" id="empty">No bookmarks match that search.</div>
+  </main>
+  <script>
+    const search = document.querySelector('#search');
+    const cards = [...document.querySelectorAll('.card')];
+    const count = document.querySelector('#count');
+    const empty = document.querySelector('#empty');
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLocaleLowerCase();
+      let shown = 0;
+      cards.forEach(card => {
+        const match = card.dataset.search.toLocaleLowerCase().includes(query);
+        card.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      count.textContent = `${shown} bookmark${shown === 1 ? '' : 's'}`;
+      empty.style.display = shown ? 'none' : 'block';
+    });
+  </script>
+</body>
+</html>

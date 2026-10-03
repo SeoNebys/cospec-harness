@@ -1,0 +1,2 @@
+import { QueryClient,QueryClientProvider } from '@tanstack/react-query';import { MemoryRouter } from 'react-router';import { render } from '@testing-library/react';import type { ReactElement } from 'react';
+export function renderClient(element:ReactElement,{route='/'}={}){const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});return{client,...render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[route]}>{element}</MemoryRouter></QueryClientProvider>)};}

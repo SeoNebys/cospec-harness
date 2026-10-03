@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tags — Version A (type &amp; enter)</title>
+<link rel="stylesheet" href="tags-base.css">
+</head>
+<body>
+<header>
+  <h1>Link Library</h1>
+  <span class="tag">Prototype</span>
+  <span class="variant">Tags · Version A — type &amp; enter</span>
+</header>
+<main>
+  <p class="count" id="count"></p>
+  <ul class="library" id="library"></ul>
+</main>
+<script>
+  const items = [
+    { id: 1, url: "https://en.wikipedia.org/wiki/Bookmark_(digital)", host: "en.wikipedia.org",
+      title: "Bookmark (digital) - Wikipedia",
+      desc: "In the context of the World Wide Web, a bookmark is a URI stored for later retrieval.",
+      saved: "Sep 26, 9:14 AM", tags: ["reference"] },
+    { id: 2, url: "https://developer.mozilla.org/en-US/docs/Web/API", host: "developer.mozilla.org",
+      title: "Web APIs | MDN",
+      desc: "A reference of all the interfaces available for building web apps.",
+      saved: "Sep 26, 9:02 AM", tags: ["dev", "reference"] }
+  ];
+
+  function render() {
+    const lib = document.getElementById("library");
+    document.getElementById("count").textContent = items.length + " saved links";
+    lib.innerHTML = "";
+    items.forEach(it => {
+      const li = document.createElement("li");
+      li.className = "item";
+      const chips = it.tags.map(t =>
+        '<span class="chip">' + t + ' <span class="x" data-id="' + it.id + '" data-tag="' + t + '">×</span></span>'
+      ).join("");
+      li.innerHTML =
+        '<div class="favicon">' + it.host.charAt(0).toUpperCase() + "</div>" +
+        '<div class="body">' +
+          '<a class="title" href="' + it.url + '" target="_blank" rel="noopener">' + it.title + "</a>" +
+          '<div class="desc">' + it.desc + "</div>" +
+          '<div class="tags" data-id="' + it.id + '">' + chips +
+            '<span class="addtag" data-id="' + it.id + '">+ add tag</span></div>' +
+          '<div class="meta"><a href="' + it.url + '" target="_blank" rel="noopener">' + it.host + "</a>" +
+            "<span>Saved " + it.saved + "</span></div>" +
+        "</div>";
+      lib.appendChild(li);
+    });
+    wire();
+  }
+
+  function wire() {
+    document.querySelectorAll(".addtag").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = +btn.dataset.id;
+        const wrap = btn.parentElement;
+        const inp = document.createElement("input");
+        inp.className = "taginput";
+        inp.placeholder = "type a tag, Enter";
+        wrap.insertBefore(inp, btn);
+        btn.style.display = "none";
+        inp.focus();
+        inp.addEventListener("keydown", e => {
+          if (e.key === "Enter" && inp.value.trim()) {
+            const it = items.find(x => x.id === id);
+            const v = inp.value.trim().toLowerCase();
+            if (!it.tags.includes(v)) it.tags.push(v);
+            render();
+          } else if (e.key === "Escape") { render(); }
+        });
+        inp.addEventListener("blur", () => setTimeout(render, 120));
+      });
+    });
+    document.querySelectorAll(".chip .x").forEach(x => {
+      x.addEventListener("click", () => {
+        const it = items.find(i => i.id === +x.dataset.id);
+        it.tags = it.tags.filter(t => t !== x.dataset.tag);
+        render();
+      });
+    });
+  }
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

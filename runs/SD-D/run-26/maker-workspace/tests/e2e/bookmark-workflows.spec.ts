@@ -1,0 +1,32 @@
+import { expect, test } from '@playwright/test';
+
+test('save, search, read, archive, restore, edit notes, and export', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Owner password').fill('review-bookmarks');
+  await page.getByRole('button', { name: 'Open my library' }).click();
+  await expect(page.getByRole('heading', { name: 'Your library' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save a link' }).click();
+  await page.getByLabel('Web address').fill('https://example.com/e2e-bookmark');
+  await page.getByLabel('Title').fill('A useful testing guide');
+  await page.getByLabel('Description').fill('A durable description for search.');
+  await page.getByLabel('Personal note').fill('A **bold** note\n\n- first point');
+  await page.getByLabel('Tags').fill('Research, Testing');
+  await page.getByRole('button', { name: 'Save bookmark' }).click();
+  await expect(page.getByRole('link', { name: 'A useful testing guide' })).toBeVisible();
+  await page.getByLabel('Search bookmarks').fill('tag:research AND "useful testing"');
+  await expect(page.getByRole('link', { name: 'A useful testing guide' })).toBeVisible();
+  await page.getByRole('button', { name: 'Mark read' }).click();
+  await expect(page.getByText('Read', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Archive', exact: true }).click();
+  await expect(page.getByText('No bookmarks match that search')).toBeVisible();
+  await page.getByRole('link', { name: 'Archive' }).click();
+  await expect(page.getByRole('heading', { name: 'Archive' })).toBeVisible();
+  await page.getByLabel('Search bookmarks').fill('');
+  await expect(page.getByRole('link', { name: 'A useful testing guide' })).toBeVisible();
+  await page.getByRole('link', { name: 'A useful testing guide' }).click();
+  await expect(page.locator('strong', { hasText: 'bold' })).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Import / export' }).click();
+  await page.getByRole('link', { name: 'Download bookmark file' }).click();
+  expect((await download).suggestedFilename()).toBe('larder-bookmarks.html');
+});

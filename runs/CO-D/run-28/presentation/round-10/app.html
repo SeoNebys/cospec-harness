@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e2e5ea; --ink:#1c2330; --muted:#6b7280; --accent:#2f6df6; --chip:#eef2f8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  header h1 { margin:0; font-size:18px; }
+  main { max-width:820px; margin:0 auto; padding:20px 16px 64px; }
+  .btn { padding:10px 16px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn.ghost { background:#fff; color:var(--ink); border:1px solid var(--line); font-weight:500; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .status { min-height:20px; margin:8px 2px 0; font-size:13px; color:var(--muted); }
+  /* save panel */
+  .addrow { display:flex; gap:8px; }
+  .addrow input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .draft { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+  .draft label { font-size:12px; color:var(--muted); }
+  .draft input, .draft textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  .draft textarea { resize:vertical; min-height:56px; }
+  .hint { font-size:11.5px; color:var(--muted); margin-top:-4px; }
+  .previewbox { border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#fafafa; min-height:20px; font-size:13px; }
+  .row { display:flex; gap:8px; }
+  .fetchline { font-size:12.5px; color:#16794b; }
+  .fetchwarn { font-size:12.5px; color:#92400e; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; }
+  /* tag input */
+  .taginput { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .taginput input { border:0; outline:0; flex:1; min-width:120px; padding:4px; font-size:14px; }
+  .tag { background:var(--chip); border-radius:999px; padding:3px 10px; font-size:12.5px; color:#38445c; display:inline-flex; align-items:center; gap:6px; }
+  .tag .x { cursor:pointer; color:var(--muted); font-weight:700; }
+  .tag.click { cursor:pointer; } .tag.click:hover{ background:#e2e9f5; }
+  .tag.on { background:var(--accent); color:#fff; }
+  /* search */
+  .views { display:flex; gap:6px; margin:16px 0 0; }
+  .views button { border:1px solid var(--line); background:#fff; color:#42506a; padding:7px 14px; border-radius:999px; font-size:13px; cursor:pointer; }
+  .views button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .searchbar { display:flex; gap:8px; align-items:center; margin:12px 0 10px; }
+  .searchbar input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .filters { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
+  .filters .lbl { font-size:12px; color:var(--muted); margin-right:2px; }
+  .searcherr { font-size:12.5px; color:#b91c1c; min-height:16px; margin:2px 2px; }
+  .resultcount { font-size:12.5px; color:var(--muted); margin:2px 2px 10px; }
+  /* tag suggestions */
+  .tagslot { position:relative; }
+  .suggest { position:absolute; left:0; right:0; top:100%; margin-top:4px; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 20px rgba(20,25,35,.12); z-index:5; overflow:hidden; }
+  .suggest div { padding:8px 11px; font-size:13.5px; cursor:pointer; }
+  .suggest div:hover, .suggest div.active { background:var(--chip); }
+  .suggest .new { color:var(--muted); }
+  /* list */
+  .list { display:flex; flex-direction:column; gap:10px; }
+  .empty { text-align:center; color:var(--muted); padding:44px 12px; border:1px dashed var(--line); border-radius:12px; }
+  .empty strong{ display:block; color:var(--ink); margin-bottom:5px; }
+  .bm { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; gap:12px; }
+  .fav { flex:0 0 34px; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; margin-top:2px; }
+  .body { flex:1; min-width:0; }
+  .title a { font-size:15px; font-weight:600; color:var(--ink); text-decoration:none; }
+  .title a:hover { text-decoration:underline; }
+  .desc { font-size:13px; color:#4b5563; margin:5px 0 0; }
+  .note { font-size:13px; color:#374151; margin:8px 0 0; background:#fafafa; border:1px solid var(--line); border-radius:7px; padding:8px 10px; }
+  .note :first-child{margin-top:0;} .note :last-child{margin-bottom:0;} .note ul{margin:4px 0;padding-left:18px;} .note a{color:var(--accent);}
+  .note-label{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:3px; }
+  .tagrow { margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; }
+  .url { font-size:11.5px; color:var(--muted); word-break:break-all; margin-top:8px; }
+  .actions { margin-top:9px; display:flex; gap:14px; } .actions button { background:none; border:0; color:var(--accent); font-size:12.5px; cursor:pointer; padding:0; }
+  .bm.flash { border-color:#c7dbff; background:#f4f8ff; }
+  mark { background:#fff3ba; padding:0 1px; border-radius:2px; }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+<header><h1>My Bookmarks</h1></header>
+<main>
+  <div class="card">
+    <div class="addrow">
+      <input id="url" type="text" placeholder="Paste a link, e.g. https://…" autocomplete="off">
+      <button class="btn" id="add">Add</button>
+    </div>
+    <div id="slot"></div>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="views" id="views"></div>
+  <div class="searchbar">
+    <input id="search" type="text" placeholder="Search — try:  css   |   #read-later   |   grid AND #css   |   &quot;grid layout&quot; OR figma   |   design NOT tools">
+  </div>
+  <div class="searcherr" id="searcherr"></div>
+  <div class="filters" id="filters"></div>
+  <div class="resultcount" id="count"></div>
+  <div class="list" id="list"></div>
+</main>
+
+<script>
+const KNOWN = {
+  "developer.mozilla.org": { title:"MDN Web Docs", desc:"Resources for developers, by developers." },
+  "github.com": { title:"GitHub", desc:"Let's build from here — the world's largest developer platform." },
+  "en.wikipedia.org": { title:"Wikipedia, the free encyclopedia", desc:"The free encyclopedia anyone can edit." },
+  "news.ycombinator.com": { title:"Hacker News", desc:"News and discussion for the tech community." },
+  "www.figma.com": { title:"Figma: The Collaborative Interface Design Tool", desc:"Design, prototype, and gather feedback all in one place." }
+};
+function normalizeUrl(raw){ let s=raw.trim(); if(!s) return null; if(!/^https?:\/\//i.test(s)) s="https://"+s; try{return new URL(s);}catch(e){return null;} }
+function fakeFetchInfo(u){
+  const host=u.hostname.replace(/^www\./,'');
+  // edge: simulate a page that can't be read automatically
+  if(/\.(example|test|invalid)$/.test(host) || host.startsWith('no-such')) return null;
+  const k=KNOWN[u.hostname]||KNOWN[host]; if(k) return {...k};
+  const path=u.pathname.replace(/\/$/,'').split('/').filter(Boolean).pop()||host;
+  const pretty=decodeURIComponent(path).replace(/[-_]/g,' ').replace(/\.\w+$/,'');
+  return { title: pretty.charAt(0).toUpperCase()+pretty.slice(1)+" — "+host, desc:"" };
+}
+const FAV_COLORS=["#2f6df6","#e2528b","#12a150","#f59e0b","#8b5cf6","#0891b2","#dc2626"];
+function faviconFor(u){ const host=u.hostname.replace(/^www\./,''); let s=0; for(const c of host)s+=c.charCodeAt(0); return {letter:host.charAt(0).toUpperCase(), color:FAV_COLORS[s%FAV_COLORS.length]}; }
+function renderNote(txt){
+  const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const link=s=>esc(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return txt.split(/\n{2,}/).map(b=>{ const lines=b.split('\n');
+    return lines.every(l=>/^\s*-\s+/.test(l)) ? '<ul>'+lines.map(l=>'<li>'+link(l.replace(/^\s*-\s+/,''))+'</li>').join('')+'</ul>'
+                                              : '<p>'+lines.map(link).join('<br>')+'</p>'; }).join('');
+}
+let highlightTerms=[];
+function hl(text){ if(!highlightTerms.length) return escapeHtml(text);
+  const low=text.toLowerCase(); const marks=[];
+  highlightTerms.forEach(term=>{ let from=0,idx; while((idx=low.indexOf(term,from))>=0){ marks.push([idx,idx+term.length]); from=idx+term.length; } });
+  if(!marks.length) return escapeHtml(text);
+  marks.sort((a,b)=>a[0]-b[0]); const merged=[]; for(const m of marks){ if(merged.length&&m[0]<=merged[merged.length-1][1]) merged[merged.length-1][1]=Math.max(merged[merged.length-1][1],m[1]); else merged.push([...m]); }
+  let out='',pos=0; for(const [s,e] of merged){ out+=escapeHtml(text.slice(pos,s))+'<mark>'+escapeHtml(text.slice(s,e))+'</mark>'; pos=e; } out+=escapeHtml(text.slice(pos)); return out;
+}
+function termsFromQuery(s){ const t=tokenize(s); return t.filter(x=>x.k==='term'&&x.text!==undefined).map(x=>x.text).filter(Boolean); }
+function escapeHtml(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// seed a few so search/tags are explorable immediately
+const bookmarks=[
+  { url:"https://developer.mozilla.org/en-US/docs/Web/CSS/grid", fav:faviconFor(new URL("https://developer.mozilla.org")), title:"CSS grid layout — MDN", desc:"A guide to two-dimensional grid layouts in CSS.", note:"", tags:["css","reference"], readLater:true, archived:false },
+  { url:"https://news.ycombinator.com/item?id=12345", fav:faviconFor(new URL("https://news.ycombinator.com")), title:"Show HN: A tiny bookmark manager", desc:"News and discussion for the tech community.", note:"- compare with our idea\n- [thread](https://news.ycombinator.com)", tags:["inspiration"], readLater:false, archived:false },
+  { url:"https://www.figma.com/", fav:faviconFor(new URL("https://www.figma.com")), title:"Figma: The Collaborative Interface Design Tool", desc:"Design, prototype, and gather feedback all in one place.", note:"", tags:["design","tools"], readLater:false, archived:false },
+  { url:"https://en.wikipedia.org/wiki/Bookmark_(digital)", fav:faviconFor(new URL("https://en.wikipedia.org")), title:"Bookmark (digital) — Wikipedia", desc:"The free encyclopedia anyone can edit.", note:"old research, keep for reference", tags:["reference"], readLater:false, archived:true }
+];
+
+let query="";
+let view="all"; // all | toread | archived
+let activeTags=new Set();
+const listEl=document.getElementById('list'), statusEl=document.getElementById('status'),
+      slot=document.getElementById('slot'), filtersEl=document.getElementById('filters'), countEl=document.getElementById('count');
+
+function allTags(){ const m=new Map(); bookmarks.forEach(b=>b.tags.forEach(t=>m.set(t,(m.get(t)||0)+1))); return [...m.entries()].sort((a,b)=>b[1]-a[1]); }
+
+// ---- query parser: words, "phrases", #tags, AND/OR/NOT, parentheses, implicit AND ----
+function tokenize(s){
+  const toks=[]; const re=/\s*(\(|\)|"[^"]*"|#[^\s()]+|[^\s()]+)/g; let m;
+  while((m=re.exec(s))!==null){ let t=m[1];
+    const up=t.toUpperCase();
+    if(t==='('||t===')') toks.push({k:t});
+    else if(up==='AND'||up==='OR'||up==='NOT') toks.push({k:up});
+    else if(t[0]==='#') toks.push({k:'term', tag:t.slice(1).toLowerCase()});
+    else if(t[0]==='"') toks.push({k:'term', text:t.slice(1,-1).toLowerCase()});
+    else toks.push({k:'term', text:t.toLowerCase()});
+  }
+  return toks;
+}
+// grammar: OR > AND > NOT > primary ; implicit AND between adjacent operands
+function parseQuery(s){
+  const toks=tokenize(s); let i=0;
+  const peek=()=>toks[i], next=()=>toks[i++];
+  function primary(){
+    const t=peek(); if(!t) throw 0;
+    if(t.k==='('){ next(); const e=orExpr(); if(!peek()||peek().k!==')') throw 0; next(); return e; }
+    if(t.k==='term'){ next(); return t.tag!==undefined ? b=>b.tags.includes(t.tag)
+                                                        : b=>hay(b).includes(t.text); }
+    throw 0;
+  }
+  function notExpr(){ if(peek()&&peek().k==='NOT'){ next(); const e=notExpr(); return b=>!e(b); } return primary(); }
+  function isOperandStart(t){ return t&&(t.k==='term'||t.k==='('||t.k==='NOT'); }
+  function andExpr(){ let l=notExpr();
+    while(peek()&&(peek().k==='AND'||isOperandStart(peek()))){ if(peek().k==='AND') next(); const r=notExpr(); const a=l,b2=r; l=b=>a(b)&&b2(b); }
+    return l; }
+  function orExpr(){ let l=andExpr(); while(peek()&&peek().k==='OR'){ next(); const r=andExpr(); const a=l,b2=r; l=b=>a(b)||b2(b); } return l; }
+  if(toks.length===0) return {ok:true, pred:()=>true};
+  try{ const e=orExpr(); if(i!==toks.length) throw 0; return {ok:true, pred:e}; }
+  catch(_){ return {ok:false}; }
+}
+function hay(b){ return [b.url,b.title,b.desc,b.note].join('\n').toLowerCase(); }
+
+let compiled={ok:true, pred:()=>true};
+function inView(b){
+  if(view==='archived') return b.archived;
+  if(b.archived) return false;            // archived hidden from All and To read
+  if(view==='toread') return b.readLater;
+  return true;                            // all (non-archived)
+}
+function matches(b){
+  if(!inView(b)) return false;
+  if(activeTags.size){ for(const t of activeTags) if(!b.tags.includes(t)) return false; }
+  if(!compiled.ok) return false;
+  return compiled.pred(b);
+}
+function counts(){ return {
+  all: bookmarks.filter(b=>!b.archived).length,
+  toread: bookmarks.filter(b=>!b.archived && b.readLater).length,
+  archived: bookmarks.filter(b=>b.archived).length }; }
+function renderViews(){
+  const c=counts(); const defs=[['all',`All (${c.all})`],['toread',`To read (${c.toread})`],['archived',`Archived (${c.archived})`]];
+  const v=document.getElementById('views'); v.innerHTML='';
+  defs.forEach(([k,label])=>{ const b=document.createElement('button'); b.textContent=label; if(view===k)b.className='on';
+    b.addEventListener('click',()=>{ view=k; update(); }); v.appendChild(b); });
+}
+
+function renderFilters(){
+  const tags=allTags();
+  filtersEl.innerHTML = tags.length ? '<span class="lbl">Tags:</span>' : '';
+  tags.forEach(([t,c])=>{
+    const el=document.createElement('span'); el.className='tag click'+(activeTags.has(t)?' on':'');
+    el.textContent=`${t} (${c})`;
+    el.addEventListener('click',()=>{ activeTags.has(t)?activeTags.delete(t):activeTags.add(t); update(); });
+    filtersEl.appendChild(el);
+  });
+  if(activeTags.size){ const clr=document.createElement('span'); clr.className='tag click'; clr.textContent='clear'; clr.style.color='#b91c1c';
+    clr.addEventListener('click',()=>{ activeTags.clear(); update(); }); filtersEl.appendChild(clr); }
+}
+
+function update(){ renderViews(); renderFilters(); render(); }
+
+function render(){
+  const shown=bookmarks.filter(matches);
+  countEl.textContent = (query||activeTags.size) ? `${shown.length} of ${bookmarks.length} shown` : `${bookmarks.length} bookmark(s)`;
+  if(shown.length===0){
+    let msg;
+    if(query||activeTags.size){ msg='<strong>No matches</strong>Nothing matches your search or the selected tags. Try different words or clear a tag.'; }
+    else if(view==='toread'){ msg="<strong>Nothing to read later</strong>Mark a bookmark with ☆ Read later and it will show up here."; }
+    else if(view==='archived'){ msg="<strong>Archive is empty</strong>Archived bookmarks are kept here, out of your main list."; }
+    else { msg='<strong>No bookmarks yet</strong>Paste a link above to save your first one.'; }
+    listEl.innerHTML='<div class="empty">'+msg+'</div>';
+    return;
+  }
+  listEl.innerHTML='';
+  shown.forEach(b=>{
+    const el=document.createElement('div'); el.className='bm'+(b.flash?' flash':''); el.dataset.url=b.url;
+    const fav=document.createElement('div'); fav.className='fav'; fav.style.background=b.fav.color; fav.textContent=b.fav.letter; el.appendChild(fav);
+    const body=document.createElement('div'); body.className='body'; el.appendChild(body);
+    body.innerHTML =
+      `<p class="title"><a href="${b.url}" target="_blank" rel="noopener">${hl(b.title)}</a></p>`+
+      (b.desc?`<p class="desc">${hl(b.desc)}</p>`:``)+
+      (b.note?`<div class="note"><div class="note-label">My note</div><div class="note-body">${renderNote(b.note)}</div></div>`:``)+
+      (b.tags.length?`<div class="tagrow"></div>`:``)+
+      `<div class="url">${hl(b.url)}</div>`+
+      `<div class="actions">`+
+        `<button class="edit">Edit details</button>`+
+        `<button class="star">${b.readLater?'★ To read':'☆ Read later'}</button>`+
+        `<button class="arch">${b.archived?'Unarchive':'Archive'}</button>`+
+      `</div>`;
+    if(b.tags.length){ const tr=body.querySelector('.tagrow');
+      b.tags.forEach(t=>{ const s=document.createElement('span'); s.className='tag click'+(activeTags.has(t)?' on':''); s.textContent=t;
+        s.addEventListener('click',()=>{ activeTags.has(t)?activeTags.delete(t):activeTags.add(t); update(); }); tr.appendChild(s); }); }
+    body.querySelector('.edit').addEventListener('click',()=>openEditor(b, body));
+    body.querySelector('.star').addEventListener('click',()=>{ b.readLater=!b.readLater;
+      statusEl.textContent=b.readLater?"Marked to read later.":"Removed from To read."; update(); });
+    body.querySelector('.arch').addEventListener('click',()=>{ b.archived=!b.archived;
+      statusEl.textContent=b.archived?"Archived — hidden from your main list.":"Restored to your main list."; update(); });
+    listEl.appendChild(el); b.flash=false;
+  });
+}
+
+// ---- tag chip input ----
+function tagEditor(initial){
+  const wrap=document.createElement('div'); wrap.className='taginput';
+  const tags=[...initial];
+  const input=document.createElement('input'); input.placeholder=tags.length?'add a tag…':'type a tag and press Enter';
+  let sug=null, active=-1, cands=[];
+  function draw(){ [...wrap.querySelectorAll('.tag')].forEach(n=>n.remove());
+    tags.forEach((t,i)=>{ const s=document.createElement('span'); s.className='tag'; s.innerHTML=`${escapeHtml(t)} <span class="x">×</span>`;
+      s.querySelector('.x').addEventListener('click',()=>{ tags.splice(i,1); draw(); }); wrap.insertBefore(s,input); }); }
+  function add(v){ v=v.trim().toLowerCase().replace(/,$/,''); if(v&&!tags.includes(v)) tags.push(v); input.value=''; draw(); closeSug(); }
+  function closeSug(){ if(sug){ sug.remove(); sug=null; } active=-1; cands=[]; }
+  function showSug(){
+    const q=input.value.trim().toLowerCase();
+    const existing=allTags().map(([t])=>t).filter(t=>!tags.includes(t));
+    cands = q ? existing.filter(t=>t.includes(q)) : existing;
+    closeSug(); if(!cands.length && !q) return;
+    sug=document.createElement('div'); sug.className='suggest';
+    cands.slice(0,6).forEach((t,idx)=>{ const d=document.createElement('div'); d.textContent=t;
+      d.addEventListener('mousedown',e=>{ e.preventDefault(); add(t); }); sug.appendChild(d); });
+    if(q && !existing.includes(q)){ const d=document.createElement('div'); d.className='new'; d.textContent=`Create new tag “${q}”`;
+      d.addEventListener('mousedown',e=>{ e.preventDefault(); add(q); }); sug.appendChild(d); }
+    wrap.parentElement.appendChild(sug); active=-1;
+  }
+  function move(dir){ const items=sug?[...sug.children]:[]; if(!items.length) return;
+    items.forEach(x=>x.classList.remove('active')); active=(active+dir+items.length)%items.length; items[active].classList.add('active'); }
+  input.addEventListener('input',showSug);
+  input.addEventListener('focus',showSug);
+  input.addEventListener('blur',()=>setTimeout(closeSug,120));
+  input.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); move(1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); move(-1); }
+    else if(e.key==='Enter'||e.key===','){ e.preventDefault();
+      if(sug && active>=0){ add(sug.children[active].classList.contains('new')?input.value:sug.children[active].textContent); }
+      else add(input.value); }
+    else if(e.key==='Escape'){ closeSug(); }
+    else if(e.key==='Backspace'&&!input.value&&tags.length){ tags.pop(); draw(); } });
+  wrap.appendChild(input); draw();
+  return { el:wrap, get:()=>[...tags] };
+}
+
+// ---- draft / editor (Option C panel) ----
+function draftFields(d){
+  const wrap=document.createElement('div'); wrap.className='draft';
+  wrap.innerHTML=`
+    <div class="fetchline" ${d.fetched?'':'style="display:none"'}>✓ Title and description picked up automatically — adjust if needed.</div>
+    <div><label>Title</label><input class="d-title" type="text"></div>
+    <div><label>Description (the site's summary)</label><textarea class="d-desc"></textarea></div>
+    <div><label>Tags</label><div class="tagslot"></div></div>
+    <div><label>My note (optional)</label><textarea class="d-note" placeholder="Your own note. Use - for a list, [text](https://…) for a link."></textarea>
+      <div class="hint">Preview:</div><div class="previewbox d-prev"></div></div>
+    <div class="row"><button class="btn d-save">Save bookmark</button><button class="btn ghost d-cancel">Cancel</button></div>`;
+  wrap.querySelector('.d-title').value=d.title||'';
+  wrap.querySelector('.d-desc').value=d.desc||'';
+  wrap.querySelector('.d-note').value=d.note||'';
+  const te=tagEditor(d.tags||[]); wrap.querySelector('.tagslot').appendChild(te.el); wrap._tags=te;
+  const prev=wrap.querySelector('.d-prev'), noteEl=wrap.querySelector('.d-note');
+  const upd=()=>prev.innerHTML=noteEl.value.trim()?renderNote(noteEl.value):'<span style="color:#9ca3af">Nothing yet</span>';
+  noteEl.addEventListener('input',upd); upd();
+  return wrap;
+}
+function readDraft(wrap, base){
+  return { url:base.url, fav:base.fav,
+    title:wrap.querySelector('.d-title').value.trim()||base.title,
+    desc:wrap.querySelector('.d-desc').value.trim(),
+    note:wrap.querySelector('.d-note').value.trim(),
+    tags:wrap._tags.get() };
+}
+function openEditor(b, body){
+  const wrap=draftFields(b); body.innerHTML=''; body.appendChild(wrap);
+  wrap.querySelector('.d-save').textContent='Save changes';
+  wrap.querySelector('.d-save').addEventListener('click',()=>{ Object.assign(b, readDraft(wrap,b)); statusEl.textContent="Your changes are saved."; update(); });
+  wrap.querySelector('.d-cancel').addEventListener('click',update);
+}
+
+// ---- add flow (Option C) ----
+const urlEl=document.getElementById('url'), addBtn=document.getElementById('add');
+function revealExisting(dup){
+  // clear filters so the existing bookmark is visible, switch to a view that shows it, flash it
+  query=''; document.getElementById('search').value=''; compiled=parseQuery(''); highlightTerms=[]; activeTags.clear();
+  view = dup.archived ? 'archived' : 'all';
+  dup.flash=true; update();
+  const node=[...listEl.children].find(n=>n.dataset.url===dup.url);
+  if(node){ node.scrollIntoView({behavior:'smooth', block:'center'});
+    openEditor(dup, node.querySelector('.body')); }
+}
+function startAdd(){
+  const u=normalizeUrl(urlEl.value); if(!u){ statusEl.textContent="That doesn't look like a valid link yet."; return; }
+  const dup=bookmarks.find(b=>b.url===u.href);
+  if(dup){ urlEl.value=''; slot.innerHTML='';
+    statusEl.textContent = dup.archived
+      ? "You already saved this link (it's in your Archive) — here it is."
+      : "You already saved this link — here it is.";
+    revealExisting(dup); return; }
+  addBtn.disabled=true; statusEl.textContent="Fetching page details…";
+  setTimeout(()=>{ const info=fakeFetchInfo(u); addBtn.disabled=false;
+    const host=u.hostname.replace(/^www\./,'');
+    const failed=!info;
+    const base = failed
+      ? { url:u.href, fav:faviconFor(u), title:host, desc:'', note:'', tags:[], fetched:false }
+      : { url:u.href, fav:faviconFor(u), title:info.title, desc:info.desc, note:'', tags:[], fetched:true };
+    const wrap=draftFields(base); slot.innerHTML=''; slot.appendChild(wrap);
+    if(failed){ const w=document.createElement('div'); w.className='fetchwarn';
+      w.textContent="Couldn't read this page automatically — we used the site address as the title. Add or correct the details, then save.";
+      wrap.insertBefore(w, wrap.firstChild); }
+    statusEl.textContent = failed ? "Page details couldn't be fetched — fill them in and save." : "Review and add tags, then confirm.";
+    wrap.querySelector('.d-save').addEventListener('click',()=>{ const nb=readDraft(wrap,base); nb.readLater=false; nb.archived=false; nb.flash=true; bookmarks.unshift(nb); urlEl.value=''; slot.innerHTML=''; statusEl.textContent="Saved."; urlEl.focus(); update(); });
+    wrap.querySelector('.d-cancel').addEventListener('click',()=>{ slot.innerHTML=''; statusEl.textContent=''; });
+    wrap.querySelector('.d-title').focus();
+  },550);
+}
+addBtn.addEventListener('click',startAdd); urlEl.addEventListener('keydown',e=>{if(e.key==='Enter')startAdd();});
+const searchErr=document.getElementById('searcherr');
+document.getElementById('search').addEventListener('input',e=>{
+  query=e.target.value; compiled=parseQuery(query); highlightTerms=termsFromQuery(query);
+  searchErr.textContent = compiled.ok ? '' : "That search isn't complete yet — check quotes and parentheses.";
+  render();
+});
+
+update();
+document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

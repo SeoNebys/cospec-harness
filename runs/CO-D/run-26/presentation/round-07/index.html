@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #6b7686;
+    --line: #e4e7ec; --accent: #2f6df6; --accent-soft: #eaf1ff; --tag-bg: #eef1f5;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header.top { background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: 16px 28px; display: flex; align-items: center; gap: 12px; }
+  header.top h1 { font-size: 17px; margin: 0; letter-spacing: -.2px; }
+  header.top .dot { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display:inline-block; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 26px 20px 80px; }
+
+  .capture { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 18px; margin-bottom: 26px; }
+  .capture h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .url-row { display: flex; gap: 10px; }
+  input[type=text], input[type=url], textarea {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px;
+    font: inherit; color: var(--ink); background: #fff; outline: none; }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  button { font: inherit; font-weight: 600; cursor: pointer; border: none; border-radius: 9px;
+    padding: 11px 16px; background: var(--accent); color: #fff; white-space: nowrap; }
+  button.secondary { background: #eef1f5; color: var(--ink); }
+  button:disabled { opacity: .5; cursor: default; }
+
+  .details { margin-top: 16px; border-top: 1px dashed var(--line); padding-top: 16px; display: none; }
+  .details.show { display: block; }
+  .field { margin-bottom: 12px; position: relative; }
+  .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+  .fetching { color: var(--muted); font-size: 13px; margin-top: 12px; display:none; align-items:center; gap:8px; }
+  .fetching.show { display: flex; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .autofill-note { font-size: 12px; color: var(--accent); background: var(--accent-soft); padding: 6px 10px; border-radius: 7px; display:inline-flex; gap:6px; align-items:center; margin-bottom: 12px; }
+  .autofill-note.edit { color: #8a5a00; background: #fff3d6; }
+
+  .captured-media { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .fav { width: 32px; height: 32px; border-radius: 7px; flex: 0 0 auto; display:grid; place-items:center;
+    font-weight: 700; color:#fff; font-size: 15px; overflow: hidden; background: #8a94a6; }
+  .fav img { width: 100%; height: 100%; object-fit: cover; }
+  .preview-thumb { width: 92px; height: 56px; border-radius: 8px; flex: 0 0 auto; overflow: hidden;
+    display:grid; place-items:center; color: rgba(255,255,255,.92); font-size: 11px; font-weight: 600; text-align:center; padding: 4px; }
+  .media-label { font-size: 12px; color: var(--muted); }
+
+  .tag-input-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .suggest { position: absolute; z-index: 5; left: 0; right: 0; top: 100%; margin-top: 4px;
+    background: #fff; border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow);
+    padding: 5px; display: none; }
+  .suggest.show { display: block; }
+  .suggest .s-head { font-size: 11px; color: var(--muted); padding: 3px 8px; }
+  .suggest button.s-item { display: block; width: 100%; text-align: left; background: transparent; color: var(--ink);
+    padding: 7px 8px; border-radius: 7px; font-weight: 500; }
+  .suggest button.s-item:hover, .suggest button.s-item.active { background: var(--accent-soft); }
+  .suggest .s-new { color: var(--muted); font-weight: 500; }
+
+  .switch-row { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+  .switch { position: relative; width: 42px; height: 24px; flex: 0 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: #cdd4de; border-radius: 20px; transition: .18s; }
+  .slider::before { content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.18s; }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  .switch-row .lbl { font-weight: 600; font-size: 14px; }
+  .switch-row .sub { color: var(--muted); font-size: 12.5px; }
+
+  .actions { display: flex; gap: 10px; margin-top: 6px; }
+
+  .collection h2 { font-size: 14px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin: 0 0 14px; }
+  .count { color: var(--muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 12px; box-shadow: var(--shadow); animation: pop .28s ease;
+    display: flex; gap: 13px; }
+  @keyframes pop { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .card .body { flex: 1 1 auto; min-width: 0; }
+  .card .head { display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+  .card .title { font-weight: 650; font-size: 15.5px; margin: 0; letter-spacing: -.1px; min-width:0; }
+  .card .title a { color: var(--ink); text-decoration: none; }
+  .card .title a:hover { color: var(--accent); }
+  .card .rl-badge { font-size: 11px; font-weight: 700; color: #8a5a00; background: #fff3d6; border:1px solid #f2e2b0;
+    padding: 2px 8px; border-radius: 20px; flex: 0 0 auto; }
+  .card .url { font-size: 12.5px; color: var(--muted); word-break: break-all; margin-bottom: 7px; }
+  .card .desc { font-size: 13.5px; color: #414b5a; margin: 0 0 9px; }
+  .card .note { font-size: 13px; color: #7a5a00; background: #fff8e6; border: 1px solid #f2e2b0; padding: 7px 10px; border-radius: 7px; margin: 0 0 9px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 12px; background: var(--tag-bg); color: #47515f; padding: 3px 9px; border-radius: 20px; }
+  .card .thumb { width: 108px; height: 70px; border-radius: 9px; flex: 0 0 auto; overflow: hidden;
+    display:grid; place-items:center; color: rgba(255,255,255,.92); font-size: 11px; font-weight: 600; text-align:center; padding:5px; }
+  .card .card-fav { width: 20px; height: 20px; border-radius: 5px; overflow:hidden; flex:0 0 auto; display:grid; place-items:center; color:#fff; font-size:11px; font-weight:700; }
+  .card .card-fav img { width:100%; height:100%; object-fit: cover; }
+  .empty { text-align: center; color: var(--muted); padding: 44px 20px; border: 1px dashed var(--line); border-radius: 12px; background: #fff; }
+  .empty .big { font-size: 15px; color: var(--ink); font-weight: 600; margin-bottom: 6px; }
+  .empty.error { border-color: #f2c0b0; background: #fff5f2; }
+  .empty.error .big { color: #b0421f; }
+  .search-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line);
+    border-radius: 10px; padding: 4px 6px 4px 12px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .search-row:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search-ico { color: var(--muted); font-size: 14px; }
+  .search-row input { border: none; box-shadow: none !important; padding: 8px 4px; }
+  .search-row input:focus { border: none; }
+  .search-row .clearsearch { padding: 7px 12px; }
+  mark { background: #fff2ac; color: inherit; border-radius: 3px; padding: 0 1px; }
+  .search-help { font-size: 12px; color: var(--muted); margin: -8px 0 16px 4px; }
+  .search-help code { background: #eef1f5; border-radius: 4px; padding: 1px 5px; font-size: 11.5px; color: #47515f; }
+</style>
+</head>
+<body>
+<header class="top"><span class="dot"></span><h1>My Bookmarks</h1></header>
+
+<div class="wrap">
+  <section class="capture">
+    <h2>Save a link</h2>
+    <div class="url-row">
+      <input id="url" type="url" placeholder="Paste or type a link, e.g. https://example.com/article" autocomplete="off" />
+      <button id="fetchBtn">Save link</button>
+    </div>
+
+    <div class="fetching" id="fetching"><span class="spinner"></span> Reading the page…</div>
+
+    <div class="details" id="details">
+      <span class="autofill-note" id="autofillNote">✓ Filled in automatically from the page — adjust anything you like</span>
+
+      <div class="captured-media">
+        <div class="fav" id="favBox">?</div>
+        <div class="preview-thumb" id="previewBox">preview</div>
+        <div class="media-label">Site icon &amp; page preview collected automatically</div>
+      </div>
+
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" type="text" />
+      </div>
+      <div class="field">
+        <label for="desc">Description</label>
+        <textarea id="desc" rows="2"></textarea>
+      </div>
+      <div class="field">
+        <label for="tags">Tags</label>
+        <input id="tags" type="text" placeholder="e.g. design, reference" autocomplete="off" />
+        <div class="suggest" id="suggest"></div>
+        <div class="tag-input-hint">Separate tags with commas — matching tags you've used before will be suggested</div>
+      </div>
+      <div class="switch-row">
+        <label class="switch"><input type="checkbox" id="readLater" /><span class="slider"></span></label>
+        <div><div class="lbl">Read later</div><div class="sub">Keep it in your unread view until you've read it</div></div>
+      </div>
+      <div class="field">
+        <label for="note">Your note (optional)</label>
+        <textarea id="note" rows="2" placeholder="Why you saved it, what to remember…"></textarea>
+      </div>
+      <div class="actions">
+        <button id="saveBtn">Add to collection</button>
+        <button class="secondary" id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="collection">
+    <h2>My collection <span class="count" id="count"></span></h2>
+    <div class="search-row">
+      <span class="search-ico">🔍</span>
+      <input id="search" type="text" placeholder="Search by anything you remember — title, words, a tag, the site…" autocomplete="off" />
+      <button class="secondary clearsearch" id="clearSearch" style="display:none">Clear</button>
+    </div>
+    <div class="search-help">Tip: <code>#tag</code> matches a tag exactly · <code>"exact phrase"</code> · combine with <code>AND</code> <code>OR</code> <code>NOT</code> and <code>( )</code> — e.g. <code>rome (#article OR #book)</code></div>
+    <div id="list"></div>
+  </section>
+</div>
+
+<script>
+// --- Simulated page-metadata lookup (prototype stand-in for real page reading) ---
+const KNOWN = {
+  "stripe.com": { title: "Stripe | Payment Processing Platform for the Internet",
+    desc: "Stripe powers online payments for businesses of every size with a suite of developer-first APIs." },
+  "figma.com": { title: "Figma: The Collaborative Interface Design Tool",
+    desc: "Design, prototype, and gather feedback all in one place with Figma." },
+  "nytimes.com": { title: "Breaking News, World News & Multimedia — The New York Times",
+    desc: "Live news, investigations, opinion, photos and video from the reporters of The New York Times." },
+  "css-tricks.com": { title: "A Complete Guide to Flexbox | CSS-Tricks",
+    desc: "Our comprehensive guide to CSS flexbox layout, explaining everything about flexbox properties for parent and children." }
+};
+function hue(str){ let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))%360; return h; }
+function simulateFetch(url) {
+  let host = "", path = "";
+  try { const u = new URL(url); host = u.hostname.replace(/^www\./,""); path = u.pathname; }
+  catch { host = url.replace(/^https?:\/\//,"").split("/")[0]; }
+  let meta = KNOWN[host];
+  if (!meta) {
+    let slug = path.split("/").filter(Boolean).pop() || host;
+    slug = decodeURIComponent(slug).replace(/[-_]+/g," ").replace(/\.\w+$/,"").trim();
+    const cap = s => s.replace(/\b\w/g, c => c.toUpperCase());
+    meta = { title: slug ? cap(slug) + " — " + host : host,
+             desc: "Saved from " + host + ". (Description read from the page.)" };
+  }
+  const h = hue(host);
+  return { ...meta, host,
+    favLetter: host.charAt(0).toUpperCase(),
+    favColor: `hsl(${h} 55% 48%)`,
+    favUrl: `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
+    previewGrad: `linear-gradient(135deg, hsl(${h} 60% 52%), hsl(${(h+40)%360} 62% 42%))`,
+    previewLabel: host };
+}
+
+function normUrl(u){
+  try { const x = new URL(u); return (x.hostname.replace(/^www\./,"") + x.pathname.replace(/\/$/,"") + x.search).toLowerCase(); }
+  catch { return u.trim().replace(/\/$/,"").toLowerCase(); }
+}
+
+// --- State ---
+function seed(url, title, desc, tags, note, readLater){
+  const m = simulateFetch(url);
+  return { url, title, desc, note: note||"", tags, readLater: !!readLater, meta: m };
+}
+// Pre-loaded sample bookmarks so retrieval can be tried without saving many by hand.
+let bookmarks = [
+  seed("https://css-tricks.com/snippets/css/a-guide-to-flexbox/",
+    "A Complete Guide to Flexbox | CSS-Tricks",
+    "Comprehensive guide to CSS flexbox layout and its properties.",
+    ["css","layout","reference"], "The diagrams are the best cheat-sheet.", true),
+  seed("https://figma.com", "Figma: The Collaborative Interface Design Tool",
+    "Design, prototype, and gather feedback all in one place.",
+    ["design","tools"], "", false),
+  seed("https://stripe.com", "Stripe | Payment Processing Platform for the Internet",
+    "Developer-first APIs for online payments.",
+    ["payments","api","reference"], "Check the billing docs before the project.", true),
+  seed("https://www.nytimes.com/section/technology", "Technology — The New York Times",
+    "Latest news and analysis on the tech industry.",
+    ["news","reading"], "", false),
+  seed("https://www.atlasobscura.com/articles/ancient-rome-walking-tour",
+    "A Walking Tour of Ancient Rome",
+    "An article tracing the streets and ruins of ancient Rome.",
+    ["travel","article","history"], "For the trip planning.", true),
+  seed("https://www.gutenberg.org/ebooks/731",
+    "The History of the Decline and Fall of the Roman Empire",
+    "Gibbon's classic book covering the fall of Rome.",
+    ["history","book"], "", false)
+];
+let pending = null;       // { url, meta }
+let editIndex = -1;       // >=0 when editing an existing bookmark
+let query = "";
+
+const $ = id => document.getElementById(id);
+$("fetchBtn").addEventListener("click", startCapture);
+$("url").addEventListener("keydown", e => { if (e.key === "Enter") startCapture(); });
+$("saveBtn").addEventListener("click", commitSave);
+$("cancelBtn").addEventListener("click", resetCapture);
+
+function allTags(){ const s = new Set(); bookmarks.forEach(b => b.tags.forEach(t => s.add(t))); return [...s].sort(); }
+
+function startCapture() {
+  const url = $("url").value.trim();
+  if (!url) { $("url").focus(); return; }
+  const key = normUrl(url);
+  const existing = bookmarks.findIndex(b => normUrl(b.url) === key);
+  $("details").classList.remove("show");
+  $("fetching").classList.add("show");
+  $("fetchBtn").disabled = true;
+  setTimeout(() => {
+    if (existing >= 0) {
+      openEdit(existing);
+    } else {
+      const meta = simulateFetch(url);
+      pending = { url, meta }; editIndex = -1;
+      fillForm({ url, title: meta.title, desc: meta.desc, tags: [], note: "", readLater: false, meta }, false);
+    }
+    $("fetching").classList.remove("show");
+    $("details").classList.add("show");
+    $("fetchBtn").disabled = false;
+    $("title").focus();
+  }, 750);
+}
+
+function openEdit(i){
+  const b = bookmarks[i];
+  editIndex = i; pending = { url: b.url, meta: b.meta };
+  fillForm(b, true);
+}
+
+function fillForm(b, isEdit){
+  $("title").value = b.title; $("desc").value = b.desc;
+  $("tags").value = b.tags.join(", "); $("note").value = b.note || "";
+  $("readLater").checked = !!b.readLater;
+  const m = b.meta;
+  const fav = $("favBox");
+  fav.style.background = m.favColor; fav.textContent = m.favLetter;
+  const img = new Image(); img.onload = () => { fav.innerHTML = ""; fav.appendChild(img); };
+  img.src = m.favUrl;
+  const pv = $("previewBox"); pv.style.background = m.previewGrad; pv.textContent = m.previewLabel;
+  const note = $("autofillNote");
+  if (isEdit) { note.classList.add("edit"); note.textContent = "↩ You've saved this link before — you're editing your existing bookmark, not making a duplicate"; }
+  else { note.classList.remove("edit"); note.textContent = "✓ Filled in automatically from the page — adjust anything you like"; }
+  hideSuggest();
+}
+
+function commitSave() {
+  const tags = $("tags").value.split(",").map(t => t.trim()).filter(Boolean);
+  const rec = {
+    url: pending.url,
+    title: $("title").value.trim() || pending.url,
+    desc: $("desc").value.trim(),
+    note: $("note").value.trim(),
+    tags, readLater: $("readLater").checked, meta: pending.meta
+  };
+  if (editIndex >= 0) bookmarks[editIndex] = rec;
+  else bookmarks.unshift(rec);
+  resetCapture(); render();
+}
+
+function resetCapture() {
+  pending = null; editIndex = -1;
+  $("url").value = ""; $("details").classList.remove("show");
+  $("fetching").classList.remove("show"); $("fetchBtn").disabled = false;
+  hideSuggest(); $("url").focus();
+}
+
+// --- Tag suggestions ---
+const tagsEl = $("tags"), sug = $("suggest");
+let sugActive = -1, sugItems = [];
+tagsEl.addEventListener("input", updateSuggest);
+tagsEl.addEventListener("focus", updateSuggest);
+tagsEl.addEventListener("blur", () => setTimeout(hideSuggest, 150));
+tagsEl.addEventListener("keydown", e => {
+  if (!sug.classList.contains("show")) return;
+  if (e.key === "ArrowDown"){ e.preventDefault(); sugActive=Math.min(sugActive+1,sugItems.length-1); paintActive(); }
+  else if (e.key === "ArrowUp"){ e.preventDefault(); sugActive=Math.max(sugActive-1,0); paintActive(); }
+  else if (e.key === "Enter" && sugActive>=0){ e.preventDefault(); pickTag(sugItems[sugActive]); }
+  else if (e.key === "Escape"){ hideSuggest(); }
+});
+function curToken(){ const v = tagsEl.value; const parts = v.split(","); return { token: parts[parts.length-1].trim(), parts }; }
+function updateSuggest(){
+  const { token } = curToken();
+  const chosen = new Set(tagsEl.value.split(",").map(t=>t.trim().toLowerCase()).filter(Boolean));
+  const pool = allTags().filter(t => !chosen.has(t.toLowerCase()));
+  sugItems = token ? pool.filter(t => t.toLowerCase().includes(token.toLowerCase())) : pool;
+  if (!sugItems.length) { hideSuggest(); return; }
+  sugActive = 0;
+  sug.innerHTML = '<div class="s-head">Existing tags — click to reuse</div>' +
+    sugItems.map((t,i)=>`<button type="button" class="s-item${i===0?' active':''}" data-i="${i}">#${t}</button>`).join("");
+  sug.querySelectorAll(".s-item").forEach(btn => btn.addEventListener("mousedown", e => { e.preventDefault(); pickTag(sugItems[+btn.dataset.i]); }));
+  sug.classList.add("show");
+}
+function paintActive(){ sug.querySelectorAll(".s-item").forEach((b,i)=>b.classList.toggle("active", i===sugActive)); }
+function pickTag(tag){
+  const parts = tagsEl.value.split(","); parts[parts.length-1] = " " + tag;
+  tagsEl.value = parts.join(",").replace(/^\s+/,"") + ", ";
+  hideSuggest(); tagsEl.focus();
+}
+function hideSuggest(){ sug.classList.remove("show"); sugActive = -1; }
+
+// --- Search ---
+const searchEl = $("search");
+searchEl.addEventListener("input", () => { query = searchEl.value.trim(); $("clearSearch").style.display = query ? "" : "none"; render(); });
+$("clearSearch").addEventListener("click", () => { searchEl.value=""; query=""; $("clearSearch").style.display="none"; render(); searchEl.focus(); });
+// --- Query language ---------------------------------------------------------
+// Supports: plain words (case-insensitive substring across title/desc/note/url/tags),
+// #tag (exact tag match), "exact phrase", AND / OR / NOT, parentheses, and
+// implicit AND between adjacent terms. A quoted operator word is plain text.
+function tokenize(s){
+  const toks = []; let i = 0;
+  while (i < s.length){
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (c === "(") { toks.push({k:"lp"}); i++; continue; }
+    if (c === ")") { toks.push({k:"rp"}); i++; continue; }
+    if (c === '"') {
+      let j = i+1, buf = "";
+      while (j < s.length && s[j] !== '"') { buf += s[j]; j++; }
+      i = j + 1;
+      if (buf.trim()) toks.push({k:"term", node:{t:"phrase", v:buf}});
+      continue;
+    }
+    if (c === "#") {
+      let j = i+1, buf = "";
+      while (j < s.length && !/[\s()"]/.test(s[j])) { buf += s[j]; j++; }
+      i = j;
+      if (buf) toks.push({k:"term", node:{t:"tag", v:buf}});
+      continue;
+    }
+    let j = i, buf = "";
+    while (j < s.length && !/[\s()"]/.test(s[j])) { buf += s[j]; j++; }
+    i = j;
+    const up = buf.toUpperCase();
+    if (up === "AND") toks.push({k:"and"});
+    else if (up === "OR") toks.push({k:"or"});
+    else if (up === "NOT") toks.push({k:"not"});
+    else toks.push({k:"term", node:{t:"text", v:buf}});
+  }
+  return toks;
+}
+function parseQuery(str){
+  const T = tokenize(str); let P = 0;
+  const peek = () => T[P], eat = () => T[P++];
+  function parseOr(){
+    let left = parseAnd();
+    while (peek() && peek().k === "or") { eat(); const r = parseAnd(); left = left ? {t:"or",a:left,b:r} : r; }
+    return left;
+  }
+  function parseAnd(){
+    let left = parseNot();
+    while (peek() && (peek().k === "and" || peek().k === "term" || peek().k === "not" || peek().k === "lp")) {
+      if (peek().k === "and") eat();
+      const r = parseNot();
+      left = left ? {t:"and",a:left,b:r} : r;
+    }
+    return left;
+  }
+  function parseNot(){
+    if (peek() && peek().k === "not") { eat(); const n = parseNot(); return n ? {t:"not",n} : null; }
+    return parseAtom();
+  }
+  function parseAtom(){
+    const tk = peek(); if (!tk) return null;
+    if (tk.k === "lp") { eat(); const e = parseOr(); if (peek() && peek().k === "rp") eat(); return e; }
+    if (tk.k === "term") { eat(); return tk.node; }
+    eat(); return parseAtom(); // skip stray operator/paren
+  }
+  return parseOr();
+}
+function fieldsOf(b){
+  return { text: [b.title, b.desc, b.note, b.url, b.tags.join(" ")].join(" ").toLowerCase(),
+           tags: b.tags.map(t => t.toLowerCase()) };
+}
+function evalNode(n, f){
+  if (!n) return true;
+  switch (n.t){
+    case "text":   return f.text.includes(n.v.toLowerCase());
+    case "phrase": return f.text.includes(n.v.toLowerCase());
+    case "tag":    return f.tags.includes(n.v.toLowerCase());
+    case "not":    return !evalNode(n.n, f);
+    case "and":    return evalNode(n.a, f) && evalNode(n.b, f);
+    case "or":     return evalNode(n.a, f) || evalNode(n.b, f);
+  }
+  return true;
+}
+function collectHi(n, neg, out){
+  if (!n) return;
+  if (n.t === "text" || n.t === "phrase") { if (!neg) out.text.push(n.v); return; }
+  if (n.t === "tag") { if (!neg) out.tag.push(n.v); return; }
+  if (n.t === "not") { collectHi(n.n, !neg, out); return; }
+  if (n.t === "and" || n.t === "or") { collectHi(n.a, neg, out); collectHi(n.b, neg, out); }
+}
+function validateQuery(str){
+  let depth = 0;
+  for (const t of tokenize(str)) {
+    if (t.k === "lp") depth++;
+    else if (t.k === "rp") { depth--; if (depth < 0) return "Check your search — there's a closing parenthesis “)” with no matching opening one."; }
+  }
+  if (depth > 0) return "Check your search — there may be an unmatched parenthesis.";
+  return null;
+}
+function compileQuery(str){
+  const q = str.trim();
+  if (!q) return { empty:true, test:()=>true, hiText:[], hiTag:[] };
+  const err = validateQuery(q);
+  if (err) return { error:err, test:()=>false, hiText:[], hiTag:[] };
+  let ast;
+  try { ast = parseQuery(q); } catch(e){ return { error:"Check your search — it couldn't be understood.", test:()=>false, hiText:[], hiTag:[] }; }
+  if (!ast) return { empty:true, test:()=>true, hiText:[], hiTag:[] };
+  const hi = { text:[], tag:[] }; collectHi(ast, false, hi);
+  return { empty:false, test:b => evalNode(ast, fieldsOf(b)), hiText:hi.text, hiTag:hi.tag };
+}
+function highlight(text, terms){
+  const s = esc(text);
+  const parts = (terms||[]).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  if (!parts.length) return s;
+  const re = new RegExp("(" + parts.join("|") + ")", "gi");
+  return s.replace(re, "<mark>$1</mark>");
+}
+
+// --- Render ---
+function esc(s){ return (s||"").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function render() {
+  const list = $("list");
+  if (!bookmarks.length) {
+    $("count").textContent = "";
+    list.innerHTML = '<div class="empty"><div class="big">Nothing saved yet</div>Paste a link above and it will appear here, safe and findable.</div>';
+    return;
+  }
+  const cq = compileQuery(query);
+  if (cq.error) {
+    $("count").textContent = "";
+    list.innerHTML = `<div class="empty error"><div class="big">⚠ ${esc(cq.error)}</div>No results are shown until the search is fixed.</div>`;
+    return;
+  }
+  const shown = cq.empty ? bookmarks : bookmarks.filter(b => cq.test(b));
+  $("count").textContent = cq.empty ? `(${bookmarks.length})` : `(${shown.length} of ${bookmarks.length})`;
+  if (!cq.empty && !shown.length) {
+    list.innerHTML = `<div class="empty"><div class="big">No matches for “${esc(query)}”</div>Try different words — you can combine them with AND, OR, NOT, quotes for an exact phrase, and #tag for a specific tag.</div>`;
+    return;
+  }
+  list.innerHTML = shown.map(b => {
+    const m = b.meta;
+    return `<div class="card">
+      <div class="body">
+        <div class="head">
+          <span class="card-fav" data-fav="${esc(m.favUrl)}" style="background:${m.favColor}">${esc(m.favLetter)}</span>
+          <p class="title"><a href="${esc(b.url)}" target="_blank" rel="noopener">${highlight(b.title, cq.hiText)}</a></p>
+          ${b.readLater ? '<span class="rl-badge">Read later</span>' : ''}
+        </div>
+        <div class="url">${highlight(b.url, cq.hiText)}</div>
+        ${b.desc ? `<p class="desc">${highlight(b.desc, cq.hiText)}</p>` : ""}
+        ${b.note ? `<p class="note">📝 ${highlight(b.note, cq.hiText)}</p>` : ""}
+        ${b.tags.length ? `<div class="tags">${b.tags.map(t => { const isTag = cq.hiTag.some(x => x.toLowerCase()===t.toLowerCase()); return `<span class="tag">#${isTag ? "<mark>"+esc(t)+"</mark>" : highlight(t, cq.hiText)}</span>`; }).join("")}</div>` : ""}
+      </div>
+      <div class="thumb" style="background:${m.previewGrad}">${esc(m.previewLabel)}</div>
+    </div>`;
+  }).join("");
+  // upgrade favicons to real images where available
+  list.querySelectorAll(".card-fav").forEach(el => {
+    const img = new Image(); img.onload = () => { el.textContent=""; el.appendChild(img); }; img.src = el.dataset.fav;
+  });
+}
+
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

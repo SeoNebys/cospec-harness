@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — find (search &amp; filter)</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --muted:#6b7280; --faint:#9aa1ac; --accent:#2563eb; --accent-soft:#eff4ff; --chip:#eef2f7; --err:#b91c1c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:#1f2430; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  .views { max-width:760px; margin:12px auto 0; padding:0 24px; display:flex; gap:8px; }
+  .views button { background:#fff; border:1px solid var(--line); color:#374151; border-radius:999px; padding:6px 14px; font-size:13px; cursor:pointer; }
+  .views button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .views .count { opacity:.7; font-size:12px; margin-left:4px; }
+  .wrap { max-width:760px; margin:0 auto; padding:16px 24px 32px; }
+  .findbar { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .search { width:100%; padding:10px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .search.bad { border-color:var(--err); background:#fff5f5; }
+  input:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .syntax { font-size:12px; color:var(--faint); margin-top:7px; }
+  .syntax code { background:#f0f2f5; border-radius:4px; padding:1px 5px; color:#374151; }
+  .syntax.bad { color:var(--err); }
+  .tagfilter { margin-top:12px; display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+  .tagfilter .lbl { font-size:12px; color:var(--faint); margin-right:2px; }
+  .fchip { background:var(--chip); color:#374151; border-radius:999px; padding:4px 12px; font-size:12px; cursor:pointer; }
+  .fchip.on { background:var(--accent); color:#fff; }
+  .listhead { margin:20px 2px 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; }
+  .thumb { flex:0 0 96px; width:96px; height:72px; border-radius:8px; overflow:hidden; background:#eef1f5; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb.none { display:none; }
+  .body { flex:1; min-width:0; }
+  .titlerow { display:flex; align-items:center; gap:8px; }
+  .favi { flex:0 0 18px; width:18px; height:18px; border-radius:4px; }
+  .title { font-size:15px; font-weight:600; color:#111827; text-decoration:none; }
+  .title:hover { text-decoration:underline; }
+  .desc { color:#3f4653; font-size:13px; margin-top:5px; line-height:1.45; }
+  .note { color:#5b4636; background:#fff8ec; border:1px solid #f1e2c4; border-radius:7px; padding:6px 9px; font-size:12.5px; margin-top:8px; }
+  .tags { margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chip { background:var(--chip); color:#374151; border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .chip.on { background:var(--accent); color:#fff; }
+  .urlrow { color:var(--faint); font-size:12px; margin-top:6px; word-break:break-all; }
+  .sub { color:var(--faint); font-size:12px; margin-top:8px; }
+  .sub .site { color:var(--muted); }
+  .empty { text-align:center; color:var(--faint); padding:44px 20px; }
+  .empty .big { font-size:15px; color:var(--muted); margin-bottom:6px; }
+  mark { background:#fff2a8; color:inherit; border-radius:2px; }
+</style>
+</head>
+<body>
+<header><h1>My Bookmarks</h1></header>
+<div class="views" id="views"></div>
+<div class="wrap">
+  <div class="findbar">
+    <input class="search" id="search" type="text" placeholder='Search — try: dev, "slow living", #reading, dev AND reference, (reading OR essays) NOT design' autocomplete="off" />
+    <div class="syntax" id="syntax">Matches title, description, note, tags and the link. Use <code>"…"</code> for exact phrases, <code>#tag</code> for a tag, and <code>AND</code> / <code>OR</code> / <code>NOT</code> with <code>( )</code>.</div>
+    <div class="tagfilter" id="tagfilter"></div>
+  </div>
+  <div class="listhead" id="listhead">All</div>
+  <div id="list"></div>
+</div>
+
+<script>
+function ico(bg,g){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="'+bg+'"/><text x="16" y="22" font-family="Arial" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">'+g+'</text></svg>'); }
+function prev(c1,c2,l){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 144"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient></defs><rect width="192" height="144" fill="url(#g)"/><text x="96" y="80" font-family="Arial" font-size="16" fill="#fff" opacity="0.9" text-anchor="middle">'+l+'</text></svg>'); }
+
+let items=[
+  { id:5, title:"React — Learn", site:"React", desc:"The official React documentation: components, hooks, state and the modern learning path.", url:"https://react.dev/learn", icon:ico('#087ea4','R'), preview:prev('#087ea4','#053b4d','React'), when:"1 day ago", tags:["dev","reference"], note:"", readLater:true, archived:false },
+  { id:4, title:"Kinfolk — The Art of Slow Living", site:"Kinfolk", desc:"Essays and photography on slowing down, simple living and intentional everyday rituals.", url:"https://kinfolk.com/slow-living", icon:ico('#8a7f6d','K'), preview:prev('#8a7f6d','#4a4235','Kinfolk'), when:"2 days ago", tags:["reading","design"], note:"Read on a calm weekend.", readLater:true, archived:false },
+  { id:3, title:"A Field Guide to Getting Lost", site:"Longreads", desc:"Rebecca Solnit on wandering, uncertainty, and the value of not knowing where you are headed.", url:"https://longreads.com/field-guide", icon:ico('#e2574c','L'), preview:prev('#e2574c','#8a2b24','Longreads'), when:"4 days ago", tags:["reading","essays"], note:"", readLater:false, archived:false },
+  { id:2, title:"CSS Grid: A Complete Guide", site:"CSS-Tricks", desc:"A comprehensive reference to every property in the CSS Grid layout module, with visual examples.", url:"https://css-tricks.com/snippets/css/complete-guide-grid", icon:ico('#ff7f50','C'), preview:null, when:"5 days ago", tags:["dev","reference"], note:"Bookmark for the grid layout at work.", readLater:false, archived:false },
+  { id:1, title:"The Elements of Typographic Style", site:"Web", desc:"A reference on typography, spacing and the craft of setting text well.", url:"https://webtypography.net", icon:ico('#2563eb','W'), preview:null, when:"3 weeks ago", tags:["design","reference"], note:"Kept for reference, done reading.", readLater:false, archived:true },
+];
+let view="all", activeTag=null;
+const listEl=document.getElementById("list");
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function allTags(){ const s=new Set(); items.forEach(it=>(it.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+
+// ---------- query parser: words, "phrases", #tags, AND/OR/NOT, ( ) ----------
+let hlTerms=[];
+function tokenize(q){
+  const toks=[]; let i=0;
+  while(i<q.length){
+    const c=q[i];
+    if(c===" "||c==="\t"){ i++; continue; }
+    if(c==="("||c===")"){ toks.push({t:c}); i++; continue; }
+    if(c==='"'){ let j=i+1, s=""; while(j<q.length && q[j]!=='"'){ s+=q[j]; j++; } if(j>=q.length) throw new Error('unclosed quote'); toks.push({t:"val", phrase:true, v:s}); i=j+1; continue; }
+    let j=i, s=""; while(j<q.length && !" \t()".includes(q[j])){ s+=q[j]; j++; }
+    i=j;
+    const up=s.toUpperCase();
+    if(up==="AND"||up==="OR"||up==="NOT"){ toks.push({t:up}); }
+    else if(s[0]==="#"&&s.length>1){ toks.push({t:"val", tag:s.slice(1)}); }
+    else { toks.push({t:"val", v:s}); }
+  }
+  return toks;
+}
+function parse(toks){
+  let p=0;
+  const peek=()=>toks[p], next=()=>toks[p++];
+  function expr(){ // OR level
+    let node=term();
+    while(peek() && peek().t==="OR"){ next(); const r=term(); const a=node,b=r; node=(it)=>a(it)||b(it); }
+    return node;
+  }
+  function term(){ // AND level (implicit AND too)
+    let node=factor();
+    while(peek() && (peek().t==="AND" || peek().t==="val" || peek().t==="(" || peek().t==="NOT")){
+      if(peek().t==="AND") next();
+      const r=factor(); const a=node,b=r; node=(it)=>a(it)&&b(it);
+    }
+    return node;
+  }
+  function factor(){
+    const tk=peek();
+    if(!tk) throw new Error("unexpected end");
+    if(tk.t==="NOT"){ next(); const f=factor(); return (it)=>!f(it); }
+    if(tk.t==="("){ next(); const e=expr(); if(!peek()||peek().t!==")") throw new Error("missing )"); next(); return e; }
+    if(tk.t==="val"){ next(); return atom(tk); }
+    throw new Error("unexpected token");
+  }
+  function atom(tk){
+    if(tk.tag!==undefined){ const t=tk.tag.toLowerCase(); return (it)=>(it.tags||[]).some(x=>x.toLowerCase()===t); }
+    const v=(tk.v||"").toLowerCase(); if(v) hlTerms.push(tk.v);
+    return (it)=>[it.title,it.desc,it.note,it.site,it.url].some(f=>(f||"").toLowerCase().includes(v)) || (it.tags||[]).some(x=>x.toLowerCase().includes(v));
+  }
+  const node=expr();
+  if(peek()) throw new Error("unexpected token: "+(peek().v||peek().t));
+  return node;
+}
+function buildPredicate(q){
+  hlTerms=[];
+  q=q.trim();
+  if(!q) return {pred:()=>true, ok:true};
+  try{ const toks=tokenize(q); if(!toks.length) return {pred:()=>true, ok:true}; const pred=parse(toks); return {pred, ok:true}; }
+  catch(e){ // fallback: whole thing as plain text
+    const v=q.toLowerCase(); hlTerms=[q];
+    return {pred:(it)=>[it.title,it.desc,it.note,it.site,it.url].some(f=>(f||"").toLowerCase().includes(v))||(it.tags||[]).some(x=>x.toLowerCase().includes(v)), ok:false, err:e.message };
+  }
+}
+
+function hl(text){
+  let out=esc(text||"");
+  hlTerms.filter(Boolean).forEach(term=>{
+    const t=esc(term).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    if(t) out=out.replace(new RegExp("("+t+")","ig"),"<mark>$1</mark>");
+  });
+  return out;
+}
+
+function counts(){ return { all:items.filter(i=>!i.archived).length, toread:items.filter(i=>i.readLater&&!i.archived).length, archived:items.filter(i=>i.archived).length }; }
+function renderViews(){
+  const c=counts(); const bar=document.getElementById("views");
+  const defs=[["all","All",c.all],["toread","To read",c.toread],["archived","Archived",c.archived]];
+  bar.innerHTML="";
+  defs.forEach(([k,label,n])=>{ const b=document.createElement("button"); b.className=(view===k?"on":""); b.innerHTML=label+' <span class="count">'+n+'</span>'; b.onclick=()=>{ view=k; render(); }; bar.appendChild(b); });
+}
+function renderTagFilter(){
+  const box=document.getElementById("tagfilter"); box.innerHTML='<span class="lbl">Filter by tag:</span>';
+  allTags().forEach(t=>{ const c=document.createElement("span"); c.className="fchip"+(activeTag===t?" on":""); c.textContent=t; c.onclick=()=>{ activeTag=(activeTag===t?null:t); render(); }; box.appendChild(c); });
+}
+function inView(it){ if(view==="archived") return it.archived; if(view==="toread") return it.readLater&&!it.archived; return !it.archived; }
+
+function render(){
+  renderViews(); renderTagFilter();
+  const q=document.getElementById("search").value;
+  const {pred, ok, err}=buildPredicate(q);
+  const searchEl=document.getElementById("search"), syn=document.getElementById("syntax");
+  searchEl.classList.toggle("bad", !ok && q.trim()!=="");
+  if(!ok && q.trim()!==""){ syn.className="syntax bad"; syn.textContent="Couldn’t read that query ("+err+") — showing plain text matches instead."; }
+  else { syn.className="syntax"; syn.innerHTML='Matches title, description, note, tags and the link. Use <code>"…"</code> for exact phrases, <code>#tag</code> for a tag, and <code>AND</code> / <code>OR</code> / <code>NOT</code> with <code>( )</code>.'; }
+
+  document.getElementById("listhead").textContent =
+    ({all:"All",toread:"To read",archived:"Archived"}[view]) + (activeTag?" · #"+activeTag:"") + (q.trim()?' · “'+q.trim()+'”':"");
+  listEl.innerHTML="";
+  const vis=items.filter(it=>inView(it) && (!activeTag||(it.tags||[]).includes(activeTag)) && pred(it));
+  if(vis.length===0){
+    let big="No matches", small="Try different words, or clear the filters.";
+    if(!q.trim() && !activeTag){ if(view==="toread"){ big="Nothing to read yet"; small="Mark a link “Read later”."; } else if(view==="archived"){ big="No archived links"; small="Archive a link to tuck it away."; } else { big="No bookmarks yet"; small="Save your first link."; } }
+    listEl.innerHTML='<div class="empty"><div class="big">'+big+'</div><div>'+small+'</div></div>';
+    return;
+  }
+  vis.forEach(it=>{
+    const card=document.createElement("div"); card.className="card";
+    const thumb=it.preview?'<div class="thumb"><img alt="" src="'+it.preview+'"></div>':'<div class="thumb none"></div>';
+    const body=document.createElement("div"); body.className="body";
+    body.innerHTML='<div class="titlerow"><img class="favi" alt="" src="'+it.icon+'"><a class="title" href="'+esc(it.url)+'" target="_blank" rel="noopener">'+hl(it.title)+'</a></div>'+
+      '<div class="desc">'+hl(it.desc)+'</div>'+
+      (it.note?'<div class="note">📝 '+hl(it.note)+'</div>':'');
+    const tags=document.createElement("div"); tags.className="tags";
+    (it.tags||[]).forEach(t=>{ const c=document.createElement("span"); c.className="chip"+(activeTag===t?" on":""); c.innerHTML=hl(t); c.title="Filter by “"+t+"”"; c.onclick=()=>{ activeTag=(activeTag===t?null:t); render(); }; tags.appendChild(c); });
+    body.appendChild(tags);
+    body.innerHTML+='<div class="urlrow">'+hl(it.url)+'</div>';
+    const sub=document.createElement("div"); sub.className="sub"; sub.innerHTML='<span class="site">'+esc(it.site)+'</span> · saved '+it.when;
+    body.appendChild(sub);
+    card.innerHTML=thumb; card.appendChild(body);
+    listEl.appendChild(card);
+  });
+}
+document.getElementById("search").addEventListener("input", render);
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

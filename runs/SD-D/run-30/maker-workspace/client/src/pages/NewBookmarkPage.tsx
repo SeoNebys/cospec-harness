@@ -1,0 +1,1 @@
+import { useNavigate } from 'react-router-dom';import { BookmarkCreateForm } from '../features/bookmarks/BookmarkCreateForm';export default function NewBookmarkPage(){const navigate=useNavigate();return <BookmarkCreateForm onSaved={id=>navigate(`/bookmarks/${id}`)} onDuplicate={id=>navigate(`/bookmarks/${id}/edit`,{state:{duplicate:true}})}/>}

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmark app — read-later exploration</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --card:#fff; --ink:#1f2430; --muted:#6b7280; --faint:#9aa1ac;
+    --line:#e5e7eb; --accent:#2f6feb; --accent-ink:#fff; --chip:#eef2ff; --chip-ink:#3949ab;
+    --ok:#0f9d58; --okbg:#e7f6ee;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .modebadge { display:inline-block; margin-top:8px; font-size:12px; color:var(--chip-ink); background:var(--chip); padding:3px 10px; border-radius:999px; }
+  main { max-width:720px; margin:0 auto; padding:20px 16px 64px; }
+
+  .views { display:flex; gap:6px; margin:0 0 16px; }
+  .views button { font-size:13px; padding:6px 14px; border:1px solid var(--line); background:#fff; border-radius:999px; color:var(--muted); cursor:pointer; }
+  .views button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .count { font-size:13px; color:var(--muted); margin:0 0 12px; }
+
+  ul.links { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  li.link { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; gap:12px; }
+  li.link.read { opacity:.72; }
+  .favicon { flex:0 0 auto; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:16px; }
+  .body { flex:1; min-width:0; }
+  .toprow { display:flex; align-items:flex-start; gap:10px; }
+  .toprow .maintext { flex:1; min-width:0; }
+  .body .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .body .title.done { text-decoration:line-through; color:var(--muted); }
+  .body .desc { font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.4; }
+  .tagrow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:999px; background:var(--chip); color:var(--chip-ink); }
+  .taginput { border:1px solid var(--line); border-radius:8px; padding:5px 8px; font-size:13px; min-width:110px; }
+  .secondary { font-size:12px; color:var(--faint); margin:6px 0 0; }
+
+  .statepill { font-size:11px; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .statepill.toread { background:#fff3e0; color:#b26a00; }
+  .statepill.read { background:var(--okbg); color:var(--ok); }
+  .act { font-size:12px; padding:5px 10px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; white-space:nowrap; }
+  .act:hover { border-color:var(--accent); color:var(--accent); }
+  .act.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .act.primary:hover { filter:brightness(.95); color:#fff; }
+  .empty { text-align:center; color:var(--muted); padding:36px 16px; border:1px dashed var(--line); border-radius:12px; background:var(--card); }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Read-later exploration — two ways to keep a reading queue.</p>
+  <span class="modebadge" id="modebadge"></span>
+</header>
+<main>
+  <div class="views" id="views"></div>
+  <p class="count" id="count"></p>
+  <ul class="links" id="list"></ul>
+</main>
+
+<script>
+  var params = new URLSearchParams(location.search);
+  var MODE = (params.get("mode") || "a").toLowerCase();
+  document.getElementById("modebadge").textContent = MODE === "b"
+    ? "Version B — a separate opt-in reading list"
+    : "Version A — every link has a read / to-read status";
+
+  // mode A: state = "toread" | "read" on every item (all start toread)
+  // mode B: inList = boolean (saved but not queued unless added); done = boolean
+  var items = [
+    { id:"s1", host:"nytimes.com", color:"hsl(210,55%,48%)", title:"How to Read More Books This Year", desc:"Habits for a steady reading routine.", tags:["reading"], state:"toread", inList:true, done:false },
+    { id:"s2", host:"seriouseats.com", color:"hsl(20,55%,48%)", title:"The Best Weeknight Pasta", desc:"A fast, reliable pasta recipe for busy evenings.", tags:["recipes"], state:"read", inList:false, done:false },
+    { id:"s3", host:"arxiv.org", color:"hsl(300,55%,48%)", title:"A Survey of Modern Retrieval Methods", desc:"Overview of how search and ranking systems work today.", tags:["ai","reading"], state:"toread", inList:true, done:false },
+    { id:"s4", host:"wikipedia.org", color:"hsl(150,55%,42%)", title:"History of the Espresso Machine", desc:"From early steam contraptions to today's cafés.", tags:[], state:"toread", inList:false, done:false }
+  ];
+
+  var view = "all"; // A: all|toread|read   B: all|list
+
+  function views() {
+    var v = document.getElementById("views");
+    v.innerHTML = "";
+    var defs = MODE === "b"
+      ? [["all","All links"],["list","Reading list"]]
+      : [["all","All"],["toread","To read"],["read","Read"]];
+    defs.forEach(function(d){
+      var b = document.createElement("button");
+      b.textContent = d[1];
+      if (view === d[0]) b.className = "on";
+      b.onclick = function(){ view = d[0]; render(); };
+      v.appendChild(b);
+    });
+  }
+
+  function visible() {
+    if (MODE === "b") {
+      if (view === "list") return items.filter(function(i){ return i.inList && !i.done; });
+      return items.slice();
+    } else {
+      if (view === "toread") return items.filter(function(i){ return i.state === "toread"; });
+      if (view === "read") return items.filter(function(i){ return i.state === "read"; });
+      return items.slice();
+    }
+  }
+
+  function addTag(item, raw) {
+    var t = (raw||"").trim().toLowerCase().replace(/^#/,"");
+    if (t && item.tags.indexOf(t) === -1) item.tags.push(t);
+  }
+
+  function actionsFor(item) {
+    var wrap = document.createElement("div");
+    wrap.style.display = "flex"; wrap.style.flexDirection = "column"; wrap.style.gap = "6px"; wrap.style.alignItems = "flex-end";
+    if (MODE === "a") {
+      var pill = document.createElement("span");
+      pill.className = "statepill " + (item.state === "read" ? "read" : "toread");
+      pill.textContent = item.state === "read" ? "Read" : "To read";
+      wrap.appendChild(pill);
+      var btn = document.createElement("button");
+      btn.className = "act" + (item.state === "toread" ? " primary" : "");
+      btn.textContent = item.state === "toread" ? "Mark read" : "Move back to to-read";
+      btn.onclick = function(){ item.state = item.state === "toread" ? "read" : "toread"; render(); };
+      wrap.appendChild(btn);
+    } else {
+      if (item.inList && !item.done) {
+        var pill2 = document.createElement("span"); pill2.className="statepill toread"; pill2.textContent="In reading list"; wrap.appendChild(pill2);
+        var done = document.createElement("button"); done.className="act primary"; done.textContent="Done"; done.onclick=function(){ item.done=true; item.inList=false; render(); }; wrap.appendChild(done);
+      } else {
+        var add = document.createElement("button"); add.className="act"; add.textContent="＋ Reading list"; add.onclick=function(){ item.inList=true; item.done=false; render(); }; wrap.appendChild(add);
+      }
+    }
+    return wrap;
+  }
+
+  function render() {
+    views();
+    var list = document.getElementById("list");
+    var count = document.getElementById("count");
+    list.innerHTML = "";
+    var vis = visible();
+    if (MODE === "b" && view === "list") count.textContent = vis.length + " in your reading list";
+    else if (MODE === "a" && view === "toread") count.textContent = vis.length + " still to read";
+    else count.textContent = vis.length + " links";
+
+    if (vis.length === 0) {
+      var e = document.createElement("li"); e.className="empty";
+      e.textContent = MODE === "b" ? "Nothing in your reading list yet. Add links with ＋ Reading list." : "Nothing here.";
+      list.appendChild(e); return;
+    }
+
+    vis.forEach(function(item){
+      var li = document.createElement("li");
+      var isRead = MODE === "a" ? item.state === "read" : item.done;
+      li.className = "link" + (isRead ? " read" : "");
+      var ic = document.createElement("div"); ic.className="favicon"; ic.style.background=item.color; ic.textContent=item.host[0].toUpperCase(); li.appendChild(ic);
+
+      var body = document.createElement("div"); body.className="body";
+      var top = document.createElement("div"); top.className="toprow";
+      var mt = document.createElement("div"); mt.className="maintext";
+      var t = document.createElement("p"); t.className="title" + (isRead ? " done" : ""); t.textContent=item.title; mt.appendChild(t);
+      var d = document.createElement("p"); d.className="desc"; d.textContent=item.desc; mt.appendChild(d);
+      top.appendChild(mt);
+      top.appendChild(actionsFor(item));
+      body.appendChild(top);
+
+      var tr = document.createElement("div"); tr.className="tagrow";
+      item.tags.forEach(function(tag){ var c=document.createElement("span"); c.className="tag"; c.textContent=tag; tr.appendChild(c); });
+      var input=document.createElement("input"); input.className="taginput"; input.placeholder=item.tags.length?"Add another…":"Add a tag…";
+      input.onkeydown=function(e){ if(e.key==="Enter"){ e.preventDefault(); addTag(item,input.value); render(); } };
+      tr.appendChild(input);
+      body.appendChild(tr);
+
+      var sec=document.createElement("p"); sec.className="secondary"; sec.textContent=item.host+" · Saved Sep 25, 2026"; body.appendChild(sec);
+      li.appendChild(body);
+      list.appendChild(li);
+    });
+  }
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

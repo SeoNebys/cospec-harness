@@ -1,0 +1,1 @@
+export function TagList({values,onRemove}:{values:string[];onRemove:(value:string)=>void}){return <div className="tag-chips" role="list" aria-label="Selected tags">{values.map(tag=><span className="tag-chip" role="listitem" key={tag}>{tag}<button type="button" aria-label={`Remove ${tag}`} onClick={()=>onRemove(tag)}>×</button></span>)}</div>;}

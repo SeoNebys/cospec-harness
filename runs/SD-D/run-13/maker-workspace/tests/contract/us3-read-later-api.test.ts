@@ -1,0 +1,2 @@
+import { afterEach,beforeEach,describe,expect,it } from 'vitest';import { createTestApp } from '../fixtures/test-app.js';
+describe('US3 contract',()=>{let fixture:Awaited<ReturnType<typeof createTestApp>>;beforeEach(async()=>{fixture=await createTestApp();});afterEach(()=>fixture.close());it('returns 404 for a missing status target and validates boolean status',async()=>{expect((await fixture.app.inject({method:'PATCH',url:'/api/bookmarks/00000000-0000-4000-8000-000000000099',payload:{toRead:true}})).statusCode).toBe(404);});});

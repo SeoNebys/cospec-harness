@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager API
+  version: 1.0.0
+  description: Same-origin API for the private single-user bookmark manager.
+servers:
+  - url: /api
+paths:
+  /metadata:
+    post:
+      summary: Retrieve editable metadata for a public web address
+      operationId: previewMetadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetadataRequest'
+      responses:
+        '200':
+          description: Retrieved metadata or a non-blocking fallback preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataPreview'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /bookmarks:
+    get:
+      summary: List bookmarks using optional search and tag filtering
+      operationId: listBookmarks
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+          description: Case-insensitive text matched against title, URL, description, and tags.
+        - name: tag
+          in: query
+          schema:
+            type: string
+            maxLength: 50
+          description: One case-insensitive tag filter.
+      responses:
+        '200':
+          description: Bookmarks in newest-first order
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bookmark'
+                  total:
+                    type: integer
+                    minimum: 0
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Create a bookmark from reviewed metadata and tags
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookmark'
+      responses:
+        '201':
+          description: Bookmark created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '409':
+          description: A bookmark with the same normalized URL exists and confirmation is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    patch:
+      summary: Edit bookmark details
+      operationId: updateBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBookmark'
+      responses:
+        '200':
+          description: Bookmark updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '409':
+          description: Another bookmark with the same normalized URL exists and confirmation is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicateError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      summary: Permanently delete a bookmark after UI confirmation
+      operationId: deleteBookmark
+      responses:
+        '204':
+          description: Bookmark deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tags:
+    get:
+      summary: List tags currently used by bookmarks
+      operationId: listTags
+      responses:
+        '200':
+          description: Tags ordered case-insensitively by display name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    BadRequest:
+      description: The request could not be understood
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ValidationError:
+      description: The request contains an invalid or unsafe value
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: The bookmark does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    MetadataRequest:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+    MetadataPreview:
+      type: object
+      additionalProperties: false
+      required: [url, normalizedUrl, title, description, source, warning]
+      properties:
+        url:
+          type: string
+          format: uri
+        normalizedUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+        source:
+          type: string
+          enum: [remote, fallback]
+        warning:
+          type: [string, 'null']
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required: [id, url, title, description, tags, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateBookmark:
+      type: object
+      additionalProperties: false
+      required: [url, title, tags]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        allowDuplicate:
+          type: boolean
+          default: false
+    UpdateBookmark:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, 'null']
+          maxLength: 1000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+        allowDuplicate:
+          type: boolean
+          default: false
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [name, count]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        count:
+          type: integer
+          minimum: 1
+    DuplicateError:
+      type: object
+      additionalProperties: false
+      required: [error, duplicates]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        duplicates:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Bookmark'
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - INVALID_URL
+            - UNSAFE_URL
+            - DUPLICATE_URL
+            - NOT_FOUND
+            - INTERNAL_ERROR
+        message:
+          type: string
+        field:
+          type: string

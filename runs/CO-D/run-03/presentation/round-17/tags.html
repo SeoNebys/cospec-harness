@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tags & notes — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:20px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 18px; }
+  .variant-name { display:inline-block; font-size:12px; font-weight:700; color:var(--accent);
+        background:#eaf1fe; border-radius:999px; padding:5px 12px; margin-bottom:16px; }
+  .review { background:var(--card); border:1px solid var(--accent); border-radius:12px; overflow:hidden;
+        box-shadow:0 4px 18px rgba(47,109,246,.12); }
+  .review .banner { height:120px; background-size:cover; background-position:center; }
+  .review .body { padding:16px 18px; }
+  .tagword { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  .fieldrow { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; margin-bottom:4px; }
+  .fieldrow img.fav { width:18px; height:18px; border-radius:4px; }
+  label.fl { display:block; font-size:12px; color:var(--muted); margin:14px 0 5px; font-weight:600; }
+  input.t, textarea.d { width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; outline:none; }
+  input.t:focus, textarea.d:focus, .chipbox:focus-within { border-color:var(--accent); }
+  textarea.d { resize:vertical; min-height:58px; }
+  .actions { display:flex; gap:10px; margin-top:16px; }
+  .btn-primary { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+  /* chips */
+  .chipbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; background:#eef2f8; border-radius:999px; padding:4px 10px; font-size:13px; }
+  .chip b { font-weight:600; }
+  .chip .x { cursor:pointer; color:var(--muted); font-weight:700; }
+  .chipbox input { border:none; outline:none; flex:1; min-width:120px; font-size:14px; padding:4px; }
+  .suggest { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 0; }
+  .sug { background:#fff; border:1px dashed #c4cbd6; color:#54607a; border-radius:999px; padding:4px 11px; font-size:13px; cursor:pointer; }
+  .sug:hover { border-color:var(--accent); color:var(--accent); }
+  .method-hint { font-size:12px; color:var(--muted); margin-top:6px; }
+  /* saved preview */
+  .savedwrap { margin-top:26px; }
+  .savedwrap h2 { font-size:14px; color:var(--muted); font-weight:600; margin:0 0 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .card .preview { height:110px; background-size:cover; background-position:center; }
+  .card .cbody { padding:14px 16px; }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 5px; }
+  .card .desc { font-size:13px; color:#4a5260; margin:0 0 8px; }
+  .card .note { font-size:13px; color:#3a4250; background:#fbf6e9; border-left:3px solid #e5c96b; padding:8px 10px; border-radius:0 6px 6px 0; margin:0 0 10px; }
+  .card .taglist { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
+  .card .taglist .chip { background:#e7f0ff; color:#245; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+  .card .meta img.fav { width:16px; height:16px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Adding tags &amp; a note</h1>
+  <p class="sub">Same review card — only the way you add tags differs.</p>
+  <div class="variant-name" id="vname"></div>
+
+  <div class="review">
+    <div class="banner" id="banner"></div>
+    <div class="body">
+      <span class="tagword">Review before saving</span>
+      <div class="fieldrow"><img class="fav" id="fav"/> <span>The New York Times</span></div>
+      <label class="fl">Title</label>
+      <input class="t" value="The Quiet Art of Reading Later" />
+      <label class="fl">Description</label>
+      <textarea class="d">Why saving articles to read later can make you a calmer, more deliberate reader.</textarea>
+
+      <label class="fl">Tags</label>
+      <div id="tagWidget"></div>
+
+      <label class="fl">Your note <span style="font-weight:400;color:#9aa2ad;">— why you saved it</span></label>
+      <textarea class="d" placeholder="e.g. Read before writing my weekend post on focus.">Read before writing my weekend post on focus.</textarea>
+
+      <div class="actions">
+        <button class="btn-primary">Save bookmark</button>
+        <button class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="savedwrap">
+    <h2>How it looks once saved</h2>
+    <div class="card">
+      <div class="preview" id="preview"></div>
+      <div class="cbody">
+        <div class="title">The Quiet Art of Reading Later</div>
+        <div class="desc">Why saving articles to read later can make you a calmer, more deliberate reader.</div>
+        <div class="note">📝 Read before writing my weekend post on focus.</div>
+        <div class="taglist">
+          <span class="chip"><b>reading</b></span>
+          <span class="chip"><b>focus</b></span>
+          <span class="chip"><b>weekend-writing</b></span>
+        </div>
+        <div class="meta"><img class="fav" id="fav2"/> <span>The New York Times</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`); }
+function previewSVG(site){ const h=color(site);
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="760" height="300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 65% 55%)"/><stop offset="1" stop-color="hsl(${(h+40)%360} 65% 42%)"/></linearGradient></defs><rect width="760" height="300" fill="url(#g)"/><text x="40" y="165" font-family="sans-serif" font-size="34" font-weight="700" fill="white">${site}</text></svg>`); }
+const site="nytimes.com";
+document.getElementById("banner").style.backgroundImage="url('"+previewSVG(site)+"')";
+document.getElementById("preview").style.backgroundImage="url('"+previewSVG(site)+"')";
+document.getElementById("fav").src=favSVG(site);
+document.getElementById("fav2").src=favSVG(site);
+
+const variant=(new URLSearchParams(location.search).get("variant")||"a").toLowerCase();
+const widget=document.getElementById("tagWidget");
+const names={a:"Option A · Type a tag, press Enter", b:"Option B · Comma-separated in one field", c:"Option C · Tap a suggestion or type your own"};
+document.getElementById("vname").textContent=names[variant]||names.a;
+
+let tags=["reading","focus"];
+function chipHTML(t){ return '<span class="chip"><b>'+t+'</b><span class="x" data-t="'+t+'">×</span></span>'; }
+
+function renderA(){
+  widget.innerHTML='<div class="chipbox" id="cb">'+tags.map(chipHTML).join('')+
+    '<input id="tinput" placeholder="Add a tag…"/></div>'+
+    '<div class="method-hint">Press Enter (or comma) after each tag. Click × to remove one.</div>';
+  const inp=document.getElementById("tinput");
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===","){ e.preventDefault();
+    const v=inp.value.trim().replace(/,$/,''); if(v&&!tags.includes(v)){ tags.push(v); } inp.value=""; renderA(); document.getElementById("tinput").focus(); } });
+  widget.querySelectorAll(".x").forEach(x=>x.onclick=()=>{ tags=tags.filter(t=>t!==x.dataset.t); renderA(); });
+}
+function renderB(){
+  widget.innerHTML='<input class="t" id="tinput" value="'+tags.join(", ")+'"/>'+
+    '<div class="method-hint">Separate tags with commas, e.g. <em>reading, focus, weekend-writing</em>.</div>';
+}
+const USED_TAGS=["reading","focus","research","css","recipes","later","reference","reading-list","weekend-writing"];
+let cTyped=(new URLSearchParams(location.search).get("typed")||"");
+function renderC(){
+  const q=cTyped.trim().toLowerCase();
+  const matches=USED_TAGS.filter(s=>!tags.includes(s) && (q==="" ? false : s.toLowerCase().includes(q)));
+  const exact=USED_TAGS.some(s=>s.toLowerCase()===q);
+  let drop="";
+  if(q){
+    drop='<div class="suggest" id="drop">'+
+      matches.map(s=>'<span class="sug" data-s="'+s+'">'+s+'</span>').join('')+
+      (!exact ? '<span class="sug" data-new="1" style="border-style:solid;border-color:var(--accent);color:var(--accent);">+ Create “'+cTyped.trim()+'”</span>' : '')+
+      '</div>';
+  }
+  widget.innerHTML='<div class="chipbox" id="cb">'+tags.map(chipHTML).join('')+
+    '<input id="tinput" placeholder="Type a tag…" value="'+cTyped.replace(/"/g,'&quot;')+'"/></div>'+
+    drop+
+    '<div class="method-hint">Tags you\'ve used before are suggested as you type — pick one, or create a new tag. Click × to remove.</div>';
+  const inp=document.getElementById("tinput");
+  inp.focus();
+  inp.addEventListener("input",()=>{ cTyped=inp.value; renderC(); });
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=inp.value.trim();
+    if(v&&!tags.includes(v)){ tags.push(v);} cTyped=""; renderC(); } });
+  widget.querySelectorAll(".sug").forEach(s=>s.onclick=()=>{ const v=s.dataset.new?cTyped.trim():s.dataset.s;
+    if(v&&!tags.includes(v)) tags.push(v); cTyped=""; renderC(); });
+  widget.querySelectorAll(".x").forEach(x=>x.onclick=()=>{ tags=tags.filter(t=>t!==x.dataset.t); renderC(); });
+}
+({a:renderA,b:renderB,c:renderC}[variant]||renderA)();
+
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

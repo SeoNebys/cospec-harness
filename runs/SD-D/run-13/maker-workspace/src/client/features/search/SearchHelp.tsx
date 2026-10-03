@@ -1,0 +1,1 @@
+export function SearchHelp(){return <p id="search-help" className="hint">Use quotes for an exact phrase, <code>tag:name</code> for a tag, and <code>AND</code>, <code>OR</code>, or parentheses to combine searches.</p>;}

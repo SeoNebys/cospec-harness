@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Save a bookmark</title>
+  <style>
+    :root { color-scheme: light; --ink:#17201d; --muted:#68736e; --line:#dfe6e2; --paper:#fff; --wash:#f3f6f3; --green:#28664f; --green2:#e5f1eb; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--wash); color:var(--ink); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    header { height:68px; background:var(--paper); border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 5vw; }
+    .brand { font:700 21px/1.2 Georgia, serif; letter-spacing:.01em; }
+    .brand i { display:inline-block; width:11px; height:15px; margin-right:9px; background:var(--green); border-radius:2px 2px 5px 5px; vertical-align:-2px; }
+    main { width:min(760px, 90vw); margin:72px auto; }
+    .eyebrow { color:var(--green); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; }
+    h1 { font:600 clamp(34px, 5vw, 52px)/1.08 Georgia, serif; margin:12px 0 12px; letter-spacing:-.025em; }
+    .lede { color:var(--muted); font-size:17px; margin:0 0 32px; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:0 18px 48px rgba(25,48,39,.07); }
+    label { display:block; font-weight:700; margin-bottom:8px; }
+    .urlrow { display:flex; gap:10px; }
+    input { width:100%; height:48px; border:1px solid #c8d2cd; border-radius:10px; padding:0 14px; font:inherit; color:var(--ink); outline:none; }
+    input:focus { border-color:var(--green); box-shadow:0 0 0 3px var(--green2); }
+    button { border:0; border-radius:10px; padding:0 20px; font:700 15px/1 system-ui,sans-serif; cursor:pointer; }
+    .primary { height:48px; color:white; background:var(--green); min-width:142px; }
+    .primary:hover { background:#1f5641; }
+    .hint { color:var(--muted); font-size:13px; margin:9px 0 0; }
+    .preview { display:none; margin-top:22px; padding-top:22px; border-top:1px solid var(--line); }
+    .preview.show { display:block; }
+    .card-preview { display:grid; grid-template-columns:150px 1fr; gap:18px; align-items:start; }
+    .thumb { height:132px; border-radius:12px; overflow:hidden; background:linear-gradient(145deg,#d4e3da,#839f8e); position:relative; }
+    .thumb:before { content:""; position:absolute; width:84px; height:84px; border-radius:50%; background:#f1d79e; top:28px; left:34px; opacity:.9; }
+    .thumb:after { content:""; position:absolute; width:120px; height:50px; background:#476e5b; transform:rotate(-13deg); left:12px; bottom:-18px; border-radius:50% 50% 0 0; }
+    .site { display:flex; align-items:center; gap:7px; margin-bottom:11px; }
+    .favicon { width:22px; height:22px; border-radius:6px; display:grid; place-items:center; color:white; background:#bb5a3d; font:700 12px/1 Georgia,serif; }
+    .meta { font-size:12px; color:var(--green); font-weight:700; }
+    .field { margin-top:11px; }
+    .field label { font-size:12px; margin-bottom:5px; color:var(--muted); }
+    .field input, .field textarea { width:100%; border:1px solid #c8d2cd; border-radius:9px; padding:9px 11px; color:var(--ink); background:#fff; }
+    .field input { height:auto; font:600 19px/1.3 Georgia,serif; }
+    .field textarea { min-height:68px; resize:vertical; font:14px/1.45 system-ui,sans-serif; }
+    .field input:focus, .field textarea:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px var(--green2); }
+    .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+    .ghost { height:42px; background:transparent; color:var(--muted); }
+    .save { height:42px; background:var(--green); color:white; }
+    .success { display:none; align-items:flex-start; gap:13px; }
+    .success.show { display:flex; }
+    .check { width:38px; height:38px; border-radius:50%; background:var(--green2); color:var(--green); display:grid; place-items:center; font-size:21px; font-weight:800; }
+    .success strong { display:block; }
+    .success span { color:var(--muted); font-size:13px; }
+    .saved-copy { min-width:0; flex:1; }
+    .saved-title { margin:10px 0 3px; font:600 19px/1.3 Georgia,serif; }
+    .saved-description { margin:0; color:var(--muted); font-size:14px; }
+    .duplicate { display:none; margin-top:22px; padding-top:22px; border-top:1px solid var(--line); }
+    .duplicate.show { display:block; }
+    .notice { background:#fff6dc; color:#6b5414; border:1px solid #ead79d; border-radius:10px; padding:10px 12px; font-size:13px; font-weight:650; margin-bottom:15px; }
+    .tag-editor { display:none; margin-top:15px; }
+    body.mode-tag-dropdown .tag-editor, body.mode-tag-inline .tag-editor { display:block; }
+    .tag-input-wrap { position:relative; }
+    .chosen-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .chosen-tag { border-radius:999px; background:var(--green2); color:var(--green); padding:5px 9px; font-size:12px; font-weight:700; }
+    .suggestions { display:none; position:absolute; z-index:2; width:100%; top:48px; background:#fff; border:1px solid #c8d2cd; border-radius:9px; padding:5px; box-shadow:0 12px 28px rgba(25,48,39,.13); }
+    .suggestions.show { display:block; }
+    .suggestion { width:100%; height:36px; background:#fff; color:var(--ink); text-align:left; padding:0 10px; }
+    .suggestion:hover { background:var(--green2); }
+    body.mode-tag-inline .suggestions { position:static; width:auto; margin-top:8px; padding:0; border:0; box-shadow:none; background:transparent; }
+    body.mode-tag-inline .suggestion { display:inline-block; width:auto; height:32px; margin-right:6px; border:1px solid #bad0c4; border-radius:999px; background:var(--green2); color:var(--green); padding:0 12px; }
+    body.mode-tag-inline .suggestion:before { content:"+ "; }
+    @media (max-width:560px) { main { margin-top:42px; } .urlrow { flex-direction:column; } .primary { width:100%; } .card-preview { grid-template-columns:1fr; } .thumb { height:150px; } }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><i></i>Keep</div></header>
+  <main data-harness-ready="true">
+    <div class="eyebrow">Your library</div>
+    <h1>Save something worth finding again.</h1>
+    <p class="lede">Paste a link and its details will be filled in for you.</p>
+    <section class="panel" aria-live="polite">
+      <div id="form">
+        <label for="url">Web address</label>
+        <div class="urlrow">
+          <input id="url" type="url" placeholder="https://example.com/article" autocomplete="off">
+          <button class="primary" id="fetch">Get details</button>
+        </div>
+        <p class="hint">For this prototype, any complete web address will show an example preview.</p>
+        <div class="preview" id="preview">
+          <div class="card-preview">
+            <div class="thumb" role="img" aria-label="Page thumbnail preview"></div>
+            <div>
+              <div class="site"><div class="favicon" id="favicon">M</div><div class="meta" id="domain">THE MARGINALIAN</div></div>
+              <div class="field">
+                <label for="title">Title</label>
+                <input id="title" value="How to live with presence in an age of productivity">
+              </div>
+              <div class="field">
+                <label for="description">Description</label>
+                <textarea id="description">A thoughtful reflection on attention, purpose, and the quiet work of being fully alive.</textarea>
+              </div>
+              <div class="tag-editor">
+                <div class="field">
+                  <label for="tag-input">Tags</label>
+                  <div class="chosen-tags" id="chosen-tags"></div>
+                  <div class="tag-input-wrap">
+                    <input id="tag-input" placeholder="Type a tag…" autocomplete="off">
+                    <div class="suggestions" id="suggestions"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="ghost" id="cancel">Cancel</button>
+            <button class="save" id="save">Save bookmark</button>
+          </div>
+        </div>
+        <div class="duplicate" id="duplicate">
+          <div class="notice">Already in your library — you’re editing the existing bookmark.</div>
+          <div class="site"><div class="favicon">E</div><div class="meta">EXAMPLE.COM</div></div>
+          <div class="field">
+            <label for="existing-title">Title</label>
+            <input id="existing-title" value="A practical guide to focused work">
+          </div>
+          <div class="field">
+            <label for="existing-description">Description</label>
+            <textarea id="existing-description">Ideas for protecting your attention and making time for meaningful work.</textarea>
+          </div>
+          <div class="actions"><button class="save" id="update">Update bookmark</button></div>
+        </div>
+      </div>
+      <div class="success" id="success">
+        <div class="check">✓</div>
+        <div class="saved-copy">
+          <strong id="success-heading">Bookmark saved</strong><span id="success-copy">Here’s what was added to your library:</span>
+          <div class="saved-title" id="saved-title"></div>
+          <p class="saved-description" id="saved-description"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const url = document.querySelector('#url');
+    const preview = document.querySelector('#preview');
+    const form = document.querySelector('#form');
+    const success = document.querySelector('#success');
+    const domain = document.querySelector('#domain');
+    const favicon = document.querySelector('#favicon');
+    const duplicate = document.querySelector('#duplicate');
+    const tagMode = new URLSearchParams(location.search).get('taginput');
+    if (tagMode === 'dropdown') document.body.classList.add('mode-tag-dropdown');
+    if (tagMode === 'inline') document.body.classList.add('mode-tag-inline');
+    const knownTags = ['Recipes', 'Reading', 'Work'];
+    const selectedTags = [];
+    const tagInput = document.querySelector('#tag-input');
+    const suggestions = document.querySelector('#suggestions');
+    const chosenTags = document.querySelector('#chosen-tags');
+    function addTag(tag) {
+      if (!selectedTags.includes(tag)) selectedTags.push(tag);
+      chosenTags.innerHTML = selectedTags.map(item => `<span class="chosen-tag">${item}</span>`).join('');
+      tagInput.value = '';
+      suggestions.classList.remove('show');
+    }
+    tagInput.addEventListener('input', () => {
+      const query = tagInput.value.trim().toLocaleLowerCase();
+      const matches = knownTags.filter(tag => tag.toLocaleLowerCase().includes(query) && !selectedTags.includes(tag));
+      suggestions.innerHTML = matches.map(tag => `<button type="button" class="suggestion" data-value="${tag}">${tag}<\/button>`).join('');
+      suggestions.classList.toggle('show', Boolean(query && matches.length));
+      suggestions.querySelectorAll('.suggestion').forEach(button => button.addEventListener('click', () => addTag(button.dataset.value)));
+    });
+    document.querySelector('#fetch').addEventListener('click', () => {
+      if (!url.value.trim()) { url.focus(); return; }
+      if (url.value.trim().replace(/\/$/,'') === 'https://example.com/already-saved') {
+        preview.classList.remove('show');
+        duplicate.classList.add('show');
+        return;
+      }
+      duplicate.classList.remove('show');
+      try {
+        const site = new URL(url.value).hostname.replace(/^www\./,'');
+        domain.textContent = site.toUpperCase();
+        favicon.textContent = site.charAt(0).toUpperCase();
+      } catch { domain.textContent = 'SAVED PAGE'; favicon.textContent = 'S'; }
+      preview.classList.add('show');
+    });
+    document.querySelector('#cancel').addEventListener('click', () => preview.classList.remove('show'));
+    document.querySelector('#save').addEventListener('click', () => {
+      document.querySelector('#saved-title').textContent = document.querySelector('#title').value;
+      document.querySelector('#saved-description').textContent = document.querySelector('#description').value;
+      form.style.display='none';
+      success.classList.add('show');
+    });
+    document.querySelector('#update').addEventListener('click', () => {
+      document.querySelector('#success-heading').textContent = 'Bookmark updated';
+      document.querySelector('#success-copy').textContent = 'Your existing bookmark now contains:';
+      document.querySelector('#saved-title').textContent = document.querySelector('#existing-title').value;
+      document.querySelector('#saved-description').textContent = document.querySelector('#existing-description').value;
+      form.style.display='none';
+      success.classList.add('show');
+    });
+  </script>
+</body>
+</html>

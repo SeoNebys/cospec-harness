@@ -1,0 +1,2 @@
+import { describe,expect,it } from "vitest";import { isPublicAddress } from "@/lib/security/ip";
+describe("public address classification",()=>{it.each(["127.0.0.1","10.0.0.1","192.168.1.1","169.254.169.254","::1","fe80::1","ff02::1"])("blocks %s",(value)=>expect(isPublicAddress(value)).toBe(false));it.each(["93.184.216.34","2606:4700:4700::1111"])("allows %s",(value)=>expect(isPublicAddress(value)).toBe(true));});

@@ -1,0 +1,1 @@
+import fs from "node:fs";import { describe,expect,it } from "vitest";describe("tag contract",()=>{it("documents the owner-scoped tag list",()=>expect(fs.readFileSync("specs/001-manage-bookmarks/contracts/openapi.yaml","utf8")).toContain("operationId: listTags"));});

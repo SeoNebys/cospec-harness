@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e3e6ea; --ink:#1e2430; --muted:#6b7280; --accent:#2f6fed; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:22px; }
+  .panel h2 { margin:0 0 14px; font-size:15px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 5px; }
+  input[type=text], input[type=url], textarea {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit; }
+  textarea { resize:vertical; min-height:52px; }
+  .row-btn { margin-top:16px; }
+  button.primary { background:var(--accent); color:#fff; border:none; padding:10px 18px; border-radius:8px; font-size:14px; cursor:pointer; }
+  button.primary:hover { background:#2559c9; }
+  .count { color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .item { border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  .item a.title { font-size:15px; font-weight:600; color:var(--ink); text-decoration:none; }
+  .item a.title:hover { color:var(--accent); text-decoration:underline; }
+  .item .host { color:var(--muted); font-size:12px; margin-top:2px; }
+  .item .note { margin-top:8px; font-size:13px; color:#374151; }
+  .empty { color:var(--muted); font-size:14px; text-align:center; padding:26px 0; }
+  .tag { display:inline-flex; align-items:center; gap:5px; background:#eef2fb; color:#2a4d9c; border:1px solid #d7e0f5; border-radius:999px; padding:3px 10px; font-size:12px; }
+  .tag button { border:none; background:none; color:#7488b8; cursor:pointer; font-size:13px; line-height:1; padding:0; }
+  .tag.click { cursor:pointer; }
+  .tag.click:hover { background:#dfe8fb; }
+  .tag.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .filter-note { color:var(--muted); font-size:13px; }
+  .item .tags { margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; }
+  .item.read { opacity:0.62; }
+  .rtab { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:999px; padding:5px 14px; font-size:13px; cursor:pointer; }
+  .rtab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; margin-left:8px; vertical-align:middle; }
+  .badge.toread { background:#fff3e0; color:#b26a00; border:1px solid #ffe0b2; }
+  .item .actions { margin-top:10px; }
+  .item .actions button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:5px 12px; font-size:12px; cursor:pointer; color:#374151; }
+  .item .actions button:hover { border-color:var(--accent); color:var(--accent); }
+  .badge.copy { background:#e6f4ea; color:#1e7a3c; border:1px solid #c3e6cf; }
+  .overlay { position:fixed; inset:0; background:rgba(20,24,32,.5); display:flex; align-items:center; justify-content:center; padding:24px; }
+  .snap { background:#fff; border-radius:12px; max-width:640px; width:100%; max-height:86vh; overflow:auto; }
+  .snap .bar { background:#fff8e1; border-bottom:1px solid #f0e2b0; padding:10px 16px; font-size:12px; color:#8a6d1a; display:flex; justify-content:space-between; align-items:center; }
+  .snap .body { padding:20px 22px; }
+  .snap h3 { margin:0 0 4px; }
+  .snap .src { color:var(--muted); font-size:12px; margin-bottom:14px; }
+  .snap p { line-height:1.55; color:#374151; }
+  .snap .bar button { border:none; background:#8a6d1a; color:#fff; border-radius:6px; padding:4px 10px; cursor:pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype for exploration — not the final product.</p>
+</header>
+<div class="wrap">
+  <div class="panel">
+    <h2>Save a link</h2>
+    <label for="url">Link address</label>
+    <input type="url" id="url" placeholder="https://example.com/article" />
+    <label for="title">Title <span id="titleStatus" style="color:var(--muted);font-weight:normal"></span></label>
+    <input type="text" id="title" placeholder="Fills in automatically from the page — edit if you like" />
+    <label for="tagInput">Tags</label>
+    <div id="tagBox" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 8px;">
+      <span id="tagChips" style="display:flex;flex-wrap:wrap;gap:6px;"></span>
+      <input type="text" id="tagInput" placeholder="Type a tag, press Enter" style="border:none;outline:none;flex:1;min-width:140px;padding:4px;font-size:14px;" />
+    </div>
+    <label for="note">Why are you saving this? (optional)</label>
+    <textarea id="note" placeholder="e.g. Good explanation of X — read before the Tuesday meeting"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:14px;color:var(--ink);">
+      <input type="checkbox" id="toread" checked /> I still want to read this
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:14px;color:var(--ink);">
+      <input type="checkbox" id="keepcopy" /> Keep a copy in case this page disappears
+    </label>
+    <div class="row-btn"><button class="primary" id="saveBtn">Save link</button></div>
+  </div>
+
+  <div class="panel">
+    <h2>Saved links</h2>
+    <input type="text" id="search" placeholder="Search your links…" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin-bottom:12px;" />
+    <div id="readTabs" style="display:flex;gap:6px;margin-bottom:12px;"></div>
+    <div id="filterBar" style="margin-bottom:12px;"></div>
+    <div class="count" id="count"></div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+  const items = [];
+  let pendingTags = [];     // tags being attached to the link currently being saved
+  let activeFilter = null;  // tag currently used to narrow the list
+  let readView = 'all';     // 'all' | 'toread' | 'read'
+  let nextId = 1;
+  const listEl = document.getElementById('list');
+  const countEl = document.getElementById('count');
+
+  function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch(e){ return ''; } }
+
+  // --- Simulated title lookup (prototype only) ---------------------------
+  // The real app would fetch the page's title. Here we fabricate a plausible
+  // title from the URL so the auto-fill behaviour can be experienced.
+  const titleEl = () => document.getElementById('title');
+  const statusEl = () => document.getElementById('titleStatus');
+  let titleWasEdited = false;
+
+  function simulateTitle(url){
+    const host = hostOf(url);
+    if(!host) return null;
+    let slug = '';
+    try {
+      const p = new URL(url).pathname.replace(/\/+$/,'').split('/').filter(Boolean).pop() || '';
+      slug = p.replace(/[-_]+/g,' ').replace(/\.[a-z0-9]+$/i,'').trim();
+    } catch(e){}
+    const brand = host.split('.')[0].replace(/^\w/, c => c.toUpperCase());
+    if(slug){
+      const nice = slug.replace(/\b\w/g, c => c.toUpperCase());
+      return nice + ' — ' + brand;
+    }
+    return brand + ' — Home';
+  }
+
+  function lookupTitle(){
+    const url = document.getElementById('url').value.trim();
+    if(!url) return;
+    if(titleWasEdited && titleEl().value) return; // don't overwrite user edits
+    statusEl().textContent = '· looking up…';
+    setTimeout(() => {
+      const t = simulateTitle(url);
+      statusEl().textContent = t ? '· filled in automatically' : '';
+      if(t && !titleWasEdited){ titleEl().value = t; }
+    }, 600);
+  }
+
+  document.getElementById('url').addEventListener('blur', lookupTitle);
+
+  function renderPendingTags(){
+    const chips = document.getElementById('tagChips');
+    chips.innerHTML = '';
+    pendingTags.forEach((t, i) => {
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.innerHTML = '#'+t+' <button title="remove" data-i="'+i+'">×</button>';
+      span.querySelector('button').addEventListener('click', () => {
+        pendingTags.splice(i,1); renderPendingTags();
+      });
+      chips.appendChild(span);
+    });
+  }
+
+  function addPendingTag(raw){
+    const t = raw.trim().replace(/^#/,'').toLowerCase();
+    if(t && !pendingTags.includes(t)) pendingTags.push(t);
+    renderPendingTags();
+  }
+
+  function allTags(){
+    const set = new Set();
+    items.forEach(it => (it.tags||[]).forEach(t => set.add(t)));
+    return Array.from(set).sort();
+  }
+
+  function renderFilterBar(){
+    const bar = document.getElementById('filterBar');
+    const tags = allTags();
+    if(tags.length === 0){ bar.innerHTML = ''; return; }
+    bar.innerHTML = '<span class="filter-note">Filter by tag: </span>';
+    const holder = document.createElement('span');
+    holder.style.cssText = 'display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:4px;';
+    tags.forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'tag click' + (activeFilter === t ? ' active' : '');
+      span.textContent = '#'+t;
+      span.addEventListener('click', () => {
+        activeFilter = (activeFilter === t) ? null : t;
+        render();
+      });
+      holder.appendChild(span);
+    });
+    bar.appendChild(holder);
+    if(activeFilter){
+      const clear = document.createElement('span');
+      clear.className = 'filter-note';
+      clear.style.cssText = 'margin-left:10px;cursor:pointer;text-decoration:underline;';
+      clear.textContent = 'clear filter';
+      clear.addEventListener('click', () => { activeFilter = null; render(); });
+      bar.appendChild(clear);
+    }
+  }
+
+  function showSavedCopy(it){
+    // Prototype only: fabricate a preserved snapshot so the "saved copy" idea
+    // can be experienced. The real app would store the actual page content.
+    const title = it.title || it.url;
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML =
+      '<div class="snap">' +
+        '<div class="bar"><span>Saved copy — captured on '+(it.savedOn||'the day you saved it')+
+          '. This is your kept copy, shown even if the original page is gone.</span>' +
+          '<button id="closeSnap">Close</button></div>' +
+        '<div class="body">' +
+          '<h3>'+title+'</h3>' +
+          '<div class="src">Originally from '+hostOf(it.url)+'</div>' +
+          '<p>(Simulated preserved content for this exploration.) This is a copy of the ' +
+          'page as it looked when you saved it, so the information stays available to you ' +
+          'even if the original later changes or disappears.</p>' +
+          '<p>The real app would keep the actual readable text and key content of the page here.</p>' +
+        '</div>' +
+      '</div>';
+    ov.addEventListener('click', (e) => { if(e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+    document.getElementById('closeSnap').addEventListener('click', () => ov.remove());
+  }
+
+  function matchesSearch(it, q){
+    if(!q) return true;
+    const hay = [it.title, it.note, it.url, (it.tags||[]).join(' ')].join(' ').toLowerCase();
+    return q.toLowerCase().split(/\s+/).filter(Boolean).every(term => hay.includes(term));
+  }
+
+  function renderReadTabs(){
+    const el = document.getElementById('readTabs');
+    const toReadCount = items.filter(it => it.toread).length;
+    const tabs = [
+      ['all','All'],
+      ['toread','To read ('+toReadCount+')'],
+      ['read','Read']
+    ];
+    el.innerHTML = '';
+    tabs.forEach(([key,label]) => {
+      const b = document.createElement('button');
+      b.className = 'rtab' + (readView===key ? ' active' : '');
+      b.textContent = label;
+      b.addEventListener('click', () => { readView = key; render(); });
+      el.appendChild(b);
+    });
+  }
+
+  function render(){
+    renderReadTabs();
+    renderFilterBar();
+    const q = (document.getElementById('search').value || '').trim();
+    let shown = activeFilter ? items.filter(it => (it.tags||[]).includes(activeFilter)) : items;
+    if(readView === 'toread') shown = shown.filter(it => it.toread);
+    else if(readView === 'read') shown = shown.filter(it => !it.toread);
+    shown = shown.filter(it => matchesSearch(it, q));
+    const desc = (activeFilter ? ' tagged #'+activeFilter : '') + (q ? ' matching "'+q+'"' : '');
+    countEl.textContent = (shown.length === 1 ? '1 saved link' : shown.length + ' saved links') + desc;
+    if(shown.length === 0){
+      let msg;
+      if(items.length === 0) msg = 'No links saved yet. Save your first one above.';
+      else if(q) msg = 'No links match your search'+(activeFilter ? ' within #'+activeFilter : '')+'.';
+      else msg = 'No links tagged #'+activeFilter+'.';
+      listEl.innerHTML = '<div class="empty">'+msg+'</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    shown.forEach(it => {
+      const div = document.createElement('div');
+      div.className = 'item' + (it.toread ? '' : ' read');
+      const title = it.title || it.url;
+      let tagsHtml = '';
+      if((it.tags||[]).length){
+        tagsHtml = '<div class="tags">' + it.tags.map(t =>
+          '<span class="tag click" data-tag="'+t+'">#'+t+'</span>').join('') + '</div>';
+      }
+      const badge = it.toread ? '<span class="badge toread">To read</span>' : '';
+      const copyBadge = it.keepcopy ? '<span class="badge copy">Copy kept</span>' : '';
+      const copyBtn = it.keepcopy ? ' <button data-copy="'+it.id+'">View saved copy</button>' : '';
+      div.innerHTML =
+        '<a class="title" href="'+it.url+'" target="_blank" rel="noopener">'+title+'</a>' + badge + copyBadge +
+        '<div class="host">'+hostOf(it.url)+'</div>' +
+        (it.note ? '<div class="note">'+it.note+'</div>' : '') +
+        tagsHtml +
+        '<div class="actions"><button data-toggle="'+it.id+'">'+
+          (it.toread ? 'Mark as read' : 'Mark as to read')+'</button>'+copyBtn+'</div>';
+      div.querySelectorAll('.tags .tag').forEach(el => {
+        el.addEventListener('click', () => { activeFilter = el.dataset.tag; render(); });
+      });
+      div.querySelector('[data-toggle]').addEventListener('click', () => {
+        const target = items.find(x => x.id === it.id);
+        if(target){ target.toread = !target.toread; render(); }
+      });
+      const cb = div.querySelector('[data-copy]');
+      if(cb) cb.addEventListener('click', () => showSavedCopy(it));
+      listEl.appendChild(div);
+    });
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    const url = document.getElementById('url').value.trim();
+    const title = document.getElementById('title').value.trim();
+    const note = document.getElementById('note').value.trim();
+    if(!url){ alert('Please enter a link address.'); return; }
+    const toread = document.getElementById('toread').checked;
+    const keepcopy = document.getElementById('keepcopy').checked;
+    const savedOn = keepcopy ? new Date().toLocaleDateString() : null;
+    items.unshift({ id: nextId++, url, title, note, tags: pendingTags.slice(), toread, keepcopy, savedOn });
+    document.getElementById('url').value = '';
+    document.getElementById('title').value = '';
+    document.getElementById('note').value = '';
+    document.getElementById('tagInput').value = '';
+    document.getElementById('toread').checked = true;
+    document.getElementById('keepcopy').checked = false;
+    pendingTags = [];
+    renderPendingTags();
+    statusEl().textContent = '';
+    titleWasEdited = false;
+    render();
+  });
+
+  document.getElementById('title').addEventListener('input', () => { titleWasEdited = true; });
+  document.getElementById('search').addEventListener('input', render);
+
+  const tagInput = document.getElementById('tagInput');
+  tagInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ',' ){
+      e.preventDefault();
+      addPendingTag(tagInput.value);
+      tagInput.value = '';
+    } else if(e.key === 'Backspace' && tagInput.value === '' && pendingTags.length){
+      pendingTags.pop(); renderPendingTags();
+    }
+  });
+  tagInput.addEventListener('blur', () => {
+    if(tagInput.value.trim()){ addPendingTag(tagInput.value); tagInput.value=''; }
+  });
+
+  render();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

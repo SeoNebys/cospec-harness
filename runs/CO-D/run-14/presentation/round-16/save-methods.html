@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Compare save interactions</title>
+  <style>
+    :root { --ink:#1d2722; --muted:#647069; --line:#dce2dd; --paper:#fffef9; --wash:#f2f3ec; --green:#245f49; --dark:#194735; --accent:#e6a34c; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    * { box-sizing:border-box; } body { margin:0; min-height:100vh; background:var(--wash); color:var(--ink); } button,input { font:inherit; } button { cursor:pointer; }
+    .page { width:min(1180px,94vw); margin:0 auto; padding:34px 0 60px; }
+    .intro { text-align:center; margin-bottom:26px; } .intro h1 { margin:0 0 8px; font:500 clamp(30px,4vw,44px)/1.1 Georgia,serif; } .intro p { margin:0; color:var(--muted); }
+    .compare { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+    .version { background:var(--paper); border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 8px 28px rgba(35,56,45,.07); }
+    .version-label { padding:10px 16px; background:#e5ebe6; color:var(--dark); font-size:13px; font-weight:750; letter-spacing:.04em; text-transform:uppercase; }
+    .app-head { height:58px; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid var(--line); }
+    .brand { display:flex; gap:8px; align-items:center; font-weight:780; } .mark { width:20px; height:25px; border-radius:3px 3px 8px 8px; background:var(--green); }
+    .app { min-height:450px; padding:24px; position:relative; } .top { display:flex; align-items:center; justify-content:space-between; gap:15px; } h2 { margin:0; font:500 27px Georgia,serif; }
+    .primary { border:0; border-radius:9px; background:var(--green); color:white; padding:10px 14px; font-weight:700; } .primary:hover { background:var(--dark); }
+    .empty { min-height:310px; margin-top:22px; border:1px dashed #bdc8c0; border-radius:14px; display:grid; place-items:center; text-align:center; color:var(--muted); padding:25px; }
+    .empty strong { display:block; color:var(--ink); font:500 21px Georgia,serif; margin-bottom:7px; }
+    .quick { display:flex; gap:8px; margin-top:19px; padding:10px; border:1px solid var(--line); border-radius:12px; background:white; box-shadow:0 3px 12px rgba(35,56,45,.05); }
+    input { min-width:0; flex:1; border:0; padding:4px 6px; color:var(--ink); } input:focus { outline:none; } .quick:focus-within { outline:3px solid rgba(230,163,76,.45); }
+    dialog { width:min(480px,calc(100vw - 28px)); border:0; border-radius:16px; padding:0; background:var(--paper); box-shadow:0 24px 70px rgba(25,50,38,.24); } dialog::backdrop { background:rgba(19,31,24,.48); }
+    .dialog-body { padding:25px; } .dialog-head { display:flex; justify-content:space-between; gap:15px; } .dialog-head h3 { margin:0; font:500 27px Georgia,serif; } .dialog-head p { margin:6px 0 0; color:var(--muted); } .close { border:0; background:transparent; font-size:24px; color:var(--muted); }
+    label { display:block; margin:22px 0 8px; font-size:14px; font-weight:720; } .field { width:100%; border:1px solid #cbd3cd; border-radius:9px; padding:12px; } .actions { display:flex; justify-content:flex-end; margin-top:20px; }
+    .review { position:absolute; inset:0; background:var(--paper); padding:28px; display:none; } .review.visible { display:block; } .found { margin:20px 0; padding:15px; border:1px solid var(--line); border-radius:11px; } .found strong { display:block; margin-bottom:5px; } .found span { color:var(--muted); font-size:14px; line-height:1.4; }
+    .done { color:var(--green); font-weight:700; margin-top:16px; display:none; }
+    [hidden] { display:none!important; }
+    @media(max-width:800px){ .compare{grid-template-columns:1fr}.page{width:min(580px,92vw)} }
+  </style>
+</head>
+<body>
+  <main class="page" data-harness-ready="true">
+    <div class="intro"><h1>How should a save begin?</h1><p>Try the same link in both versions.</p></div>
+    <section class="compare">
+      <article class="version">
+        <div class="version-label">Version A</div>
+        <div class="app-head"><div class="brand"><span class="mark"></span>Keepwell</div><span>AM</span></div>
+        <div class="app" id="appA">
+          <div class="top"><h2>Your library</h2><button class="primary" id="openDialog">+ Add bookmark</button></div>
+          <div class="empty"><div><strong>Your first good find belongs here</strong>Save articles, guides, and ideas for later.</div></div>
+          <div class="review" id="reviewA"><h2>Ready to save</h2><div class="found"><strong>A local’s walking guide to Rome</strong><span>Quiet streets, timeless landmarks, and neighborhood stops for exploring Rome on foot.</span></div><button class="primary finish">Save bookmark</button><div class="done">Saved to your library.</div></div>
+        </div>
+      </article>
+      <article class="version">
+        <div class="version-label">Version B</div>
+        <div class="app-head"><div class="brand"><span class="mark"></span>Keepwell</div><span>AM</span></div>
+        <div class="app" id="appB">
+          <div class="top"><h2>Your library</h2></div>
+          <div class="quick"><input id="quickUrl" type="url" aria-label="Web address in Version B" placeholder="Paste a web address"><button class="primary" id="quickContinue">Continue</button></div>
+          <div class="empty"><div><strong>Your first good find belongs here</strong>Save articles, guides, and ideas for later.</div></div>
+          <div class="review" id="reviewB"><h2>Ready to save</h2><div class="found"><strong>A local’s walking guide to Rome</strong><span>Quiet streets, timeless landmarks, and neighborhood stops for exploring Rome on foot.</span></div><button class="primary finish">Save bookmark</button><div class="done">Saved to your library.</div></div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <dialog id="saveDialog">
+    <div class="dialog-body"><div class="dialog-head"><div><h3>Save a bookmark</h3><p>Paste a link and we’ll fill in the details.</p></div><button class="close" aria-label="Close">×</button></div><label for="dialogUrl">Web address</label><input class="field" id="dialogUrl" type="url" placeholder="https://example.com/article"><div class="actions"><button class="primary" id="dialogContinue">Continue</button></div></div>
+  </dialog>
+  <script>
+    const sample = 'https://roaming.example/rome';
+    const dialog = document.querySelector('#saveDialog');
+    document.querySelector('#openDialog').addEventListener('click', () => { dialog.showModal(); setTimeout(() => document.querySelector('#dialogUrl').focus(), 0); });
+    document.querySelector('.close').addEventListener('click', () => dialog.close());
+    document.querySelector('#dialogContinue').addEventListener('click', () => {
+      const input = document.querySelector('#dialogUrl'); if (!input.value.trim()) { input.focus(); return; }
+      dialog.close(); document.querySelector('#reviewA').classList.add('visible');
+    });
+    document.querySelector('#quickContinue').addEventListener('click', () => {
+      const input = document.querySelector('#quickUrl'); if (!input.value.trim()) { input.focus(); return; }
+      document.querySelector('#reviewB').classList.add('visible');
+    });
+    document.querySelectorAll('.finish').forEach(button => button.addEventListener('click', () => { button.nextElementSibling.style.display='block'; button.disabled=true; }));
+    window.addEventListener('load', () => { document.querySelector('#dialogUrl').value=sample; document.querySelector('#quickUrl').value=sample; });
+  </script>
+</body>
+</html>

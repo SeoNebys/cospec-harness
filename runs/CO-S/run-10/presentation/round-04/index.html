@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --line: #e4e7ec;
+    --text: #1a1d24;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #eaf1ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .save-box {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  }
+  .save-row {
+    display: flex;
+    gap: 8px;
+  }
+  .save-row input {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 15px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: none;
+  }
+  .save-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .save-row button {
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .save-row button:disabled { opacity: 0.5; cursor: default; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .status.saving { color: var(--accent); }
+  .status.saved { color: #059669; }
+  .status.error { color: #dc2626; }
+
+  .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .item {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+    animation: pop 0.25s ease;
+  }
+  @keyframes pop { from { transform: translateY(-4px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .item .title { font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  .item .title a { color: var(--text); text-decoration: none; }
+  .item .title a:hover { text-decoration: underline; }
+  .item .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .item .favicon { width: 16px; height: 16px; border-radius: 4px; background: var(--accent-soft); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--accent); font-weight: 700; }
+  .item .desc { font-size: 14px; color: #384150; margin: 8px 0 0; }
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 48px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    background: var(--card);
+  }
+  .empty .big { font-size: 15px; color: var(--text); margin-bottom: 4px; }
+  .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and I'll fill in its details automatically.</p>
+</header>
+<main>
+  <div class="save-box">
+    <div class="save-row">
+      <input id="url" type="text" placeholder="Paste a link here, e.g. https://…" autocomplete="off">
+      <button id="saveBtn">Save</button>
+    </div>
+    <div class="hint">Tip: paste any web address and press Save.</div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <p class="section-label" id="listLabel" style="display:none;">Saved links</p>
+  <ul class="list" id="list"></ul>
+
+  <div class="empty" id="empty">
+    <div class="big">No links saved yet</div>
+    <div>Paste a link above and press Save to add your first bookmark.</div>
+  </div>
+</main>
+
+<script>
+  // --- Simulated metadata lookup -------------------------------------------
+  // In the real app, details (title, site, summary) would be fetched from the
+  // page automatically. In this prototype that lookup is SIMULATED so we can
+  // explore the behaviour without a live connection.
+  const KNOWN = {
+    "nytimes.com": { title: "The Science of a Good Night's Sleep", site: "The New York Times", desc: "What researchers now understand about sleep cycles, and small habits that improve rest." },
+    "wikipedia.org": { title: "Bookmark (World Wide Web) — Wikipedia", site: "Wikipedia", desc: "A bookmark is a URI that is stored for later retrieval in any of various storage formats." },
+    "github.com": { title: "GitHub — Where the world builds software", site: "GitHub", desc: "GitHub is where over 100 million developers shape the future of software, together." },
+    "medium.com": { title: "How I Finally Organised My Reading List", site: "Medium", desc: "A personal system for saving articles you actually come back to." },
+    "youtube.com": { title: "Deep Focus — Ambient Study Music", site: "YouTube", desc: "Three hours of calm background music for concentration and reading." },
+    "arstechnica.com": { title: "The long, strange history of the web bookmark", site: "Ars Technica", desc: "How saving links evolved from a browser afterthought into its own category of tools." }
+  };
+
+  function domainOf(url) {
+    try {
+      let u = url.trim();
+      if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+      const host = new URL(u).hostname.replace(/^www\./, "");
+      return host;
+    } catch (e) { return null; }
+  }
+
+  function titleCase(s) {
+    return s.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function lookup(url) {
+    const host = domainOf(url);
+    if (!host) return null;
+    // known site match (by root domain)
+    for (const key in KNOWN) {
+      if (host === key || host.endsWith("." + key)) {
+        return Object.assign({ host }, KNOWN[key]);
+      }
+    }
+    // fallback: derive a plausible title from the path/domain
+    let path = "";
+    try {
+      let u = url.trim();
+      if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+      path = new URL(u).pathname.split("/").filter(Boolean).pop() || "";
+    } catch (e) {}
+    const root = host.split(".")[0];
+    const guessed = path ? titleCase(path.replace(/\.\w+$/, "")) : titleCase(root);
+    return { host, title: guessed || host, site: titleCase(root), desc: "" };
+  }
+
+  // --- State ----------------------------------------------------------------
+  const KEY = "proto_bookmarks_v1";
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (e) { items = []; }
+
+  function persist() { localStorage.setItem(KEY, JSON.stringify(items)); }
+
+  function timeAgo(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return "just now";
+    const m = Math.floor(s / 60); if (m < 60) return m + " min ago";
+    const h = Math.floor(m / 60); if (h < 24) return h + " h ago";
+    const d = Math.floor(h / 24); return d + " d ago";
+  }
+
+  const listEl = document.getElementById("list");
+  const emptyEl = document.getElementById("empty");
+  const listLabel = document.getElementById("listLabel");
+
+  function render() {
+    listEl.innerHTML = "";
+    if (items.length === 0) {
+      emptyEl.style.display = "block";
+      listLabel.style.display = "none";
+      return;
+    }
+    emptyEl.style.display = "none";
+    listLabel.style.display = "block";
+    items.forEach(it => {
+      const li = document.createElement("li");
+      li.className = "item";
+      const initial = (it.site || it.host || "?").charAt(0).toUpperCase();
+      li.innerHTML = `
+        <p class="title"><a href="${it.url}" target="_blank" rel="noopener">${escapeHtml(it.title)}</a></p>
+        <div class="meta">
+          <span class="favicon">${escapeHtml(initial)}</span>
+          <span>${escapeHtml(it.site || it.host)}</span>
+          <span>·</span>
+          <span>${escapeHtml(it.host)}</span>
+          <span>·</span>
+          <span>saved ${timeAgo(it.savedAt)}</span>
+        </div>
+        ${it.desc ? `<p class="desc">${escapeHtml(it.desc)}</p>` : ""}
+      `;
+      listEl.appendChild(li);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+  }
+
+  const urlEl = document.getElementById("url");
+  const btn = document.getElementById("saveBtn");
+  const statusEl = document.getElementById("status");
+
+  function setStatus(msg, cls) {
+    statusEl.textContent = msg;
+    statusEl.className = "status " + (cls || "");
+  }
+
+  function save() {
+    const raw = urlEl.value.trim();
+    if (!raw) { setStatus("Please paste a link first.", "error"); return; }
+    const host = domainOf(raw);
+    if (!host || !host.includes(".")) { setStatus("That doesn't look like a valid link.", "error"); return; }
+
+    btn.disabled = true;
+    setStatus("Fetching details…", "saving");
+
+    // Simulate the automatic detail lookup with a short delay.
+    setTimeout(() => {
+      const meta = lookup(raw);
+      let normalized = raw;
+      if (!/^https?:\/\//i.test(normalized)) normalized = "https://" + normalized;
+      items.unshift({
+        id: Date.now(),
+        url: normalized,
+        host: meta.host,
+        title: meta.title,
+        site: meta.site,
+        desc: meta.desc,
+        savedAt: Date.now()
+      });
+      persist();
+      render();
+      urlEl.value = "";
+      btn.disabled = false;
+      setStatus("Saved — details filled in automatically.", "saved");
+      setTimeout(() => setStatus("", ""), 2500);
+      urlEl.focus();
+    }, 650);
+  }
+
+  btn.addEventListener("click", save);
+  urlEl.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

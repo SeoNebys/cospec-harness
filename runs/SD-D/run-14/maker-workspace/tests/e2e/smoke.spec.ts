@@ -1,0 +1,1 @@
+import{test,expect}from'@playwright/test';test('loads the prepared application',async({page})=>{await page.goto('/');await expect(page.locator('[data-harness-ready="true"]')).toBeVisible();await expect(page.getByRole('heading',{name:'All bookmarks'})).toBeVisible();});

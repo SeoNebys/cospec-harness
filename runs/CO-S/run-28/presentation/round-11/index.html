@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#1c2430;--muted:#6b7684;--line:#e3e7ec;--accent:#2f6bff;--shadow:0 1px 2px rgba(20,30,50,.06),0 4px 16px rgba(20,30,50,.05);}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;}
+  header.top{background:var(--card);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;}
+  header.top h1{font-size:18px;margin:0;letter-spacing:-.2px;}
+  header.top .dot{width:22px;height:22px;border-radius:7px;background:var(--accent);}
+  main{max-width:820px;margin:0 auto;padding:20px;}
+
+  .saver{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:22px;}
+  .saver .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .saver input[type=url]{flex:1 1 240px;padding:12px 14px;font-size:15px;border:1px solid var(--line);border-radius:10px;outline:none;}
+  .tagfield{position:relative;flex:1 1 240px;}
+  .tagfield input{width:100%;padding:12px 14px;font-size:15px;border:1px solid var(--line);border-radius:10px;outline:none;}
+  .saver input:focus,.tagfield input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,107,255,.12);}
+  .saver button{padding:12px 18px;font-size:15px;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:10px;cursor:pointer;white-space:nowrap;}
+  .saver .hint{color:var(--muted);font-size:13px;margin:10px 2px 0;}
+  .suggest{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:9;overflow:hidden;display:none;}
+  .suggest.open{display:block;}
+  .suggest .opt{padding:10px 13px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;}
+  .suggest .opt:hover,.suggest .opt.hi{background:#eef1f5;}
+  .suggest .opt .cnt{color:var(--muted);font-size:12px;}
+
+  .tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+  .tabs button{border:none;background:transparent;padding:10px 14px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:7px;}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tabs button .count{font-size:12px;background:#eef1f5;color:#48566a;border-radius:999px;padding:1px 8px;font-weight:600;}
+  .tabs button.active .count{background:#e2ebff;color:var(--accent);}
+  .readbtn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--muted);white-space:nowrap;}
+  .readbtn:hover{border-color:var(--accent);color:var(--accent);}
+  .readbtn.on{background:#fff6df;border-color:#f0d68a;color:#8a6a12;}
+  .markread{border:none;background:#e9f7ee;color:#1f8a4c;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .markread:hover{background:#d7f0e0;}
+  .archivebtn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--muted);white-space:nowrap;}
+  .archivebtn:hover{border-color:#c9a3ff;color:#7a3fd0;}
+  .restorebtn{border:1px solid #c9a3ff;background:#f7f1ff;color:#7a3fd0;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .restorebtn:hover{background:#efe3ff;}
+  .toolrow{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .searchbar{position:relative;margin-bottom:16px;}
+  .searchbar input{width:100%;padding:12px 40px 12px 14px;font-size:15px;border:1px solid var(--line);border-radius:10px;outline:none;background:#fff;}
+  .searchbar input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,107,255,.12);}
+  .searchbar #searchClear{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:transparent;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;padding:4px 8px;display:none;}
+  .searchbar #searchClear.show{display:block;}
+  mark{background:#fff2ac;color:inherit;border-radius:3px;padding:0 1px;}
+  .tagbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  .tagbar .lbl{font-size:13px;color:var(--muted);}
+  .tag{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--ink);}
+  .tag.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .tag .count{opacity:.7;margin-left:5px;font-size:12px;}
+  .section-label{color:var(--muted);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin:0 2px 12px;}
+
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+  li.item{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;animation:pop .18s ease-out;}
+  @keyframes pop{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+  .titlerow{display:flex;align-items:center;gap:8px;}
+  li.item .title{font-size:16px;font-weight:600;color:var(--ink);text-decoration:none;}
+  li.item .title:hover{color:var(--accent);}
+  li.item .title.fetching{color:var(--muted);font-weight:500;font-style:italic;}
+  .pencil{border:none;background:transparent;cursor:pointer;color:var(--muted);font-size:15px;padding:4px;border-radius:8px;line-height:1;}
+  .pencil:hover{background:#eef1f5;color:var(--ink);}
+  li.item .url{font-size:13px;color:var(--muted);word-break:break-all;margin-top:2px;}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .chip{font-size:12px;background:#eef1f5;color:#48566a;border-radius:999px;padding:3px 10px;cursor:pointer;}
+  .chip:hover{background:#dfe6f6;color:var(--accent);}
+  li.item .meta{font-size:12px;color:var(--muted);margin-top:6px;}
+  .editrow{display:flex;gap:8px;align-items:center;}
+  .editrow input{flex:1;padding:9px 11px;font-size:15px;border:1px solid var(--accent);border-radius:9px;outline:none;box-shadow:0 0 0 3px rgba(47,107,255,.12);}
+  .editrow .save{padding:9px 14px;border:none;background:var(--accent);color:#fff;font-weight:600;border-radius:9px;cursor:pointer;}
+  .editrow .cancel{padding:9px 12px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:9px;cursor:pointer;}
+  .shimmer{display:inline-block;width:180px;max-width:60%;height:15px;border-radius:5px;background:linear-gradient(90deg,#eef1f5 25%,#e2e7ee 37%,#eef1f5 63%);background-size:400% 100%;animation:sh 1.2s ease infinite;vertical-align:middle;}
+  @keyframes sh{0%{background-position:100% 0;}100%{background-position:-100% 0;}}
+
+  .empty{text-align:center;color:var(--muted);padding:48px 20px;border:1px dashed var(--line);border-radius:14px;background:var(--card);}
+  .empty .big{font-size:15px;color:var(--ink);font-weight:600;margin-bottom:6px;}
+
+  @media (max-width:560px){.saver .row{flex-direction:column;}main{padding:14px;}}
+</style>
+</head>
+<body>
+  <header class="top"><div class="dot"></div><h1>My Bookmarks</h1></header>
+  <main>
+    <form class="saver" id="saver" autocomplete="off">
+      <div class="row">
+        <input type="url" id="urlInput" placeholder="Paste a link to save…" aria-label="Link to save" />
+        <div class="tagfield">
+          <input type="text" id="tagInput" placeholder="Add tags (comma-separated)" aria-label="Tags" />
+          <div class="suggest" id="suggest"></div>
+        </div>
+        <button type="submit">Save link</button>
+      </div>
+      <div class="hint">Paste a link, add any tags you like, and press Save. A link can carry several tags.</div>
+    </form>
+
+    <div class="tabs" id="tabs">
+      <button data-view="all" class="active">All <span class="count" id="cntAll">0</span></button>
+      <button data-view="toread">To read <span class="count" id="cntToread">0</span></button>
+      <button data-view="archive">Archived <span class="count" id="cntArchive">0</span></button>
+    </div>
+
+    <div class="searchbar">
+      <input type="search" id="searchInput" placeholder="Search your bookmarks…" aria-label="Search bookmarks" />
+      <button type="button" id="searchClear" title="Clear search" aria-label="Clear search">×</button>
+    </div>
+
+    <div class="tagbar" id="tagbar"></div>
+    <div class="section-label" id="sectionLabel">Recent</div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty">
+      <div class="big">Nothing saved yet</div>
+      <div>Save your first link above and it will show up here.</div>
+    </div>
+  </main>
+
+<script>
+  const items=[
+    {url:'https://en.wikipedia.org/wiki/Bookmark',title:'Bookmark - Wikipedia',tags:['reading','reference'],when:'yesterday',fetching:false,editing:false,toRead:true,archived:false},
+    {url:'https://developer.mozilla.org/en-US/docs/Web/JavaScript',title:'JavaScript | MDN',tags:['work','reference'],when:'yesterday',fetching:false,editing:false,toRead:false,archived:false},
+    {url:'https://news.ycombinator.com',title:'Hacker News',tags:['reading','work'],when:'yesterday',fetching:false,editing:false,toRead:true,archived:false},
+    {url:'https://www.seriouseats.com/the-food-lab',title:'The Food Lab | Serious Eats',tags:['recipes'],when:'last week',fetching:false,editing:false,toRead:false,archived:true},
+  ];
+  let activeTag=null;
+  let query='';
+  let view='all';
+
+  const listEl=document.getElementById('list');
+  const emptyEl=document.getElementById('empty');
+  const tagbarEl=document.getElementById('tagbar');
+  const sectionLabel=document.getElementById('sectionLabel');
+  const form=document.getElementById('saver');
+  const urlInput=document.getElementById('urlInput');
+  const tagInput=document.getElementById('tagInput');
+  const suggestEl=document.getElementById('suggest');
+  const searchInput=document.getElementById('searchInput');
+  const searchClear=document.getElementById('searchClear');
+  const tabsEl=document.getElementById('tabs');
+  const cntAll=document.getElementById('cntAll');
+  const cntToread=document.getElementById('cntToread');
+  const cntArchive=document.getElementById('cntArchive');
+
+  const KNOWN_TITLES={
+    'en.wikipedia.org/wiki/bookmark':'Bookmark - Wikipedia',
+    'developer.mozilla.org/en-us/docs/web/javascript':'JavaScript | MDN',
+    'news.ycombinator.com':'Hacker News',
+    'github.com':'GitHub · Build and ship software on a single, collaborative platform',
+  };
+  function simulateFetchedTitle(raw){
+    try{const u=new URL(raw);const key=(u.hostname.replace(/^www\./,'')+u.pathname.replace(/\/$/,'')).toLowerCase();
+      if(KNOWN_TITLES[key])return KNOWN_TITLES[key];
+      const host=u.hostname.replace(/^www\./,'');const last=u.pathname.split('/').filter(Boolean).pop()||'';
+      const words=last.replace(/[-_]+/g,' ').replace(/\.[a-z0-9]+$/i,'').trim();
+      const brand=host.split('.')[0];const site=brand.charAt(0).toUpperCase()+brand.slice(1);
+      if(words){const cap=words.charAt(0).toUpperCase()+words.slice(1);return cap+' | '+site;}
+      return site+' — Home';
+    }catch(e){return raw;}
+  }
+
+  function allTags(){const c={};items.forEach(i=>i.tags.forEach(t=>c[t]=(c[t]||0)+1));return c;}
+
+  function renderTagbar(){
+    tagbarEl.innerHTML='<span class="lbl">Browse:</span>';
+    const allb=document.createElement('button');allb.className='tag'+(activeTag===null?' active':'');
+    allb.innerHTML=`All <span class="count">${items.length}</span>`;allb.onclick=()=>{activeTag=null;renderAll();};tagbarEl.appendChild(allb);
+    const c=allTags();
+    Object.keys(c).sort().forEach(t=>{const b=document.createElement('button');b.className='tag'+(activeTag===t?' active':'');
+      b.innerHTML=`#${t} <span class="count">${c[t]}</span>`;b.onclick=()=>{activeTag=t;renderAll();};tagbarEl.appendChild(b);});
+  }
+
+  function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+  function hl(text){
+    const safe=esc(text);
+    if(!query)return safe;
+    const q=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    return safe.replace(new RegExp('('+q+')','ig'),'<mark>$1</mark>');
+  }
+  function matches(it){
+    if(!query)return true;
+    const q=query.toLowerCase();
+    return it.title.toLowerCase().includes(q)||it.url.toLowerCase().includes(q)||it.tags.some(t=>t.includes(q));
+  }
+
+  function inView(it){
+    if(view==='archive')return it.archived;
+    if(view==='toread')return it.toRead&&!it.archived;
+    return !it.archived; // 'all' = normal view, excludes archived
+  }
+  const viewName={all:'',toread:' · To read',archive:' · Archived'};
+
+  function updateCounts(){
+    cntAll.textContent=items.filter(i=>!i.archived).length;
+    cntToread.textContent=items.filter(i=>i.toRead&&!i.archived).length;
+    cntArchive.textContent=items.filter(i=>i.archived).length;
+    [...tabsEl.querySelectorAll('button')].forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  }
+
+  function render(){
+    const base=view==='toread'?'To read':(view==='archive'?'Archived':'Recent');
+    if(query)sectionLabel.textContent='Results for “'+query+'”'+(activeTag?(' in #'+activeTag):'')+viewName[view];
+    else sectionLabel.textContent=activeTag?('Tagged #'+activeTag+viewName[view]):base;
+    updateCounts();
+    listEl.innerHTML='';
+    const shown=items.filter(i=>inView(i)&&(activeTag===null||i.tags.includes(activeTag))&&matches(i));
+    if(shown.length===0){emptyEl.style.display='block';
+      const big=emptyEl.querySelector('.big');const sub=emptyEl.querySelector('div:last-child');
+      if(items.length===0){big.textContent='Nothing saved yet';sub.textContent='Save your first link above and it will show up here.';}
+      else if(query){big.textContent='No matches';sub.textContent='Nothing matches “'+query+'”'+(activeTag?(' in #'+activeTag):'')+(view==='toread'?' in your reading queue':(view==='archive'?' in your archive':''))+'. Try different words or clear the search.';}
+      else if(view==='toread'){big.textContent='Your reading queue is empty';sub.textContent='Mark a link “Read later” and it will wait for you here.';}
+      else if(view==='archive'){big.textContent='Nothing archived';sub.textContent='Archive a link to tuck it away here without deleting it. You can restore it anytime.';}
+      else{big.textContent='No links with this tag';sub.textContent='Nothing is tagged this way yet.';}
+      return;}
+    emptyEl.style.display='none';
+    shown.forEach(it=>{
+      const li=document.createElement('li');li.className='item';
+      if(it.editing){
+        li.innerHTML=`<div class="editrow"><input type="text" value="${it.title.replace(/"/g,'&quot;')}" /><button class="save">Save</button><button class="cancel">Cancel</button></div><div class="url">${it.url}</div>`;
+        const inp=li.querySelector('input');
+        const commit=()=>{const v=inp.value.trim();if(v)it.title=v;it.editing=false;render();};
+        li.querySelector('.save').onclick=commit;li.querySelector('.cancel').onclick=()=>{it.editing=false;render();};
+        inp.addEventListener('keydown',e=>{if(e.key==='Enter')commit();if(e.key==='Escape'){it.editing=false;render();}});
+        setTimeout(()=>{inp.focus();inp.select();},0);
+      }else if(it.fetching){
+        li.innerHTML=`<div class="titlerow"><span class="title fetching"><span class="shimmer"></span></span></div><div class="url">${it.url}</div><div class="meta">Reading the page’s title…</div>`;
+      }else{
+        const chips=it.tags.map(t=>`<span class="chip" data-t="${t}">#${hl(t)}</span>`).join('');
+        let action;
+        if(view==='archive'){
+          action=`<button class="restorebtn">↩ Restore</button>`;
+        }else if(view==='toread'){
+          action=`<button class="markread">✓ Mark read</button><button class="archivebtn">Archive</button>`;
+        }else{
+          action=`<button class="readbtn${it.toRead?' on':''}">${it.toRead?'★ In reading queue':'☆ Read later'}</button><button class="archivebtn">Archive</button>`;
+        }
+        li.innerHTML=`<div class="titlerow"><a class="title" href="${it.url}" target="_blank" rel="noopener">${hl(it.title)}</a><button class="pencil" title="Rename">✎</button></div><div class="url">${hl(it.url)}</div><div class="chips">${chips}</div><div class="meta">Saved ${it.when}</div><div class="toolrow">${action}</div>`;
+        li.querySelector('.pencil').onclick=()=>{items.forEach(x=>x.editing=false);it.editing=true;render();};
+        li.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{activeTag=ch.dataset.t;renderAll();});
+        const rb=li.querySelector('.readbtn');if(rb)rb.onclick=()=>{it.toRead=!it.toRead;render();};
+        const mr=li.querySelector('.markread');if(mr)mr.onclick=()=>{it.toRead=false;render();};
+        const ab=li.querySelector('.archivebtn');if(ab)ab.onclick=()=>{it.archived=true;render();};
+        const sb=li.querySelector('.restorebtn');if(sb)sb.onclick=()=>{it.archived=false;render();};
+      }
+      listEl.appendChild(li);
+    });
+  }
+  function renderAll(){renderTagbar();render();}
+
+  // --- tag autocomplete ---------------------------------------------------
+  let hi=-1;
+  function currentFragment(){
+    const parts=tagInput.value.split(',');
+    return parts[parts.length-1].trim().toLowerCase();
+  }
+  function applySuggestion(name){
+    const parts=tagInput.value.split(',');
+    parts[parts.length-1]=name;
+    tagInput.value=parts.map(p=>p.trim()).filter(Boolean).join(', ')+', ';
+    suggestEl.classList.remove('open');tagInput.focus();
+  }
+  function renderSuggest(){
+    const frag=currentFragment();
+    const already=tagInput.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+    const c=allTags();
+    let opts=Object.keys(c).filter(t=>t.includes(frag)&&!already.slice(0,-1).includes(t));
+    if(frag==='')opts=Object.keys(c).filter(t=>!already.slice(0,-1).includes(t));
+    opts=opts.sort((a,b)=>c[b]-c[a]).slice(0,6);
+    if(opts.length===0||(frag===''&&document.activeElement!==tagInput)){suggestEl.classList.remove('open');return;}
+    hi=-1;
+    suggestEl.innerHTML=opts.map((t,i)=>`<div class="opt" data-t="${t}">#${t}<span class="cnt">${c[t]} saved</span></div>`).join('');
+    suggestEl.querySelectorAll('.opt').forEach(o=>o.onclick=()=>applySuggestion(o.dataset.t));
+    suggestEl.classList.add('open');
+  }
+  tagInput.addEventListener('input',renderSuggest);
+  tagInput.addEventListener('focus',renderSuggest);
+  tagInput.addEventListener('blur',()=>setTimeout(()=>suggestEl.classList.remove('open'),150));
+  tagInput.addEventListener('keydown',e=>{
+    const opts=[...suggestEl.querySelectorAll('.opt')];
+    if(!suggestEl.classList.contains('open')||opts.length===0)return;
+    if(e.key==='ArrowDown'){e.preventDefault();hi=(hi+1)%opts.length;opts.forEach((o,i)=>o.classList.toggle('hi',i===hi));}
+    else if(e.key==='ArrowUp'){e.preventDefault();hi=(hi-1+opts.length)%opts.length;opts.forEach((o,i)=>o.classList.toggle('hi',i===hi));}
+    else if(e.key==='Enter'&&hi>=0){e.preventDefault();applySuggestion(opts[hi].dataset.t);}
+    else if(e.key==='Escape'){suggestEl.classList.remove('open');}
+  });
+
+  tabsEl.querySelectorAll('button').forEach(b=>b.onclick=()=>{view=b.dataset.view;render();});
+
+  searchInput.addEventListener('input',()=>{
+    query=searchInput.value.trim();
+    searchClear.classList.toggle('show',query.length>0);
+    render();
+  });
+  searchClear.addEventListener('click',()=>{
+    searchInput.value='';query='';searchClear.classList.remove('show');searchInput.focus();render();
+  });
+
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    let val=urlInput.value.trim();if(!val)return;
+    if(!/^https?:\/\//i.test(val))val='https://'+val;
+    const tags=tagInput.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+    const item={url:val,title:'',tags:tags.length?tags:[],when:'just now',fetching:true,editing:false,toRead:false,archived:false};
+    items.unshift(item);
+    urlInput.value='';tagInput.value='';suggestEl.classList.remove('open');
+    activeTag=null;query='';searchInput.value='';searchClear.classList.remove('show');view='all';
+    urlInput.focus();renderAll();
+    setTimeout(()=>{item.title=simulateFetchedTitle(val);item.fetching=false;render();},700);
+  });
+
+  renderAll();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sorting — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:740px; margin:0 auto; padding:26px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 18px; }
+  .searchbar { position:relative; margin-bottom:12px; }
+  .searchbar input { width:100%; border:1px solid var(--line); border-radius:10px; padding:11px 14px 11px 40px; font-size:15px; outline:none; }
+  .searchbar input:focus { border-color:var(--accent); }
+  .searchbar .mag { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .controls { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .seg { display:inline-flex; background:#eef1f5; border-radius:9px; padding:3px; }
+  .seg button { border:none; background:transparent; padding:7px 14px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:7px; }
+  .seg button.active { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .sortwrap { display:flex; align-items:center; gap:8px; }
+  .sortwrap label { font-size:13px; color:var(--muted); }
+  select { border:1px solid var(--line); border-radius:8px; padding:8px 11px; font-size:13px; background:#fff; color:var(--ink); cursor:pointer; outline:none; }
+  select:focus { border-color:var(--accent); }
+  .remember { font-size:12px; color:var(--green); margin:-6px 2px 12px; min-height:16px; }
+  .count { color:var(--muted); font-size:13px; margin:0 2px 10px; }
+  .list { display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .card .meta { color:var(--muted); font-size:12.5px; }
+  .badge { font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; margin-left:4px; }
+  .badge.toread { background:#eaf1fe; color:var(--accent); } .badge.finished { background:#e5f6ec; color:var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Choose how your whole collection is ordered.</p>
+  <div class="searchbar"><span class="mag">🔍</span><input id="q" placeholder="Search…" /></div>
+  <div class="controls">
+    <div class="seg" id="seg"></div>
+    <div class="sortwrap"><label for="sort">Sort</label>
+      <select id="sort">
+        <option value="newest">Newest added</option>
+        <option value="oldest">Oldest added</option>
+        <option value="updated">Recently updated</option>
+        <option value="az">Title A–Z</option>
+        <option value="za">Title Z–A</option>
+      </select>
+    </div>
+  </div>
+  <div class="remember" id="remember"></div>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+</div>
+<script>
+const DATA=[
+  { title:"The Quiet Art of Reading Later", site:"nytimes.com", status:"toread", added:5, updated:9 },
+  { title:"CSS Flexbox layout — MDN Web Docs", site:"developer.mozilla.org", status:"finished", added:2, updated:2 },
+  { title:"A weekend in Rome: what to see", site:"travel.example.com", status:"toread", added:6, updated:6 },
+  { title:"Bread baking basics", site:"seriouseats.com", status:"toread", added:1, updated:11 },
+  { title:"Zettelkasten note-taking", site:"zettel.example", status:"finished", added:4, updated:7 },
+  { title:"Rust ownership explained", site:"doc.rust-lang.org", status:"finished", added:3, updated:3 }
+];
+const dayLabel=n=>["","10 days ago","9 days ago","8 days ago","7 days ago","6 days ago","5 days ago","4 days ago","3 days ago","2 days ago","yesterday","today"][n]||n+"";
+const seg=document.getElementById("seg"), listEl=document.getElementById("list"), countEl=document.getElementById("count");
+const sortEl=document.getElementById("sort"), rememberEl=document.getElementById("remember"), qEl=document.getElementById("q");
+let view="all";
+// Remembered default (simulated persistence)
+let savedDefault = localStorage.getItem("sortDefault") || "newest";
+sortEl.value = savedDefault;
+
+function sorter(a,b){
+  switch(sortEl.value){
+    case "newest": return b.added-a.added;
+    case "oldest": return a.added-b.added;
+    case "updated": return b.updated-a.updated;
+    case "az": return a.title.localeCompare(b.title);
+    case "za": return b.title.localeCompare(a.title);
+  }
+}
+function render(){
+  seg.innerHTML=['toread','finished','all'].map(v=>'<button data-v="'+v+'" class="'+(view===v?'active':'')+'">'+
+    (v==='toread'?'To read':v==='finished'?'Finished':'All')+'</button>').join('');
+  seg.querySelectorAll('[data-v]').forEach(el=>el.onclick=()=>{ view=el.dataset.v; render(); });
+  const q=qEl.value.trim().toLowerCase();
+  let rows=DATA.filter(b=> view==='all'||b.status===view )
+               .filter(b=> !q || b.title.toLowerCase().includes(q) || b.site.toLowerCase().includes(q));
+  rows=rows.slice().sort(sorter);
+  const label=sortEl.options[sortEl.selectedIndex].text;
+  countEl.textContent=rows.length+" bookmark"+(rows.length===1?"":"s")+" · sorted by "+label+(q?' · matching “'+q+'”':'')+(view!=='all'?' · '+(view==='toread'?'To read':'Finished'):'');
+  listEl.innerHTML=rows.map(b=>'<div class="card"><div class="title">'+b.title+'</div>'+
+    '<div class="meta">'+b.site+' · added '+dayLabel(b.added)+' · updated '+dayLabel(b.updated)+
+    ' <span class="badge '+b.status+'">'+(b.status==='finished'?'Finished':'To read')+'</span></div></div>').join('');
+}
+sortEl.onchange=()=>{ localStorage.setItem("sortDefault",sortEl.value);
+  rememberEl.textContent="✓ Saved “"+sortEl.options[sortEl.selectedIndex].text+"” as your default order — it'll be used next time too.";
+  render(); };
+qEl.oninput=render;
+// preset for screenshots
+const ps=new URLSearchParams(location.search).get("sort"); if(ps){ sortEl.value=ps; }
+const pv=new URLSearchParams(location.search).get("view"); if(pv){ view=pv; }
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

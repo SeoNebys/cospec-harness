@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="font-medium density-comfortable">
+<header>
+  <div class="header-row">
+    <div>
+      <h1>My Bookmarks</h1>
+      <p class="tagline">Save a link and I'll fill in the page details for you.</p>
+    </div>
+    <div class="header-actions">
+      <button class="hdr-btn" id="settingsBtn" type="button">⚙ Settings</button>
+      <button class="hdr-btn" id="importBtn" type="button">Import…</button>
+      <button class="hdr-btn" id="exportBtn" type="button">Export</button>
+      <button class="hdr-btn" id="logoutBtn" type="button">Sign out</button>
+      <input type="file" id="importFile" accept=".html,text/html" hidden />
+    </div>
+  </div>
+</header>
+
+<main>
+  <form class="saver" id="saver" autocomplete="off" novalidate>
+    <input type="text" id="url" placeholder="Paste a link, e.g. https://…" />
+    <button type="submit" id="saveBtn">Save</button>
+  </form>
+  <div class="hint">Paste any web address and press Save.</div>
+  <div class="save-error" id="saveError" hidden></div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-view="all" type="button">All</button>
+    <button class="tab" data-view="toread" type="button">To read <span class="count" id="toreadCount"></span></button>
+    <button class="tab" data-view="archived" type="button">Archived <span class="count" id="archivedCount"></span></button>
+  </div>
+
+  <div class="searchbar">
+    <span class="search-icon">🔍</span>
+    <input type="search" id="search" placeholder='Search — try #tag, "a phrase", or AND / OR / NOT' autocomplete="off" />
+    <button class="search-clear" id="searchClear" type="button" title="Clear search" hidden>×</button>
+  </div>
+
+  <div class="collections-row">
+    <span class="coll-label">Collections:</span>
+    <div class="collections" id="collections"></div>
+    <button id="saveSearchBtn" class="save-search" type="button" disabled>★ Save current search</button>
+  </div>
+
+  <div class="sortrow">
+    <span class="label">Sort</span>
+    <select id="sortSelect">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="az">Title A–Z</option>
+      <option value="za">Title Z–A</option>
+    </select>
+    <span class="spacer"></span>
+    <button class="select-btn" id="selectBtn" type="button">Select</button>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" hidden></div>
+</main>
+
+<!-- Editor -->
+<div class="backdrop" id="backdrop">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>Edit bookmark</h2>
+    <div class="field"><label for="editAddr">Web address</label><input type="text" id="editAddr" /></div>
+    <div class="field"><label for="editTitle">Title</label><input type="text" id="editTitle" /></div>
+    <div class="field"><label for="editDesc">Description</label><textarea id="editDesc"></textarea></div>
+    <div class="field"><label for="editNote">Your note</label><textarea id="editNote" placeholder="Why did you save this? Add a private note…"></textarea></div>
+    <div class="field" style="position:relative;">
+      <label for="tagInput">Tags</label>
+      <div class="chipbox" id="chipbox"><input type="text" id="tagInput" placeholder="Type a tag and press Enter" autocomplete="off" /></div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <div class="field">
+      <label>Preserved copy</label>
+      <div id="snapshotArea"></div>
+      <label class="inline-check"><input type="checkbox" id="archiveOrgChk" /> Also keep a copy in the Internet Archive</label>
+      <div id="archiveOrgArea" class="archiveorg-area"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="cancelEdit" type="button">Cancel</button>
+      <button class="btn primary" id="saveEdit" type="button">Save changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="backdrop" id="settingsBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:480px;">
+    <h2>Settings</h2>
+    <p class="sub">Your personal preferences, synced to your account.</p>
+    <div class="field">
+      <label for="setSort">Default sort order</label>
+      <select id="setSort">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="az">Title A–Z</option>
+        <option value="za">Title Z–A</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>How much to show in the list</label>
+      <div class="seg" id="setDensity">
+        <button type="button" data-v="comfortable">Comfortable</button>
+        <button type="button" data-v="cozy">Cozy</button>
+        <button type="button" data-v="compact">Compact</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Text size</label>
+      <div class="seg" id="setFont">
+        <button type="button" data-v="small">Small</button>
+        <button type="button" data-v="medium">Medium</button>
+        <button type="button" data-v="large">Large</button>
+      </div>
+    </div>
+    <div class="actions"><button class="btn primary" id="settingsClose" type="button">Done</button></div>
+  </div>
+</div>
+
+<!-- Save search -->
+<div class="backdrop" id="collBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:460px;">
+    <h2>Save this search as a collection</h2>
+    <p class="sub">A collection always shows the bookmarks that match its search right now.</p>
+    <div class="field"><label for="collName">Collection name</label><input type="text" id="collName" placeholder="e.g. To-read articles" /></div>
+    <div class="field">
+      <label for="collQuery">Search it runs</label>
+      <input type="text" id="collQuery" placeholder='e.g. #article NOT #book "deep dive"' />
+      <p class="fieldhint">Words and #tags to include, and NOT to exclude — same as the search box.</p>
+    </div>
+    <div class="actions"><button class="btn" id="collCancel" type="button">Cancel</button><button class="btn primary" id="collSave" type="button">Save collection</button></div>
+  </div>
+</div>
+
+<!-- Bulk tag -->
+<div class="backdrop" id="bulkTagBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:420px;">
+    <h2 id="bulkTagTitle">Add a tag</h2>
+    <p class="sub" id="bulkTagSub"></p>
+    <div id="bulkTagBody"></div>
+    <div class="actions"><button class="btn" id="bulkTagCancel" type="button">Cancel</button><button class="btn primary" id="bulkTagApply" type="button">Apply</button></div>
+  </div>
+</div>
+
+<!-- Confirm delete -->
+<div class="backdrop" id="confirmBackdrop">
+  <div class="modal" role="alertdialog" aria-modal="true" style="max-width:420px;">
+    <h2 id="confirmTitle">Delete this bookmark?</h2>
+    <p class="sub" id="confirmTarget"></p>
+    <p class="danger-note">This permanently removes it. Unlike Archive, this <strong>cannot be undone</strong>.</p>
+    <div class="actions"><button class="btn" id="cancelDelete" type="button">Cancel</button><button class="btn danger" id="confirmDelete" type="button">Delete permanently</button></div>
+  </div>
+</div>
+
+<!-- Bulk action bar -->
+<div class="bulkbar" id="bulkbar" hidden>
+  <div class="bulkbar-inner">
+    <span id="bulkCount">0 selected</span>
+    <button data-act="selectAll" type="button" class="bulk-link" id="selectAllBtn"></button>
+    <button data-act="clear" type="button" class="bulk-link">Clear</button>
+    <span class="bulk-sep"></span>
+    <button data-act="addTag" type="button" class="bulk-act">+ Tag</button>
+    <button data-act="removeTag" type="button" class="bulk-act">– Tag</button>
+    <button data-act="readlater" type="button" class="bulk-act">Read later</button>
+    <button data-act="read" type="button" class="bulk-act">Mark read</button>
+    <button data-act="archive" type="button" class="bulk-act" id="bulkArchive">Archive</button>
+    <button data-act="restore" type="button" class="bulk-act" id="bulkRestore" hidden>Restore</button>
+    <button data-act="delete" type="button" class="bulk-act danger">Delete</button>
+    <span class="bulk-spacer"></span>
+    <button data-act="done" type="button" class="bulk-done">Done</button>
+  </div>
+</div>
+
+<script src="/query.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

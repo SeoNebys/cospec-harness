@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --muted:#6b7280; --faint:#9aa1ac; --accent:#2563eb; --accent-soft:#eff4ff; --chip:#eef2f7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:#1f2430; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .saver .row { display:flex; gap:10px; }
+  .saver input.url { flex:1; padding:11px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  input:focus, textarea:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .btn { padding:11px 18px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn:disabled { opacity:.55; cursor:default; }
+  .btn.sm { padding:6px 12px; font-size:13px; }
+  .savefields { margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--faint); margin-bottom:5px; }
+  .noteinput { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:13px; font-family:inherit; resize:vertical; }
+  .hint { color:var(--muted); font-size:12px; margin:10px 2px 0; }
+  .listhead { margin:26px 2px 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; display:flex; gap:14px; }
+  .card.justadded { animation: pop 1s ease; border-color:var(--accent); }
+  @keyframes pop { 0%{background:var(--accent-soft);} 100%{background:var(--card);} }
+  .thumb { flex:0 0 96px; width:96px; height:72px; border-radius:8px; overflow:hidden; background:#eef1f5; }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb.none { display:none; }
+  .body { flex:1; min-width:0; }
+  .titlerow { display:flex; align-items:center; gap:8px; }
+  .favi { flex:0 0 18px; width:18px; height:18px; border-radius:4px; }
+  .title { font-size:15px; font-weight:600; color:#111827; text-decoration:none; }
+  .title:hover { text-decoration:underline; }
+  .desc { color:#3f4653; font-size:13px; margin-top:5px; line-height:1.45; }
+  .note { color:#5b4636; background:#fff8ec; border:1px solid #f1e2c4; border-radius:7px; padding:6px 9px; font-size:12.5px; margin-top:8px; }
+  .tags { position:relative; margin-top:9px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .chip { background:var(--chip); color:#374151; border-radius:999px; padding:3px 10px; font-size:12px; display:inline-flex; align-items:center; gap:6px; }
+  .chip .x { cursor:pointer; color:var(--faint); font-weight:700; }
+  .addtag, .addnote, .editnote { background:none; border:1px dashed var(--line); color:var(--muted); border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .taginput { border:1px solid var(--accent); border-radius:999px; padding:4px 11px; font-size:12px; width:150px; }
+  .suggest { position:absolute; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.08); margin-top:4px; min-width:150px; overflow:hidden; }
+  .suggest div { padding:7px 12px; font-size:13px; cursor:pointer; }
+  .suggest div.act, .suggest div:hover { background:var(--accent-soft); color:var(--accent); }
+  .suggest .new { color:var(--muted); }
+  .sub { color:var(--faint); font-size:12px; margin-top:9px; }
+  .sub .site { color:var(--muted); }
+  .filling { color:var(--accent); font-size:14px; font-weight:500; }
+  .views { max-width:760px; margin:0 auto; padding:14px 24px 0; display:flex; gap:8px; }
+  .views button { background:#fff; border:1px solid var(--line); color:#374151; border-radius:999px; padding:6px 14px; font-size:13px; cursor:pointer; }
+  .views button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .views .count { opacity:.7; font-size:12px; margin-left:4px; }
+  .actions { display:flex; gap:8px; margin-top:10px; }
+  .act { background:none; border:1px solid var(--line); color:var(--muted); border-radius:7px; padding:4px 10px; font-size:12px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+  .act.on { background:#fff7e6; border-color:#f0c66b; color:#8a6d1f; }
+  .empty { text-align:center; color:var(--faint); padding:48px 20px; }
+  .empty .big { font-size:15px; color:var(--muted); margin-bottom:6px; }
+  .savemsg { margin-top:10px; font-size:13px; border-radius:8px; padding:9px 12px; display:none; }
+  .savemsg.err { display:block; background:#fff5f5; border:1px solid #f3c2c2; color:#b91c1c; }
+  .savemsg.warn { display:block; background:#fff8ec; border:1px solid #f1e2c4; color:#8a6d1f; }
+  .savemsg .link { color:inherit; text-decoration:underline; cursor:pointer; font-weight:600; }
+  .nodesc { color:var(--faint); font-style:italic; }
+  .card.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 0%,100%{background:var(--card);} 30%{background:#fff3cd;} }
+  .title.clamp { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .desc.clamp { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .more { display:inline-block; margin-top:3px; color:var(--accent); font-size:12px; cursor:pointer; }
+  .editdetails { color:var(--muted); font-size:12px; cursor:pointer; border:1px dashed var(--line); border-radius:999px; padding:2px 9px; margin-left:6px; }
+  .titleinput { width:100%; font-size:15px; font-weight:600; padding:8px 10px; border:1px solid var(--line); border-radius:8px; }
+  .descinput { width:100%; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A personal place to save links and find them again.</p>
+</header>
+<div class="views" id="views"></div>
+<div class="wrap">
+  <div class="saver">
+    <div class="row">
+      <input class="url" id="url" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+      <button class="btn" id="save">Save</button>
+    </div>
+    <div class="savefields">
+      <div>
+        <div class="lbl">Tags (optional)</div>
+        <div class="tags" id="saveTags"></div>
+      </div>
+      <div>
+        <div class="lbl">Note (optional)</div>
+        <textarea class="noteinput" id="saveNote" rows="2" placeholder="Why are you saving this?"></textarea>
+      </div>
+    </div>
+    <div class="hint">Paste a link, optionally add tags and a note, then press Save. Tags suggest ones you already use.</div>
+    <div class="savemsg" id="savemsg"></div>
+  </div>
+
+  <div class="listhead">Saved</div>
+  <div id="list"></div>
+</div>
+
+<script>
+function ico(bg,g){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="'+bg+'"/><text x="16" y="22" font-family="Arial" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">'+g+'</text></svg>'); }
+function prev(c1,c2,l){ return 'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 144"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+c1+'"/><stop offset="1" stop-color="'+c2+'"/></linearGradient></defs><rect width="192" height="144" fill="url(#g)"/><text x="96" y="80" font-family="Arial" font-size="16" fill="#fff" opacity="0.9" text-anchor="middle">'+l+'</text></svg>'); }
+const CANNED={
+  "github.com":{title:"torvalds/linux: Linux kernel source tree",site:"GitHub",desc:"The official mirror of the Linux kernel source, maintained by Linus Torvalds and contributors.",icon:ico('#24292f','G'),preview:prev('#2b3137','#57606a','GitHub')},
+  "nytimes.com":{title:"How Cities Are Rethinking Public Space",site:"The New York Times",desc:"Planners are turning parking lots and empty lots into parks, plazas and community gardens.",icon:ico('#000','T'),preview:prev('#4b6cb7','#182848','NYT')},
+  "en.wikipedia.org":{title:"Photosynthesis — Wikipedia",site:"Wikipedia",desc:"The process by which green plants convert light energy into chemical energy stored in glucose.",icon:ico('#111','W'),preview:null},
+  "medium.com":{title:"The Quiet Power of Note-Taking",site:"Medium",desc:"Why writing things down changes how you think, not just what you remember.",icon:ico('#000','M'),preview:prev('#3a3a3a','#111','Medium')},
+};
+function domainOf(raw){ try{ let u=new URL(raw.includes("://")?raw:"https://"+raw); return u.hostname.replace(/^www\./,""); }catch(e){ return null; } }
+function titleCase(s){ return s.replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase()); }
+function guessMeta(raw){ const h=domainOf(raw); if(!h || !h.includes(".")) return null; // invalid link
+  if(h.includes("broken")||h.includes("nometa")) return {failed:true}; // simulated: page details could not be read
+  if(CANNED[h]) return CANNED[h];
+  let site=titleCase(h.split(".")[0]); let title;
+  try{ const u=new URL(raw.includes("://")?raw:"https://"+raw); const seg=u.pathname.split("/").filter(Boolean).pop(); title=seg?titleCase(decodeURIComponent(seg).replace(/\.\w+$/,""))+" — "+site:site+" — Home"; }catch(e){ title=site; }
+  return {title,site,desc:"A page on "+site+". A short description is pulled from the page when available.",icon:ico('#2563eb',site.charAt(0).toUpperCase()),preview:null}; }
+function normUrl(raw){ const full=raw.includes("://")?raw:"https://"+raw; try{ const u=new URL(full); return (u.hostname.replace(/^www\./,"")+u.pathname.replace(/\/$/,"")).toLowerCase(); }catch(e){ return full.toLowerCase(); } }
+
+let items=[
+  { id:4, title:"A Comprehensive, Exhaustive, Almost Comically Long Title About Everything You Ever Wanted To Know Concerning The Care, Feeding, History, Philosophy And Future Of Extremely Verbose Web Page Headings", site:"VeryLongDomainNameThatKeepsGoing", desc:"This description is intentionally very long to see how a saved item copes with a lot of text: "+("lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ").repeat(3), url:"https://averylongdomainnamethatkeepsgoingandgoing.example/some/deeply/nested/path/that/is/also/quite/long/indeed", icon:ico('#6d28d9','V'), preview:null, when:"1 hour ago", tags:["reading","reference","dev","design","essays","longform","archive-me","misc","2026","to-revisit"], note:"A note that is also fairly long, capturing exactly why this was worth keeping even though the title already says far too much.", readLater:false, archived:false },
+  { id:3, title:"A Field Guide to Getting Lost", site:"Longreads", desc:"Rebecca Solnit on wandering, uncertainty, and the value of not knowing where you are headed.", url:"https://longreads.com/field-guide", icon:ico('#e2574c','L'), preview:prev('#e2574c','#8a2b24','Longreads'), when:"2 days ago", tags:["reading","essays"], note:"", readLater:true, archived:false },
+  { id:2, title:"CSS Grid: A Complete Guide", site:"CSS-Tricks", desc:"A comprehensive reference to every property in the CSS Grid layout module, with visual examples.", url:"https://css-tricks.com/snippets/css/complete-guide-grid", icon:ico('#ff7f50','C'), preview:null, when:"5 days ago", tags:["dev","reference"], note:"Bookmark for the grid layout at work.", readLater:false, archived:false },
+  { id:1, title:"The Elements of Typographic Style", site:"Web", desc:"A reference on typography and the craft of setting text well.", url:"https://webtypography.net", icon:ico('#2563eb','W'), preview:null, when:"3 weeks ago", tags:["design","reference"], note:"Kept for reference, done reading.", readLater:false, archived:true },
+];
+let nextId=5;
+let view="all"; // all | toread | archived
+const listEl=document.getElementById("list");
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function allTags(){ const s=new Set(); items.forEach(it=>(it.tags||[]).forEach(t=>s.add(t))); return [...s].sort(); }
+
+// ---- reusable tag chip-input with suggestions ----
+// container: element; getList: ()=>array; onchange: ()=>render
+function mountTagInput(container, arr){
+  container.innerHTML="";
+  arr.forEach((t,i)=>{ const s=document.createElement("span"); s.className="chip"; s.innerHTML=esc(t)+' <span class="x">×</span>'; s.querySelector(".x").onclick=()=>{ arr.splice(i,1); mountTagInput(container,arr); }; container.appendChild(s); });
+  const inp=document.createElement("input"); inp.className="taginput"; inp.placeholder="add tag…"; container.appendChild(inp);
+  let sug=null, act=-1;
+  function closeSug(){ if(sug){ sug.remove(); sug=null; act=-1; } }
+  function add(t){ t=t.trim().replace(/,$/,""); if(t && !arr.includes(t)){ arr.push(t); } mountTagInput(container,arr); const ni=container.querySelector(".taginput"); if(ni) ni.focus(); }
+  function showSug(){
+    closeSug();
+    const q=inp.value.trim().toLowerCase(); if(!q) return;
+    const matches=allTags().filter(t=>t.toLowerCase().includes(q) && !arr.includes(t));
+    sug=document.createElement("div"); sug.className="suggest";
+    matches.slice(0,6).forEach((m,i)=>{ const d=document.createElement("div"); d.textContent=m; d.onmousedown=e=>{ e.preventDefault(); add(m); }; sug.appendChild(d); });
+    const exact=allTags().some(t=>t.toLowerCase()===q);
+    if(!exact){ const d=document.createElement("div"); d.className="new"; d.textContent='Create “'+inp.value.trim()+'”'; d.onmousedown=e=>{ e.preventDefault(); add(inp.value); }; sug.appendChild(d); }
+    if(sug.children.length){ container.appendChild(sug); } else { closeSug(); }
+  }
+  inp.addEventListener("input", showSug);
+  inp.addEventListener("keydown", e=>{
+    const opts=sug?[...sug.children]:[];
+    if(e.key==="ArrowDown"){ if(opts.length){ e.preventDefault(); act=(act+1)%opts.length; opts.forEach((o,i)=>o.classList.toggle("act",i===act)); } }
+    else if(e.key==="ArrowUp"){ if(opts.length){ e.preventDefault(); act=(act-1+opts.length)%opts.length; opts.forEach((o,i)=>o.classList.toggle("act",i===act)); } }
+    else if(e.key==="Enter"||e.key===","){ e.preventDefault(); if(act>=0&&opts[act]){ opts[act].dispatchEvent(new MouseEvent("mousedown")); } else if(inp.value.trim()){ add(inp.value); } }
+    else if(e.key==="Escape"){ closeSug(); }
+  });
+  inp.addEventListener("blur", ()=>setTimeout(closeSug,120));
+}
+
+let saveTags=[];
+mountTagInput(document.getElementById("saveTags"), saveTags);
+
+function counts(){
+  return {
+    all: items.filter(i=>!i.archived).length,
+    toread: items.filter(i=>i.readLater && !i.archived).length,
+    archived: items.filter(i=>i.archived).length,
+  };
+}
+function renderViews(){
+  const c=counts(); const bar=document.getElementById("views");
+  const defs=[["all","All",c.all],["toread","To read",c.toread],["archived","Archived",c.archived]];
+  bar.innerHTML="";
+  defs.forEach(([k,label,n])=>{ const b=document.createElement("button"); b.className=(view===k?"on":""); b.innerHTML=label+' <span class="count">'+n+'</span>'; b.onclick=()=>{ view=k; render(); }; bar.appendChild(b); });
+}
+function visible(){
+  if(view==="archived") return items.filter(i=>i.archived);
+  if(view==="toread") return items.filter(i=>i.readLater && !i.archived);
+  return items.filter(i=>!i.archived);
+}
+function render(justId){
+  renderViews();
+  listEl.innerHTML="";
+  const vis=visible();
+  if(vis.length===0){
+    const msg = view==="toread" ? ["Nothing to read yet","Mark a saved link “Read later” and it shows up here."]
+             : view==="archived" ? ["No archived links","Archive a link to tuck it away without deleting it."]
+             : ["No bookmarks yet","Paste a link above to save your first one."];
+    listEl.innerHTML='<div class="empty"><div class="big">'+msg[0]+'</div><div>'+msg[1]+'</div></div>';
+    return;
+  }
+  vis.forEach(it=>{
+    const card=document.createElement("div"); card.className="card"+(it.id===justId?" justadded":"");
+    if(it.filling){ card.innerHTML='<div class="thumb none"></div><div class="body"><div class="filling">Getting details…</div></div>'; listEl.appendChild(card); return; }
+    const thumb=it.preview?'<div class="thumb"><img alt="" src="'+it.preview+'"></div>':'<div class="thumb none"></div>';
+    const body=document.createElement("div"); body.className="body";
+    const detailWrap=document.createElement("div");
+    if(it._editingDetails){
+      detailWrap.innerHTML=
+        '<div class="titlerow"><img class="favi" alt="" src="'+it.icon+'"><input class="titleinput" placeholder="Add a title" value="'+esc(it.title||"")+'"></div>'+
+        '<textarea class="noteinput descinput" rows="3" placeholder="Add a description">'+esc(it.desc||"")+'</textarea>'+
+        '<div style="margin-top:8px;"><button class="btn sm" data-donedetails="1">Done</button></div>';
+      detailWrap.querySelector("[data-donedetails]").onclick=()=>{ it.title=detailWrap.querySelector(".titleinput").value.trim(); it.desc=detailWrap.querySelector(".descinput").value.trim(); it._editingDetails=false; render(); };
+    } else {
+      const descHtml = it.desc ? esc(it.desc) : (it.failed ? '<span class="nodesc">No description could be read for this page.</span>' : '');
+      const exp = it._expanded ? "" : " clamp";
+      detailWrap.innerHTML=
+        '<div class="titlerow"><img class="favi" alt="" src="'+it.icon+'">'+
+          '<a class="title'+exp+'" href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.title||it.url)+'</a>'+
+          '<span class="editdetails" data-edit="1">✎ edit</span></div>'+
+        '<div class="desc'+exp+'">'+descHtml+'</div>'+
+        '<span class="more" data-more="1" style="display:none;">'+(it._expanded?"Show less":"Show more")+'</span>';
+      detailWrap.querySelector("[data-edit]").onclick=()=>{ it._editingDetails=true; render(); };
+      const moreBtn=detailWrap.querySelector("[data-more]");
+      moreBtn.onclick=()=>{ it._expanded=!it._expanded; render(); };
+      // reveal "more" only if text is actually clamped/overflowing
+      setTimeout(()=>{ const t=detailWrap.querySelector(".title"), d=detailWrap.querySelector(".desc"); const overflow=(t&&t.scrollHeight>t.clientHeight+1)||(d&&d.scrollHeight>d.clientHeight+1); if(it._expanded||overflow) moreBtn.style.display="inline-block"; },0);
+    }
+    body.appendChild(detailWrap);
+    // note
+    const noteWrap=document.createElement("div");
+    if(it._noteediting){ noteWrap.innerHTML='<div style="margin-top:8px;"><textarea class="noteinput" rows="2" placeholder="Why did you save this?">'+esc(it.note||"")+'</textarea><button class="btn sm" style="margin-top:6px;">Save note</button></div>';
+      noteWrap.querySelector(".btn").onclick=()=>{ it.note=noteWrap.querySelector("textarea").value.trim(); it._noteediting=false; render(); }; }
+    else if(it.note){ noteWrap.innerHTML='<div class="note">📝 '+esc(it.note)+' <span class="editnote" style="margin-left:6px;">edit</span></div>'; noteWrap.querySelector(".editnote").onclick=()=>{ it._noteediting=true; render(); }; }
+    else { noteWrap.innerHTML='<div style="margin-top:8px;"><button class="addnote">＋ Note</button></div>'; noteWrap.querySelector(".addnote").onclick=()=>{ it._noteediting=true; render(); }; }
+    body.appendChild(noteWrap);
+    // tags (editable, with suggestions)
+    const tagsWrap=document.createElement("div"); tagsWrap.className="tags";
+    body.appendChild(tagsWrap);
+    mountTagInput(tagsWrap, it.tags);
+    const sub=document.createElement("div"); sub.className="sub"; sub.innerHTML='<span class="site">'+esc(it.site)+'</span> · saved '+(it.when||"just now");
+    body.appendChild(sub);
+    // actions: read-later toggle + archive/restore
+    const actions=document.createElement("div"); actions.className="actions";
+    if(!it.archived){
+      const rl=document.createElement("button"); rl.className="act"+(it.readLater?" on":"");
+      rl.textContent=(it.readLater?"🔖 To read":"🔖 Read later");
+      rl.onclick=()=>{ it.readLater=!it.readLater; render(); };
+      const ar=document.createElement("button"); ar.className="act"; ar.textContent="🗄 Archive";
+      ar.onclick=()=>{ it.archived=true; render(); };
+      actions.appendChild(rl); actions.appendChild(ar);
+    } else {
+      const un=document.createElement("button"); un.className="act"; un.textContent="↩ Restore to list";
+      un.onclick=()=>{ it.archived=false; render(); };
+      actions.appendChild(un);
+    }
+    body.appendChild(actions);
+    card.innerHTML=thumb; card.appendChild(body);
+    card.dataset.id=it.id;
+    listEl.appendChild(card);
+  });
+}
+
+const input=document.getElementById("url"), saveBtn=document.getElementById("save");
+function showMsg(kind,html){ const m=document.getElementById("savemsg"); m.className="savemsg "+kind; m.innerHTML=html; }
+function clearMsg(){ const m=document.getElementById("savemsg"); m.className="savemsg"; m.innerHTML=""; }
+function flashItem(id){ view="all"; const it=items.find(x=>x.id===id); if(it) it._editingDetails=true; render(); const el=listEl.querySelector('[data-id="'+id+'"]'); if(el){ el.classList.add("flash"); el.scrollIntoView({behavior:"smooth",block:"center"}); const t=el.querySelector(".titleinput"); if(t) t.focus(); setTimeout(()=>el.classList.remove("flash"),1500); } }
+function doSave(){
+  clearMsg();
+  const raw=input.value.trim();
+  if(!raw){ showMsg("err","Enter a link to save."); input.focus(); return; }
+  const meta=guessMeta(raw);
+  if(meta===null){ showMsg("err","That doesn’t look like a link. Check for a typo — a link looks like <code>example.com/page</code>."); input.focus(); return; }
+  const key=normUrl(raw);
+  const dup=items.find(it=>!it.archived && normUrl(it.url)===key);
+  if(dup){ showMsg("warn","You’ve already saved this. <span class=\"link\" id=\"gotodup\">Show the one you saved</span>."); const g=document.getElementById("gotodup"); if(g) g.onclick=()=>flashItem(dup.id); return; }
+  saveBtn.disabled=true;
+  const full=raw.includes("://")?raw:"https://"+raw;
+  const item={ id:nextId++, url:full, when:"just now", filling:true, tags:saveTags.slice(), note:document.getElementById("saveNote").value.trim(), readLater:false, archived:false };
+  if(view!=="all"){ view="all"; }
+  items.unshift(item); render();
+  setTimeout(()=>{
+    if(meta.failed){ item.failed=true; item.title=""; item.site=domainOf(full)||""; item.desc=""; item.icon=ico('#9aa1ac','?'); item.preview=null; item._editingDetails=true; }
+    else { item.title=meta.title; item.site=meta.site; item.desc=meta.desc; item.icon=meta.icon; item.preview=meta.preview; }
+    item.filling=false;
+    render(item.id);
+    input.value=""; saveBtn.disabled=false;
+    saveTags=[]; mountTagInput(document.getElementById("saveTags"), saveTags);
+    document.getElementById("saveNote").value="";
+  },700);
+}
+saveBtn.addEventListener("click",doSave);
+input.addEventListener("keydown",e=>{ if(e.key==="Enter") doSave(); });
+
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

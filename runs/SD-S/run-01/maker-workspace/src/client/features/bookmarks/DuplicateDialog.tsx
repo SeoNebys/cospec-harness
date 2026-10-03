@@ -1,0 +1,4 @@
+import type { Bookmark } from '../../../shared/api-types';
+export function DuplicateDialog({ bookmark, busy, onCancel, onConfirm }: { bookmark: Bookmark; busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+  return <div className="dialog-backdrop"><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="duplicate-title"><p className="eyebrow">Already saved</p><h2 id="duplicate-title">This address is in your collection</h2><p><strong>{bookmark.title}</strong> already points to this address. Keep that copy or save another one?</p><div className="form-actions"><button className="button secondary" type="button" onClick={onCancel} autoFocus>Keep existing</button><button className="button primary" type="button" onClick={onConfirm} disabled={busy}>{busy ? 'Saving…' : 'Save another copy'}</button></div></section></div>;
+}

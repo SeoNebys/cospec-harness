@@ -1,0 +1,1 @@
+export const PDF_VIEWER_NETWORK_DISABLED=true;

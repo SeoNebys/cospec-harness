@@ -1,0 +1,2131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pocketmark — Save a link</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #14231f;
+      --muted: #66736f;
+      --paper: #fbfaf6;
+      --panel: #ffffff;
+      --line: #dce3df;
+      --brand: #176b55;
+      --brand-dark: #0f503f;
+      --wash: #edf6f1;
+      --shadow: 0 24px 60px rgba(26, 57, 47, .10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 8% 0%, #e4f2ea 0, transparent 34rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, textarea { font: inherit; }
+
+    .shell {
+      width: min(1120px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 28px 0 72px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 72px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 40px;
+      place-items: center;
+      border-radius: 9px 9px 13px 13px;
+      background: var(--brand);
+      color: white;
+      box-shadow: 0 8px 18px rgba(23, 107, 85, .22);
+    }
+
+    .personal {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 13px;
+      color: var(--muted);
+      background: rgba(255,255,255,.66);
+      font-size: 13px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(400px, .95fr);
+      gap: 68px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 640px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(48px, 6vw, 78px);
+      font-weight: 500;
+      letter-spacing: -.045em;
+      line-height: .98;
+    }
+
+    .intro {
+      max-width: 520px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    .card {
+      border: 1px solid rgba(220, 227, 223, .9);
+      border-radius: 24px;
+      padding: 30px;
+      background: rgba(255,255,255,.92);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .step {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4bb487;
+      box-shadow: 0 0 0 5px #e1f4eb;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 30px;
+      letter-spacing: -.025em;
+    }
+
+    .helper {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid #cfd9d4;
+      border-radius: 11px;
+      padding: 13px 14px;
+      outline: none;
+      background: #fff;
+      color: var(--ink);
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px rgba(23,107,85,.1);
+    }
+
+    .url-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .url-row input { min-width: 0; }
+
+    button {
+      border: 0;
+      border-radius: 11px;
+      padding: 13px 18px;
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    .primary {
+      flex: 0 0 auto;
+      background: var(--brand);
+      color: white;
+      box-shadow: 0 8px 18px rgba(23,107,85,.18);
+    }
+
+    .primary:hover { background: var(--brand-dark); }
+
+    .error {
+      display: none;
+      margin: 10px 0 0;
+      color: #a33b32;
+      font-size: 13px;
+    }
+
+    .fetch-warning {
+      display: none;
+      margin: 14px 0 18px;
+      border: 1px solid #ecd7a7;
+      border-radius: 10px;
+      padding: 11px 12px;
+      background: #fff9e9;
+      color: #765d22;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .fetch-warning.visible { display: block; }
+
+    .details { display: none; }
+
+    .details.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .source {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0 22px;
+      border-radius: 10px;
+      padding: 11px 12px;
+      background: var(--wash);
+      color: #356151;
+      font-size: 13px;
+    }
+
+    .source-icon {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border-radius: 7px;
+      background: white;
+      font-weight: 800;
+    }
+
+    .field + .field { margin-top: 16px; }
+    textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 22px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .fetched {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .library { display: none; }
+
+    .library.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .library-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .library-head h1 { font-size: 52px; }
+    .library-head .intro { margin-top: 10px; font-size: 16px; }
+
+    .saved-card {
+      display: grid;
+      grid-template-columns: 58px 1fr auto;
+      gap: 18px;
+      align-items: start;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      background: white;
+      box-shadow: 0 14px 34px rgba(26, 57, 47, .07);
+    }
+
+    .site-tile {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--wash);
+      color: var(--brand);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 23px;
+      font-weight: 700;
+    }
+
+    .saved-card h2 { margin-bottom: 6px; font-size: 23px; }
+    .saved-card p { max-width: 650px; margin: 0; color: var(--muted); line-height: 1.5; }
+    .saved-domain { margin-top: 12px !important; color: var(--brand) !important; font-size: 13px; font-weight: 700; }
+
+    .saved-status {
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #e6f5ed;
+      color: #226849;
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .open-comparison { display: none; }
+
+    .open-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .compare-heading {
+      max-width: 720px;
+      margin-bottom: 34px;
+    }
+
+    .compare-heading h1 { font-size: 52px; }
+    .compare-heading .intro { margin-top: 12px; font-size: 16px; }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+    }
+
+    .version {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 22px;
+      background: rgba(255,255,255,.65);
+    }
+
+    .version-label {
+      margin: 0 0 6px;
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .version-instruction {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .compare-grid .saved-card {
+      grid-template-columns: 48px minmax(0, 1fr);
+      padding: 18px;
+    }
+
+    .compare-grid .site-tile { width: 48px; height: 48px; }
+    .compare-grid .saved-card h2 { font-size: 19px; }
+    .compare-grid .saved-card p { font-size: 13px; }
+
+    a.saved-card {
+      color: inherit;
+      text-decoration: none;
+      transition: border-color .15s, box-shadow .15s, transform .15s;
+    }
+
+    a.saved-card:hover {
+      border-color: #90b9aa;
+      box-shadow: 0 18px 38px rgba(26, 57, 47, .13);
+      transform: translateY(-2px);
+    }
+
+    .open-site {
+      display: inline-flex;
+      margin-top: 16px;
+      border-radius: 9px;
+      padding: 9px 12px;
+      background: var(--brand);
+      color: white;
+      font-size: 13px;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .tag-comparison { display: none; }
+
+    .tag-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .tag-combined { display: none; }
+
+    .tag-combined.visible {
+      display: block;
+      max-width: 720px;
+      margin: 0 auto;
+      animation: rise .25s ease-out;
+    }
+
+    .filter-comparison { display: none; }
+
+    .filter-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .search-comparison { display: none; }
+
+    .search-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .later-comparison { display: none; }
+
+    .later-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .later-view-comparison { display: none; }
+
+    .later-view-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .edit-comparison { display: none; }
+
+    .edit-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .remove-comparison { display: none; }
+
+    .remove-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .duplicate-comparison { display: none; }
+
+    .duplicate-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .long-content-comparison { display: none; }
+
+    .long-content-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .large-library-comparison { display: none; }
+
+    .large-library-comparison.visible {
+      display: block;
+      animation: rise .25s ease-out;
+    }
+
+    .large-list { display: grid; gap: 8px; }
+    .large-list .bookmark-row { padding: 11px 12px; }
+    .large-list .bookmark-row h3 { font-size: 15px; }
+    .library-progress { margin: 10px 0 0; color: var(--muted); font-size: 11px; text-align: center; }
+    .load-more { width: 100%; margin-top: 10px; border: 1px solid var(--line); padding: 9px 11px; background: white; color: var(--brand); font-size: 12px; }
+    .page-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .page-controls span { color: var(--muted); font-size: 11px; }
+    .page-controls button { border: 1px solid var(--line); padding: 8px 10px; background: white; color: var(--brand); font-size: 12px; }
+    .page-controls button:disabled { color: #a9b2ae; cursor: default; }
+
+    .long-card {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 17px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(26, 57, 47, .06);
+      overflow: hidden;
+    }
+
+    .long-card h2 { margin-bottom: 7px; font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
+    .long-description { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .long-address { margin: 10px 0 0; color: var(--brand); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+    .long-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .long-tags span { border-radius: 999px; padding: 5px 8px; background: var(--wash); color: #356151; font-size: 10px; font-weight: 700; }
+
+    .long-card.compact:not(.expanded) h2 {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .long-card.compact:not(.expanded) .long-description {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+
+    .long-card.compact:not(.expanded) .long-address { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .long-card.compact:not(.expanded) .long-tags span:nth-child(n+4):not(.more-count) { display: none; }
+    .long-card.compact.expanded .more-count { display: none; }
+    .expand-details { width: 100%; margin-top: 14px; border: 1px solid var(--line); padding: 9px 11px; background: white; color: var(--brand); font-size: 12px; }
+
+    .duplicate-card {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 17px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(26, 57, 47, .06);
+    }
+
+    .duplicate-card h2 { margin-bottom: 5px; font-size: 20px; }
+    .duplicate-card p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .duplicate-card .primary { width: 100%; margin-top: 16px; padding: 10px 12px; font-size: 12px; }
+
+    .duplicate-warning {
+      display: none;
+      margin-top: 12px;
+      border: 1px solid #ecd7a7;
+      border-radius: 12px;
+      padding: 13px;
+      background: #fff9e9;
+      color: #765d22;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .duplicate-warning.visible { display: block; }
+    .duplicate-warning strong { color: #544012; }
+    .duplicate-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+    .duplicate-actions button { padding: 8px 10px; font-size: 11px; }
+    .view-existing { border: 1px solid #dbc990; background: white; color: #6e571d; }
+    .save-copy { background: var(--brand); color: white; }
+    .duplicate-done { display: none; margin-top: 12px; color: var(--brand); font-size: 12px; font-weight: 750; }
+    .duplicate-done.visible { display: block; }
+
+    .remove-card {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 17px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(26, 57, 47, .06);
+    }
+
+    .remove-card-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .remove-card h2 { margin-bottom: 5px; font-size: 20px; }
+    .remove-card p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .remove-action {
+      flex: 0 0 auto;
+      border: 1px solid #e5c7c3;
+      padding: 8px 10px;
+      background: white;
+      color: #9b3d34;
+      font-size: 12px;
+    }
+
+    .confirm-box, .undo-box, .removed-box {
+      display: none;
+      margin-top: 12px;
+      border-radius: 12px;
+      padding: 13px;
+      background: #f8f3f1;
+      color: #684c48;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .confirm-box.visible, .undo-box.visible, .removed-box.visible { display: block; }
+
+    .confirm-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .keep-button { border: 1px solid var(--line); padding: 8px 10px; background: white; color: var(--ink); font-size: 12px; }
+    .confirm-remove { padding: 8px 10px; background: #a23d34; color: white; font-size: 12px; }
+    .undo-box { align-items: center; justify-content: space-between; background: var(--ink); color: white; }
+    .undo-box.visible { display: flex; }
+    .undo-button { padding: 7px 10px; background: white; color: var(--ink); font-size: 12px; }
+
+    .edit-bookmark-card, .edit-panel {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 17px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(26, 57, 47, .06);
+    }
+
+    .edit-bookmark-card h2, .edit-panel h2 { margin-bottom: 5px; font-size: 20px; }
+    .edit-bookmark-card > p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .edit-card-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .edit-action {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      background: white;
+      color: var(--brand);
+      font-size: 12px;
+    }
+
+    .edit-form { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .edit-form.visible, .edit-panel.visible { display: block; }
+    .edit-panel { display: none; }
+    .edit-panel .helper { margin-bottom: 17px; }
+
+    .editable-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 10px 0;
+    }
+
+    .removable-tag {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: var(--wash);
+      color: #356151;
+      font-size: 12px;
+    }
+
+    .removable-tag::after { content: ' ×'; color: var(--muted); }
+
+    .edit-save-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+
+    .edit-save-row .primary { padding: 10px 13px; font-size: 12px; }
+
+    .edit-success {
+      min-height: 19px;
+      margin: 10px 0 0 !important;
+      color: var(--brand) !important;
+      font-size: 12px !important;
+      font-weight: 750;
+    }
+
+    .field-error {
+      display: none;
+      margin: 7px 0 0;
+      color: #a33b32;
+      font-size: 12px;
+    }
+
+    .field-error.visible { display: block; }
+
+    .save-failure-message {
+      display: none;
+      margin: 12px 0 0;
+      border: 1px solid #e5c7c3;
+      border-radius: 10px;
+      padding: 10px 11px;
+      background: #fff5f3;
+      color: #8d352d;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .save-failure-message.visible { display: block; }
+
+    .view-tabs {
+      display: flex;
+      gap: 7px;
+      min-height: 43px;
+      margin-bottom: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .view-tab {
+      border-radius: 9px 9px 0 0;
+      padding: 9px 11px 11px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .view-tab[aria-pressed="true"] {
+      color: var(--brand);
+      box-shadow: inset 0 -2px var(--brand);
+    }
+
+    .later-only-row {
+      display: flex;
+      min-height: 43px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 13px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .switch {
+      position: relative;
+      width: 40px;
+      height: 23px;
+      border-radius: 999px;
+      padding: 0;
+      background: #cfd9d4;
+    }
+
+    .switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+      transition: transform .15s;
+    }
+
+    .switch[aria-pressed="true"] { background: var(--brand); }
+    .switch[aria-pressed="true"]::after { transform: translateX(17px); }
+
+    .later-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px 62px 18px 18px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(26, 57, 47, .06);
+    }
+
+    .later-card h2 { margin-bottom: 6px; font-size: 20px; }
+    .later-card > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .later-card .saved-domain { margin-top: 11px !important; }
+
+    .later-control {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      border: 1px solid #cfd9d4;
+      background: white;
+      color: var(--brand);
+      transition: background .15s, color .15s, border-color .15s;
+    }
+
+    .later-icon {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      padding: 0;
+      font-size: 19px;
+    }
+
+    .later-text { padding: 9px 11px; font-size: 12px; }
+
+    .later-control[aria-pressed="true"] {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: white;
+    }
+
+    .later-confirmation {
+      min-height: 20px;
+      margin: 13px 0 0;
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .search-bar {
+      display: flex;
+      min-height: 44px;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .search-bar input { min-width: 0; padding: 10px 12px; }
+
+    .search-button {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      background: var(--brand);
+      color: white;
+    }
+
+    .match-note {
+      margin-top: 8px !important;
+      color: var(--brand) !important;
+      font-size: 10px !important;
+      font-weight: 750;
+    }
+
+    .search-empty-state {
+      border: 1px dashed #cbd7d1;
+      border-radius: 13px;
+      padding: 24px 16px;
+      background: #fbfcfb;
+      text-align: center;
+    }
+
+    .search-empty-state h3 { margin: 0 0 6px; font-family: Georgia, "Times New Roman", serif; font-size: 19px; }
+    .search-empty-state p { margin: 0; color: var(--muted); font-size: 12px; }
+    .clear-search { margin-top: 13px; border: 1px solid var(--line); padding: 8px 11px; background: white; color: var(--brand); font-size: 12px; }
+
+    .filter-bar {
+      min-height: 41px;
+      margin-bottom: 14px;
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .filter-chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: white;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .filter-chip[aria-pressed="true"] {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: white;
+    }
+
+    .filter-select {
+      width: 100%;
+      border: 1px solid #cfd9d4;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .result-count {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .bookmark-list { display: grid; gap: 9px; }
+
+    .bookmark-row {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px;
+      background: white;
+    }
+
+    .bookmark-row h3 { margin: 0 0 5px; font-family: Georgia, "Times New Roman", serif; font-size: 16px; }
+    .bookmark-row p { margin: 0; color: var(--muted); font-size: 11px; }
+    .row-tags { display: flex; gap: 5px; margin-top: 9px; }
+    .row-tags span { border-radius: 999px; padding: 4px 7px; background: var(--wash); color: #356151; font-size: 10px; font-weight: 700; }
+
+    .suggestion-menu {
+      display: none;
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 6px;
+      background: white;
+      box-shadow: 0 12px 26px rgba(26, 57, 47, .1);
+    }
+
+    .suggestion-menu.visible { display: block; }
+
+    .suggestion-item {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 8px;
+      padding: 10px 11px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .suggestion-item:hover { background: var(--wash); }
+    .suggestion-item span { color: var(--muted); font-size: 11px; font-weight: 500; }
+
+    .tag-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      background: white;
+      box-shadow: 0 12px 28px rgba(26, 57, 47, .06);
+    }
+
+    .tag-card h2 { margin-bottom: 5px; font-size: 21px; }
+    .tag-card > p { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .tag-field { padding-top: 17px; border-top: 1px solid var(--line); }
+
+    .tag-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .key-hint {
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-bottom-width: 2px;
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: var(--muted);
+      background: #f9faf9;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tag-list, .tag-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 31px;
+      margin-top: 12px;
+    }
+
+    .tag-chip, .tag-choice {
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: var(--wash);
+      color: #356151;
+      font-size: 12px;
+      font-weight: 730;
+    }
+
+    .tag-choice {
+      border: 1px solid #cfe2d9;
+      cursor: pointer;
+    }
+
+    .tag-choice[aria-pressed="true"] {
+      border-color: var(--brand);
+      background: var(--brand);
+      color: white;
+    }
+
+    @media (max-width: 850px) {
+      .shell { width: min(100% - 28px, 620px); }
+      header { padding-bottom: 42px; }
+      main { grid-template-columns: 1fr; gap: 38px; }
+      h1 { font-size: 52px; }
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="brand-mark">⌑</span> Pocketmark</div>
+      <div class="personal">Your personal library</div>
+    </header>
+
+    <main>
+      <section>
+        <p class="eyebrow">A home for useful things</p>
+        <h1>Save it now.<br>Find it when it matters.</h1>
+        <p class="intro">Your collection is empty. Start with one useful link and Pocketmark will fill in the details for you.</p>
+      </section>
+
+      <section class="card" id="capture-card">
+        <div class="step"><span class="dot"></span><span id="step-label">Add your first bookmark</span></div>
+
+        <form id="url-form">
+          <h2>What do you want to keep?</h2>
+          <p class="helper">Paste a web address. We’ll look up the page and prepare it for your library.</p>
+          <label for="url">Web address</label>
+          <div class="url-row">
+            <input id="url" name="url" type="url" required autocomplete="url" placeholder="https://example.com/article">
+            <button class="primary" type="submit">Get details</button>
+          </div>
+          <p class="error" id="url-error">Enter a full web address beginning with http:// or https://</p>
+        </form>
+
+        <div class="details" id="details" aria-live="polite">
+          <h2>Here’s what we found</h2>
+          <p class="helper">These details will help you recognise and find this page later. You can change either one.</p>
+          <div class="fetch-warning" id="fetch-warning"><strong>We couldn’t fill in this page’s details.</strong><br>The web address is safe here—enter a title yourself to continue.</div>
+          <div class="source"><span class="source-icon">↗</span><span id="source-host"></span></div>
+          <div class="field">
+            <label for="title">Title</label>
+            <input id="title" value="The quiet power of a daily walk">
+          </div>
+          <div class="field">
+            <label for="description">Page description</label>
+            <textarea id="description">A practical look at how a short daily walk can improve focus, mood, and long-term wellbeing.</textarea>
+          </div>
+          <div class="actions">
+            <span class="fetched">✓ Filled in from the page</span>
+            <button class="primary" id="save-button" type="button">Save bookmark</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="library" id="library" aria-live="polite">
+      <div class="library-head">
+        <div>
+          <p class="eyebrow">Your library</p>
+          <h1>One link, safely kept.</h1>
+          <p class="intro">Your newest bookmark is ready whenever you need it.</p>
+        </div>
+      </div>
+      <article class="saved-card">
+        <div class="site-tile" id="saved-initial">E</div>
+        <div>
+          <h2 id="saved-title"></h2>
+          <p id="saved-description"></p>
+          <p class="saved-domain" id="saved-domain"></p>
+        </div>
+        <span class="saved-status">✓ Saved just now</span>
+      </article>
+    </section>
+
+    <section class="open-comparison" id="open-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Opening a bookmark</p>
+        <h1>Which feels more natural?</h1>
+        <p class="intro">Both versions open the original page in a new browser tab. The only difference is where you click.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Click anywhere on the bookmark card</p>
+          <a class="saved-card" href="https://example.com/" target="_blank" rel="noopener" aria-label="Open Example Domain">
+            <div class="site-tile">E</div>
+            <div>
+              <h2>Example Domain</h2>
+              <p>A useful example page saved for future reference.</p>
+              <p class="saved-domain">example.com · Opens website ↗</p>
+            </div>
+          </a>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Use the button on the bookmark card</p>
+          <article class="saved-card">
+            <div class="site-tile">E</div>
+            <div>
+              <h2>Example Domain</h2>
+              <p>A useful example page saved for future reference.</p>
+              <p class="saved-domain">example.com</p>
+              <a class="open-site" href="https://example.com/" target="_blank" rel="noopener">Open website ↗</a>
+            </div>
+          </article>
+        </section>
+      </div>
+    </section>
+
+    <section class="tag-comparison" id="tag-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Adding tags</p>
+        <h1>Which feels quicker?</h1>
+        <p class="intro">Both versions attach tags to the bookmark before it is saved. Only the way you add them changes.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Type a tag, then press Enter</p>
+          <div class="tag-card">
+            <h2>The quiet power of a daily walk</h2>
+            <p>A practical look at how a short daily walk can improve focus and wellbeing.</p>
+            <div class="tag-field">
+              <label for="tag-entry">Tags</label>
+              <div class="tag-input-row">
+                <input id="tag-entry" placeholder="Type a tag">
+                <span class="key-hint">Enter ↵</span>
+              </div>
+              <div class="tag-list" id="entered-tags" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Choose from tags you use often</p>
+          <div class="tag-card">
+            <h2>The quiet power of a daily walk</h2>
+            <p>A practical look at how a short daily walk can improve focus and wellbeing.</p>
+            <div class="tag-field">
+              <label>Tags</label>
+              <div class="tag-suggestions" aria-label="Available tags">
+                <button class="tag-choice" type="button" aria-pressed="false">Reading</button>
+                <button class="tag-choice" type="button" aria-pressed="false">Health</button>
+                <button class="tag-choice" type="button" aria-pressed="false">Ideas</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="tag-combined" id="tag-combined">
+      <div class="compare-heading">
+        <p class="eyebrow">Adding tags</p>
+        <h1>Type freely, reuse easily.</h1>
+        <p class="intro">Matching tags you already use appear as you type. If there is no match, Enter creates a new one.</p>
+      </div>
+
+      <div class="tag-card">
+        <h2>The quiet power of a daily walk</h2>
+        <p>A practical look at how a short daily walk can improve focus and wellbeing.</p>
+        <div class="tag-field">
+          <label for="combined-tag-entry">Tags</label>
+          <div class="tag-input-row">
+            <input id="combined-tag-entry" placeholder="Type to find or create a tag" autocomplete="off">
+            <span class="key-hint">Enter ↵</span>
+          </div>
+          <div class="suggestion-menu" id="tag-matches" aria-live="polite"></div>
+          <div class="tag-list" id="combined-tags" aria-label="Tags added to this bookmark"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="filter-comparison" id="filter-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Filtering by tag</p>
+        <h1>How should you narrow the shelf?</h1>
+        <p class="intro">Both versions show the same library and reduce it to bookmarks carrying the chosen tag.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Select a visible tag above the library</p>
+          <div class="filter-bar filter-chips" id="chip-filters">
+            <button class="filter-chip" type="button" data-filter="All" aria-pressed="true">All</button>
+            <button class="filter-chip" type="button" data-filter="Health" aria-pressed="false">Health</button>
+            <button class="filter-chip" type="button" data-filter="Reading" aria-pressed="false">Reading</button>
+            <button class="filter-chip" type="button" data-filter="Ideas" aria-pressed="false">Ideas</button>
+          </div>
+          <p class="result-count" id="chip-count"></p>
+          <div class="bookmark-list" id="chip-results"></div>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Choose a tag from a compact list</p>
+          <div class="filter-bar">
+            <select class="filter-select" id="select-filter" aria-label="Filter bookmarks by tag">
+              <option>All</option>
+              <option>Health</option>
+              <option>Reading</option>
+              <option>Ideas</option>
+            </select>
+          </div>
+          <p class="result-count" id="select-count"></p>
+          <div class="bookmark-list" id="select-results"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="search-comparison" id="search-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Finding a bookmark</p>
+        <h1>How should search respond?</h1>
+        <p class="intro">Both versions look through titles, descriptions, website addresses, and tags—even partial words.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Results narrow as you type</p>
+          <div class="search-bar">
+            <input id="live-search" type="search" placeholder="Search your library" aria-label="Live search">
+          </div>
+          <p class="result-count" id="live-count"></p>
+          <div class="bookmark-list" id="live-results"></div>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Type first, then start the search</p>
+          <form class="search-bar" id="submitted-search">
+            <input id="submitted-query" type="search" placeholder="Search your library" aria-label="Submitted search">
+            <button class="search-button" type="submit">Search</button>
+          </form>
+          <p class="result-count" id="submitted-count"></p>
+          <div class="bookmark-list" id="submitted-results"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="later-comparison" id="later-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Read later</p>
+        <h1>How should you mark it?</h1>
+        <p class="intro">Both controls keep the bookmark in the library and add it to your read-later view.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Use the bookmark symbol</p>
+          <article class="later-card">
+            <button class="later-control later-icon" type="button" aria-label="Mark The quiet power of a daily walk to read later" aria-pressed="false">🔖</button>
+            <h2>The quiet power of a daily walk</h2>
+            <p>A short daily walk can improve focus and wellbeing.</p>
+            <p class="saved-domain">wellbeing.example</p>
+          </article>
+          <p class="later-confirmation" aria-live="polite"></p>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Use the labelled control</p>
+          <article class="later-card">
+            <button class="later-control later-text" type="button" aria-pressed="false">Read later</button>
+            <h2>The quiet power of a daily walk</h2>
+            <p>A short daily walk can improve focus and wellbeing.</p>
+            <p class="saved-domain">wellbeing.example</p>
+          </article>
+          <p class="later-confirmation" aria-live="polite"></p>
+        </section>
+      </div>
+    </section>
+
+    <section class="later-view-comparison" id="later-view-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Read-later view</p>
+        <h1>How should you get there?</h1>
+        <p class="intro">Both versions hide unmarked bookmarks and leave only the pages you set aside for later.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Switch between library views</p>
+          <div class="view-tabs" id="later-tabs">
+            <button class="view-tab" type="button" data-view="all" aria-pressed="true">All bookmarks</button>
+            <button class="view-tab" type="button" data-view="later" aria-pressed="false">Read later <span>2</span></button>
+          </div>
+          <p class="result-count" id="tab-later-count"></p>
+          <div class="bookmark-list" id="tab-later-results"></div>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Turn on a filter for the current library</p>
+          <div class="later-only-row">
+            <span>Show Read later only</span>
+            <button class="switch" id="later-switch" type="button" role="switch" aria-checked="false" aria-pressed="false" aria-label="Show Read later only"></button>
+          </div>
+          <p class="result-count" id="switch-later-count"></p>
+          <div class="bookmark-list" id="switch-later-results"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="edit-comparison" id="edit-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Editing a bookmark</p>
+        <h1>Where should editing happen?</h1>
+        <p class="intro">Both versions let you change the title, remove existing tags, add new tags with Enter, and save the updated bookmark.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version edit-version" data-edit-version="inline">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Edit directly inside the bookmark card</p>
+          <article class="edit-bookmark-card">
+            <div class="edit-card-head edit-summary">
+              <div>
+                <h2 class="editable-title-display">The quiet power of a daily walk</h2>
+                <p class="editable-description-display">A short daily walk can improve focus and wellbeing.</p>
+                <p class="saved-domain editable-site-display">wellbeing.example</p>
+              </div>
+              <button class="edit-action start-edit" type="button">Edit</button>
+            </div>
+            <div class="editable-tags display-tags"><span class="tag-chip">Health</span><span class="tag-chip">Reading</span></div>
+            <form class="edit-form" novalidate>
+              <div class="field">
+                <label>Title</label>
+                <input class="edit-title-input" value="The quiet power of a daily walk">
+                <p class="field-error title-error">Enter a title so you can recognise this bookmark.</p>
+              </div>
+              <div class="field">
+                <label>Description</label>
+                <textarea class="edit-description-input">A short daily walk can improve focus and wellbeing.</textarea>
+              </div>
+              <div class="field">
+                <label>Web address</label>
+                <input class="edit-url-input" type="url" value="https://wellbeing.example/walking">
+                <p class="field-error url-error">Enter a full web address beginning with http:// or https://</p>
+              </div>
+              <div class="field">
+                <label>Tags <span style="font-weight:500;color:var(--muted)">— select a tag to remove it</span></label>
+                <div class="editable-tags form-tags"><button type="button" class="removable-tag">Health</button><button type="button" class="removable-tag">Reading</button></div>
+                <input class="edit-tag-input" placeholder="Type a tag and press Enter">
+              </div>
+              <div class="edit-save-row"><button class="primary save-edit" type="submit">Save changes</button></div>
+              <p class="save-failure-message" role="alert"><strong>We couldn’t save your changes.</strong><br>Your edits are still here. Try again.</p>
+            </form>
+            <p class="edit-success" aria-live="polite"></p>
+          </article>
+        </section>
+
+        <section class="version edit-version" data-edit-version="focused">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Open a focused editing panel</p>
+          <article class="edit-bookmark-card edit-summary-card">
+            <div class="edit-card-head edit-summary">
+              <div>
+                <h2 class="editable-title-display">The quiet power of a daily walk</h2>
+                <p class="editable-description-display">A short daily walk can improve focus and wellbeing.</p>
+                <p class="saved-domain editable-site-display">wellbeing.example</p>
+              </div>
+              <button class="edit-action start-edit" type="button">Edit</button>
+            </div>
+            <div class="editable-tags display-tags"><span class="tag-chip">Health</span><span class="tag-chip">Reading</span></div>
+            <p class="edit-success" aria-live="polite"></p>
+          </article>
+          <form class="edit-panel edit-form" novalidate>
+            <h2>Edit bookmark</h2>
+            <p class="helper">Make your changes, then save to return to the card.</p>
+            <div class="field">
+              <label>Title</label>
+              <input class="edit-title-input" value="The quiet power of a daily walk">
+              <p class="field-error title-error">Enter a title so you can recognise this bookmark.</p>
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea class="edit-description-input">A short daily walk can improve focus and wellbeing.</textarea>
+            </div>
+            <div class="field">
+              <label>Web address</label>
+              <input class="edit-url-input" type="url" value="https://wellbeing.example/walking">
+              <p class="field-error url-error">Enter a full web address beginning with http:// or https://</p>
+            </div>
+            <div class="field">
+              <label>Tags <span style="font-weight:500;color:var(--muted)">— select a tag to remove it</span></label>
+              <div class="editable-tags form-tags"><button type="button" class="removable-tag">Health</button><button type="button" class="removable-tag">Reading</button></div>
+              <input class="edit-tag-input" placeholder="Type a tag and press Enter">
+            </div>
+            <div class="edit-save-row"><button class="primary save-edit" type="submit">Save changes</button></div>
+            <p class="save-failure-message" role="alert"><strong>We couldn’t save your changes.</strong><br>Your edits are still here. Try again.</p>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <section class="remove-comparison" id="remove-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Removing a bookmark</p>
+        <h1>What should prevent a mistake?</h1>
+        <p class="intro">Both versions permanently remove the bookmark; they differ in when you get a chance to change your mind.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version" id="confirm-removal-version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Confirm before the bookmark is removed</p>
+          <article class="remove-card">
+            <div class="remove-card-head">
+              <div><h2>The quiet power of a daily walk</h2><p>wellbeing.example</p></div>
+              <button class="remove-action begin-confirm-remove" type="button">Remove</button>
+            </div>
+          </article>
+          <div class="confirm-box" role="alertdialog" aria-label="Confirm bookmark removal">
+            <strong>Remove this bookmark?</strong><br>This will take it out of your library and Read later.
+            <div class="confirm-actions">
+              <button class="keep-button" type="button">Keep bookmark</button>
+              <button class="confirm-remove" type="button">Remove bookmark</button>
+            </div>
+          </div>
+          <div class="removed-box" aria-live="polite">Bookmark removed from your library.</div>
+        </section>
+
+        <section class="version" id="undo-removal-version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Remove immediately, with an Undo action</p>
+          <article class="remove-card">
+            <div class="remove-card-head">
+              <div><h2>The quiet power of a daily walk</h2><p>wellbeing.example</p></div>
+              <button class="remove-action immediate-remove" type="button">Remove</button>
+            </div>
+          </article>
+          <div class="undo-box" aria-live="polite"><span>Bookmark removed</span><button class="undo-button" type="button">Undo</button></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="duplicate-comparison" id="duplicate-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">Saving a repeated address</p>
+        <h1>The link is already here.</h1>
+        <p class="intro">Both versions recognise the existing bookmark before making another copy.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version duplicate-version" data-duplicate="block">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Keep one bookmark for each address</p>
+          <div class="duplicate-card">
+            <h2>The quiet power of a daily walk</h2>
+            <p>wellbeing.example/walking</p>
+            <button class="primary try-duplicate" type="button">Save bookmark</button>
+          </div>
+          <div class="duplicate-warning" aria-live="polite">
+            <strong>This address is already in your library.</strong><br>No second copy was created.
+            <div class="duplicate-actions"><button class="view-existing" type="button">View existing bookmark</button></div>
+          </div>
+        </section>
+
+        <section class="version duplicate-version" data-duplicate="allow">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Warn first, but allow another copy</p>
+          <div class="duplicate-card">
+            <h2>The quiet power of a daily walk</h2>
+            <p>wellbeing.example/walking</p>
+            <button class="primary try-duplicate" type="button">Save bookmark</button>
+          </div>
+          <div class="duplicate-warning" aria-live="polite">
+            <strong>This address is already in your library.</strong><br>You can keep the existing bookmark or create another copy.
+            <div class="duplicate-actions"><button class="view-existing" type="button">Keep existing</button><button class="save-copy" type="button">Save another copy</button></div>
+          </div>
+          <p class="duplicate-done" aria-live="polite">Another copy was saved.</p>
+        </section>
+      </div>
+    </section>
+
+    <section class="long-content-comparison" id="long-content-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">A very detailed bookmark</p>
+        <h1>How much should the library show?</h1>
+        <p class="intro">Both cards preserve every character and tag for editing and search. Only the amount shown on the shelf changes.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Keep the card compact, with a way to reveal everything</p>
+          <article class="long-card compact" id="compact-long-card">
+            <h2>An exceptionally thorough guide to building a calmer, healthier and more sustainable daily walking habit in busy cities</h2>
+            <p class="long-description">This detailed field guide brings together practical routines, accessibility considerations, route-planning ideas, weather preparation, reflective prompts, and evidence-informed suggestions for turning a small daily walk into a habit that lasts throughout the year.</p>
+            <p class="long-address">wellbeing.example/resources/guides/daily-walking-in-busy-cities-and-building-a-sustainable-habit</p>
+            <div class="long-tags"><span>Health</span><span>Walking</span><span>Reading</span><span>Habits</span><span>Wellbeing</span><span>Outdoors</span><span>Ideas</span><span>Research</span><span class="more-count">+5 more</span></div>
+            <button class="expand-details" type="button">Show full details</button>
+          </article>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Always show every detail in full</p>
+          <article class="long-card">
+            <h2>An exceptionally thorough guide to building a calmer, healthier and more sustainable daily walking habit in busy cities</h2>
+            <p class="long-description">This detailed field guide brings together practical routines, accessibility considerations, route-planning ideas, weather preparation, reflective prompts, and evidence-informed suggestions for turning a small daily walk into a habit that lasts throughout the year.</p>
+            <p class="long-address">wellbeing.example/resources/guides/daily-walking-in-busy-cities-and-building-a-sustainable-habit</p>
+            <div class="long-tags"><span>Health</span><span>Walking</span><span>Reading</span><span>Habits</span><span>Wellbeing</span><span>Outdoors</span><span>Ideas</span><span>Research</span></div>
+          </article>
+        </section>
+      </div>
+    </section>
+
+    <section class="large-library-comparison" id="large-library-comparison">
+      <div class="compare-heading">
+        <p class="eyebrow">A large library</p>
+        <h1>How should the shelf continue?</h1>
+        <p class="intro">Both versions begin with the newest bookmarks and keep search and tag filters available. They differ only in how you browse beyond the first group.</p>
+      </div>
+
+      <div class="compare-grid">
+        <section class="version">
+          <p class="version-label">Version A</p>
+          <p class="version-instruction">Keep adding older bookmarks below</p>
+          <div class="large-list" id="load-more-list"></div>
+          <p class="library-progress" id="load-more-progress"></p>
+          <button class="load-more" type="button">Show more bookmarks</button>
+        </section>
+
+        <section class="version">
+          <p class="version-label">Version B</p>
+          <p class="version-instruction">Move between separate pages</p>
+          <div class="large-list" id="paged-list"></div>
+          <div class="page-controls">
+            <button type="button" id="previous-page" disabled>Previous</button>
+            <span id="page-number">Page 1 of 25</span>
+            <button type="button" id="next-page">Next</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const form = document.querySelector('#url-form');
+    const input = document.querySelector('#url');
+    const error = document.querySelector('#url-error');
+    const details = document.querySelector('#details');
+    const sourceHost = document.querySelector('#source-host');
+    const stepLabel = document.querySelector('#step-label');
+    const saveButton = document.querySelector('#save-button');
+    let currentUrl = '';
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      let parsed;
+      try {
+        parsed = new URL(input.value.trim());
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported');
+      } catch (_) {
+        error.style.display = 'block';
+        details.classList.remove('visible');
+        return;
+      }
+
+      error.style.display = 'none';
+      currentUrl = parsed.href;
+      sourceHost.textContent = parsed.hostname.replace(/^www\./, '');
+      form.style.display = 'none';
+      details.classList.add('visible');
+      stepLabel.textContent = 'Review the page details';
+      document.querySelector('#title').focus();
+    });
+
+    saveButton.addEventListener('click', () => {
+      const parsed = new URL(currentUrl);
+      const domain = parsed.hostname.replace(/^www\./, '');
+      document.querySelector('#saved-title').textContent = document.querySelector('#title').value.trim();
+      document.querySelector('#saved-description').textContent = document.querySelector('#description').value.trim();
+      document.querySelector('#saved-domain').textContent = domain;
+      document.querySelector('#saved-initial').textContent = domain.charAt(0).toUpperCase();
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#library').classList.add('visible');
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'review') {
+      currentUrl = 'https://example.com/articles/daily-walk';
+      sourceHost.textContent = 'example.com';
+      form.style.display = 'none';
+      details.classList.add('visible');
+      stepLabel.textContent = 'Review the page details';
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'details-failed') {
+      currentUrl = 'https://private.example/page';
+      sourceHost.textContent = 'private.example';
+      form.style.display = 'none';
+      details.classList.add('visible');
+      stepLabel.textContent = 'Add the missing page details';
+      details.querySelector('h2').textContent = 'Add a title to keep this page';
+      details.querySelector('.helper').textContent = 'The page did not share its details, but you can still save it.';
+      document.querySelector('#fetch-warning').classList.add('visible');
+      document.querySelector('#title').value = '';
+      document.querySelector('#description').value = '';
+      document.querySelector('.fetched').textContent = 'Web address preserved';
+      document.querySelector('#title').focus();
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'open-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#open-comparison').classList.add('visible');
+    }
+
+    const tagEntry = document.querySelector('#tag-entry');
+    tagEntry.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      const value = tagEntry.value.trim();
+      if (!value) return;
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.textContent = value;
+      document.querySelector('#entered-tags').appendChild(chip);
+      tagEntry.value = '';
+    });
+
+    document.querySelectorAll('.tag-choice').forEach((choice) => {
+      choice.addEventListener('click', () => {
+        choice.setAttribute('aria-pressed', choice.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      });
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'tag-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#tag-comparison').classList.add('visible');
+    }
+
+    const existingTags = ['Reading', 'Health', 'Ideas'];
+    const combinedEntry = document.querySelector('#combined-tag-entry');
+    const tagMatches = document.querySelector('#tag-matches');
+    const combinedTags = document.querySelector('#combined-tags');
+
+    function addCombinedTag(value) {
+      const normalised = value.trim();
+      if (!normalised) return;
+      const alreadyAdded = [...combinedTags.children].some((chip) => chip.textContent.toLowerCase() === normalised.toLowerCase());
+      if (!alreadyAdded) {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = normalised;
+        combinedTags.appendChild(chip);
+      }
+      combinedEntry.value = '';
+      tagMatches.classList.remove('visible');
+      tagMatches.replaceChildren();
+      combinedEntry.focus();
+    }
+
+    combinedEntry.addEventListener('input', () => {
+      const query = combinedEntry.value.trim().toLowerCase();
+      tagMatches.replaceChildren();
+      const matches = query ? existingTags.filter((tag) => tag.toLowerCase().includes(query)) : [];
+      matches.forEach((tag) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'suggestion-item';
+        button.innerHTML = `${tag}<span>Existing tag</span>`;
+        button.addEventListener('click', () => addCombinedTag(tag));
+        tagMatches.appendChild(button);
+      });
+      tagMatches.classList.toggle('visible', matches.length > 0);
+    });
+
+    combinedEntry.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      addCombinedTag(combinedEntry.value);
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'tag-combined') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#tag-combined').classList.add('visible');
+      combinedEntry.focus();
+    }
+
+    const sampleBookmarks = [
+      { title: 'The quiet power of a daily walk', site: 'wellbeing.example', tags: ['Health', 'Reading'] },
+      { title: 'A field guide to better sleep', site: 'rest.example', tags: ['Health'] },
+      { title: 'Small studios with big ideas', site: 'design.example', tags: ['Ideas', 'Reading'] }
+    ];
+
+    function renderFilteredBookmarks(targetId, countId, filter) {
+      const filtered = filter === 'All' ? sampleBookmarks : sampleBookmarks.filter((bookmark) => bookmark.tags.includes(filter));
+      const target = document.querySelector(targetId);
+      target.replaceChildren();
+      filtered.forEach((bookmark) => {
+        const row = document.createElement('article');
+        row.className = 'bookmark-row';
+        const heading = document.createElement('h3');
+        heading.textContent = bookmark.title;
+        const site = document.createElement('p');
+        site.textContent = bookmark.site;
+        const tags = document.createElement('div');
+        tags.className = 'row-tags';
+        bookmark.tags.forEach((tag) => {
+          const chip = document.createElement('span');
+          chip.textContent = tag;
+          tags.appendChild(chip);
+        });
+        row.append(heading, site, tags);
+        target.appendChild(row);
+      });
+      document.querySelector(countId).textContent = `${filtered.length} bookmark${filtered.length === 1 ? '' : 's'}`;
+    }
+
+    document.querySelectorAll('#chip-filters .filter-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#chip-filters .filter-chip').forEach((item) => item.setAttribute('aria-pressed', 'false'));
+        chip.setAttribute('aria-pressed', 'true');
+        renderFilteredBookmarks('#chip-results', '#chip-count', chip.dataset.filter);
+      });
+    });
+
+    document.querySelector('#select-filter').addEventListener('change', (event) => {
+      renderFilteredBookmarks('#select-results', '#select-count', event.target.value);
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'filter-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#filter-comparison').classList.add('visible');
+      renderFilteredBookmarks('#chip-results', '#chip-count', 'All');
+      renderFilteredBookmarks('#select-results', '#select-count', 'All');
+    }
+
+    const searchBookmarks = [
+      { title: 'The quiet power of a daily walk', description: 'A short daily walk can improve focus and wellbeing.', site: 'wellbeing.example/walking', tags: ['Health', 'Reading'] },
+      { title: 'A field guide to better sleep', description: 'Simple evening habits for deeper rest.', site: 'rest.example/guide', tags: ['Health'] },
+      { title: 'Small studios with big ideas', description: 'Creative workspaces worth remembering.', site: 'design.example/studios', tags: ['Ideas', 'Reading'] }
+    ];
+
+    function renderSearchResults(targetId, countId, query) {
+      const normalised = query.trim().toLowerCase();
+      const filtered = normalised ? searchBookmarks.filter((bookmark) =>
+        [bookmark.title, bookmark.description, bookmark.site, ...bookmark.tags]
+          .some((value) => value.toLowerCase().includes(normalised))
+      ) : searchBookmarks;
+      const target = document.querySelector(targetId);
+      target.replaceChildren();
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'search-empty-state';
+        const heading = document.createElement('h3');
+        heading.textContent = 'No bookmarks found';
+        const guidance = document.createElement('p');
+        guidance.textContent = `Nothing in your library matches “${query.trim()}”.`;
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'clear-search';
+        clear.textContent = 'Clear search';
+        clear.addEventListener('click', () => {
+          if (targetId === '#live-results') {
+            document.querySelector('#live-search').value = '';
+            renderSearchResults('#live-results', '#live-count', '');
+          } else {
+            document.querySelector('#submitted-query').value = '';
+            renderSearchResults('#submitted-results', '#submitted-count', '');
+          }
+        });
+        empty.append(heading, guidance, clear);
+        target.appendChild(empty);
+      }
+      filtered.forEach((bookmark) => {
+        const row = document.createElement('article');
+        row.className = 'bookmark-row';
+        const heading = document.createElement('h3');
+        heading.textContent = bookmark.title;
+        const description = document.createElement('p');
+        description.textContent = bookmark.description;
+        row.append(heading, description);
+        if (normalised && bookmark.description.toLowerCase().includes(normalised)) {
+          const note = document.createElement('p');
+          note.className = 'match-note';
+          note.textContent = 'Matched in the description';
+          row.appendChild(note);
+        }
+        target.appendChild(row);
+      });
+      document.querySelector(countId).textContent = `${filtered.length} result${filtered.length === 1 ? '' : 's'}`;
+    }
+
+    document.querySelector('#live-search').addEventListener('input', (event) => {
+      renderSearchResults('#live-results', '#live-count', event.target.value);
+    });
+
+    document.querySelector('#submitted-search').addEventListener('submit', (event) => {
+      event.preventDefault();
+      renderSearchResults('#submitted-results', '#submitted-count', document.querySelector('#submitted-query').value);
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'search-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#search-comparison').classList.add('visible');
+      renderSearchResults('#live-results', '#live-count', '');
+      renderSearchResults('#submitted-results', '#submitted-count', '');
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'search-empty') {
+      document.querySelector('main').style.display = 'none';
+      const comparison = document.querySelector('#search-comparison');
+      comparison.classList.add('visible');
+      comparison.querySelector('.compare-heading h1').textContent = 'Nothing matched this time.';
+      comparison.querySelector('.compare-heading .intro').textContent = 'The library stays intact and makes it easy to return to every bookmark.';
+      comparison.querySelectorAll('.version')[1].style.display = 'none';
+      comparison.querySelector('.compare-grid').style.gridTemplateColumns = 'minmax(0, 720px)';
+      comparison.querySelector('.version-label').textContent = 'Search your library';
+      comparison.querySelector('.version-instruction').textContent = 'Try a word that is not in any saved bookmark';
+      renderSearchResults('#live-results', '#live-count', '');
+    }
+
+    document.querySelectorAll('.later-control').forEach((control) => {
+      control.addEventListener('click', () => {
+        const active = control.getAttribute('aria-pressed') !== 'true';
+        control.setAttribute('aria-pressed', String(active));
+        if (control.classList.contains('later-text')) control.textContent = active ? 'Saved for later ✓' : 'Read later';
+        control.closest('.version').querySelector('.later-confirmation').textContent = active ? 'Added to Read later' : 'Removed from Read later';
+      });
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'later-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#later-comparison').classList.add('visible');
+    }
+
+    const readLaterBookmarks = [
+      { title: 'The quiet power of a daily walk', site: 'wellbeing.example', later: true },
+      { title: 'A field guide to better sleep', site: 'rest.example', later: true },
+      { title: 'Small studios with big ideas', site: 'design.example', later: false }
+    ];
+
+    function renderLaterView(targetId, countId, laterOnly) {
+      const filtered = laterOnly ? readLaterBookmarks.filter((bookmark) => bookmark.later) : readLaterBookmarks;
+      const target = document.querySelector(targetId);
+      target.replaceChildren();
+      if (laterOnly && filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'search-empty-state';
+        const heading = document.createElement('h3');
+        heading.textContent = 'Nothing saved for later';
+        const guidance = document.createElement('p');
+        guidance.textContent = 'Your bookmarks are still in All bookmarks. Mark any one with “Read later” when you want it here.';
+        const showAll = document.createElement('button');
+        showAll.type = 'button';
+        showAll.className = 'clear-search';
+        showAll.textContent = 'Show all bookmarks';
+        showAll.addEventListener('click', () => document.querySelector('#later-tabs [data-view="all"]').click());
+        empty.append(heading, guidance, showAll);
+        target.appendChild(empty);
+      }
+      filtered.forEach((bookmark) => {
+        const row = document.createElement('article');
+        row.className = 'bookmark-row';
+        const heading = document.createElement('h3');
+        heading.textContent = bookmark.title;
+        const site = document.createElement('p');
+        site.textContent = bookmark.site;
+        row.append(heading, site);
+        target.appendChild(row);
+      });
+      document.querySelector(countId).textContent = `${filtered.length} bookmark${filtered.length === 1 ? '' : 's'}`;
+    }
+
+    document.querySelectorAll('#later-tabs .view-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('#later-tabs .view-tab').forEach((item) => item.setAttribute('aria-pressed', 'false'));
+        tab.setAttribute('aria-pressed', 'true');
+        renderLaterView('#tab-later-results', '#tab-later-count', tab.dataset.view === 'later');
+      });
+    });
+
+    document.querySelector('#later-switch').addEventListener('click', (event) => {
+      const active = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+      event.currentTarget.setAttribute('aria-pressed', String(active));
+      event.currentTarget.setAttribute('aria-checked', String(active));
+      renderLaterView('#switch-later-results', '#switch-later-count', active);
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'later-view-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#later-view-comparison').classList.add('visible');
+      renderLaterView('#tab-later-results', '#tab-later-count', false);
+      renderLaterView('#switch-later-results', '#switch-later-count', false);
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'later-empty') {
+      readLaterBookmarks.forEach((bookmark) => { bookmark.later = false; });
+      document.querySelector('main').style.display = 'none';
+      const comparison = document.querySelector('#later-view-comparison');
+      comparison.classList.add('visible');
+      comparison.querySelector('.compare-heading h1').textContent = 'Your Read Later shelf is empty.';
+      comparison.querySelector('.compare-heading .intro').textContent = 'The full library remains one step away.';
+      comparison.querySelectorAll('.version')[1].style.display = 'none';
+      comparison.querySelector('.compare-grid').style.gridTemplateColumns = 'minmax(0, 720px)';
+      comparison.querySelector('.version-label').textContent = 'Library views';
+      comparison.querySelector('.version-instruction').textContent = 'Switch to Read later when no bookmarks are marked';
+      comparison.querySelector('#later-tabs [data-view="later"] span').textContent = '0';
+      renderLaterView('#tab-later-results', '#tab-later-count', false);
+    }
+
+    document.querySelectorAll('.edit-version').forEach((version) => {
+      const startButton = version.querySelector('.start-edit');
+      const form = version.querySelector('.edit-form');
+      const summaryCard = version.querySelector('.edit-summary-card');
+      const titleInput = version.querySelector('.edit-title-input');
+      const descriptionInput = version.querySelector('.edit-description-input');
+      const urlInput = version.querySelector('.edit-url-input');
+      const tagInput = version.querySelector('.edit-tag-input');
+
+      startButton.addEventListener('click', () => {
+        form.classList.add('visible');
+        if (summaryCard) summaryCard.style.display = 'none';
+        titleInput.focus();
+      });
+
+      version.querySelectorAll('.removable-tag').forEach((tag) => {
+        tag.addEventListener('click', () => tag.remove());
+      });
+
+      tagInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const value = tagInput.value.trim();
+        if (!value) return;
+        const tag = document.createElement('button');
+        tag.type = 'button';
+        tag.className = 'removable-tag';
+        tag.textContent = value;
+        tag.addEventListener('click', () => tag.remove());
+        version.querySelector('.form-tags').appendChild(tag);
+        tagInput.value = '';
+      });
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const titleValue = titleInput.value.trim();
+        let parsedEditedUrl;
+        try {
+          parsedEditedUrl = new URL(urlInput.value.trim());
+          if (!['http:', 'https:'].includes(parsedEditedUrl.protocol)) throw new Error('unsupported');
+        } catch (_) {
+          parsedEditedUrl = null;
+        }
+        version.querySelector('.title-error').classList.toggle('visible', !titleValue);
+        version.querySelector('.url-error').classList.toggle('visible', !parsedEditedUrl);
+        if (!titleValue || !parsedEditedUrl) return;
+        if (version.dataset.failOnce === 'true') {
+          version.dataset.failOnce = 'false';
+          version.querySelector('.save-failure-message').classList.add('visible');
+          return;
+        }
+        version.querySelector('.save-failure-message').classList.remove('visible');
+        const tags = [...version.querySelectorAll('.form-tags .removable-tag')].map((tag) => tag.textContent);
+        version.querySelector('.editable-title-display').textContent = titleValue;
+        version.querySelector('.editable-description-display').textContent = descriptionInput.value.trim();
+        version.querySelector('.editable-site-display').textContent = parsedEditedUrl.hostname.replace(/^www\./, '');
+        const displayTags = version.querySelector('.display-tags');
+        displayTags.replaceChildren(...tags.map((value) => {
+          const tag = document.createElement('span');
+          tag.className = 'tag-chip';
+          tag.textContent = value;
+          return tag;
+        }));
+        form.classList.remove('visible');
+        if (summaryCard) summaryCard.style.display = 'block';
+        version.querySelector('.edit-success').textContent = 'Changes saved';
+      });
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'edit-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#edit-comparison').classList.add('visible');
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'edit-final') {
+      document.querySelector('main').style.display = 'none';
+      const comparison = document.querySelector('#edit-comparison');
+      comparison.classList.add('visible');
+      comparison.querySelector('.compare-heading h1').textContent = 'Keep every detail accurate.';
+      comparison.querySelector('.compare-heading .intro').textContent = 'Edit the title, description, website address, or tags directly inside the saved bookmark card.';
+      comparison.querySelector('[data-edit-version="focused"]').style.display = 'none';
+      comparison.querySelector('.compare-grid').style.gridTemplateColumns = 'minmax(0, 720px)';
+      comparison.querySelector('[data-edit-version="inline"] .version-label').textContent = 'Inline editing';
+      comparison.querySelector('[data-edit-version="inline"] .version-instruction').textContent = 'Your bookmark stays in view while you make corrections';
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'edit-invalid') {
+      document.querySelector('main').style.display = 'none';
+      const comparison = document.querySelector('#edit-comparison');
+      comparison.classList.add('visible');
+      comparison.querySelector('.compare-heading h1').textContent = 'Keep a good bookmark safe.';
+      comparison.querySelector('.compare-heading .intro').textContent = 'The existing bookmark stays unchanged until every required correction is usable.';
+      comparison.querySelector('[data-edit-version="focused"]').style.display = 'none';
+      comparison.querySelector('.compare-grid').style.gridTemplateColumns = 'minmax(0, 720px)';
+      comparison.querySelector('[data-edit-version="inline"] .version-label').textContent = 'Editing checks';
+      comparison.querySelector('[data-edit-version="inline"] .version-instruction').textContent = 'Try to save an empty title and an incomplete address';
+    }
+
+    if (new URLSearchParams(window.location.search).get('state') === 'save-failure') {
+      document.querySelector('main').style.display = 'none';
+      const comparison = document.querySelector('#edit-comparison');
+      comparison.classList.add('visible');
+      comparison.querySelector('.compare-heading h1').textContent = 'Your edits survive an interruption.';
+      comparison.querySelector('.compare-heading .intro').textContent = 'A temporary save failure leaves every entered correction in place and lets you try again.';
+      comparison.querySelector('[data-edit-version="focused"]').style.display = 'none';
+      comparison.querySelector('.compare-grid').style.gridTemplateColumns = 'minmax(0, 720px)';
+      const inlineVersion = comparison.querySelector('[data-edit-version="inline"]');
+      inlineVersion.dataset.failOnce = 'true';
+      inlineVersion.querySelector('.version-label').textContent = 'Interrupted save';
+      inlineVersion.querySelector('.version-instruction').textContent = 'The first save attempt will fail; the next will succeed';
+    }
+
+    const confirmVersion = document.querySelector('#confirm-removal-version');
+    confirmVersion.querySelector('.begin-confirm-remove').addEventListener('click', () => {
+      confirmVersion.querySelector('.confirm-box').classList.add('visible');
+    });
+    confirmVersion.querySelector('.keep-button').addEventListener('click', () => {
+      confirmVersion.querySelector('.confirm-box').classList.remove('visible');
+    });
+    confirmVersion.querySelector('.confirm-remove').addEventListener('click', () => {
+      confirmVersion.querySelector('.confirm-box').classList.remove('visible');
+      confirmVersion.querySelector('.remove-card').style.display = 'none';
+      confirmVersion.querySelector('.removed-box').classList.add('visible');
+    });
+
+    const undoVersion = document.querySelector('#undo-removal-version');
+    undoVersion.querySelector('.immediate-remove').addEventListener('click', () => {
+      undoVersion.querySelector('.remove-card').style.display = 'none';
+      undoVersion.querySelector('.undo-box').classList.add('visible');
+    });
+    undoVersion.querySelector('.undo-button').addEventListener('click', () => {
+      undoVersion.querySelector('.undo-box').classList.remove('visible');
+      undoVersion.querySelector('.remove-card').style.display = 'block';
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'remove-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#remove-comparison').classList.add('visible');
+    }
+
+    document.querySelectorAll('.duplicate-version').forEach((version) => {
+      version.querySelector('.try-duplicate').addEventListener('click', () => {
+        version.querySelector('.duplicate-warning').classList.add('visible');
+      });
+    });
+    document.querySelector('[data-duplicate="allow"] .save-copy').addEventListener('click', (event) => {
+      const version = event.currentTarget.closest('.duplicate-version');
+      version.querySelector('.duplicate-warning').classList.remove('visible');
+      version.querySelector('.duplicate-done').classList.add('visible');
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'duplicate-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#duplicate-comparison').classList.add('visible');
+    }
+
+    document.querySelector('.expand-details').addEventListener('click', (event) => {
+      const card = document.querySelector('#compact-long-card');
+      const expanded = card.classList.toggle('expanded');
+      event.currentTarget.textContent = expanded ? 'Show less' : 'Show full details';
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'long-content-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#long-content-comparison').classList.add('visible');
+    }
+
+    const largeLibraryBookmarks = [
+      ['The quiet power of a daily walk', 'Saved today'],
+      ['A field guide to better sleep', 'Saved yesterday'],
+      ['Small studios with big ideas', 'Saved 3 days ago'],
+      ['Practical notes on deep work', 'Saved 5 days ago'],
+      ['A thoughtful guide to urban gardens', 'Saved 1 week ago'],
+      ['How to remember what you read', 'Saved 2 weeks ago'],
+      ['A collection of useful design principles', 'Saved 3 weeks ago'],
+      ['Making time for creative projects', 'Saved 1 month ago']
+    ];
+
+    function makeLargeLibraryRow([title, age]) {
+      const row = document.createElement('article');
+      row.className = 'bookmark-row';
+      const heading = document.createElement('h3');
+      heading.textContent = title;
+      const detail = document.createElement('p');
+      detail.textContent = age;
+      row.append(heading, detail);
+      return row;
+    }
+
+    let visibleLargeItems = 4;
+    function renderLoadMoreList() {
+      const target = document.querySelector('#load-more-list');
+      target.replaceChildren(...largeLibraryBookmarks.slice(0, visibleLargeItems).map(makeLargeLibraryRow));
+      document.querySelector('#load-more-progress').textContent = `Showing ${visibleLargeItems} of 100 bookmarks`;
+      document.querySelector('.load-more').style.display = visibleLargeItems >= largeLibraryBookmarks.length ? 'none' : 'block';
+    }
+
+    document.querySelector('.load-more').addEventListener('click', () => {
+      visibleLargeItems = Math.min(visibleLargeItems + 4, largeLibraryBookmarks.length);
+      renderLoadMoreList();
+    });
+
+    let currentLargePage = 0;
+    function renderPagedList() {
+      document.querySelector('#paged-list').replaceChildren(...largeLibraryBookmarks.slice(currentLargePage * 4, currentLargePage * 4 + 4).map(makeLargeLibraryRow));
+      document.querySelector('#page-number').textContent = `Page ${currentLargePage + 1} of 25`;
+      document.querySelector('#previous-page').disabled = currentLargePage === 0;
+    }
+
+    document.querySelector('#next-page').addEventListener('click', () => {
+      currentLargePage += 1;
+      renderPagedList();
+    });
+    document.querySelector('#previous-page').addEventListener('click', () => {
+      currentLargePage = Math.max(0, currentLargePage - 1);
+      renderPagedList();
+    });
+
+    if (new URLSearchParams(window.location.search).get('state') === 'large-library-compare') {
+      document.querySelector('main').style.display = 'none';
+      document.querySelector('#large-library-comparison').classList.add('visible');
+      renderLoadMoreList();
+      renderPagedList();
+    }
+  </script>
+</body>
+</html>

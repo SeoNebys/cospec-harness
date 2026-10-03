@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Keepsake — Personal bookmark library</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell" id="appShell">
+      <aside class="sidebar">
+        <a class="brand" href="#" id="brandHome" aria-label="Keepsake home"><span class="brand-mark">K</span><span>Keepsake</span></a>
+        <nav class="primary-nav" aria-label="Library views">
+          <p class="nav-heading">Library</p>
+          <button class="nav-item active" data-view="all" type="button"><span class="nav-icon">▰</span><span>All bookmarks</span><span class="nav-count" id="allCount">0</span></button>
+          <button class="nav-item" data-view="later" type="button"><span class="nav-icon">◷</span><span>Read later</span><span class="nav-count" id="laterCount">0</span></button>
+          <button class="nav-item" data-view="archive" type="button"><span class="nav-icon">▣</span><span>Archive</span><span class="nav-count" id="archiveCount">0</span></button>
+        </nav>
+        <nav class="label-nav" id="labelNav" aria-label="Bookmark labels" hidden>
+          <p class="nav-heading">Labels</p>
+          <div id="labelNavItems"></div>
+        </nav>
+        <p class="sidebar-note"><span>✦</span>Your quiet corner of the internet.</p>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div><p class="eyebrow">Your personal library</p><h1 id="viewTitle">All bookmarks</h1></div>
+          <div class="header-actions">
+            <div class="tools-wrap">
+              <button class="secondary compact" id="toolsButton" type="button" aria-expanded="false">Library tools <span>⌄</span></button>
+              <div class="tools-menu" id="toolsMenu" hidden>
+                <button id="importButton" type="button"><span class="tool-mark">↓</span><span><strong>Import bookmarks</strong><small>Bring in a browser file or backup</small></span></button>
+                <button id="exportButton" type="button"><span class="tool-mark">↑</span><span><strong>Export or back up</strong><small>Take a copy of your library</small></span></button>
+              </div>
+              <input id="importFile" type="file" accept=".html,.htm,.json,text/html,application/json" hidden>
+            </div>
+            <button class="primary compact" id="saveLinkButton" type="button"><span>＋</span> Save a link</button>
+          </div>
+        </header>
+
+        <section class="search-area" id="searchArea" hidden>
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" placeholder="Search titles, descriptions, addresses, and notes…" autocomplete="off">
+            <button class="search-options-button" id="searchOptionsButton" type="button" aria-expanded="false">Search options <span>⌄</span></button>
+            <button class="clear-search" id="clearSearch" type="button" aria-label="Clear search" hidden>×</button>
+          </div>
+          <p class="search-hint">Results update as you type</p>
+          <div class="search-options" id="searchOptions" hidden>
+            <label><span>Within a label</span><select id="withinLabel"><option value="">Any label</option></select></label>
+            <label><span>Words should match</span><select id="wordMode"><option value="all">All words (and)</option><option value="any">Any word (either/or)</option></select></label>
+            <label><span>Leave out a label</span><select id="excludeLabel"><option value="">No excluded label</option></select></label>
+            <label><span>Leave out words</span><input id="excludeWords" type="text" placeholder="Words to exclude" autocomplete="off"></label>
+            <label class="check-option"><input id="exactPhrase" type="checkbox"><span><strong>Match the exact phrase</strong><small>Keep the words together in this order</small></span></label>
+            <p>All choices combine. A matching “leave out” word removes that bookmark.</p>
+          </div>
+          <div class="filter-chips" id="filterChips" hidden></div>
+        </section>
+
+        <section class="library" id="library" hidden>
+          <div class="library-controls">
+            <p id="resultCount">0 bookmarks</p>
+            <label class="sort-control"><span>Sort</span><select id="sortSelect"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option></select></label>
+            <button class="outline-button" id="selectModeButton" type="button">Select</button>
+          </div>
+          <div class="bulk-bar" id="bulkBar" hidden>
+            <label class="select-all"><input id="selectAll" type="checkbox"><span>Select everything in this view</span></label>
+            <span class="selected-count" id="selectedCount">0 selected</span>
+            <div class="bulk-actions">
+              <button id="bulkLabel" type="button" disabled>＋ Label</button>
+              <div class="bulk-menu-wrap"><button id="bulkLater" type="button" disabled>◷ Read later <span>⌄</span></button><div class="bulk-mini-menu" id="bulkLaterMenu" hidden><button data-bulk-action="read-later" type="button">Add selected to Read later</button><button data-bulk-action="mark-read" type="button">Mark selected as read</button></div></div>
+              <button id="bulkArchive" type="button" disabled>▣ Archive</button>
+              <button class="danger-text" id="bulkDelete" type="button" disabled>Delete</button>
+              <button class="quiet-button" id="doneSelecting" type="button">Done</button>
+            </div>
+          </div>
+          <div class="card-grid" id="cardGrid"></div>
+          <div class="view-empty" id="viewEmpty" hidden></div>
+        </section>
+
+        <section class="welcome" id="welcome" hidden>
+          <div class="welcome-art" aria-hidden="true"><span class="orb"></span><span class="paper one"></span><span class="paper two"></span><span class="spark">✦</span></div>
+          <p class="eyebrow">A fresh start</p><h2>Your library is waiting.</h2>
+          <p>Save the corners of the web worth returning to.<br>We’ll take care of the details.</p>
+          <button class="primary" id="firstSaveButton" type="button"><span>＋</span> Save your first link</button>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden></div>
+
+    <section class="modal save-modal" id="saveModal" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle" hidden>
+      <button class="modal-close" data-close-modal type="button" aria-label="Close">×</button>
+      <div id="urlStep">
+        <p class="eyebrow">New bookmark</p><h2 id="saveModalTitle">Save something worth keeping</h2>
+        <p class="modal-copy">Paste a web address and we’ll gather its details for you.</p>
+        <form id="urlForm" novalidate>
+          <label class="field"><span>Web address</span><input id="urlInput" type="text" placeholder="https://example.com/article" autocomplete="off"></label>
+          <p class="field-error" id="urlError" hidden></p>
+          <button class="primary full" type="submit">Find details <span>→</span></button>
+        </form>
+      </div>
+      <div class="loading-step" id="loadingStep" hidden><div class="loader"><span></span><span></span><span></span></div><h2>Reading the page…</h2><p>Gathering the useful details.</p></div>
+      <form id="bookmarkForm" hidden>
+        <div class="editor-heading"><div><p class="eyebrow" id="editorEyebrow">Ready to save</p><h2 id="editorTitle">Here’s what we found</h2></div><span class="duplicate-badge" id="duplicateBadge" hidden>Saved before</span></div>
+        <div class="notice" id="metadataNotice" hidden></div>
+        <div class="editor-preview" id="editorPreview"><span id="editorPreviewText">PREVIEW</span></div>
+        <div class="source-preview"><span class="favicon-fallback" id="editorFaviconFallback">•</span><img id="editorFavicon" alt="" hidden><span id="editorSite"></span></div>
+        <label class="field"><span>Title</span><input id="titleInput" type="text" maxlength="500" required></label>
+        <label class="field"><span>Description</span><textarea id="descriptionInput" rows="3" maxlength="4000"></textarea></label>
+        <div class="field label-field"><span>Labels</span><div class="selected-labels" id="selectedLabels"></div><input id="labelInput" type="text" placeholder="Type a label and press Enter" autocomplete="off"><div class="label-suggestions" id="labelSuggestions" hidden></div></div>
+        <div class="field note-field"><span>Personal note</span><div class="note-toolbar"><button id="bulletButton" type="button" title="Bulleted list">• List</button><button id="boldButton" type="button" title="Bold"><strong>B</strong></button><button id="italicButton" type="button" title="Italic"><em>I</em></button></div><div class="note-editor" id="noteEditor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Why are you saving this?"></div><small>Search includes the words in this note.</small></div>
+        <label class="later-switch"><span><strong>Read later</strong><small>Keep this bookmark in a focused reading list.</small></span><input id="readLaterInput" type="checkbox"><span class="switch-track"></span></label>
+        <div class="editor-secondary-actions" id="editorSecondaryActions" hidden><button class="archive-button" id="archiveBookmarkButton" type="button">▣ Archive bookmark</button><button class="restore-button" id="restoreBookmarkButton" type="button" hidden>Restore to All bookmarks</button></div>
+        <div class="danger-zone" id="dangerZone" hidden><button id="deleteBookmarkButton" type="button">Delete bookmark</button></div>
+        <div class="modal-actions"><button class="secondary" data-close-modal type="button">Cancel</button><button class="primary" id="saveBookmarkButton" type="submit">Save bookmark</button></div>
+      </form>
+    </section>
+
+    <section class="modal confirm-modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+      <p class="eyebrow danger-eyebrow">Permanent action</p><h2 id="confirmTitle">Delete bookmark?</h2><p class="modal-copy" id="confirmCopy"></p>
+      <div class="delete-list" id="deleteList"></div>
+      <div class="modal-actions"><button class="secondary" id="cancelConfirm" type="button">Keep bookmark</button><button class="danger-button" id="confirmDeleteButton" type="button">Delete permanently</button></div>
+    </section>
+
+    <section class="modal small-modal" id="bulkLabelModal" role="dialog" aria-modal="true" aria-labelledby="bulkLabelTitle" hidden>
+      <button class="modal-close" data-close-modal type="button" aria-label="Close">×</button>
+      <p class="eyebrow">Selected bookmarks</p><h2 id="bulkLabelTitle">Add a label</h2><p class="modal-copy" id="bulkLabelCopy"></p>
+      <label class="field"><span>Label</span><input id="bulkLabelInput" type="text" placeholder="Type a label" autocomplete="off"></label>
+      <div class="label-suggestions" id="bulkLabelSuggestions" hidden></div>
+      <div class="modal-actions"><button class="secondary" data-close-modal type="button">Cancel</button><button class="primary" id="applyBulkLabel" type="button">Add label</button></div>
+    </section>
+
+    <section class="modal transfer-modal" id="transferModal" role="dialog" aria-modal="true" aria-labelledby="transferTitle" hidden>
+      <button class="modal-close" data-close-modal type="button" aria-label="Close">×</button>
+      <div id="exportView">
+        <p class="eyebrow">Your library, in your hands</p><h2 id="transferTitle">Export or back up</h2><p class="modal-copy">Choose a portable browser file or a complete safety copy.</p>
+        <div class="export-grid">
+          <article><span class="file-badge">HTML</span><h3>Browser bookmarks file</h3><p>For Chrome, Firefox, Edge, Safari, and other bookmark tools.</p><ul><li>Links, saved titles, and dates</li><li>Labels where the browser supports them</li><li>Archived links in an Archive folder</li></ul><div class="caveat"><strong>Browser limitation</strong><span>Notes, note formatting, and Read later status cannot travel in this file.</span></div><a class="primary download-link" id="browserExportLink" href="/api/export/browser" download>Download browser file</a></article>
+          <article class="complete-export"><span class="file-badge">BACKUP</span><h3>Complete library backup</h3><p>A restorable copy containing everything in your personal library.</p><ul><li>Every active and archived bookmark</li><li>Titles, descriptions, labels, and dates</li><li>Formatted notes and Read later state</li></ul><div class="caveat safe"><strong>Nothing left behind</strong><span>Import this backup to rebuild your library as it was.</span></div><a class="primary download-link" id="backupExportLink" href="/api/export/backup" download>Download complete backup</a></article>
+        </div>
+      </div>
+      <div id="importPreviewView" hidden>
+        <p class="eyebrow">Review before importing</p><h2 id="importPreviewTitle">Ready to import</h2><p class="modal-copy" id="importFileName"></p>
+        <div class="import-stats" id="importStats"></div><div class="import-details" id="importDetails"></div>
+        <div class="modal-actions"><button class="secondary" data-close-modal type="button">Cancel</button><button class="primary" id="confirmImportButton" type="button">Import bookmarks</button></div>
+      </div>
+    </section>
+
+    <div class="toast" id="toast" role="status" hidden><span>✓</span><span id="toastText"></span></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

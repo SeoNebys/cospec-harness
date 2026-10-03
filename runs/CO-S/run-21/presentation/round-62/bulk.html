@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Organize several bookmarks</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .bulk-shell { width: min(960px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 100px; }
+    .bulk-head { padding: 58px 0 28px; display: flex; align-items: end; justify-content: space-between; }
+    .bulk-head h1 { font-size: 50px; }
+    .select-mode { border: 1px solid #aeb8af; border-radius: 9px; padding: 9px 13px; background: transparent; color: var(--green); cursor: pointer; font-size: 12px; font-weight: 750; }
+    .bulk-counts { display: flex; gap: 8px; margin-top: 13px; color: var(--muted); font-size: 11px; }
+    .bulk-counts span { padding: 5px 8px; border-radius: 999px; background: #e9ebe5; }
+    .bulk-list { display: grid; gap: 12px; }
+    .bulk-card { display: grid; grid-template-columns: auto 92px 1fr; align-items: center; gap: 15px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .bulk-card.selected { border-color: #6e8f78; background: #fbfdf9; box-shadow: 0 0 0 3px rgba(46,93,63,.09); }
+    .bulk-check { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+    .bulk-image { min-height: 88px; border-radius: 9px; background: linear-gradient(145deg, #183d4d, #e79a54); }
+    .bulk-card:nth-child(2) .bulk-image { background: linear-gradient(145deg, #514475, #d9b7d7); }
+    .bulk-card:nth-child(3) .bulk-image { background: linear-gradient(145deg, #43644d, #e9d69f); }
+    .bulk-body h2 { margin: 0 0 5px; font-family: Georgia, serif; font-size: 19px; font-weight: 500; }
+    .bulk-body p { margin: 0; color: var(--muted); font-size: 12px; }
+    .bulk-toolbar { position: fixed; z-index: 3; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(670px, calc(100% - 30px)); display: flex; align-items: center; gap: 8px; padding: 11px; border-radius: 13px; background: var(--ink); color: white; box-shadow: 0 15px 40px rgba(0,0,0,.24); }
+    .selection-count { margin-right: auto; padding-left: 5px; font-size: 12px; font-weight: 750; }
+    .bulk-toolbar button { border: 0; border-radius: 8px; padding: 9px 11px; background: #34433a; color: white; cursor: pointer; font-size: 11px; font-weight: 750; }
+    .bulk-toolbar .danger { color: #ffc2bb; }
+    .bulk-tag-dialog { position: fixed; z-index: 5; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(18,27,22,.42); }
+    .bulk-tag-box { width: min(410px, 100%); padding: 27px; border-radius: 15px; background: var(--paper); box-shadow: 0 20px 60px rgba(0,0,0,.22); }
+    .bulk-tag-box h2 { margin: 0 0 8px; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+    .bulk-tag-box p { margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+    .bulk-tag-box input { width: 100%; border: 1px solid #aeb8af; border-radius: 9px; padding: 10px; background: white; color: var(--ink); }
+    .bulk-suggestions { margin-top: 6px; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: white; }
+    .bulk-suggestions button { width: 100%; display: flex; justify-content: space-between; border: 0; padding: 9px 10px; background: transparent; cursor: pointer; text-align: left; }
+    .bulk-suggestions button:hover { background: #eef1ec; }
+    .bulk-suggestions small { color: var(--muted); }
+    .bulk-toast { position: fixed; z-index: 6; right: 24px; bottom: 92px; padding: 12px 16px; border-radius: 11px; background: #304238; color: white; font-size: 12px; }
+    .bulk-delete-dialog { position: fixed; z-index: 7; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(18,27,22,.44); }
+    .bulk-delete-box { width: min(440px, 100%); padding: 28px; border-radius: 15px; background: var(--paper); box-shadow: 0 20px 60px rgba(0,0,0,.22); }
+    .bulk-delete-box h2 { margin: 0 0 10px; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+    .bulk-delete-box p { margin: 0 0 9px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .bulk-delete-box .warning { color: #943b33; font-weight: 750; }
+    .delete-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
+    .bulk-confirm-delete { border: 1px solid #a33d35; border-radius: 9px; padding: 10px 14px; background: #a33d35; color: white; cursor: pointer; font-weight: 750; }
+    @media (max-width: 650px) { .bulk-card { grid-template-columns: auto 70px 1fr; } .bulk-toolbar { flex-wrap: wrap; } }
+  </style>
+</head>
+<body>
+  <main class="bulk-shell" data-harness-ready="true">
+    <header class="topbar"><a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a><span class="prototype-badge">Bulk-selection prototype</span></header>
+    <section class="bulk-head"><div><p class="eyebrow">YOUR COLLECTION</p><h1>Organize in one go.</h1><div class="bulk-counts"><span>All bookmarks · <b id="bulk-all-count">3</b></span><span>Archive · <b id="bulk-archive-count">0</b></span></div></div><button id="select-mode" class="select-mode" hidden>Select bookmarks</button></section>
+    <div class="bulk-list">
+      <article class="bulk-card"><input class="bulk-check" type="checkbox" aria-label="Select A calmer way to keep what you discover online"><div class="bulk-image"></div><div class="bulk-body"><h2>A calmer way to keep what you discover online</h2><p>Field Notes · Design</p></div></article>
+      <article class="bulk-card"><input class="bulk-check" type="checkbox" aria-label="Select How small teams make better product decisions"><div class="bulk-image"></div><div class="bulk-body"><h2>How small teams make better product decisions</h2><p>Workbench · Research</p></div></article>
+      <article class="bulk-card"><input class="bulk-check" type="checkbox" aria-label="Select Designing systems that age gracefully"><div class="bulk-image"></div><div class="bulk-body"><h2>Designing systems that age gracefully</h2><p>Common Practice · Design</p></div></article>
+    </div>
+  </main>
+  <div id="bulk-toolbar" class="bulk-toolbar" hidden><span id="selection-count" class="selection-count">0 selected</span><button id="bulk-tag">+ Add tag</button><button id="bulk-archive">Archive</button><button id="bulk-delete" class="danger">Delete…</button></div>
+  <div id="bulk-tag-dialog" class="bulk-tag-dialog" hidden><section class="bulk-tag-box"><h2>Tag 2 bookmarks</h2><p>Reuse an existing tag across everything selected.</p><input id="bulk-tag-input" placeholder="Start typing…" autocomplete="off"><div id="bulk-suggestions" class="bulk-suggestions"></div><div class="note-actions"><button id="bulk-tag-cancel" class="secondary-button">Cancel</button></div></section></div>
+  <div id="bulk-delete-dialog" class="bulk-delete-dialog" hidden><section class="bulk-delete-box"><h2>Permanently delete 2 bookmarks?</h2><p>This removes every selected bookmark along with its notes, tags, and saved details.</p><p class="warning">This cannot be undone.</p><div class="delete-actions"><button id="bulk-delete-cancel" class="secondary-button">Keep bookmarks</button><button id="bulk-delete-confirm" class="bulk-confirm-delete">Delete 2 permanently</button></div></section></div>
+  <div id="bulk-toast" class="bulk-toast" hidden></div>
+  <script>
+    const mode = new URLSearchParams(location.search).get('select') || 'always';
+    const modeButton = document.querySelector('#select-mode');
+    const checks = [...document.querySelectorAll('.bulk-check')];
+    if (mode === 'mode') { modeButton.hidden = false; checks.forEach((check) => { check.hidden = true; }); }
+    modeButton.addEventListener('click', () => { checks.forEach((check) => { check.hidden = false; }); modeButton.textContent = 'Cancel selection'; });
+    checks.forEach((check) => check.addEventListener('change', () => {
+      check.closest('.bulk-card').classList.toggle('selected', check.checked);
+      const count = checks.filter((item) => item.checked).length;
+      document.querySelector('#selection-count').textContent = `${count} selected`;
+      document.querySelector('#bulk-toolbar').hidden = count === 0;
+    }));
+    const tagDialog = document.querySelector('#bulk-tag-dialog');
+    const tagInput = document.querySelector('#bulk-tag-input');
+    const tagChoices = ['Design', 'Research', 'Reading', 'Inspiration'];
+    function renderChoices() {
+      const query = tagInput.value.toLowerCase();
+      const box = document.querySelector('#bulk-suggestions'); box.innerHTML = '';
+      tagChoices.filter((tag) => tag.toLowerCase().includes(query)).forEach((tag) => {
+        const button = document.createElement('button'); button.type = 'button'; button.innerHTML = `<span>${tag}</span><small>existing tag</small>`;
+        button.addEventListener('click', () => {
+          checks.filter((check) => check.checked).forEach((check) => { const meta = check.closest('.bulk-card').querySelector('.bulk-body p'); if (!meta.textContent.includes(tag)) meta.textContent += ` · ${tag}`; });
+          tagDialog.hidden = true;
+          const toast = document.querySelector('#bulk-toast'); toast.textContent = `Added “${tag}” to 2 bookmarks`; toast.hidden = false; setTimeout(() => { toast.hidden = true; }, 2800);
+        });
+        box.appendChild(button);
+      });
+    }
+    document.querySelector('#bulk-tag').addEventListener('click', () => { tagDialog.hidden = false; tagInput.value = ''; renderChoices(); tagInput.focus(); });
+    document.querySelector('#bulk-tag-cancel').addEventListener('click', () => { tagDialog.hidden = true; });
+    tagInput.addEventListener('input', renderChoices);
+    document.querySelector('#bulk-archive').addEventListener('click', () => {
+      const selected = checks.filter((check) => check.checked);
+      selected.forEach((check) => check.closest('.bulk-card').remove());
+      document.querySelector('#bulk-all-count').textContent = String(3 - selected.length);
+      document.querySelector('#bulk-archive-count').textContent = String(selected.length);
+      document.querySelector('#bulk-toolbar').hidden = true;
+      const toast = document.querySelector('#bulk-toast'); toast.textContent = `Archived ${selected.length} bookmarks · Kept safe`; toast.hidden = false; setTimeout(() => { toast.hidden = true; }, 3000);
+    });
+    const deleteDialog = document.querySelector('#bulk-delete-dialog');
+    document.querySelector('#bulk-delete').addEventListener('click', () => { deleteDialog.hidden = false; });
+    document.querySelector('#bulk-delete-cancel').addEventListener('click', () => { deleteDialog.hidden = true; });
+    document.querySelector('#bulk-delete-confirm').addEventListener('click', () => {
+      const selected = checks.filter((check) => check.checked);
+      selected.forEach((check) => check.closest('.bulk-card').remove());
+      deleteDialog.hidden = true;
+      document.querySelector('#bulk-all-count').textContent = String(3 - selected.length);
+      document.querySelector('#bulk-toolbar').hidden = true;
+      const toast = document.querySelector('#bulk-toast'); toast.textContent = `Permanently deleted ${selected.length} bookmarks`; toast.hidden = false; setTimeout(() => { toast.hidden = true; }, 3000);
+    });
+  </script>
+</body>
+</html>

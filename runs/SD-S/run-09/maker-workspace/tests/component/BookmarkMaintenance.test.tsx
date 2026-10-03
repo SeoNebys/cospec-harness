@@ -1,0 +1,4 @@
+// @vitest-environment jsdom
+import { fireEvent,render,screen } from "@testing-library/react";import { describe,expect,it,vi } from "vitest";import { DeleteBookmarkDialog } from "../../src/client/features/bookmarks/DeleteBookmarkDialog.js";
+const bookmark={id:1,url:"https://example.com",title:"Example",titleSource:"user" as const,notes:null,folder:null,tags:[],isFavorite:false,metadataStatus:"ready" as const,metadataFailureCode:null,iconUrl:"/icon",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+describe("bookmark maintenance",()=>{it("names the bookmark and allows cancel without deletion",()=>{const cancel=vi.fn();const confirm=vi.fn();render(<DeleteBookmarkDialog bookmark={bookmark} onCancel={cancel} onConfirm={confirm}/>);expect(screen.getByRole("alertdialog")).toHaveTextContent("Example");fireEvent.click(screen.getByRole("button",{name:"Cancel"}));expect(cancel).toHaveBeenCalled();expect(confirm).not.toHaveBeenCalled();});});

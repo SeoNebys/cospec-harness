@@ -1,0 +1,3 @@
+import { test,expect } from "@playwright/test";import { signIn } from "./helpers";
+test("signs in and signs out",async({page})=>{await signIn(page);await page.getByRole("button",{name:/Sign out/}).click();await expect(page).toHaveURL(/\/sign-in$/);});
+test("password recovery does not reveal whether an account exists",async({page})=>{for(const email of ["reviewer@example.com",`unknown-${Date.now()}@example.com`]){await page.goto("/forgot-password");await page.getByLabel("Email").fill(email);await page.getByRole("button",{name:"Send reset link"}).click();await expect(page.getByRole("status")).toHaveText("If that email is registered, a reset link is on its way.");}});

@@ -1,0 +1,93 @@
+{
+  "config": {
+    "provider": "codex",
+    "model": "gpt-5.6-sol",
+    "effort": "medium"
+  },
+  "attempts": 1,
+  "quota_wait_seconds": 0,
+  "normalized": {
+    "result": "Open [the interrupted-save case](http://maker:4001/?state=save-failure). Select **Edit**, change the title to `My corrected walking guide`, and select **Save changes**. After the simulated failure, select **Save changes** again.\n\nI’ve assumed the form stays open with every edit preserved, the saved bookmark remains unchanged during the failure, and retrying needs no re-entry. Is that the right recovery behavior?",
+    "session_id": "01a0b3cd-c68f-78e1-9c10-75df3d64c719",
+    "usage": {
+      "input_tokens": 4431,
+      "output_tokens": 2055,
+      "cache_read_input_tokens": 356736,
+      "cache_creation_input_tokens": 0,
+      "reasoning_output_tokens": 269
+    },
+    "native_usage": {
+      "input_tokens": 6273142,
+      "cached_input_tokens": 6147456,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 66316,
+      "reasoning_output_tokens": 15012
+    },
+    "total_cost_usd": null,
+    "model_config": {
+      "provider": "codex",
+      "model": "gpt-5.6-sol",
+      "effort": "medium"
+    },
+    "observed_models": [],
+    "accounting": {
+      "session_id": "01a0b3cd-c68f-78e1-9c10-75df3d64c719",
+      "usage": {
+        "input_tokens": 4431,
+        "output_tokens": 2055,
+        "cache_read_input_tokens": 356736,
+        "cache_creation_input_tokens": 0,
+        "reasoning_output_tokens": 269
+      },
+      "threads": [
+        {
+          "session_id": "01a0b3cd-c68f-78e1-9c10-75df3d64c719",
+          "kind": "main",
+          "usage": {
+            "input_tokens": 4431,
+            "cache_creation_input_tokens": 0,
+            "reasoning_output_tokens": 269,
+            "cache_read_input_tokens": 356736,
+            "output_tokens": 2055
+          },
+          "before": {
+            "input_tokens": 121255,
+            "cache_creation_input_tokens": 0,
+            "reasoning_output_tokens": 14743,
+            "output_tokens": 64261,
+            "cache_read_input_tokens": 5790720
+          },
+          "after": {
+            "input_tokens": 125686,
+            "cache_creation_input_tokens": 0,
+            "reasoning_output_tokens": 15012,
+            "output_tokens": 66316,
+            "cache_read_input_tokens": 6147456
+          },
+          "inherited_baseline": {}
+        }
+      ],
+      "scope": "observed_distinct_threads",
+      "issues": [],
+      "complete": true
+    },
+    "timing": {
+      "id": "42673ccc5d9d4d9289a891be8e746c8a",
+      "started_at": "2026-09-18T09:45:54.630014+00:00",
+      "ended_at": "2026-09-18T09:46:45.947641+00:00",
+      "elapsed_seconds": 51.317634,
+      "phase_before": {
+        "declared_phase": "[Phase 1]",
+        "artifact_kind": "prototype",
+        "sdd_artifacts": []
+      },
+      "phase_after": {
+        "declared_phase": "[Phase 1]",
+        "artifact_kind": "prototype",
+        "sdd_artifacts": []
+      },
+      "phase_assignment": "stable_observation"
+    }
+  },
+  "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a0b3cd-c68f-78e1-9c10-75df3d64c719\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"agent_message\",\"text\":\"The invalid-edit behavior is approved: field-specific messages keep the attempted changes available, while the saved bookmark remains untouched until every required value is valid.\\n\\nI’m recording that as the eighteenth approved flow. Next I’m checking an interruption during an otherwise valid save, so a temporary failure does not discard the user’s work.\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/work/AGENTS.md\",\"kind\":\"update\"},{\"path\":\"/work/context/scenarios-index.md\",\"kind\":\"update\"},{\"path\":\"/work/context/scenarios/SCN-018.md\",\"kind\":\"add\"},{\"path\":\"/work/prototypes/index.html\",\"kind\":\"update\"}],\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/work/AGENTS.md\",\"kind\":\"update\"},{\"path\":\"/work/context/scenarios-index.md\",\"kind\":\"update\"},{\"path\":\"/work/context/scenarios/SCN-018.md\",\"kind\":\"add\"},{\"path\":\"/work/prototypes/index.html\",\"kind\":\"update\"}],\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/bash -lc \\\"node - <<'JS'\\nconst { chromium } = require('playwright');\\n(async () => {\\n  const browser = await chromium.launch({headless: true});\\n  const page = await browser.newPage();\\n  await page.goto('http://127.0.0.1:4001/?state=save-failure');\\n  const version = page.locator('[data-edit-version=\\\\\\\"inline\\\\\\\"]');\\n  await version.getByRole('button', {name: 'Edit'}).click();\\n  await version.locator('.edit-title-input').fill('My corrected walking guide');\\n  await version.getByRole('button', {name: 'Save changes'}).click();\\n  if (\\\"'!(await version.locator('\\\"'.save-failure-message').isVisible())) throw new Error('failure message missing');\\n  if ((await version.locator('.edit-title-input').inputValue()) \\\"'!== '\\\"'My corrected walking guide') throw new Error('edit was lost');\\n  if (\\\"'!(await version.locator('\\\"'.edit-form').isVisible())) throw new Error('form closed after failure');\\n  await version.getByRole('button', {name: 'Save changes'}).click();\\n  if ((await version.locator('.editable-title-display').innerText()) \\\"'!== '\\\"'My corrected walking guide') throw new Error('retry did not save');\\n  if ((await version.locator('.edit-success').innerText()) \\\"'!== '\\\"'Changes saved') throw new Error('retry confirmation missing');\\n  console.log('PASS: failed save preserves edits and retry succeeds without re-entry');\\n  await browser.close();\\n})();\\nJS\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"command_execution\",\"command\":\"/bin/bash -lc \\\"node - <<'JS'\\nconst { chromium } = require('playwright');\\n(async () => {\\n  const browser = await chromium.launch({headless: true});\\n  const page = await browser.newPage();\\n  await page.goto('http://127.0.0.1:4001/?state=save-failure');\\n  const version = page.locator('[data-edit-version=\\\\\\\"inline\\\\\\\"]');\\n  await version.getByRole('button', {name: 'Edit'}).click();\\n  await version.locator('.edit-title-input').fill('My corrected walking guide');\\n  await version.getByRole('button', {name: 'Save changes'}).click();\\n  if (\\\"'!(await version.locator('\\\"'.save-failure-message').isVisible())) throw new Error('failure message missing');\\n  if ((await version.locator('.edit-title-input').inputValue()) \\\"'!== '\\\"'My corrected walking guide') throw new Error('edit was lost');\\n  if (\\\"'!(await version.locator('\\\"'.edit-form').isVisible())) throw new Error('form closed after failure');\\n  await version.getByRole('button', {name: 'Save changes'}).click();\\n  if ((await version.locator('.editable-title-display').innerText()) \\\"'!== '\\\"'My corrected walking guide') throw new Error('retry did not save');\\n  if ((await version.locator('.edit-success').innerText()) \\\"'!== '\\\"'Changes saved') throw new Error('retry confirmation missing');\\n  console.log('PASS: failed save preserves edits and retry succeeds without re-entry');\\n  await browser.close();\\n})();\\nJS\\\"\",\"aggregated_output\":\"PASS: failed save preserves edits and retry succeeds without re-entry\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"agent_message\",\"text\":\"Open [the interrupted-save case](http://maker:4001/?state=save-failure). Select **Edit**, change the title to `My corrected walking guide`, and select **Save changes**. After the simulated failure, select **Save changes** again.\\n\\nI’ve assumed the form stays open with every edit preserved, the saved bookmark remains unchanged during the failure, and retrying needs no re-entry. Is that the right recovery behavior?\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":6273142,\"cached_input_tokens\":6147456,\"cache_write_input_tokens\":0,\"output_tokens\":66316,\"reasoning_output_tokens\":15012}}\n"
+}

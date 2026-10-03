@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Organize several bookmarks</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .bulk-shell { width: min(960px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 100px; }
+    .bulk-head { padding: 58px 0 28px; display: flex; align-items: end; justify-content: space-between; }
+    .bulk-head h1 { font-size: 50px; }
+    .select-mode { border: 1px solid #aeb8af; border-radius: 9px; padding: 9px 13px; background: transparent; color: var(--green); cursor: pointer; font-size: 12px; font-weight: 750; }
+    .bulk-list { display: grid; gap: 12px; }
+    .bulk-card { display: grid; grid-template-columns: auto 92px 1fr; align-items: center; gap: 15px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .bulk-card.selected { border-color: #6e8f78; background: #fbfdf9; box-shadow: 0 0 0 3px rgba(46,93,63,.09); }
+    .bulk-check { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+    .bulk-image { min-height: 88px; border-radius: 9px; background: linear-gradient(145deg, #183d4d, #e79a54); }
+    .bulk-card:nth-child(2) .bulk-image { background: linear-gradient(145deg, #514475, #d9b7d7); }
+    .bulk-card:nth-child(3) .bulk-image { background: linear-gradient(145deg, #43644d, #e9d69f); }
+    .bulk-body h2 { margin: 0 0 5px; font-family: Georgia, serif; font-size: 19px; font-weight: 500; }
+    .bulk-body p { margin: 0; color: var(--muted); font-size: 12px; }
+    .bulk-toolbar { position: fixed; z-index: 3; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(670px, calc(100% - 30px)); display: flex; align-items: center; gap: 8px; padding: 11px; border-radius: 13px; background: var(--ink); color: white; box-shadow: 0 15px 40px rgba(0,0,0,.24); }
+    .selection-count { margin-right: auto; padding-left: 5px; font-size: 12px; font-weight: 750; }
+    .bulk-toolbar button { border: 0; border-radius: 8px; padding: 9px 11px; background: #34433a; color: white; cursor: pointer; font-size: 11px; font-weight: 750; }
+    .bulk-toolbar .danger { color: #ffc2bb; }
+    @media (max-width: 650px) { .bulk-card { grid-template-columns: auto 70px 1fr; } .bulk-toolbar { flex-wrap: wrap; } }
+  </style>
+</head>
+<body>
+  <main class="bulk-shell" data-harness-ready="true">
+    <header class="topbar"><a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a><span class="prototype-badge">Bulk-selection prototype</span></header>
+    <section class="bulk-head"><div><p class="eyebrow">YOUR COLLECTION</p><h1>Organize in one go.</h1></div><button id="select-mode" class="select-mode" hidden>Select bookmarks</button></section>
+    <div class="bulk-list">
+      <article class="bulk-card"><input class="bulk-check" type="checkbox" aria-label="Select A calmer way to keep what you discover online"><div class="bulk-image"></div><div class="bulk-body"><h2>A calmer way to keep what you discover online</h2><p>Field Notes · Design</p></div></article>
+      <article class="bulk-card"><input class="bulk-check" type="checkbox" aria-label="Select How small teams make better product decisions"><div class="bulk-image"></div><div class="bulk-body"><h2>How small teams make better product decisions</h2><p>Workbench · Research</p></div></article>
+      <article class="bulk-card"><input class="bulk-check" type="checkbox" aria-label="Select Designing systems that age gracefully"><div class="bulk-image"></div><div class="bulk-body"><h2>Designing systems that age gracefully</h2><p>Common Practice · Design</p></div></article>
+    </div>
+  </main>
+  <div id="bulk-toolbar" class="bulk-toolbar" hidden><span id="selection-count" class="selection-count">0 selected</span><button id="bulk-tag">+ Add tag</button><button id="bulk-archive">Archive</button><button id="bulk-delete" class="danger">Delete…</button></div>
+  <script>
+    const mode = new URLSearchParams(location.search).get('select') || 'always';
+    const modeButton = document.querySelector('#select-mode');
+    const checks = [...document.querySelectorAll('.bulk-check')];
+    if (mode === 'mode') { modeButton.hidden = false; checks.forEach((check) => { check.hidden = true; }); }
+    modeButton.addEventListener('click', () => { checks.forEach((check) => { check.hidden = false; }); modeButton.textContent = 'Cancel selection'; });
+    checks.forEach((check) => check.addEventListener('change', () => {
+      check.closest('.bulk-card').classList.toggle('selected', check.checked);
+      const count = checks.filter((item) => item.checked).length;
+      document.querySelector('#selection-count').textContent = `${count} selected`;
+      document.querySelector('#bulk-toolbar').hidden = count === 0;
+    }));
+  </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager Contract
+  version: 1.0.0
+  description: Owner-scoped MVP endpoints. Authentication is provided by Better Auth under /api/auth/*.
+servers:
+  - url: http://maker:4000
+paths:
+  /api/bookmarks:
+    get:
+      summary: List the authenticated user's bookmarks
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: tagId, in: query, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 25 } }
+      responses:
+        '200':
+          description: Owner-scoped page ordered by creation time then identifier, descending
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkPage' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      summary: Save a bookmark for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '201':
+          description: Bookmark saved atomically
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/DuplicateBookmark' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '500': { $ref: '#/components/responses/ServerFailure' }
+  /api/bookmarks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get one owned bookmark
+      responses:
+        '200':
+          description: Bookmark
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      summary: Replace editable fields on one owned bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '200':
+          description: Updated bookmark
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DuplicateBookmark' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '500': { $ref: '#/components/responses/ServerFailure' }
+    delete:
+      summary: Delete one owned bookmark after UI confirmation
+      responses:
+        '204': { description: Deleted atomically }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerFailure' }
+  /api/tags:
+    get:
+      summary: List tags used by the authenticated user
+      responses:
+        '200':
+          description: Tags sorted by display name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Tag' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-session
+  schemas:
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string, minLength: 1, maxLength: 50 }
+    Bookmark:
+      type: object
+      required: [id, title, url, tags, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        url: { type: string, format: uri, maxLength: 2048 }
+        tags:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Tag' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [title, url, tags]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        url: { type: string, minLength: 1, maxLength: 2048, description: Only http and https; embedded credentials rejected }
+        tags:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 50 }
+    BookmarkPage:
+      type: object
+      required: [items, nextCursor, total]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/Bookmark' }
+        nextCursor: { type: [string, 'null'] }
+        total: { type: integer, minimum: 0 }
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        existingBookmarkId: { type: string }
+        correlationId: { type: string }
+  responses:
+    Unauthenticated:
+      description: No valid session
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: Missing or not owned; response does not reveal which
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    DuplicateBookmark:
+      description: Normalized URL already belongs to another bookmark owned by this user
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    ValidationFailed:
+      description: Field or business validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    ServerFailure:
+      description: Retryable failure; prior saved state is unchanged
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }
+security:
+  - sessionCookie: []

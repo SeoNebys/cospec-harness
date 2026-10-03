@@ -1,0 +1,358 @@
+openapi: 3.0.3
+info:
+  title: Bookmark Manager API
+  version: 1.0.0
+  description: >
+    JSON HTTP API for a single-user bookmark manager. Served by the same Node
+    process that serves the built frontend, on 0.0.0.0:4000. No authentication
+    (single-user, local use per spec Assumptions).
+servers:
+  - url: http://maker:4000
+    description: Client review URL (shared Docker network)
+  - url: http://127.0.0.1:4000
+    description: VM capture URL
+
+paths:
+  /api/bookmarks:
+    get:
+      summary: List bookmarks for a view (search, tag filter, sort, paginate)
+      parameters:
+        - { name: view, in: query, schema: { type: string, enum: [all, unread, archived], default: all } }
+        - { name: q, in: query, schema: { type: string }, description: "Search expression (see search-grammar.md)" }
+        - { name: includeTags, in: query, schema: { type: array, items: { type: string } }, style: form, explode: true }
+        - { name: excludeTags, in: query, schema: { type: array, items: { type: string } }, style: form, explode: true }
+        - { name: sort, in: query, schema: { type: string, enum: [dateAdded_desc, dateAdded_asc, title_asc, title_desc, dateUpdated_desc] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
+      responses:
+        '200':
+          description: Page of matching bookmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Bookmark' } }
+                  total: { type: integer }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+        '400':
+          description: Malformed search expression (unbalanced quote/paren)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    post:
+      summary: Commit a bookmark with reviewed details; if the normalized URL already exists, return it for editing
+      description: >
+        Persists the bookmark using the title/description the person reviewed and
+        possibly edited at the preview step (FR-002/003). Snapshot capture is the
+        only background work and NEVER overwrites title/description (Decision 11).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+                title: { type: string }
+                description: { type: string }
+                note: { type: string }
+                tags: { type: array, items: { type: string } }
+                faviconPath: { type: string, nullable: true, description: "Favicon from the preview step; stored as-is" }
+                previewImagePath: { type: string, nullable: true, description: "Preview image from the preview step; stored as-is" }
+      responses:
+        '201':
+          description: Created with the reviewed details (incl. favicon & preview). Snapshot captures asynchronously.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Bookmark' } } }
+        '200':
+          description: >
+            Duplicate normalized URL: returns the existing bookmark so the client
+            opens it for editing (FR-006). `existing` is true.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Bookmark'
+                  - type: object
+                    properties: { existing: { type: boolean, enum: [true] } }
+        '400':
+          description: Invalid web address (FR-004)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/bookmarks/preview:
+    post:
+      summary: Collect page details for review BEFORE committing (FR-002, US1)
+      description: >
+        Fetches and parses the target's title, description, favicon, and preview
+        image with a bounded timeout (~8s) so the person can review and edit them
+        before saving. Persists nothing. If the page cannot be read promptly,
+        returns fallback details (host-derived title, empty description) with
+        metadataStatus=fallback so the person can continue and save immediately
+        (FR-007). If the normalized URL already exists, returns the existing
+        bookmark so the client opens it for editing (FR-006).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        '200':
+          description: Collected (or fallback) details for review; nothing saved yet
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+                  normalizedUrl: { type: string }
+                  title: { type: string }
+                  description: { type: string }
+                  faviconPath: { type: string, nullable: true }
+                  previewImagePath: { type: string, nullable: true }
+                  metadataStatus: { type: string, enum: [collected, fallback] }
+                  existing: { $ref: '#/components/schemas/Bookmark', nullable: true }
+        '400':
+          description: Invalid web address (FR-004)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/bookmarks/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Get one bookmark
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Bookmark' } } } }
+        '404': { description: Not found, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    patch:
+      summary: Edit address, title, description, note, tags, read, archived (FR-008/021/022)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                title: { type: string }
+                description: { type: string }
+                note: { type: string }
+                tags: { type: array, items: { type: string } }
+                read: { type: boolean }
+                archived: { type: boolean }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Bookmark' } } } }
+        '400': { description: Invalid address or edit would collide with another bookmark's URL, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Not found }
+    delete:
+      summary: Permanently delete a bookmark and its snapshot (FR-011)
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Not found }
+
+  /api/bookmarks/{id}/snapshot:
+    get:
+      summary: Serve the stored local snapshot (self-contained HTML or PDF)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Snapshot bytes
+          content:
+            text/html: {}
+            application/pdf: {}
+        '404': { description: No snapshot available (pending/unavailable) }
+
+  /api/bookmarks/{id}/web-archive:
+    post:
+      summary: Preserve the page via the Internet Archive and store the returned link (FR-030)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Archived; link stored on the bookmark
+          content: { application/json: { schema: { type: object, properties: { webArchiveUrl: { type: string } } } } }
+        '404': { description: Not found }
+        '502': { description: Internet Archive unreachable; bookmark unchanged (best-effort) }
+
+  /api/bookmarks/bulk:
+    post:
+      summary: Apply an action to many bookmarks (explicit ids or select-all-matching) (FR-024/025)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string }
+                  description: Explicit selection. Omit when using `match`.
+                match:
+                  type: object
+                  description: Select-all-matching the current view (FR-024)
+                  properties:
+                    view: { type: string, enum: [all, unread, archived] }
+                    q: { type: string }
+                    includeTags: { type: array, items: { type: string } }
+                    excludeTags: { type: array, items: { type: string } }
+                action:
+                  type: string
+                  enum: [addTag, removeTag, markRead, markUnread, archive, unarchive, delete]
+                value:
+                  type: string
+                  description: Tag name for addTag/removeTag
+                confirmDelete:
+                  type: boolean
+                  description: Must be true when action=delete (FR-025)
+      responses:
+        '200':
+          description: Result summary
+          content: { application/json: { schema: { type: object, properties: { affected: { type: integer } } } } }
+        '400': { description: Missing confirmation for delete, or missing value for tag actions }
+
+  /api/tags:
+    get:
+      summary: List tags with usage counts (for filtering and type-ahead suggestions) (FR-009)
+      parameters:
+        - { name: prefix, in: query, schema: { type: string }, description: "Optional prefix for suggestions" }
+      responses:
+        '200':
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties: { name: { type: string }, count: { type: integer } }
+
+  /api/filters:
+    get:
+      summary: List saved filters (FR-032)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SavedFilter' } } } } }
+    post:
+      summary: Create a saved filter
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SavedFilterInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/SavedFilter' } } } }
+        '400': { description: Invalid (e.g. duplicate name) }
+
+  /api/filters/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    patch:
+      summary: Edit a saved filter (never affects bookmarks)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/SavedFilterInput' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/SavedFilter' } } } }
+        '404': { description: Not found }
+    delete:
+      summary: Delete a saved filter
+      responses:
+        '204': { description: Deleted }
+        '404': { description: Not found }
+
+  /api/import:
+    post:
+      summary: Import a Netscape bookmarks HTML file (FR-026/027)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Import summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added: { type: integer }
+                  skipped: { type: integer }
+        '400': { description: Not a recognizable bookmarks file }
+
+  /api/export:
+    get:
+      summary: Export the collection as a Netscape bookmarks HTML file (FR-028)
+      responses:
+        '200':
+          description: Bookmarks file (tags as folders, dates preserved)
+          content:
+            text/html:
+              schema: { type: string }
+
+  /api/preferences:
+    get:
+      summary: Get display preferences (FR-033)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DisplayPreferences' } } } }
+    put:
+      summary: Update display preferences
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DisplayPreferences' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/DisplayPreferences' } } } }
+        '400': { description: Out-of-range value }
+
+components:
+  schemas:
+    Bookmark:
+      type: object
+      properties:
+        id: { type: string }
+        url: { type: string }
+        normalizedUrl: { type: string }
+        title: { type: string }
+        description: { type: string }
+        note: { type: string }
+        tags: { type: array, items: { type: string } }
+        faviconPath: { type: string, nullable: true }
+        previewImagePath: { type: string, nullable: true }
+        read: { type: boolean }
+        archived: { type: boolean }
+        snapshotType: { type: string, enum: [html, pdf, none] }
+        snapshotStatus: { type: string, enum: [pending, available, unavailable] }
+        webArchiveUrl: { type: string, nullable: true }
+        metadataStatus: { type: string, enum: [collected, fallback] }
+        dateAdded: { type: string, format: date-time }
+        dateUpdated: { type: string, format: date-time }
+    SavedFilterInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        query: { type: string }
+        includeTags: { type: array, items: { type: string } }
+        excludeTags: { type: array, items: { type: string } }
+    SavedFilter:
+      allOf:
+        - $ref: '#/components/schemas/SavedFilterInput'
+        - type: object
+          properties:
+            id: { type: string }
+            dateCreated: { type: string, format: date-time }
+    DisplayPreferences:
+      type: object
+      properties:
+        defaultSort: { type: string, enum: [dateAdded_desc, dateAdded_asc, title_asc, title_desc, dateUpdated_desc] }
+        itemsPerPage: { type: integer, minimum: 10, maximum: 200 }
+        fontSize: { type: string, enum: [small, medium, large] }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        detail: { type: string }

@@ -1,0 +1,103 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Metadata Preview
+  version: 1.0.0
+  description: Internal same-origin contract for retrieving bounded bookmark suggestions. Remote markup is never returned.
+paths:
+  /api/metadata:
+    post:
+      operationId: previewBookmarkMetadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  maxLength: 4096
+                refresh:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: Retrieval completed; individual suggestions may be missing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataResult"
+        "400":
+          description: Invalid or unsupported address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Address or resolved destination is blocked by network policy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "408":
+          description: Retrieval exceeded its total deadline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          description: Remote content exceeded the admitted size.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "415":
+          description: Destination is not supported HTML/XHTML.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Retrieval concurrency or rate limit reached.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Remote retrieval failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    MetadataResult:
+      type: object
+      additionalProperties: false
+      required: [requestedUrl, finalUrl, normalizedUrl, title, description, iconUrl, missing]
+      properties:
+        requestedUrl: { type: string, format: uri }
+        finalUrl: { type: string, format: uri }
+        normalizedUrl: { type: string, format: uri }
+        title: { type: [string, "null"], maxLength: 300 }
+        description: { type: [string, "null"], maxLength: 1000 }
+        iconUrl:
+          description: Same-origin URL for a validated local icon asset.
+          type: [string, "null"]
+        missing:
+          type: array
+          uniqueItems: true
+          items: { enum: [title, description, icon] }
+        cacheStatus: { enum: [hit, miss, refreshed] }
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, canContinueManually]
+      properties:
+        code:
+          enum: [INVALID_URL, UNSUPPORTED_SCHEME, UNSUPPORTED_PORT, BLOCKED_DESTINATION, REDIRECT_LIMIT, DOWNGRADE_REDIRECT, TIMEOUT, CONTENT_TOO_LARGE, UNSUPPORTED_CONTENT, UPSTREAM_ERROR, RATE_LIMITED]
+        message: { type: string }
+        canContinueManually: { type: boolean, const: true }

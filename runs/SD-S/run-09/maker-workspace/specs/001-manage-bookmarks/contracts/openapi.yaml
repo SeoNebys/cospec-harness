@@ -1,0 +1,679 @@
+openapi: 3.1.0
+info:
+  title: Personal Bookmark Manager API
+  version: 1.0.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: >-
+    Same-origin JSON contract for the approved bookmark manager. Better Auth owns
+    /api/auth/* behavior; the paths below record the subset used by this app.
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+
+paths:
+  /auth/sign-up/email:
+    post:
+      operationId: signUpEmail
+      tags: [Authentication]
+      security: []
+      summary: Register with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 80 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 15, maxLength: 128 }
+      responses:
+        "200":
+          description: Generic accepted response, including for an existing email
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /auth/sign-in/email:
+    post:
+      operationId: signInEmail
+      tags: [Authentication]
+      security: []
+      summary: Start an authenticated session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 1, maxLength: 128 }
+                rememberMe: { type: boolean, default: true }
+      responses:
+        "200":
+          description: Signed in; response sets the session cookie
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /auth/get-session:
+    get:
+      operationId: getSession
+      tags: [Authentication]
+      security: []
+      summary: Return the current session or null
+      responses:
+        "200":
+          description: Current Better Auth session or null
+        "400": { $ref: "#/components/responses/ValidationError" }
+
+  /auth/sign-out:
+    post:
+      operationId: signOut
+      tags: [Authentication]
+      summary: Revoke the current session
+      responses:
+        "200": { description: Signed out and cookie cleared }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/request-password-reset:
+    post:
+      operationId: requestPasswordReset
+      tags: [Authentication]
+      security: []
+      summary: Request a password-reset email
+      description: Always returns the same accepted response regardless of account existence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, redirectTo]
+              properties:
+                email: { type: string, format: email }
+                redirectTo: { type: string, format: uri }
+      responses:
+        "200": { description: Generic accepted response }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [Authentication]
+      security: []
+      summary: Set a new password with a single-use reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string, minLength: 1 }
+                newPassword: { type: string, minLength: 15, maxLength: 128 }
+      responses:
+        "200": { description: Password reset; prior sessions revoked }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /metadata/preview:
+    post:
+      operationId: previewMetadata
+      tags: [Metadata]
+      summary: Attempt a bounded title and site-icon preview
+      parameters:
+        - $ref: "#/components/parameters/AppMutationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, minLength: 1, maxLength: 4096 }
+      responses:
+        "200":
+          description: Captured or fallback metadata; retrieval failure is represented in the payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MetadataPreview" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /bookmarks:
+    get:
+      operationId: listBookmarks
+      tags: [Bookmarks]
+      summary: Search, filter, sort, and page through the current user's bookmarks
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 300 } }
+        - { name: folderId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: tagId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: favorite, in: query, schema: { type: boolean } }
+        - name: sort
+          in: query
+          schema:
+            { type: string, enum: [newest, oldest, title], default: newest }
+        - { name: cursor, in: query, schema: { type: string } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+      responses:
+        "200":
+          description: Stable cursor page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Bookmark" }
+                  nextCursor: { type: [string, "null"] }
+                  total: { type: integer, minimum: 0 }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createBookmark
+      tags: [Bookmarks]
+      summary: Save a bookmark using only a valid URL
+      parameters:
+        - $ref: "#/components/parameters/AppMutationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookmarkInput"
+      responses:
+        "201":
+          description: Bookmark saved with captured, supplied, or fallback metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: Duplicate warning; retry with duplicateAction=save_anyway to intentionally create another copy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Error"
+                  - type: object
+                    required: [existingBookmark]
+                    properties:
+                      code: { const: DUPLICATE_BOOKMARK }
+                      existingBookmark:
+                        { $ref: "#/components/schemas/BookmarkSummary" }
+
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: "#/components/parameters/BookmarkId"
+    get:
+      operationId: getBookmark
+      tags: [Bookmarks]
+      summary: Get one owned bookmark
+      responses:
+        "200":
+          description: Bookmark
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateBookmark
+      tags: [Bookmarks]
+      summary: Edit bookmark details
+      parameters:
+        - $ref: "#/components/parameters/AppMutationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateBookmarkInput" }
+      responses:
+        "200":
+          description: Updated bookmark
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Duplicate warning after an address change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      operationId: deleteBookmark
+      tags: [Bookmarks]
+      summary: Permanently delete a bookmark after client confirmation
+      parameters:
+        - $ref: "#/components/parameters/AppMutationHeader"
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bookmarks/{bookmarkId}/favorite:
+    parameters:
+      - $ref: "#/components/parameters/BookmarkId"
+      - $ref: "#/components/parameters/AppMutationHeader"
+    put:
+      operationId: setFavorite
+      tags: [Bookmarks]
+      summary: Mark a bookmark as favorite
+      responses:
+        "200":
+          description: Updated bookmark
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: clearFavorite
+      tags: [Bookmarks]
+      summary: Remove favorite status
+      responses:
+        "200":
+          description: Updated bookmark
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Bookmark" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bookmarks/{bookmarkId}/metadata/retry:
+    post:
+      operationId: retryMetadata
+      tags: [Metadata]
+      summary: Request one new bounded metadata attempt
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+        - $ref: "#/components/parameters/AppMutationHeader"
+      responses:
+        "202": { description: Retry accepted; current title is retained }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /bookmarks/{bookmarkId}/icon:
+    get:
+      operationId: getBookmarkIcon
+      tags: [Metadata]
+      summary: Return the owned bookmark's captured or generic icon
+      parameters:
+        - $ref: "#/components/parameters/BookmarkId"
+      responses:
+        "200":
+          description: Validated image bytes or built-in generic image
+          headers:
+            X-Content-Type-Options: { schema: { const: nosniff } }
+            Content-Security-Policy: { schema: { type: string } }
+          content:
+            image/png: {}
+            image/jpeg: {}
+            image/gif: {}
+            image/webp: {}
+            image/x-icon: {}
+            image/svg+xml: {}
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /folders:
+    get:
+      operationId: listFolders
+      tags: [Folders]
+      summary: List folders with bookmark counts
+      responses:
+        "200":
+          description: Folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Folder" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createFolder
+      tags: [Folders]
+      summary: Create a folder
+      parameters:
+        - $ref: "#/components/parameters/AppMutationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderNameInput" }
+      responses:
+        "201":
+          description: Created folder
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409": { $ref: "#/components/responses/NameConflict" }
+
+  /folders/{folderId}:
+    parameters:
+      - $ref: "#/components/parameters/FolderId"
+      - $ref: "#/components/parameters/AppMutationHeader"
+    patch:
+      operationId: updateFolder
+      tags: [Folders]
+      summary: Rename a folder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderNameInput" }
+      responses:
+        "200":
+          description: Renamed folder
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/NameConflict" }
+    delete:
+      operationId: deleteFolder
+      tags: [Folders]
+      summary: Delete a folder while retaining its bookmarks
+      responses:
+        "204": { description: Folder removed and bookmark associations cleared }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /tags:
+    get:
+      operationId: listTags
+      tags: [Tags]
+      summary: List tags with bookmark counts
+      responses:
+        "200":
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Tag" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createTag
+      tags: [Tags]
+      summary: Create a tag
+      parameters:
+        - $ref: "#/components/parameters/AppMutationHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TagNameInput" }
+      responses:
+        "201":
+          description: Created tag
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409": { $ref: "#/components/responses/NameConflict" }
+
+  /tags/{tagId}:
+    parameters:
+      - $ref: "#/components/parameters/TagId"
+      - $ref: "#/components/parameters/AppMutationHeader"
+    patch:
+      operationId: updateTag
+      tags: [Tags]
+      summary: Rename a tag and refresh affected search entries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TagNameInput" }
+      responses:
+        "200":
+          description: Renamed tag
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tag" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/NameConflict" }
+    delete:
+      operationId: deleteTag
+      tags: [Tags]
+      summary: Delete a tag while retaining its bookmarks
+      responses:
+        "204": { description: Tag and associations removed }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: bookmark.session
+
+  parameters:
+    AppMutationHeader:
+      name: X-Bookmark-App
+      in: header
+      required: true
+      schema: { const: "1" }
+      description: Required on unsafe application API requests as part of same-origin CSRF defense.
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    FolderId:
+      name: folderId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    TagId:
+      name: tagId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+
+  schemas:
+    Bookmark:
+      type: object
+      required:
+        - id
+        - url
+        - title
+        - titleSource
+        - notes
+        - isFavorite
+        - folder
+        - tags
+        - iconUrl
+        - metadataStatus
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: integer }
+        url: { type: string, format: uri }
+        title: { type: string }
+        titleSource: { type: string, enum: [page, fallback, user] }
+        notes: { type: [string, "null"] }
+        isFavorite: { type: boolean }
+        folder:
+          oneOf:
+            - $ref: "#/components/schemas/FolderSummary"
+            - type: "null"
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/TagSummary" }
+        iconUrl: { type: string }
+        metadataStatus:
+          { type: string, enum: [pending, ready, partial, blocked, failed] }
+        metadataMessage: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    BookmarkSummary:
+      type: object
+      required: [id, url, title, iconUrl]
+      properties:
+        id: { type: integer }
+        url: { type: string, format: uri }
+        title: { type: string }
+        iconUrl: { type: string }
+
+    CreateBookmarkInput:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, minLength: 1, maxLength: 4096 }
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+          description: Optional user override; omission never blocks saving.
+        notes: { type: [string, "null"], maxLength: 10000 }
+        folderId: { type: [integer, "null"], minimum: 1 }
+        tagIds:
+          type: array
+          uniqueItems: true
+          maxItems: 50
+          items: { type: integer, minimum: 1 }
+        isFavorite: { type: boolean, default: false }
+        metadataReceipt:
+          type: string
+          description: Optional short-lived signed receipt from metadata preview.
+        duplicateAction: { type: string, enum: [save_anyway] }
+
+    UpdateBookmarkInput:
+      type: object
+      minProperties: 1
+      properties:
+        url: { type: string, minLength: 1, maxLength: 4096 }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        notes: { type: [string, "null"], maxLength: 10000 }
+        folderId: { type: [integer, "null"], minimum: 1 }
+        tagIds:
+          type: array
+          uniqueItems: true
+          maxItems: 50
+          items: { type: integer, minimum: 1 }
+        duplicateAction: { type: string, enum: [save_anyway] }
+
+    MetadataPreview:
+      type: object
+      required: [title, titleSource, iconDataUrl, status, receipt, message]
+      properties:
+        title: { type: string }
+        titleSource: { type: string, enum: [page, fallback] }
+        iconDataUrl:
+          type: [string, "null"]
+          description: Validated bounded preview image; null means use the built-in generic icon.
+        status: { type: string, enum: [ready, partial, blocked, failed] }
+        receipt: { type: string }
+        message: { type: [string, "null"] }
+
+    Folder:
+      allOf:
+        - $ref: "#/components/schemas/FolderSummary"
+        - type: object
+          required: [bookmarkCount, createdAt, updatedAt]
+          properties:
+            bookmarkCount: { type: integer, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    FolderSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    Tag:
+      allOf:
+        - $ref: "#/components/schemas/TagSummary"
+        - type: object
+          required: [bookmarkCount, createdAt, updatedAt]
+          properties:
+            bookmarkCount: { type: integer, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    TagSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    FolderNameInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+
+    TagNameInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+  responses:
+    ValidationError:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid session
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource missing or not owned by the current user
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NameConflict:
+      description: A normalized folder or tag name already exists for this user
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Too many attempts
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

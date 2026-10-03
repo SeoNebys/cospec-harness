@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Filter by tag</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .filter-shell { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding-bottom: 70px; }
+    .filter-header { padding: 62px 0 34px; }
+    .filter-header h1 { font-size: 52px; }
+    .filter-header p { margin: 14px 0 0; color: var(--muted); }
+    .filter-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 30px; padding: 13px 0; border-block: 1px solid var(--line); }
+    .filter-label { margin-right: 5px; color: var(--muted); font-size: 12px; font-weight: 750; }
+    .filter-tag { border: 1px solid #b9c2bb; border-radius: 999px; padding: 7px 12px; background: transparent; color: var(--green); cursor: pointer; font-size: 12px; font-weight: 750; }
+    .filter-tag:hover, .filter-tag.active { border-color: var(--green); background: var(--green); color: white; }
+    .results-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .results-line h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
+    .results-line span { color: var(--muted); font-size: 12px; }
+    .bookmark-list { display: grid; gap: 14px; }
+    .mini-card { display: grid; grid-template-columns: 110px 1fr; gap: 17px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .mini-preview { min-height: 105px; border-radius: 9px; background: linear-gradient(145deg, #183d4d, #e79a54); }
+    .mini-card:nth-child(2) .mini-preview { background: linear-gradient(145deg, #514475, #d9b7d7); }
+    .mini-card:nth-child(3) .mini-preview { background: linear-gradient(145deg, #43644d, #e9d69f); }
+    .mini-body { align-self: center; }
+    .mini-body h3 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 19px; }
+    .mini-body p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+    .card-tag { border: 0; border-radius: 999px; padding: 5px 9px; background: var(--green-light); color: var(--green); cursor: pointer; font-size: 10px; font-weight: 750; }
+    .card-tag + .card-tag { margin-left: 4px; }
+    @media (max-width: 600px) { .filter-bar { overflow-x: auto; } .mini-card { grid-template-columns: 80px 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="filter-shell" data-harness-ready="true">
+    <header class="topbar">
+      <a class="brand" href="#"><span class="brand-mark">K</span><span>Keepwell</span></a>
+      <span class="prototype-badge">Tag-filter prototype</span>
+    </header>
+    <section class="filter-header">
+      <p class="eyebrow">YOUR COLLECTION</p>
+      <h1>Find your way back.</h1>
+      <p>Use a tag to focus the collection on one subject.</p>
+    </section>
+    <nav class="filter-bar" aria-label="Filter by tag">
+      <span class="filter-label">Tags</span>
+      <button class="filter-tag" data-tag="Design">Design</button>
+      <button class="filter-tag" data-tag="Research">Research</button>
+      <button class="filter-tag" data-tag="Reading">Reading</button>
+    </nav>
+    <section>
+      <div class="results-line"><h2 id="results-title">All bookmarks</h2><span id="results-count">3 bookmarks</span></div>
+      <div class="bookmark-list">
+        <article class="mini-card" data-tags="Design Reading">
+          <div class="mini-preview"></div>
+          <div class="mini-body"><h3>A calmer way to keep what you discover online</h3><p>Field Notes · Saved today</p><button class="card-tag" data-tag="Design">Design</button><button class="card-tag" data-tag="Reading">Reading</button></div>
+        </article>
+        <article class="mini-card" data-tags="Research">
+          <div class="mini-preview"></div>
+          <div class="mini-body"><h3>How small teams make better product decisions</h3><p>Workbench · Saved yesterday</p><button class="card-tag" data-tag="Research">Research</button></div>
+        </article>
+        <article class="mini-card" data-tags="Design Research">
+          <div class="mini-preview"></div>
+          <div class="mini-body"><h3>Designing systems that age gracefully</h3><p>Common Practice · Saved last week</p><button class="card-tag" data-tag="Design">Design</button><button class="card-tag" data-tag="Research">Research</button></div>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script>
+    const cards = [...document.querySelectorAll('.mini-card')];
+    const controls = [...document.querySelectorAll('[data-tag]')];
+    function filterBy(tag) {
+      let visible = 0;
+      cards.forEach((card) => {
+        const matches = card.dataset.tags.split(' ').includes(tag);
+        card.hidden = !matches;
+        if (matches) visible += 1;
+      });
+      document.querySelectorAll('.filter-tag').forEach((button) => button.classList.toggle('active', button.dataset.tag === tag));
+      document.querySelector('#results-title').textContent = tag;
+      document.querySelector('#results-count').textContent = `${visible} bookmarks`;
+    }
+    controls.forEach((control) => control.addEventListener('click', () => filterBy(control.dataset.tag)));
+  </script>
+</body>
+</html>

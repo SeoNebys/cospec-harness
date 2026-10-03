@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organise — Automatic (C)</title>
+<link rel="stylesheet" href="organise-style.css">
+</head><body>
+<header><h1>My Bookmarks <span class="tag">— Option C: Automatic grouping</span></h1></header>
+<div class="wrap">
+  <main class="main" style="max-width:640px;margin:0 auto">
+    <div class="note">In this version you file <b>nothing</b> by hand. Bookmarks group themselves
+      automatically by the website they came from. You just save and rely on the groups (and later,
+      search) to find things again.</div>
+    <div id="list"></div>
+  </main>
+</div>
+<script src="organise-common.js"></script>
+<script>
+  var items = JSON.parse(JSON.stringify(SEED));
+  function render(){
+    var groups={};
+    items.forEach(function(it){ (groups[it.host]=groups[it.host]||[]).push(it); });
+    var html='';
+    Object.keys(groups).sort().forEach(function(host){
+      var g=groups[host];
+      html+='<div class="grouphead"><img src="'+g[0].icon+'" alt="" onerror="this.style.display=\'none\'">'+
+            esc(host)+' <span class="url">('+g.length+')</span></div>';
+      html+=g.map(function(it){return cardHtml(it,'');}).join('');
+    });
+    document.getElementById('list').innerHTML=html;
+  }
+  render();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body></html>

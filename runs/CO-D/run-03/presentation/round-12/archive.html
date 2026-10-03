@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Archiving — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:26px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:12px; flex-wrap:wrap; }
+  .seg { display:inline-flex; background:#eef1f5; border-radius:9px; padding:3px; }
+  .seg button { border:none; background:transparent; padding:7px 14px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:7px; }
+  .seg button.active { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .archlink { border:1px solid var(--line); background:#fff; border-radius:9px; padding:8px 13px; font-size:13px; cursor:pointer; color:var(--muted); font-weight:600; }
+  .archlink.active { border-color:var(--accent); color:var(--accent); }
+  .banner-note { background:#f0f3f7; border:1px solid var(--line); border-radius:9px; padding:10px 13px; font-size:13px; color:var(--muted); margin-bottom:12px; }
+  .list { display:flex; flex-direction:column; gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; display:flex; align-items:center; gap:12px; }
+  .card.done .title { text-decoration:line-through; text-decoration-color:#b7c0cc; }
+  .card.arch { background:#fbfcfd; }
+  .card .body { flex:1; min-width:0; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12.5px; }
+  .fav { width:15px; height:15px; border-radius:4px; }
+  .badge { font-size:11px; font-weight:700; border-radius:999px; padding:3px 9px; }
+  .badge.toread { background:#eaf1fe; color:var(--accent); }
+  .badge.finished { background:#e5f6ec; color:var(--green); }
+  .badge.archived { background:#efeadd; color:#8a7726; }
+  .rowacts { display:flex; gap:8px; }
+  .act { border:1px solid var(--line); background:#fff; border-radius:8px; padding:7px 11px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--ink); }
+  .act.finish { border-color:#bfe3cd; color:var(--green); }
+  .act.archive { color:#8a7726; border-color:#e3dcc4; }
+  .act.restore { border-color:var(--accent); color:var(--accent); }
+  .empty { color:var(--muted); font-size:13px; padding:24px 2px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Archive links you want to keep, without cluttering your main list.</p>
+  <div class="topbar">
+    <div class="seg" id="seg"></div>
+    <button class="archlink" id="archBtn"></button>
+  </div>
+  <div id="app"></div>
+</div>
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site.replace(/^www\./,'')[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`); }
+
+let DATA=[
+  { id:1, title:"The Quiet Art of Reading Later", site:"nytimes.com", status:"toread", archived:false },
+  { id:2, title:"CSS Flexbox layout — MDN Web Docs", site:"developer.mozilla.org", status:"finished", archived:false },
+  { id:3, title:"How to roast vegetables perfectly", site:"seriouseats.com", status:"toread", archived:false },
+  { id:4, title:"A calm approach to focus at work", site:"blog.example.org", status:"finished", archived:true },
+  { id:5, title:"A weekend in Rome: what to see", site:"travel.example.com", status:"toread", archived:false },
+  { id:6, title:"Old tax guidance 2019", site:"gov.example", status:"finished", archived:true }
+];
+let view = new URLSearchParams(location.search).get("view") || "all"; // all|toread|finished|archived
+const app=document.getElementById("app");
+const seg=document.getElementById("seg");
+const archBtn=document.getElementById("archBtn");
+
+function cardHTML(b){
+  const done=b.status==="finished"; const arch=b.archived;
+  const badge = arch? '<span class="badge archived">Archived</span>'
+                    : '<span class="badge '+b.status+'">'+(done?'Finished':'To read')+'</span>';
+  let acts='';
+  if(arch){ acts='<button class="act restore" data-a="restore" data-id="'+b.id+'">↩ Restore</button>'; }
+  else { acts=(done?'':'<button class="act finish" data-a="finish" data-id="'+b.id+'">✓ Mark finished</button>')+
+               '<button class="act archive" data-a="archive" data-id="'+b.id+'">🗄 Archive</button>'; }
+  return '<div class="card'+(done?' done':'')+(arch?' arch':'')+'">'+
+    '<div class="body"><div class="title">'+b.title+'</div>'+
+      '<div class="meta"><img class="fav" src="'+favSVG(b.site)+'"/> <span>'+b.site+'</span> '+badge+'</div></div>'+
+    '<div class="rowacts">'+acts+'</div></div>';
+}
+function bind(){ app.querySelectorAll("[data-id]").forEach(el=>el.onclick=()=>{
+  const b=DATA.find(x=>x.id==el.dataset.id); const a=el.dataset.a;
+  if(a==="finish") b.status="finished";
+  if(a==="archive") b.archived=true;
+  if(a==="restore") b.archived=false;
+  render(); }); }
+
+function render(){
+  const active = DATA.filter(b=>!b.archived);
+  const archived = DATA.filter(b=>b.archived);
+  seg.innerHTML=['toread','finished','all'].map(v=>'<button data-v="'+v+'" class="'+(view===v?"active":"")+'">'+
+    (v==="toread"?"To read":v==="finished"?"Finished":"All")+'</button>').join('');
+  archBtn.textContent="🗄 Archived ("+archived.length+")";
+  archBtn.classList.toggle("active", view==="archived");
+  seg.querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{ view=el.dataset.v; render(); });
+  archBtn.onclick=()=>{ view="archived"; render(); };
+
+  let items, note="";
+  if(view==="archived"){ items=archived; note="Archived bookmarks are kept out of your main list but never lost. Restore one to bring it back to where it was."; }
+  else if(view==="all"){ items=active; }
+  else if(view==="toread"){ items=active.filter(b=>b.status==="toread"); }
+  else { items=active.filter(b=>b.status==="finished"); }
+
+  app.innerHTML=(note?'<div class="banner-note">'+note+'</div>':'')+
+    '<div class="list">'+(items.length?items.map(cardHTML).join(''):'<div class="empty">Nothing here.</div>')+'</div>';
+  bind();
+}
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

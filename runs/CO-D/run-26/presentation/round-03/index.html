@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1c2330;
+    --muted: #6b7686;
+    --line: #e4e7ec;
+    --accent: #2f6df6;
+    --accent-soft: #eaf1ff;
+    --tag-bg: #eef1f5;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header.top {
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: 16px 28px; display: flex; align-items: center; gap: 12px;
+  }
+  header.top h1 { font-size: 17px; margin: 0; letter-spacing: -.2px; }
+  header.top .dot { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display:inline-block; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 26px 20px 80px; }
+
+  .capture {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 18px; margin-bottom: 26px;
+  }
+  .capture h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .url-row { display: flex; gap: 10px; }
+  input[type=text], input[type=url], textarea {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px;
+    font: inherit; color: var(--ink); background: #fff; outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border: none; border-radius: 9px;
+    padding: 11px 16px; background: var(--accent); color: #fff; white-space: nowrap;
+  }
+  button.secondary { background: #eef1f5; color: var(--ink); }
+  button:disabled { opacity: .5; cursor: default; }
+
+  .details { margin-top: 16px; border-top: 1px dashed var(--line); padding-top: 16px; display: none; }
+  .details.show { display: block; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+  .fetching { color: var(--muted); font-size: 13px; margin-top: 12px; display:none; align-items:center; gap:8px; }
+  .fetching.show { display: flex; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .autofill-note { font-size: 12px; color: var(--accent); background: var(--accent-soft); padding: 6px 10px; border-radius: 7px; display:inline-block; margin-bottom: 12px; }
+  .tag-input-hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .actions { display: flex; gap: 10px; margin-top: 6px; }
+
+  .collection h2 { font-size: 14px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin: 0 0 14px; }
+  .count { color: var(--muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 15px 16px; margin-bottom: 12px; box-shadow: var(--shadow);
+    animation: pop .28s ease;
+  }
+  @keyframes pop { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .card .title { font-weight: 650; font-size: 15.5px; margin: 0 0 3px; letter-spacing: -.1px; }
+  .card .title a { color: var(--ink); text-decoration: none; }
+  .card .title a:hover { color: var(--accent); }
+  .card .url { font-size: 12.5px; color: var(--muted); word-break: break-all; margin-bottom: 8px; }
+  .card .desc { font-size: 13.5px; color: #414b5a; margin: 0 0 10px; }
+  .card .note { font-size: 13px; color: #7a5a00; background: #fff8e6; border: 1px solid #f2e2b0; padding: 7px 10px; border-radius: 7px; margin: 0 0 10px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 12px; background: var(--tag-bg); color: #47515f; padding: 3px 9px; border-radius: 20px; }
+  .empty { text-align: center; color: var(--muted); padding: 44px 20px; border: 1px dashed var(--line); border-radius: 12px; background: #fff; }
+  .empty .big { font-size: 15px; color: var(--ink); font-weight: 600; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="dot"></span>
+  <h1>My Bookmarks</h1>
+</header>
+
+<div class="wrap">
+  <section class="capture">
+    <h2>Save a link</h2>
+    <div class="url-row">
+      <input id="url" type="url" placeholder="Paste or type a link, e.g. https://example.com/article" autocomplete="off" />
+      <button id="fetchBtn">Save link</button>
+    </div>
+
+    <div class="fetching" id="fetching"><span class="spinner"></span> Reading the page…</div>
+
+    <div class="details" id="details">
+      <span class="autofill-note" id="autofillNote">✓ Filled in automatically from the page — adjust anything you like</span>
+      <div class="field">
+        <label for="title">Title</label>
+        <input id="title" type="text" />
+      </div>
+      <div class="field">
+        <label for="desc">Description</label>
+        <textarea id="desc" rows="2"></textarea>
+      </div>
+      <div class="field">
+        <label for="tags">Tags</label>
+        <input id="tags" type="text" placeholder="e.g. design, reference" />
+        <div class="tag-input-hint">Separate tags with commas</div>
+      </div>
+      <div class="field">
+        <label for="note">Your note (optional)</label>
+        <textarea id="note" rows="2" placeholder="Why you saved it, what to remember…"></textarea>
+      </div>
+      <div class="actions">
+        <button id="saveBtn">Add to collection</button>
+        <button class="secondary" id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="collection">
+    <h2>My collection <span class="count" id="count"></span></h2>
+    <div id="list"></div>
+  </section>
+</div>
+
+<script>
+// --- Simulated page-metadata lookup (prototype stand-in for real page reading) ---
+const KNOWN = {
+  "stripe.com": { title: "Stripe | Payment Processing Platform for the Internet",
+    desc: "Stripe powers online payments for businesses of every size with a suite of developer-first APIs." },
+  "figma.com": { title: "Figma: The Collaborative Interface Design Tool",
+    desc: "Design, prototype, and gather feedback all in one place with Figma." },
+  "nytimes.com": { title: "Breaking News, World News & Multimedia — The New York Times",
+    desc: "Live news, investigations, opinion, photos and video from the reporters of The New York Times." },
+  "css-tricks.com": { title: "A Complete Guide to Flexbox | CSS-Tricks",
+    desc: "Our comprehensive guide to CSS flexbox layout. This complete guide explains everything about flexbox." }
+};
+function simulateFetch(url) {
+  let host = "", path = "";
+  try { const u = new URL(url); host = u.hostname.replace(/^www\./,""); path = u.pathname; }
+  catch { host = url.replace(/^https?:\/\//,"").split("/")[0]; }
+  if (KNOWN[host]) return { ...KNOWN[host], host };
+  // Generic derivation from the URL so any link produces something reasonable.
+  let slug = path.split("/").filter(Boolean).pop() || host;
+  slug = decodeURIComponent(slug).replace(/[-_]+/g," ").replace(/\.\w+$/,"").trim();
+  const nameCap = s => s.replace(/\b\w/g, c => c.toUpperCase());
+  const title = slug ? nameCap(slug) + " — " + host : host;
+  return { title, desc: "Saved from " + host + ". (Description read from the page.)", host };
+}
+
+// --- State ---
+let bookmarks = [];
+let pending = null;
+
+const $ = id => document.getElementById(id);
+
+$("fetchBtn").addEventListener("click", startCapture);
+$("url").addEventListener("keydown", e => { if (e.key === "Enter") startCapture(); });
+$("saveBtn").addEventListener("click", commitSave);
+$("cancelBtn").addEventListener("click", resetCapture);
+
+function startCapture() {
+  const url = $("url").value.trim();
+  if (!url) { $("url").focus(); return; }
+  $("details").classList.remove("show");
+  $("fetching").classList.add("show");
+  $("fetchBtn").disabled = true;
+  setTimeout(() => {
+    const meta = simulateFetch(url);
+    pending = { url };
+    $("title").value = meta.title;
+    $("desc").value = meta.desc;
+    $("tags").value = "";
+    $("note").value = "";
+    $("fetching").classList.remove("show");
+    $("details").classList.add("show");
+    $("fetchBtn").disabled = false;
+    $("title").focus();
+  }, 850);
+}
+
+function commitSave() {
+  if (!pending) return;
+  const tags = $("tags").value.split(",").map(t => t.trim()).filter(Boolean);
+  bookmarks.unshift({
+    url: pending.url,
+    title: $("title").value.trim() || pending.url,
+    desc: $("desc").value.trim(),
+    note: $("note").value.trim(),
+    tags
+  });
+  resetCapture();
+  render();
+}
+
+function resetCapture() {
+  pending = null;
+  $("url").value = "";
+  $("details").classList.remove("show");
+  $("fetching").classList.remove("show");
+  $("fetchBtn").disabled = false;
+  $("url").focus();
+}
+
+function esc(s){ return (s||"").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render() {
+  const list = $("list");
+  $("count").textContent = bookmarks.length ? "(" + bookmarks.length + ")" : "";
+  if (!bookmarks.length) {
+    list.innerHTML = '<div class="empty"><div class="big">Nothing saved yet</div>Paste a link above and it will appear here, safe and findable.</div>';
+    return;
+  }
+  list.innerHTML = bookmarks.map(b => `
+    <div class="card">
+      <p class="title"><a href="${esc(b.url)}" target="_blank" rel="noopener">${esc(b.title)}</a></p>
+      <div class="url">${esc(b.url)}</div>
+      ${b.desc ? `<p class="desc">${esc(b.desc)}</p>` : ""}
+      ${b.note ? `<p class="note">📝 ${esc(b.note)}</p>` : ""}
+      ${b.tags.length ? `<div class="tags">${b.tags.map(t => `<span class="tag">#${esc(t)}</span>`).join("")}</div>` : ""}
+    </div>`).join("");
+}
+
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+import { describe,expect,it } from 'vitest';
+import { matchesSearch,parseSearch,SearchSyntaxError } from './parser.js';
+const record={text:'Design systems field notes',tags:['Research','UX']};
+describe('smart search grammar',()=>{it('supports phrases, exact tags, boolean operators, exclusion, and grouping',()=>{expect(matchesSearch(parseSearch('"design systems" AND #research'),record)).toBe(true);expect(matchesSearch(parseSearch('(field OR missing) -draft'),record)).toBe(true);expect(matchesSearch(parseSearch('#ux NOT notes'),record)).toBe(false)});it('uses implicit AND and treats lowercase operators as words',()=>{expect(matchesSearch(parseSearch('design notes'),record)).toBe(true);expect(matchesSearch(parseSearch('design or notes'),record)).toBe(false)});it('reports malformed queries with an offset',()=>{expect(()=>parseSearch('(design OR')).toThrow(SearchSyntaxError)})});

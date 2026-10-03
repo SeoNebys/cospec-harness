@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --muted:#6b7280; --accent:#2563eb; --accent-soft:#eff4ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:var(--bg); color:#1f2430; }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:18px 24px; }
+  header h1 { margin:0; font-size:19px; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; gap:10px; }
+  .saver input { flex:1; padding:11px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; }
+  .saver input:focus { outline:2px solid var(--accent-soft); border-color:var(--accent); }
+  .saver button { padding:11px 18px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; }
+  .saver button:disabled { opacity:.55; cursor:default; }
+  .hint { color:var(--muted); font-size:12px; margin:8px 2px 0; }
+  .listhead { margin:26px 2px 10px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .card.justadded { animation: pop .9s ease; border-color:var(--accent); }
+  @keyframes pop { 0%{background:var(--accent-soft);} 100%{background:var(--card);} }
+  .card .favi { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:13px; vertical-align:middle; margin-right:8px; }
+  .card .title { font-size:15px; font-weight:600; color:#111827; text-decoration:none; }
+  .card .title:hover { text-decoration:underline; }
+  .card .meta { color:var(--muted); font-size:12.5px; margin-top:4px; }
+  .card .url { color:var(--muted); font-size:12.5px; word-break:break-all; }
+  .filling { color:var(--accent); font-size:12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>A personal place to save links and find them again.</p>
+</header>
+<div class="wrap">
+  <div class="saver">
+    <input id="url" type="text" placeholder="Paste a link to save…" autocomplete="off" />
+    <button id="save">Save</button>
+  </div>
+  <div class="hint">Paste a link and press Save — the title and site are filled in for you.</div>
+
+  <div class="listhead">Saved</div>
+  <div id="list"></div>
+</div>
+
+<script>
+// --- Prototype-only simulation of "auto-fill details" ---------------------
+// Simulates fetching a page's title/site so the client can experience the
+// behaviour. No real network calls are made.
+const CANNED = {
+  "en.wikipedia.org": { title: "Photosynthesis — Wikipedia", site: "Wikipedia" },
+  "nytimes.com":      { title: "How Cities Are Rethinking Public Space", site: "The New York Times" },
+  "github.com":       { title: "torvalds/linux: Linux kernel source tree", site: "GitHub" },
+  "youtube.com":      { title: "Building a Standing Desk from Scratch", site: "YouTube" },
+  "medium.com":       { title: "The Quiet Power of Note-Taking", site: "Medium" },
+};
+function domainOf(raw){
+  try { let u = new URL(raw.includes("://")? raw : "https://"+raw); return u.hostname.replace(/^www\./,""); }
+  catch(e){ return null; }
+}
+function titleCase(s){ return s.replace(/[-_]+/g," ").replace(/\b\w/g, c=>c.toUpperCase()); }
+function guessMeta(raw){
+  const host = domainOf(raw);
+  if(!host) return null;
+  if(CANNED[host]) return CANNED[host];
+  // Generic fallback: derive a readable title from the last path segment.
+  let title, site = titleCase(host.split(".")[0]);
+  try {
+    const u = new URL(raw.includes("://")? raw : "https://"+raw);
+    const seg = u.pathname.split("/").filter(Boolean).pop();
+    title = seg ? titleCase(decodeURIComponent(seg).replace(/\.\w+$/,"")) + " — " + site : site + " — Home";
+  } catch(e){ title = site; }
+  return { title, site };
+}
+
+// --- Seed list (assumption: a few existing saves so the list has context) --
+let items = [
+  { id:2, title:"A Field Guide to Getting Lost", site:"Longreads", url:"https://longreads.com/field-guide", when:"2 days ago" },
+  { id:1, title:"CSS Grid: A Complete Guide", site:"CSS-Tricks", url:"https://css-tricks.com/snippets/css/complete-guide-grid", when:"5 days ago" },
+];
+let nextId = 3;
+
+const listEl = document.getElementById("list");
+function initials(site){ return (site||"?").trim().charAt(0).toUpperCase(); }
+function render(justId){
+  listEl.innerHTML = "";
+  items.forEach(it=>{
+    const card = document.createElement("div");
+    card.className = "card" + (it.id===justId ? " justadded" : "");
+    card.innerHTML =
+      '<div><span class="favi">'+initials(it.site)+'</span>'+
+      '<a class="title" href="'+it.url+'" target="_blank" rel="noopener">'+it.title+'</a></div>'+
+      '<div class="meta">'+it.site+' · saved '+(it.when||"just now")+'</div>'+
+      '<div class="url">'+it.url+'</div>';
+    listEl.appendChild(card);
+  });
+}
+
+const input = document.getElementById("url");
+const saveBtn = document.getElementById("save");
+function doSave(){
+  const raw = input.value.trim();
+  if(!raw) return;
+  const meta = guessMeta(raw);
+  if(!meta){ input.focus(); return; }
+  saveBtn.disabled = true;
+  // Simulate the brief moment of "filling in details".
+  const placeholder = { id: nextId++, title:"Getting details…", site:"", url: raw.includes("://")?raw:"https://"+raw, when:"just now", filling:true };
+  items.unshift(placeholder);
+  render();
+  const fillingCard = listEl.querySelector(".card .title");
+  if(fillingCard){ fillingCard.classList.remove("title"); fillingCard.className="filling"; }
+  setTimeout(()=>{
+    placeholder.title = meta.title; placeholder.site = meta.site; placeholder.filling=false;
+    render(placeholder.id);
+    input.value = ""; saveBtn.disabled = false; input.focus();
+  }, 650);
+}
+saveBtn.addEventListener("click", doSave);
+input.addEventListener("keydown", e=>{ if(e.key==="Enter") doSave(); });
+
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

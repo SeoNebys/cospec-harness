@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Choosing status when saving — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:640px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:20px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 18px; }
+  .review { background:var(--card); border:1px solid var(--accent); border-radius:12px; overflow:hidden; box-shadow:0 4px 18px rgba(47,109,246,.12); }
+  .review .banner { height:110px; background-size:cover; background-position:center; }
+  .review .body { padding:16px 18px; }
+  .tagword { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  label.fl { display:block; font-size:12px; color:var(--muted); margin:14px 0 6px; font-weight:600; }
+  input.t { width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px; outline:none; }
+  .choice { display:flex; gap:10px; }
+  .choice button { flex:1; border:1px solid var(--line); background:#fff; border-radius:9px; padding:11px 12px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; color:var(--ink); }
+  .choice button.sel.toread { border-color:var(--accent); background:#eef4ff; color:var(--accent); font-weight:600; }
+  .choice button.sel.finished { border-color:#bfe3cd; background:#e9f8ef; color:var(--green); font-weight:600; }
+  .hintline { font-size:12px; color:var(--muted); margin-top:8px; }
+  .actions { display:flex; gap:10px; margin-top:18px; }
+  .btn-primary { background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Choosing where a bookmark belongs</h1>
+  <p class="sub">The same choice appears when saving and when editing later.</p>
+  <div class="review">
+    <div class="banner" id="banner"></div>
+    <div class="body">
+      <span class="tagword">Review before saving</span>
+      <label class="fl">Title</label>
+      <input class="t" value="The Quiet Art of Reading Later" />
+      <label class="fl">Add to</label>
+      <div class="choice" id="choice">
+        <button class="toread sel" data-s="toread">📖 To read</button>
+        <button class="finished" data-s="finished">✓ Finished</button>
+      </div>
+      <div class="hintline" id="hintline">Kept in your <b>To read</b> view until you mark it finished.</div>
+      <div class="actions">
+        <button class="btn-primary">Save bookmark</button>
+        <button class="btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function previewSVG(site){ const h=color(site);
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 65% 55%)"/><stop offset="1" stop-color="hsl(${(h+40)%360} 65% 42%)"/></linearGradient></defs><rect width="640" height="240" fill="url(#g)"/><text x="34" y="132" font-family="sans-serif" font-size="30" font-weight="700" fill="white">${site}</text></svg>`); }
+document.getElementById("banner").style.backgroundImage="url('"+previewSVG("nytimes.com")+"')";
+const preset=new URLSearchParams(location.search).get("s")||"toread";
+function sel(s){
+  document.querySelectorAll("#choice button").forEach(b=>b.classList.toggle("sel",b.dataset.s===s));
+  document.getElementById("hintline").innerHTML = s==="toread"
+    ? "Kept in your <b>To read</b> view until you mark it finished."
+    : "Saved straight to <b>Finished</b> — it won't appear in To read.";
+}
+document.querySelectorAll("#choice button").forEach(b=>b.onclick=()=>sel(b.dataset.s));
+sel(preset);
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

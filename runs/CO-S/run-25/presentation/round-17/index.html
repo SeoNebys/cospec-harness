@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link Library — Prototype</title>
+<link rel="stylesheet" href="tags-base.css">
+<style>
+  .saver { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 26px; box-shadow: 0 1px 2px rgba(20,30,60,.04); }
+  .saver label { font-size: 13px; font-weight: 600; color: var(--muted);
+    display: block; margin-bottom: 8px; }
+  .saver .row { display: flex; gap: 10px; }
+  .saver input { flex: 1; padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: 10px; font-size: 15px; outline: none; }
+  .saver input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .saver button { padding: 12px 20px; border: none; background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 600; border-radius: 10px; cursor: pointer; }
+  .saver button:hover { background: #2258d6; }
+  .fetching { font-size: 13px; color: var(--muted); font-style: italic; }
+  .rename { position: absolute; top: 14px; right: 14px; font-size: 12px;
+    color: var(--muted); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 7px; padding: 4px 9px; cursor: pointer; }
+  .rename:hover { color: var(--accent); border-color: var(--accent); }
+  .note-box { margin: 6px 0 8px; }
+  .note-text { font-size: 13px; color: #444b5c; background: #fffdf5; border: 1px solid #f0e6c8;
+    border-left: 3px solid #e6c34d; border-radius: 8px; padding: 8px 11px; }
+  .note-text.clamped { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .note-text p { margin: 0 0 6px; } .note-text p:last-child { margin: 0; }
+  .note-text h1,.note-text h2,.note-text h3 { font-size: 14px; margin: 4px 0; }
+  .note-text ul,.note-text ol { margin: 4px 0; padding-left: 20px; }
+  .note-text code { background: #f2edda; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+  .note-text a { color: var(--accent); }
+  .note-edit { width: 100%; font-size: 13px; padding: 8px 11px; border: 1px solid var(--accent);
+    border-radius: 8px; outline: none; resize: vertical; min-height: 54px; font-family: inherit; }
+  .addnote { font-size: 12px; color: var(--muted); background: none; border: none;
+    cursor: pointer; padding: 0; text-decoration: underline; }
+  .addnote:hover { color: var(--accent); }
+  .noterow { display: flex; gap: 12px; margin-top: 2px; margin-bottom: 6px; }
+  .toolbar { margin-bottom: 16px; display: flex; gap: 10px; align-items: center; }
+  .toolbar input[type=search] { flex: 1; padding: 12px 16px; border: 1px solid var(--line);
+    border-radius: 10px; font-size: 15px; outline: none; background: var(--card); }
+  .toolbar input[type=search]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .sortwrap { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .sortwrap select { font-size: 13px; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--card); margin-left: 4px; }
+  .bulkbar { display: none; align-items: center; gap: 8px; background: #1c2230; color: #fff;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; flex-wrap: wrap; }
+  .bulkbar.show { display: flex; }
+  .bulkbar .bulkcount { font-weight: 700; font-size: 14px; }
+  .bulkbar .bulkscope { font-size: 12px; color: #b9c0d0; }
+  .bulkbar .bulkspacer { flex: 1; }
+  .bulkbar .act { background: #2b3346; color: #e7ebf3; border-color: #3a4258; }
+  .bulkbar .act:hover { border-color: #6f8be0; color: #fff; }
+  .selectall { font-size: 13px; color: var(--muted); margin: 0 0 12px 2px; }
+  .selectall a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .item .pick-cb { margin-top: 2px; width: 17px; height: 17px; flex-shrink: 0; cursor: pointer; }
+  li.item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  mark { background: #fff2ab; color: inherit; padding: 0 1px; border-radius: 2px; }
+  .noresult { text-align: center; color: var(--muted); padding: 40px 20px;
+    border: 1px dashed var(--line); border-radius: 14px; background: var(--card); }
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .tab { padding: 9px 16px; font-size: 14px; color: var(--muted); cursor: pointer;
+    border: none; background: none; border-bottom: 2px solid transparent; font-weight: 600; }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .badge { font-size: 11px; background: var(--accent-soft); color: var(--accent);
+    border-radius: 20px; padding: 1px 7px; margin-left: 6px; }
+  .actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .act { font-size: 12px; padding: 4px 11px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted); }
+  .act:hover { border-color: var(--accent); color: var(--accent); }
+  .act.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .toread-flag { font-size: 11px; color: #c47d00; background: #fff6e0; border: 1px solid #f0dca0;
+    border-radius: 20px; padding: 2px 9px; margin-left: 8px; }
+  .copy-flag { font-size: 11px; color: #2f7d4f; background: #e9f7ee; border: 1px solid #bfe6cd;
+    border-radius: 20px; padding: 2px 9px; margin-left: 6px; }
+  .overlay { position: fixed; inset: 0; background: rgba(20,30,60,.45); display: none;
+    align-items: flex-start; justify-content: center; z-index: 20; padding: 40px 20px; overflow: auto; }
+  .overlay.open { display: flex; }
+  .snap { background: var(--card); border-radius: 14px; max-width: 680px; width: 100%;
+    box-shadow: 0 20px 50px rgba(20,30,60,.3); }
+  .snap .snaphead { padding: 16px 22px; border-bottom: 1px solid var(--line); display: flex;
+    align-items: center; justify-content: space-between; gap: 12px; }
+  .snap .snaphead .cap { font-size: 12px; color: #2f7d4f; background: #e9f7ee; border-radius: 20px;
+    padding: 3px 10px; }
+  .snap .snaphead h3 { margin: 6px 0 0; font-size: 16px; }
+  .snap .snaphead .close { background: none; border: none; font-size: 22px; color: var(--muted); cursor: pointer; }
+  .snap .snapbody { padding: 22px; font-size: 14px; color: #333; line-height: 1.65; }
+  .snap .snapbody h1 { font-size: 20px; margin: 0 0 12px; }
+  .snap .banner { background: #fbf7e6; border-bottom: 1px solid #f0e6c8; color: #7a6a2f;
+    font-size: 12px; padding: 8px 22px; }
+  .fldlabel { font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin: 14px 0 6px; }
+  .fld { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; outline: none; font-family: inherit; }
+  .fld:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  textarea.fld { min-height: 70px; resize: vertical; }
+  .fld-error { color: #c0392b; font-size: 13px; margin-top: 10px; min-height: 1px; }
+  .btnrow { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .primary { padding: 9px 18px; border: none; background: var(--accent); color: #fff;
+    font-size: 14px; font-weight: 600; border-radius: 9px; cursor: pointer; }
+  .primary:hover { background: #2258d6; }
+  .danger { padding: 9px 18px; border: none; background: #d23f31; color: #fff;
+    font-size: 14px; font-weight: 600; border-radius: 9px; cursor: pointer; }
+  .danger:hover { background: #b5312533; background: #b12f24; }
+  .dup { display: none; margin: -14px 0 20px; padding: 11px 14px; border-radius: 10px;
+    background: #fff6e0; border: 1px solid #f0dca0; color: #7a5a1f; font-size: 14px; }
+  .dup.show { display: block; }
+  .dup a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .empty { text-align: center; color: var(--muted); padding: 50px 20px;
+    border: 1px dashed var(--line); border-radius: 14px; background: var(--card); }
+  .empty .big { font-size: 30px; margin-bottom: 8px; }
+  .chip { word-break: break-word; }
+  li.item.flash { animation: flash 1.4s ease; }
+  @keyframes flash { 0%,100% { box-shadow: none; } 20%,60% { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Link Library</h1>
+  <span class="tag">Prototype</span>
+</header>
+<main>
+  <div class="saver">
+    <label for="url">Save a link</label>
+    <div class="row">
+      <input id="url" type="text" placeholder="Paste a web address, e.g. https://example.com/article" autocomplete="off">
+      <button id="saveBtn">Save</button>
+    </div>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-view="library">Library</button>
+    <button class="tab" data-view="toread">Reading list</button>
+    <button class="tab" data-view="archive">Archive</button>
+  </div>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search your library — title, note, site, or tag…" autocomplete="off">
+    <label class="sortwrap">Sort:
+      <select id="sort">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="title">Title A–Z</option>
+      </select>
+    </label>
+  </div>
+  <div class="dup" id="dupNotice"></div>
+  <div class="bulkbar" id="bulkbar">
+    <span class="bulkcount" id="bulkCount"></span>
+    <span class="bulkscope" id="bulkScope"></span>
+    <span class="bulkspacer"></span>
+    <button class="act" data-bulk="toread">☆ Read later</button>
+    <button class="act" data-bulk="read">✓ Mark read</button>
+    <button class="act" data-bulk="tag">＋ Add tag</button>
+    <button class="act" data-bulk="archive" id="bulkArchive">🗄 Archive</button>
+    <button class="act" data-bulk="delete">🗑 Delete</button>
+    <button class="act" data-bulk="clear">Clear</button>
+  </div>
+  <p class="count" id="count"></p>
+  <p class="selectall" id="selectAll"></p>
+  <ul class="library" id="library"></ul>
+</main>
+
+<div class="overlay" id="editOverlay">
+  <div class="snap" style="max-width:540px">
+    <div class="snaphead"><div><h3>Edit link</h3></div><button class="close" id="editClose">&times;</button></div>
+    <div class="snapbody">
+      <label class="fldlabel">Title</label>
+      <input id="edTitle" class="fld">
+      <label class="fldlabel">Address (web page or file)</label>
+      <input id="edUrl" class="fld">
+      <label class="fldlabel">Description</label>
+      <textarea id="edDesc" class="fld"></textarea>
+      <div class="fld-error" id="edError"></div>
+      <div class="btnrow">
+        <button class="act" id="editCancel">Cancel</button>
+        <button class="primary" id="editSave">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmOverlay">
+  <div class="snap" style="max-width:460px">
+    <div class="snapbody">
+      <h3 id="cfTitle" style="margin-top:0">Delete this link?</h3>
+      <p id="cfMsg" style="color:#444b5c"></p>
+      <div class="btnrow">
+        <button class="act" id="cfCancel">Cancel</button>
+        <button class="danger" id="cfOk">Delete permanently</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="snap">
+    <div class="snaphead">
+      <div>
+        <span class="cap" id="snapCap"></span>
+        <h3 id="snapUrl"></h3>
+      </div>
+      <button class="close" id="snapClose">&times;</button>
+    </div>
+    <div class="banner">You're viewing a preserved copy saved in your library — not the live page.</div>
+    <div class="snapbody" id="snapBody"></div>
+  </div>
+</div>
+<script>
+  // Prototype only — simulates external behaviour. Title/description fetch is simulated.
+  const items = [
+    { id: 1, url: "https://developer.mozilla.org/en-US/docs/Web/API", host: "developer.mozilla.org",
+      title: "Web APIs | MDN", desc: "A reference of all the interfaces available for building web apps.",
+      saved: "Sep 26, 9:02 AM", tags: ["dev", "reference"],
+      note: "**Handy reference** when I forget an interface name.\n\nMost useful sections:\n- `fetch` and the Streams API\n- `IntersectionObserver` for lazy loading\n\nSee also the [HTTP guide](https://developer.mozilla.org/en-US/docs/Web/HTTP).", toRead: false },
+    { id: 2, url: "https://en.wikipedia.org/wiki/Bookmark_(digital)", host: "en.wikipedia.org",
+      title: "Bookmark (digital) - Wikipedia", desc: "A bookmark is a URI stored for later retrieval.",
+      saved: "Sep 25, 4:20 PM", tags: ["reference"], note: "Background reading on the concept.", toRead: false, archived: true },
+    { id: 3, url: "https://www.nngroup.com/articles/tagging-usability/", host: "nngroup.com",
+      title: "Tagging: Usability Guidelines", desc: "How people use tags to organise and retrieve content.",
+      saved: "Sep 24, 11:10 AM", tags: ["design", "reading"], note: "Good arguments for reusing existing tags.", toRead: true },
+    { id: 4, url: "https://news.ycombinator.com", host: "news.ycombinator.com",
+      title: "Hacker News", desc: "Social news website focusing on computer science and entrepreneurship.",
+      saved: "Sep 23, 8:05 AM", tags: ["news"], note: "", toRead: false, archived: false },
+    { id: 5, url: "https://www.rfc-editor.org/rfc/rfc9110.pdf", host: "rfc-editor.org",
+      title: "RFC 9110: HTTP Semantics (PDF)", desc: "The core specification of HTTP semantics.",
+      saved: "Sep 22, 2:30 PM", tags: ["dev", "reference"], note: "Keep the exact PDF.", toRead: false, archived: false }
+  ];
+  let seq = 5, openPop = null, query = "", view = "library", sortBy = "new";
+  const selected = new Set();
+  let lastShownIds = [];
+  // Sort index: fixed timestamps for stable ordering in the prototype.
+  items.forEach((it,idx)=>{ it.order = 100 - idx; });
+
+  // Boundary-review entry points: ?empty (new user), ?big (extreme content), ?many=N (large collection).
+  (function(){
+    const p = new URLSearchParams(location.search);
+    if (p.has("many")) {
+      const N = Math.min(500, Math.max(1, parseInt(p.get("many"))||300));
+      items.length = 0;
+      const sites = [["arxiv.org","dev"],["nytimes.com","news"],["github.com","dev"],
+        ["medium.com","reading"],["nngroup.com","design"],["wikipedia.org","reference"],
+        ["stackoverflow.com","dev"],["theverge.com","news"]];
+      for (let i=1;i<=N;i++){
+        const s = sites[i%sites.length];
+        items.push({ id:i, url:"https://"+s[0]+"/article-"+i, host:s[0],
+          title:"Saved article #"+i+" — "+s[0], desc:"A saved page about "+s[1]+", number "+i+" in the collection.",
+          saved:"item "+i, capturedAt:"item "+i, order:N-i,
+          tags:[s[1], (i%3===0?"reading":"reference")], note:(i%5===0?"A quick note on #"+i:""),
+          toRead:(i%7===0), archived:(i%11===0) });
+      }
+      seq = N;
+    }
+    if (p.has("empty")) { items.length = 0; }
+    if (p.has("big")) {
+      items.length = 0;
+      const longTitle = "An Extraordinarily Long Article Title That Simply Keeps Going And Going Well Beyond What Would Comfortably Fit On A Single Line Of A Bookmark Card In Any Reasonable Layout";
+      const longWord = "supercalifragilisticexpialidocious-antidisestablishmentarianism-pneumonoultramicroscopicsilicovolcanoconiosis";
+      items.push({ id: ++seq, url: "https://example.com/"+longWord, host: "example.com",
+        title: longTitle, desc: "This description is also very long and detailed, going on at length about the contents of the page so that we can see exactly how the card handles overflow when both the title and the description greatly exceed the space available to them on screen. "+longWord,
+        saved: "Sep 26, 10:00 AM", capturedAt: "Sep 26, 10:00 AM",
+        tags: ["reference","design","reading","dev","news","tools","longtag-"+longWord,"a","b","c","d","e","f"],
+        note: "A long note as well.\n\n"+("Repeated line of note content that wraps across many rows. ").repeat(8),
+        toRead: true, archived: false });
+    }
+  })();
+
+  const KNOWN = {
+    "en.wikipedia.org": { t: "Bookmark (digital) - Wikipedia", d: "A bookmark is a URI stored for later retrieval." },
+    "developer.mozilla.org": { t: "Web APIs | MDN", d: "A reference of all the interfaces available for building web apps." },
+    "github.com": { t: "GitHub - build and ship software", d: "Where over 100 million developers shape software together." },
+    "nytimes.com": { t: "The New York Times - Breaking News", d: "Live news, investigations, opinion, photos and video." }
+  };
+  function hostOf(url){try{let u=url.trim();if(!/^https?:\/\//i.test(u))u="https://"+u;return new URL(u).hostname.replace(/^www\./,"");}catch(e){return url.trim();}}
+  function normUrl(url){let u=url.trim();if(!/^https?:\/\//i.test(u))u="https://"+u;return u;}
+  function fetchMeta(url){const host=hostOf(url);if(KNOWN[host])return KNOWN[host];
+    const path=url.replace(/^https?:\/\//i,"").split("/").slice(1).join("/");
+    const slug=(path.split(/[?#]/)[0].split("/").filter(Boolean).pop()||"").replace(/[-_]+/g," ").replace(/\.[a-z]+$/i,"").trim();
+    const t=slug?slug.replace(/\b\w/g,c=>c.toUpperCase())+" — "+host:host;
+    return {t,d:"A page on "+host+". A short summary would appear here."};}
+  function timeNow(){return new Date().toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}
+  // Minimal Markdown renderer for note previews (bold, italic, code, links, headings, lists).
+  function mdToHtml(src){
+    let s=src.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const lines=s.split(/\n/); let out=[], inList=false;
+    for(let ln of lines){
+      let m;
+      if(m=ln.match(/^\s*[-*]\s+(.*)$/)){ if(!inList){out.push("<ul>");inList=true;} out.push("<li>"+inline(m[1])+"</li>"); continue; }
+      if(inList){out.push("</ul>");inList=false;}
+      if(m=ln.match(/^\s*(#{1,3})\s+(.*)$/)){ const h=m[1].length; out.push("<h"+h+">"+inline(m[2])+"</h"+h+">"); continue; }
+      if(ln.trim()==="") continue;
+      out.push("<p>"+inline(ln)+"</p>");
+    }
+    if(inList)out.push("</ul>");
+    return out.join("");
+    function inline(t){
+      return t
+        .replace(/`([^`]+)`/g,"<code>$1</code>")
+        .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
+        .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+        .replace(/\*([^*]+)\*/g,"<em>$1</em>");
+    }
+  }
+  function allTags(){const s=new Set();items.forEach(i=>i.tags.forEach(t=>s.add(t)));["dev","reference","reading","tools","news"].forEach(t=>s.add(t));return[...s];}
+
+  // ---- Query language: #tag, "phrase", AND / OR / NOT, ( ), implicit AND, case-insensitive ----
+  function tokenize(input){
+    const tokens=[]; const re=/\s*("(?:[^"\\]|\\.)*"|\(|\)|#[^\s()]+|[^\s()]+)/g; let m;
+    while(m=re.exec(input)) tokens.push(m[1]);
+    return tokens;
+  }
+  function isOp(t,name){ return t && t.toUpperCase()===name; }
+  function parseQuery(input){
+    const toks=tokenize(input); let i=0;
+    function peek(){ return toks[i]; }
+    function next(){ return toks[i++]; }
+    function parseOr(){ let n=parseAnd();
+      while(isOp(peek(),"OR")){ next(); n={op:"or",l:n,r:parseAnd()}; } return n; }
+    function parseAnd(){ let n=parseNot();
+      while(peek()!==undefined && peek()!==")" && !isOp(peek(),"OR")){
+        if(isOp(peek(),"AND")) next();               // explicit AND
+        n={op:"and",l:n,r:parseNot()};
+      } return n; }
+    function parseNot(){ if(isOp(peek(),"NOT")){ next(); return {op:"not",x:parseNot()}; } return parseAtom(); }
+    function parseAtom(){
+      const t=peek();
+      if(t==="("){ next(); const n=parseOr(); if(peek()===")") next(); return n; }
+      if(t===")" || t===undefined) { next(); return {op:"true"}; }
+      next();
+      if(t[0]==="#") return {op:"tag", val:t.slice(1).toLowerCase()};
+      if(t[0]==='"'&&t[t.length-1]==='"') return {op:"phrase", val:t.slice(1,-1).toLowerCase()};
+      if(isOp(t,"AND")||isOp(t,"OR")||isOp(t,"NOT")) return {op:"true"}; // stray operator
+      return {op:"word", val:t.toLowerCase()};
+    }
+    if(!toks.length) return {op:"true"};
+    return parseOr();
+  }
+  function evalNode(n, it, hay){
+    switch(n.op){
+      case "true": return true;
+      case "and": return evalNode(n.l,it,hay) && evalNode(n.r,it,hay);
+      case "or":  return evalNode(n.l,it,hay) || evalNode(n.r,it,hay);
+      case "not": return !evalNode(n.x,it,hay);
+      case "tag": return it.tags.some(t=>t.toLowerCase()===n.val);
+      case "phrase":
+      case "word": return hay.includes(n.val);
+    }
+    return true;
+  }
+  function collectTerms(n, out){
+    if(!n) return;
+    if(n.op==="word"||n.op==="phrase") out.push(n.val);
+    else if(n.op==="not"){ /* skip negated terms for highlight */ }
+    else { collectTerms(n.l,out); collectTerms(n.r,out); collectTerms(n.x,out); }
+  }
+  function matches(it, ast){
+    const hay = [it.title, it.desc, it.note, it.host, it.tags.join(" ")].join(" ").toLowerCase();
+    return evalNode(ast, it, hay);
+  }
+  function hl(text, terms){
+    if(!terms || !terms.length) return text;
+    const esc = terms.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).filter(Boolean);
+    if(!esc.length) return text;
+    return text.replace(new RegExp("("+esc.join("|")+")","ig"),"<mark>$1</mark>");
+  }
+
+  function render() {
+    const lib = document.getElementById("library");
+    const q = query.trim();
+    const ast = parseQuery(q);
+    const terms = []; if(q) collectTerms(ast, terms);
+    const inView = it => {
+      if (view === "archive") return it.archived;
+      if (view === "toread")  return it.toRead && !it.archived;
+      return !it.archived; // library
+    };
+    const shown = items.filter(it => it.loading || (inView(it) && (!q || matches(it, ast))));
+    shown.sort((a,b)=>{
+      if(a.loading) return -1; if(b.loading) return 1;
+      if(sortBy==="title") return a.title.localeCompare(b.title);
+      if(sortBy==="old") return a.order-b.order;
+      return b.order-a.order;
+    });
+    lastShownIds = shown.filter(it=>!it.loading).map(it=>it.id);
+
+    // Reading-list badge count (excludes archived)
+    const toReadCount = items.filter(it=>it.toRead && !it.archived).length;
+    const badge = document.querySelector('.tab[data-view="toread"]');
+    badge.innerHTML = 'Reading list' + (toReadCount?' <span class="badge">'+toReadCount+'</span>':'');
+
+    const count = document.getElementById("count");
+    if (q) {
+      const n = shown.filter(it=>!it.loading).length;
+      count.textContent = n + (n===1?" result":" results") + ' for "'+query.trim()+'"' +
+        (view==="archive"?" in Archive":view==="toread"?" in Reading list":"");
+    } else {
+      const n = shown.filter(it=>!it.loading).length;
+      const lbl = view==="toread" ? (n===1?"link to read":"links to read")
+                : view==="archive" ? (n===1?"archived link":"archived links")
+                : (n===1?"saved link":"saved links");
+      count.textContent = n + " " + lbl;
+    }
+    lib.innerHTML = "";
+    if (shown.length === 0) {
+      if (q) {
+        lib.innerHTML = '<div class="noresult">No links match "<strong>'+query.trim()+
+          '</strong>".<br>Try a different word, or check your spelling.</div>';
+      } else if (view === "toread") {
+        lib.innerHTML = '<div class="noresult">Your reading list is empty.<br>'+
+          'Mark any link as “Read later” to line it up here.</div>';
+      } else if (view === "archive") {
+        lib.innerHTML = '<div class="noresult">Nothing archived.<br>'+
+          'Archive a link to keep it without showing it in your everyday library.</div>';
+      } else { // library, no links at all
+        lib.innerHTML = '<div class="empty"><div class="big">🔖</div>'+
+          '<div style="font-size:16px;color:var(--ink);font-weight:600;margin-bottom:4px">Your library is empty</div>'+
+          'Paste any web address in the box above to save your first link.<br>'+
+          'It’ll be enriched with a title, and a copy will be preserved automatically.</div>';
+      }
+      document.getElementById("selectAll").innerHTML = "";
+      updateBulk();
+      return;
+    }
+    shown.forEach(it => {
+      const li = document.createElement("li");
+      li.className = "item" + (selected.has(it.id) ? " selected" : "");
+      if (it.loading) {
+        li.innerHTML = '<div class="favicon">'+it.host.charAt(0).toUpperCase()+'</div>'+
+          '<div class="body"><div class="fetching">Fetching page details…</div>'+
+          '<div class="meta"><span>'+it.url+'</span></div></div>';
+        lib.appendChild(li); return;
+      }
+      const chips = it.tags.map(t=>'<span class="chip">'+t+' <span class="x" data-id="'+it.id+'" data-tag="'+t+'">×</span></span>').join("");
+      let noteBlock;
+      if (it.note) {
+        const rendered = mdToHtml(it.note);
+        const long = it.note.length > 90 || /\n/.test(it.note.trim());
+        const clamp = (long && !it.expanded) ? " clamped" : "";
+        const toggle = long
+          ? '<button class="addnote" data-act="togglenote" data-id="'+it.id+'">'+(it.expanded?"show less":"show full note")+'</button>'
+          : "";
+        noteBlock = '<div class="note-box"><div class="note-text'+clamp+'" data-id="'+it.id+'">'+rendered+'</div>'+
+          '<div class="noterow">'+toggle+'<button class="addnote" data-act="editnote" data-id="'+it.id+'">edit note</button></div></div>';
+      } else {
+        noteBlock = '<div class="noterow"><button class="addnote" data-act="editnote" data-id="'+it.id+'">+ add a note</button></div>';
+      }
+      li.innerHTML =
+        '<input type="checkbox" class="pick-cb" data-pick="'+it.id+'"'+(selected.has(it.id)?" checked":"")+'>'+
+        '<div class="favicon">'+it.host.charAt(0).toUpperCase()+'</div>'+
+        '<div class="body">'+
+          '<a class="title" href="'+it.url+'" target="_blank" rel="noopener" title="'+it.title.replace(/"/g,"&quot;")+'">'+hl(it.title,terms)+'</a>'+
+          (it.toRead?'<span class="toread-flag">To read</span>':'')+
+          '<span class="copy-flag" title="A copy of this page is preserved">📄 '+(isPdf(it.url)?"Saved PDF":"Saved copy")+'</span>'+
+          '<div class="desc">'+hl(it.desc,terms)+'</div>'+
+          noteBlock +
+          '<div class="tags" data-id="'+it.id+'">'+chips+'<span class="addtag" data-id="'+it.id+'">+ add tag</span></div>'+
+          '<div class="meta"><a href="'+it.url+'" target="_blank" rel="noopener">'+it.host+'</a><span>Saved '+it.saved+'</span></div>'+
+          '<div class="actions">'+
+            (view==="archive"
+              ? '<button class="act" data-act="archive" data-id="'+it.id+'">↩ Restore to library</button>'
+              : '<button class="act '+(it.toRead?"on":"")+'" data-act="toread" data-id="'+it.id+'">'+
+                  (it.toRead ? (view==="toread"?"✓ Mark as read":"In reading list") : "☆ Read later")+'</button>'+
+                '<button class="act" data-act="archive" data-id="'+it.id+'">🗄 Archive</button>')+
+            '<button class="act" data-act="viewcopy" data-id="'+it.id+'">📄 View saved copy</button>'+
+            '<button class="act" data-act="edit" data-id="'+it.id+'">✎ Edit</button>'+
+            '<button class="act" data-act="delete" data-id="'+it.id+'">🗑 Delete</button>'+
+          '</div>'+
+        '</div>';
+      lib.appendChild(li);
+    });
+    wire();
+    updateSelectAll();
+    updateBulk();
+  }
+
+  function viewLabel(){
+    let base = view==="toread" ? "the Reading list" : view==="archive" ? "the Archive" : "your Library";
+    if (query.trim()) base = 'results for "'+query.trim()+'" in '+base;
+    return base;
+  }
+  function updateSelectAll(){
+    const el = document.getElementById("selectAll");
+    const total = lastShownIds.length;
+    const allSel = total>0 && lastShownIds.every(id=>selected.has(id));
+    if (total===0){ el.innerHTML=""; return; }
+    if (allSel){
+      el.innerHTML = 'All '+total+' shown selected. <a id="selNone">Clear selection</a>';
+      el.querySelector("#selNone").addEventListener("click",()=>{selected.clear();render();});
+    } else {
+      el.innerHTML = '<a id="selAll">Select all '+total+' in '+viewLabel()+'</a>';
+      el.querySelector("#selAll").addEventListener("click",()=>{lastShownIds.forEach(id=>selected.add(id));render();});
+    }
+  }
+  function updateBulk(){
+    const bar = document.getElementById("bulkbar");
+    const n = selected.size;
+    if (n===0){ bar.classList.remove("show"); return; }
+    bar.classList.add("show");
+    document.getElementById("bulkCount").textContent = n + (n===1?" selected":" selected");
+    document.getElementById("bulkScope").textContent = "· actions apply only to these "+n;
+    document.getElementById("bulkArchive").textContent = view==="archive" ? "↩ Restore" : "🗄 Archive";
+  }
+
+  function showPop(btn){closePop();const id=+btn.dataset.id;const it=items.find(x=>x.id===id);
+    const pop=document.createElement("div");pop.className="pop";
+    const picks=allTags().map(t=>'<span class="pick '+(it.tags.includes(t)?"on":"")+'" data-tag="'+t+'">'+t+'</span>').join("");
+    pop.innerHTML='<p class="lbl">Your tags</p><div class="picklist">'+picks+'</div><input placeholder="Create a new tag, Enter">';
+    btn.parentElement.appendChild(pop);openPop=pop;
+    pop.querySelectorAll(".pick").forEach(p=>p.addEventListener("click",()=>{const t=p.dataset.tag;
+      if(it.tags.includes(t))it.tags=it.tags.filter(x=>x!==t);else it.tags.push(t);render();reopenPop(id);}));
+    const inp=pop.querySelector("input");inp.focus();
+    inp.addEventListener("keydown",e=>{if(e.key==="Enter"&&inp.value.trim()){const v=inp.value.trim().toLowerCase();
+      if(!it.tags.includes(v))it.tags.push(v);render();reopenPop(id);}else if(e.key==="Escape")closePop();});}
+  function reopenPop(id){const b=document.querySelector('.addtag[data-id="'+id+'"]');if(b)showPop(b);}
+  function closePop(){if(openPop){openPop.remove();openPop=null;}}
+
+  function editNote(btn){const id=+btn.dataset.id;const it=items.find(x=>x.id===id);
+    const holder=btn.closest(".note-box")||btn.closest(".noterow").parentElement||btn.parentElement;
+    const box=btn.closest(".note-box")||btn.parentElement;
+    const ta=document.createElement("textarea");ta.className="note-edit";ta.value=it.note||"";
+    ta.placeholder="Why did you save this? (Enter to save, Esc to cancel)";
+    box.replaceWith(ta);ta.focus();
+    ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();it.note=ta.value.trim();render();}
+      else if(e.key==="Escape"){render();}});
+    ta.addEventListener("blur",()=>{it.note=ta.value.trim();render();});}
+
+  function wire(){
+    document.querySelectorAll(".addtag").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();showPop(b);}));
+    document.querySelectorAll(".chip .x").forEach(x=>x.addEventListener("click",()=>{const it=items.find(i=>i.id===+x.dataset.id);it.tags=it.tags.filter(t=>t!==x.dataset.tag);render();}));
+    document.querySelectorAll('[data-act="editnote"]').forEach(b=>b.addEventListener("click",()=>editNote(b)));
+    document.querySelectorAll('[data-act="togglenote"]').forEach(b=>b.addEventListener("click",()=>{const it=items.find(x=>x.id===+b.dataset.id);it.expanded=!it.expanded;render();}));
+    document.querySelectorAll('[data-act="toread"]').forEach(b=>b.addEventListener("click",()=>{const it=items.find(x=>x.id===+b.dataset.id);it.toRead=!it.toRead;render();}));
+    document.querySelectorAll('[data-act="archive"]').forEach(b=>b.addEventListener("click",()=>{const it=items.find(x=>x.id===+b.dataset.id);it.archived=!it.archived;render();}));
+    document.querySelectorAll('[data-act="viewcopy"]').forEach(b=>b.addEventListener("click",()=>openSnapshot(+b.dataset.id)));
+    document.querySelectorAll('[data-act="edit"]').forEach(b=>b.addEventListener("click",()=>openEdit(+b.dataset.id)));
+    document.querySelectorAll('[data-act="delete"]').forEach(b=>b.addEventListener("click",()=>askDelete(+b.dataset.id)));
+    document.querySelectorAll('.pick-cb').forEach(cb=>cb.addEventListener("change",()=>{
+      const id=+cb.dataset.pick;
+      if(cb.checked) selected.add(id); else selected.delete(id);
+      render();
+    }));
+  }
+  document.addEventListener("click",e=>{if(openPop&&!e.target.closest(".pop")&&!e.target.classList.contains("addtag"))closePop();});
+
+  function isPdf(url){ return /\.pdf($|[?#])/i.test(url); }
+  // Preserved copy viewer — shows the snapshot captured when the link was saved.
+  function openSnapshot(id){
+    const it = items.find(x=>x.id===id);
+    const pdf = isPdf(it.url);
+    document.getElementById("snapCap").textContent =
+      (pdf ? "Preserved PDF" : "Preserved copy") + " · captured " + (it.capturedAt || it.saved);
+    document.getElementById("snapUrl").textContent = it.url;
+    if (pdf) {
+      document.getElementById("snapBody").innerHTML =
+        '<div style="border:1px solid #e4e7ee;border-radius:10px;padding:28px;text-align:center;background:#fafbfc">'+
+        '<div style="font-size:40px">📕</div>'+
+        '<h1 style="justify-content:center">'+it.title+'</h1>'+
+        '<p>The <strong>original PDF file</strong> is preserved exactly as it was, page for page — not converted into a reader page.</p>'+
+        '<p style="color:#6b7385;font-size:13px">In the real app the stored PDF would open here for reading or download.</p>'+
+        '</div>';
+    } else {
+      document.getElementById("snapBody").innerHTML =
+        "<h1>"+it.title+"</h1>"+
+        "<p><em>"+it.desc+"</em></p>"+
+        "<p>"+it.desc+" This is the readable text of the page as it existed when you saved it. "+
+        "Even if the original page later changes or goes offline, this preserved copy stays in your library.</p>"+
+        "<p>The full article content captured from <strong>"+it.host+"</strong> would appear here.</p>";
+    }
+    document.getElementById("overlay").classList.add("open");
+  }
+  document.getElementById("snapClose").addEventListener("click",()=>document.getElementById("overlay").classList.remove("open"));
+  document.getElementById("overlay").addEventListener("click",e=>{if(e.target.id==="overlay")e.target.classList.remove("open");});
+
+  // ---- Canonical form for duplicate detection ----
+  function canon(url){
+    let u = normUrl(url).toLowerCase();
+    u = u.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/+$/,"").replace(/#.*$/,"");
+    return u;
+  }
+  function findExisting(url, exceptId){
+    const c = canon(url);
+    return items.find(it => !it.loading && it.id!==exceptId && canon(it.url)===c);
+  }
+
+  // ---- Edit link (title, address, description) ----
+  let editId = null;
+  function openEdit(id){
+    editId = id; const it = items.find(x=>x.id===id);
+    document.getElementById("edTitle").value = it.title;
+    document.getElementById("edUrl").value = it.url;
+    document.getElementById("edDesc").value = it.desc;
+    document.getElementById("edError").textContent = "";
+    document.getElementById("editOverlay").classList.add("open");
+    document.getElementById("edTitle").focus();
+  }
+  function closeEdit(){ document.getElementById("editOverlay").classList.remove("open"); editId=null; }
+  function saveEdit(){
+    const it = items.find(x=>x.id===editId); if(!it) return;
+    const title = document.getElementById("edTitle").value.trim();
+    const url = document.getElementById("edUrl").value.trim();
+    const desc = document.getElementById("edDesc").value.trim();
+    const err = document.getElementById("edError");
+    if(!url){ err.textContent = "An address is required."; return; }
+    const clash = findExisting(url, it.id);
+    if(clash){ err.textContent = "Another saved link already uses that address: “"+clash.title+"”."; return; }
+    const addressChanged = canon(url) !== canon(it.url);
+    if(addressChanged){
+      // New page: keep tags & note, but refresh details and capture a fresh copy.
+      it.url = normUrl(url); it.host = hostOf(url); it.loading = true;
+      it.capturedAt = timeNow();
+      closeEdit(); render();
+      setTimeout(()=>{ const m=fetchMeta(it.url); it.loading=false; it.title=m.t; it.desc=m.d; render(); },650);
+    } else {
+      it.title = title || it.host; it.desc = desc;
+      closeEdit(); render();
+    }
+  }
+  document.getElementById("editClose").addEventListener("click",closeEdit);
+  document.getElementById("editCancel").addEventListener("click",closeEdit);
+  document.getElementById("editSave").addEventListener("click",saveEdit);
+  document.getElementById("editOverlay").addEventListener("click",e=>{if(e.target.id==="editOverlay")closeEdit();});
+
+  // ---- Delete (with confirmation) ----
+  let deleteId = null;
+  function askDelete(id){
+    deleteId = id; const it = items.find(x=>x.id===id);
+    document.getElementById("cfMsg").innerHTML =
+      "“<strong>"+it.title+"</strong>” and its saved copy, tags, and notes will be permanently removed. This cannot be undone.";
+    document.getElementById("confirmOverlay").classList.add("open");
+  }
+  let bulkDelete = false;
+  function askBulkDelete(n){
+    bulkDelete = true;
+    document.getElementById("cfMsg").innerHTML =
+      "<strong>"+n+"</strong> selected link(s), with their saved copies, tags, and notes, will be permanently removed. This cannot be undone.";
+    document.getElementById("confirmOverlay").classList.add("open");
+  }
+  function closeConfirm(){ document.getElementById("confirmOverlay").classList.remove("open"); deleteId=null; bulkDelete=false; }
+  document.getElementById("cfCancel").addEventListener("click",closeConfirm);
+  document.getElementById("cfOk").addEventListener("click",()=>{
+    if (bulkDelete){
+      const ids = new Set(selected);
+      for (let i=items.length-1;i>=0;i--){ if(ids.has(items[i].id)) items.splice(i,1); }
+      selected.clear();
+    } else {
+      const i = items.findIndex(x=>x.id===deleteId); if(i>=0) items.splice(i,1);
+    }
+    closeConfirm(); render();
+  });
+  document.getElementById("confirmOverlay").addEventListener("click",e=>{if(e.target.id==="confirmOverlay")closeConfirm();});
+
+  function flash(id){
+    const li = document.querySelector('li.item [data-id="'+id+'"]');
+    const card = li ? li.closest("li.item") : null;
+    if(card){ card.classList.add("flash"); card.scrollIntoView({behavior:"smooth",block:"center"}); }
+  }
+
+  function showDup(existing){
+    const n = document.getElementById("dupNotice");
+    const where = existing.archived ? "your archive" : "your library";
+    n.innerHTML = "You’ve already saved this — “<strong>"+existing.title+"</strong>” is in "+where+". "+
+      '<a id="dupGo">Show it</a>';
+    n.classList.add("show");
+    document.getElementById("dupGo").addEventListener("click",()=>{
+      if(existing.archived && view!=="archive"){ document.querySelector('.tab[data-view="archive"]').click(); }
+      else if(!existing.archived && view==="toread" && !existing.toRead){ document.querySelector('.tab[data-view="library"]').click(); }
+      setTimeout(()=>flash(existing.id),60);
+    });
+  }
+  function save(){const input=document.getElementById("url");const raw=input.value.trim();if(!raw)return;
+    document.getElementById("dupNotice").classList.remove("show");
+    const existing = findExisting(raw);
+    if(existing){ input.value=""; showDup(existing); return; }
+    const url=normUrl(raw);const now=timeNow();
+    const nextOrder=items.reduce((m,x)=>Math.max(m,x.order||0),0)+1;
+    const it={id:++seq,url:url,host:hostOf(url),loading:true,saved:now,capturedAt:now,order:nextOrder,tags:[],note:"",toRead:false,archived:false};
+    items.unshift(it);input.value="";input.focus();render();
+    setTimeout(()=>{const m=fetchMeta(url);it.loading=false;it.title=m.t;it.desc=m.d;render();},650);}
+  document.getElementById("saveBtn").addEventListener("click",save);
+  document.getElementById("url").addEventListener("keydown",e=>{if(e.key==="Enter")save();});
+  document.getElementById("search").addEventListener("input",e=>{query=e.target.value;render();});
+  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+    view=t.dataset.view;
+    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===t));
+    render();
+  }));
+  document.getElementById("sort").addEventListener("change",e=>{sortBy=e.target.value;render();});
+
+  // ---- Bulk actions (apply only to the current selection) ----
+  function selectedItems(){ return items.filter(it=>selected.has(it.id)); }
+  document.querySelectorAll("[data-bulk]").forEach(b=>b.addEventListener("click",()=>{
+    const action = b.dataset.bulk;
+    const sel = selectedItems();
+    if (action==="clear"){ selected.clear(); render(); return; }
+    if (sel.length===0) return;
+    if (action==="toread"){ sel.forEach(it=>it.toRead=true); selected.clear(); render(); }
+    else if (action==="read"){ sel.forEach(it=>it.toRead=false); selected.clear(); render(); }
+    else if (action==="archive"){
+      const restoring = view==="archive";
+      sel.forEach(it=>it.archived=!restoring);
+      selected.clear(); render();
+    }
+    else if (action==="tag"){
+      const t = prompt("Add a tag to the "+sel.length+" selected link(s):");
+      if (t && t.trim()){ const v=t.trim().toLowerCase(); sel.forEach(it=>{ if(!it.tags.includes(v)) it.tags.push(v); }); }
+      selected.clear(); render();
+    }
+    else if (action==="delete"){ askBulkDelete(sel.length); }
+  }));
+
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>
+</content>

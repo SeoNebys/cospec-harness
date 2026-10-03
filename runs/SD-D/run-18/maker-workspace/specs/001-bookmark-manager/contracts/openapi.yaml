@@ -1,0 +1,708 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager API
+  version: 1.0.0
+  description: Contract for the single-user bookmark manager web client and capture status UI.
+  license:
+    name: Unlicensed project artifact
+    identifier: UNLICENSED
+servers:
+  - url: /api
+security: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Report application readiness
+      responses:
+        '200':
+          description: Application and migration readiness
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ready }
+  /metadata-preview:
+    post:
+      operationId: previewMetadata
+      summary: Preview page metadata
+      description: Safely retrieves available title, description, icon, and preview image without creating a bookmark.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri, maxLength: 8192 }
+      responses:
+        '200':
+          description: Full or partial metadata proposal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetadataPreview' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /media:
+    post:
+      operationId: uploadBookmarkMedia
+      summary: Upload replacement bookmark media
+      description: Uploads a replacement site icon or preview image after type, dimensions, and size validation.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [role, file]
+              properties:
+                role: { type: string, enum: [site_icon, preview_image] }
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Temporary media reference usable during create/edit
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mediaId, mediaType, sizeBytes]
+                properties:
+                  mediaId: { type: string, format: uuid }
+                  mediaType: { type: string }
+                  sizeBytes: { type: integer, minimum: 0 }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /bookmarks:
+    get:
+      operationId: listBookmarks
+      summary: Search and list bookmarks
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 2048 } }
+        - { name: scope, in: query, schema: { type: string, enum: [active, unread, archived], default: active } }
+        - name: tag
+          in: query
+          description: Repeat for match-all tag filters.
+          schema: { type: array, items: { type: string, format: uuid } }
+          style: form
+          explode: true
+        - { name: sort, in: query, schema: { type: string, enum: [title, createdAt, updatedAt] } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc] } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200':
+          description: Stable page of bookmarks in the selected universe
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, nextCursor, applied]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/BookmarkSummary' } }
+                  total: { type: integer, minimum: 0 }
+                  nextCursor: { type: [string, 'null'] }
+                  applied:
+                    type: object
+                    required: [scope, query, tagIds, sort, direction]
+                    properties:
+                      scope: { type: string, enum: [active, unread, archived] }
+                      query: { type: string }
+                      tagIds: { type: array, items: { type: string, format: uuid } }
+                      sort: { type: string }
+                      direction: { type: string }
+        '400': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createBookmark
+      summary: Create a bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '201':
+          description: Bookmark committed with an initial pending capture
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkDetail' }
+        '409':
+          description: Normalized URL already exists
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    get:
+      operationId: getBookmark
+      summary: Get bookmark details
+      responses:
+        '200':
+          description: Bookmark details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkDetail' }
+        '404': { $ref: '#/components/responses/Problem' }
+    patch:
+      operationId: updateBookmark
+      summary: Update a bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/BookmarkInput' }
+                - type: object
+                  required: [version]
+                  properties:
+                    version: { type: integer, minimum: 1, description: Optimistic concurrency version }
+      responses:
+        '200':
+          description: Updated bookmark; URL changes report any saved-copy mismatch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkDetail' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/reading-status:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    put:
+      operationId: setReadingStatus
+      summary: Set bookmark reading status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [unread, read] }
+      responses:
+        '200': { $ref: '#/components/responses/BookmarkDetail' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/archive:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    post:
+      operationId: archiveBookmark
+      summary: Archive a bookmark
+      responses:
+        '200': { $ref: '#/components/responses/BookmarkDetail' }
+        '409': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: restoreBookmark
+      summary: Restore an archived bookmark
+      responses:
+        '200': { $ref: '#/components/responses/BookmarkDetail' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/permanent-delete:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    post:
+      operationId: permanentlyDeleteBookmark
+      summary: Permanently delete a bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmed, expectedSavedCopy]
+              properties:
+                confirmed: { const: true }
+                expectedSavedCopy: { type: boolean, description: Prevents stale confirmation after copy state changes }
+      responses:
+        '204': { description: Bookmark and saved-copy access removed; blob cleanup may continue }
+        '409': { $ref: '#/components/responses/Problem' }
+  /bookmarks/bulk:
+    post:
+      operationId: bulkUpdateBookmarks
+      summary: Apply a bulk bookmark action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookmarkIds, action]
+              properties:
+                bookmarkIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 500
+                  uniqueItems: true
+                  items: { type: string, format: uuid }
+                action:
+                  oneOf:
+                    - type: object
+                      required: [type, tagIds]
+                      properties:
+                        type: { enum: [add_tags, remove_tags] }
+                        tagIds: { type: array, minItems: 1, uniqueItems: true, items: { type: string, format: uuid } }
+                    - type: object
+                      required: [type]
+                      properties:
+                        type: { enum: [mark_read, mark_unread, archive, restore] }
+                    - type: object
+                      required: [type, confirmed, expectedSavedCopyCount]
+                      properties:
+                        type: { const: permanent_delete }
+                        confirmed: { const: true }
+                        expectedSavedCopyCount: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Complete or partial per-item outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkResult' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/capture/retry:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    post:
+      operationId: retryCapture
+      summary: Retry a failed saved-copy capture
+      responses:
+        '202':
+          description: New attempt queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaptureAttempt' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/capture/recapture:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    post:
+      operationId: beginRecapture
+      summary: Capture a replacement saved copy
+      responses:
+        '202':
+          description: Candidate attempt queued while the current copy remains available
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaptureAttempt' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/capture/confirm-replacement:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    post:
+      operationId: confirmCaptureReplacement
+      summary: Confirm saved-copy replacement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attemptId, confirmed]
+              properties:
+                attemptId: { type: string, format: uuid }
+                confirmed: { const: true }
+      responses:
+        '200': { $ref: '#/components/responses/BookmarkDetail' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/saved-copy:
+    parameters:
+      - { $ref: '#/components/parameters/BookmarkId' }
+    get:
+      operationId: getSavedCopyLaunch
+      summary: Get safe saved-copy launch information
+      responses:
+        '200':
+          description: Opaque snapshot launch information; never raw markup
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [kind, viewerUrl, capturedAt, sourceUrl]
+                properties:
+                  kind: { type: string, enum: [html, pdf] }
+                  viewerUrl: { type: string, format: uri-reference }
+                  downloadUrl: { type: [string, 'null'], format: uri-reference }
+                  capturedAt: { type: string, format: date-time }
+                  sourceUrl: { type: string, format: uri }
+                  warnings: { type: array, items: { type: string } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /capture-summary:
+    get:
+      operationId: getCaptureSummary
+      summary: Get aggregate capture progress
+      responses:
+        '200':
+          description: Aggregate import/worker progress for polling
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued, running, available, failed]
+                properties:
+                  queued: { type: integer, minimum: 0 }
+                  running: { type: integer, minimum: 0 }
+                  available: { type: integer, minimum: 0 }
+                  failed: { type: integer, minimum: 0 }
+  /tags:
+    get:
+      operationId: listTags
+      summary: List canonical tags
+      responses:
+        '200':
+          description: Canonical tag list and active/archive counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Tag' }
+    post:
+      operationId: createTag
+      summary: Create or resolve a tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        '201':
+          description: Created or canonical existing tag
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /saved-views:
+    get:
+      operationId: listSavedViews
+      summary: List saved views
+      responses:
+        '200':
+          description: Saved views
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/SavedView' } }
+    post:
+      operationId: createSavedView
+      summary: Create a saved view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedViewInput' }
+      responses:
+        '201':
+          description: Saved current query and tag filters
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedView' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /saved-views/{savedViewId}:
+    parameters:
+      - name: savedViewId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateSavedView
+      summary: Update a saved view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavedViewInput' }
+      responses:
+        '200':
+          description: Updated view
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedView' }
+        '422': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteSavedView
+      summary: Delete a saved view
+      responses:
+        '204': { description: View removed; bookmarks unchanged }
+        '404': { $ref: '#/components/responses/Problem' }
+  /preferences:
+    get:
+      operationId: getPreferences
+      summary: Get display preferences
+      responses:
+        '200':
+          description: Display preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preferences' }
+    patch:
+      operationId: updatePreferences
+      summary: Update display preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Preferences' }
+      responses:
+        '200':
+          description: Persisted preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preferences' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /imports:
+    post:
+      operationId: importBookmarks
+      summary: Import a browser bookmark file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '202':
+          description: Parsing/import run accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportRun' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /imports/{importId}:
+    get:
+      operationId: getImportRun
+      summary: Get import and capture progress
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Import and follow-on capture summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportRun' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /exports:
+    post:
+      operationId: exportBookmarks
+      summary: Export browser-compatible bookmarks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scope, acknowledgedLosses]
+              properties:
+                scope: { type: string, enum: [active, archived, all] }
+                acknowledgedLosses: { const: true }
+      responses:
+        '200':
+          description: UTF-8 Netscape bookmark HTML download
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            text/html:
+              schema: { type: string, format: binary }
+        '422': { $ref: '#/components/responses/Problem' }
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Problem:
+      description: Actionable error
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    BookmarkDetail:
+      description: Current bookmark state
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/BookmarkDetail' }
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, code, detail]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        code: { type: string }
+        detail: { type: string }
+        fieldErrors:
+          type: object
+          additionalProperties: { type: string }
+        offset: { type: integer, minimum: 0 }
+        length: { type: integer, minimum: 0 }
+        hint: { type: string }
+        existingBookmarkId: { type: string, format: uuid }
+    MetadataPreview:
+      type: object
+      required: [url, normalizedUrl, status, title, description, siteIcon, previewImage, warnings]
+      properties:
+        url: { type: string, format: uri }
+        normalizedUrl: { type: string, format: uri }
+        status: { type: string, enum: [complete, partial, failed] }
+        title: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        siteIcon: { anyOf: [{ $ref: '#/components/schemas/MediaRef' }, { type: 'null' }] }
+        previewImage: { anyOf: [{ $ref: '#/components/schemas/MediaRef' }, { type: 'null' }] }
+        warnings: { type: array, items: { type: string } }
+    MediaRef:
+      type: object
+      required: [id, url, mediaType]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri-reference }
+        mediaType: { type: string }
+    BookmarkInput:
+      type: object
+      required: [url, title, readStatus, tagIds]
+      properties:
+        url: { type: string, format: uri, maxLength: 8192 }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        description: { type: [string, 'null'], maxLength: 4000 }
+        noteMarkdown: { type: [string, 'null'], maxLength: 100000 }
+        readStatus: { type: string, enum: [unread, read], default: unread }
+        tagIds: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
+        siteIconMediaId: { type: [string, 'null'], format: uuid }
+        previewImageMediaId: { type: [string, 'null'], format: uuid }
+    BookmarkSummary:
+      type: object
+      required: [id, url, title, readStatus, archived, tags, copyStatus, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        siteIcon: { anyOf: [{ $ref: '#/components/schemas/MediaRef' }, { type: 'null' }] }
+        previewImage: { anyOf: [{ $ref: '#/components/schemas/MediaRef' }, { type: 'null' }] }
+        readStatus: { type: string, enum: [unread, read] }
+        archived: { type: boolean }
+        tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+        copyStatus: { type: string, enum: [pending, available, failed] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    BookmarkDetail:
+      allOf:
+        - { $ref: '#/components/schemas/BookmarkSummary' }
+        - type: object
+          required: [noteMarkdown, capture]
+          properties:
+            noteMarkdown: { type: [string, 'null'] }
+            capture: { $ref: '#/components/schemas/CaptureState' }
+            savedCopySourceMismatch: { type: boolean }
+    CaptureState:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending, available, failed] }
+        capturedAt: { type: [string, 'null'], format: date-time }
+        kind: { type: [string, 'null'], enum: [html, pdf, null] }
+        sourceUrl: { type: [string, 'null'], format: uri }
+        errorCode: { type: [string, 'null'] }
+        errorDetail: { type: [string, 'null'] }
+        retryable: { type: boolean }
+        replacementAttempt: { anyOf: [{ $ref: '#/components/schemas/CaptureAttempt' }, { type: 'null' }] }
+    CaptureAttempt:
+      type: object
+      required: [id, purpose, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        purpose: { type: string, enum: [initial, retry, recapture, import] }
+        status: { type: string, enum: [queued, running, available, failed, cancelled, awaiting_confirmation] }
+        phase: { type: [string, 'null'] }
+        errorCode: { type: [string, 'null'] }
+        errorDetail: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+    Tag:
+      type: object
+      required: [id, name, activeCount, archivedCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        activeCount: { type: integer, minimum: 0 }
+        archivedCount: { type: integer, minimum: 0 }
+    BulkResult:
+      type: object
+      required: [requested, succeeded, failed, failures]
+      properties:
+        requested: { type: integer, minimum: 1 }
+        succeeded: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        failures:
+          type: array
+          items:
+            type: object
+            required: [bookmarkId, code, detail]
+            properties:
+              bookmarkId: { type: string, format: uuid }
+              code: { type: string }
+              detail: { type: string }
+    SavedViewInput:
+      type: object
+      required: [name, query, tagIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        query: { type: string, maxLength: 2048 }
+        tagIds: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
+    SavedView:
+      allOf:
+        - { $ref: '#/components/schemas/SavedViewInput' }
+        - type: object
+          required: [id, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    Preferences:
+      type: object
+      required: [defaultSort, defaultDirection, textSize]
+      properties:
+        defaultSort: { type: string, enum: [title, createdAt, updatedAt] }
+        defaultDirection: { type: string, enum: [asc, desc] }
+        textSize: { type: string, enum: [small, medium, large] }
+    ImportRun:
+      type: object
+      required: [id, status, imported, duplicate, skipped, failed, capture]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [parsing, committed, failed] }
+        imported: { type: integer, minimum: 0 }
+        duplicate: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [entry, code, detail]
+            properties:
+              entry: { type: integer, minimum: 0 }
+              code: { type: string }
+              detail: { type: string }
+        capture:
+          type: object
+          required: [queued, running, available, failed]
+          properties:
+            queued: { type: integer, minimum: 0 }
+            running: { type: integer, minimum: 0 }
+            available: { type: integer, minimum: 0 }
+            failed: { type: integer, minimum: 0 }

@@ -1,0 +1,6 @@
+export function CollectionState({ kind, onAction }: { kind: 'new' | 'archive' | 'none' | 'error'; onAction: () => void }) {
+  if (kind === 'error') return <section className="empty-state" role="alert"><span aria-hidden="true">↻</span><h2>We couldn't load your bookmarks</h2><p>Your saved links are still safe. Try loading them again.</p><button className="button secondary" onClick={onAction}>Try again</button></section>;
+  if (kind === 'none') return <section className="empty-state"><span aria-hidden="true">⌕</span><h2>No bookmarks match</h2><p>Clear your search or filters to see your whole collection.</p><button className="button secondary" onClick={onAction}>Clear filters</button></section>;
+  if (kind === 'archive') return <section className="empty-state"><span aria-hidden="true">◇</span><h2>Your archive is empty</h2><p>Bookmarks you archive will wait here until you restore or permanently delete them.</p><button className="button secondary" onClick={onAction}>Back to bookmarks</button></section>;
+  return <section className="empty-state"><span aria-hidden="true">↗</span><h2>Your next good find starts here</h2><p>Save an article, tool, recipe, or anything worth returning to.</p><button className="button primary" onClick={onAction}>Add your first bookmark</button></section>;
+}

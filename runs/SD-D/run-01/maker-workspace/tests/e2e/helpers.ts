@@ -1,0 +1,3 @@
+import{expect,type Page}from'@playwright/test';
+export async function createAccount(page:Page){await page.goto('/');await page.getByRole('button',{name:/create an account/i}).click();const email=`review-${Date.now()}-${Math.random().toString(16).slice(2)}@example.com`;await page.getByLabel('Email').fill(email);await page.getByLabel('Password').fill('a very secure password');await page.getByRole('button',{name:'Create account'}).click();await expect(page.getByRole('heading',{name:'Your collection'})).toBeVisible();return email;}
+export async function apiBookmark(page:Page,data:Record<string,unknown>){const response=await page.request.post('/api/v1/bookmarks',{data});expect(response.ok()).toBeTruthy();return response.json();}

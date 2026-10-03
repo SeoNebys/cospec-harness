@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keepwell — Compare tag interactions</title>
+  <style>
+    :root{--ink:#1d2722;--muted:#647069;--line:#dce2dd;--paper:#fffef9;--wash:#f2f3ec;--green:#245f49;--dark:#194735;--accent:#e6a34c;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink)}button,input{font:inherit}button{cursor:pointer}.page{width:min(1120px,94vw);margin:0 auto;padding:34px 0 60px}.intro{text-align:center;margin-bottom:26px}.intro h1{margin:0 0 8px;font:500 clamp(30px,4vw,44px)/1.1 Georgia,serif}.intro p{margin:0;color:var(--muted)}.compare{display:grid;grid-template-columns:1fr 1fr;gap:22px}.version{background:var(--paper);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 8px 28px rgba(35,56,45,.07)}.label{padding:10px 16px;background:#e5ebe6;color:var(--dark);font-size:13px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}.review{padding:26px;min-height:485px}.review h2{margin:0;font:500 28px Georgia,serif}.review>p{color:var(--muted);margin:7px 0 20px}.found{padding:15px;border:1px solid var(--line);border-radius:11px}.found strong{display:block;margin-bottom:5px}.found span{font-size:14px;color:var(--muted)}label{display:block;margin:22px 0 8px;font-size:14px;font-weight:720}.input-wrap{position:relative}input{width:100%;border:1px solid #cbd3cd;border-radius:9px;padding:12px;color:var(--ink)}input:focus{outline:3px solid rgba(230,163,76,.45);border-color:var(--accent)}.menu{position:absolute;z-index:2;top:calc(100% + 5px);left:0;right:0;border:1px solid var(--line);border-radius:10px;background:white;box-shadow:0 10px 24px rgba(35,56,45,.13);overflow:hidden}.menu button{display:block;width:100%;border:0;background:white;padding:11px 13px;text-align:left}.menu button:hover{background:#edf3ee}.tray{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#f8f9f5}.tray button,.chosen{border:0;border-radius:999px;padding:7px 10px;background:#e7eee9;color:var(--dark);font-size:13px;font-weight:680}.tray button:hover{background:#d7e5da}.selected{display:flex;gap:7px;min-height:31px;margin-top:13px}.chosen{background:var(--green);color:white}.save{margin-top:24px;border:0;border-radius:9px;background:var(--green);color:white;padding:11px 15px;font-weight:700}.save:disabled{opacity:.45}.confirmation{margin-top:14px;color:var(--green);font-weight:700}[hidden]{display:none!important}@media(max-width:780px){.compare{grid-template-columns:1fr}.page{width:min(560px,92vw)}}
+  </style>
+</head>
+<body>
+  <main class="page" data-harness-ready="true">
+    <div class="intro"><h1>How should choosing a tag feel?</h1><p>Attach the same existing tag in both versions.</p></div>
+    <section class="compare">
+      <article class="version" id="versionA"><div class="label">Version A</div><div class="review"><h2>Ready to save</h2><p>Tidy the details and add your tags.</p><div class="found"><strong>A weekend in Florence</strong><span>Studios, gardens, and neighborhood places worth saving.</span></div><label for="tagA">Tags</label><div class="input-wrap"><input id="tagA" autocomplete="off" placeholder="Start typing a tag"><div class="menu" hidden></div></div><div class="selected"></div><button class="save" disabled>Save bookmark</button><div class="confirmation" hidden>Saved with florence.</div></div></article>
+      <article class="version" id="versionB"><div class="label">Version B</div><div class="review"><h2>Ready to save</h2><p>Tidy the details and add your tags.</p><div class="found"><strong>A weekend in Florence</strong><span>Studios, gardens, and neighborhood places worth saving.</span></div><label for="tagB">Tags</label><input id="tagB" autocomplete="off" placeholder="Filter your tags"><div class="tray"><button>architecture</button><button>books</button><button>florence</button><button>travel</button></div><div class="selected"></div><button class="save" disabled>Save bookmark</button><div class="confirmation" hidden>Saved with florence.</div></div></article>
+    </section>
+  </main>
+  <script>
+    const tags=['architecture','books','florence','travel'];
+    const a=document.querySelector('#versionA'),inputA=a.querySelector('input'),menu=a.querySelector('.menu');
+    const choose=(version,name)=>{version.querySelector('.selected').innerHTML=`<span class="chosen">${name}</span>`;version.querySelector('.save').disabled=false;version.querySelector('input').value='';const popup=version.querySelector('.menu');if(popup)popup.hidden=true};
+    inputA.addEventListener('input',()=>{const q=inputA.value.toLowerCase();const matches=tags.filter(t=>q&&t.includes(q));menu.replaceChildren(...matches.map(name=>{const b=document.createElement('button');b.textContent=name;b.addEventListener('click',()=>choose(a,name));return b}));menu.hidden=!matches.length});
+    const b=document.querySelector('#versionB'),inputB=b.querySelector('input');
+    const filterTray=()=>b.querySelectorAll('.tray button').forEach(button=>button.hidden=!button.textContent.includes(inputB.value.toLowerCase()));
+    inputB.addEventListener('input',filterTray);b.querySelectorAll('.tray button').forEach(button=>button.addEventListener('click',()=>choose(b,button.textContent)));
+    document.querySelectorAll('.save').forEach(button=>button.addEventListener('click',()=>{button.hidden=true;button.nextElementSibling.hidden=false}));
+  </script>
+</body>
+</html>

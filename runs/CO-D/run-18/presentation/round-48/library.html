@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Your library</title>
+  <style>
+    :root { --ink:#17201d; --muted:#68736e; --line:#dfe6e2; --paper:#fff; --wash:#f3f6f3; --green:#28664f; --green2:#e5f1eb; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--wash); color:var(--ink); font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    header { height:68px; background:var(--paper); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 5vw; }
+    .brand { font:700 21px/1.2 Georgia,serif; letter-spacing:.01em; }
+    .brand i { display:inline-block; width:11px; height:15px; margin-right:9px; background:var(--green); border-radius:2px 2px 5px 5px; vertical-align:-2px; }
+    .save-link { color:var(--green); text-decoration:none; font-weight:700; }
+    main { width:min(980px,90vw); margin:54px auto; }
+    .eyebrow { color:var(--green); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; }
+    h1 { font:600 clamp(34px,5vw,48px)/1.08 Georgia,serif; margin:8px 0 26px; letter-spacing:-.025em; }
+    .search-wrap { position:relative; margin-bottom:14px; }
+    .search-wrap span { position:absolute; left:16px; top:13px; color:var(--muted); font-size:18px; }
+    #search { width:100%; height:50px; border:1px solid #c8d2cd; border-radius:12px; padding:0 16px 0 46px; font:16px system-ui,sans-serif; outline:none; background:#fff; }
+    #search:focus { border-color:var(--green); box-shadow:0 0 0 3px var(--green2); }
+    .count { color:var(--muted); font-size:13px; margin:0 0 20px; }
+    .filter-label { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin:0 0 8px; }
+    .top-filters { display:none; margin:16px 0 20px; }
+    .filter-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .tag-filter { border:1px solid #c8d2cd; background:#fff; color:#405048; border-radius:999px; padding:8px 13px; font:650 13px/1 system-ui,sans-serif; cursor:pointer; }
+    .tag-filter.active { background:var(--green); border-color:var(--green); color:#fff; }
+    .library-layout { display:block; }
+    .side-filters { display:none; }
+    body.mode-chips .top-filters { display:block; }
+    body.mode-sidebar .library-layout { display:grid; grid-template-columns:170px 1fr; gap:24px; align-items:start; }
+    body.mode-sidebar .side-filters { display:block; background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; }
+    body.mode-sidebar .side-filters .tag-filter { display:block; width:100%; text-align:left; margin:6px 0; border-radius:8px; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .card { position:relative; background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; min-height:252px; }
+    .later-control { display:none; position:absolute; top:10px; right:10px; z-index:1; border:1px solid rgba(255,255,255,.8); background:rgba(255,255,255,.94); color:var(--green); cursor:pointer; box-shadow:0 3px 10px rgba(25,48,39,.12); }
+    body.mode-later-text .later-control { display:block; border-radius:8px; padding:7px 10px; font:700 11px/1 system-ui,sans-serif; }
+    body.mode-later-icon .later-control { display:grid; place-items:center; border-radius:50%; width:34px; height:34px; padding:0; font-size:0; }
+    body.mode-later-icon .later-control:after { content:"♡"; font-size:19px; line-height:1; }
+    body.mode-later-icon .later-control.marked:after { content:"♥"; }
+    .later-control.marked { background:var(--green); color:#fff; }
+    .archive-button, .more-wrap { display:none; }
+    body.mode-archive-button .archive-button { display:block; position:absolute; right:10px; bottom:10px; z-index:2; border:1px solid #c8d2cd; background:#fff; color:#536159; border-radius:8px; padding:7px 10px; font:700 11px/1 system-ui,sans-serif; cursor:pointer; }
+    body.mode-archive-menu .more-wrap { display:block; position:absolute; right:10px; top:10px; z-index:2; }
+    .more-button { width:34px; height:34px; border:1px solid rgba(255,255,255,.8); border-radius:50%; background:rgba(255,255,255,.94); color:var(--ink); font-weight:800; cursor:pointer; }
+    .more-menu { display:none; position:absolute; right:0; top:39px; width:120px; padding:5px; border:1px solid #c8d2cd; border-radius:9px; background:#fff; box-shadow:0 10px 22px rgba(25,48,39,.15); }
+    .more-menu.show { display:block; }
+    .more-menu button { width:100%; border:0; background:#fff; color:var(--ink); text-align:left; border-radius:6px; padding:8px; cursor:pointer; }
+    .archive-view { display:none !important; }
+    body.mode-archive-button .archive-view, body.mode-archive-menu .archive-view { display:block !important; }
+    .delete-button, .delete-more-wrap { display:none; }
+    body.mode-delete-button .card[data-archived="true"] .delete-button { display:block; position:absolute; left:16px; bottom:14px; z-index:3; border:0; background:transparent; color:#a23b32; padding:0; font:700 12px/1 system-ui,sans-serif; cursor:pointer; }
+    body.mode-delete-menu .card[data-archived="true"] .delete-more-wrap { display:block; position:absolute; right:10px; top:10px; z-index:3; }
+    .delete-more-wrap .more-menu button { color:#a23b32; }
+    .modal-backdrop { display:none; position:fixed; inset:0; z-index:20; background:rgba(14,24,20,.48); place-items:center; padding:20px; }
+    .modal-backdrop.show { display:grid; }
+    .modal { width:min(440px,100%); background:#fff; border-radius:16px; padding:24px; box-shadow:0 24px 70px rgba(0,0,0,.25); }
+    .modal h2 { font-size:24px; margin:0 0 8px; }
+    .modal p { color:var(--muted); margin:0; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:22px; }
+    .modal-actions button { height:40px; border-radius:9px; padding:0 14px; font-weight:700; cursor:pointer; }
+    .cancel-delete { border:1px solid #c8d2cd; background:#fff; color:var(--ink); }
+    .confirm-delete { border:0; background:#a23b32; color:#fff; }
+    .image { height:104px; background:linear-gradient(145deg,#d4e3da,#839f8e); }
+    .image.food { background:linear-gradient(145deg,#f0cda2,#bd7655); }
+    .image.work { background:linear-gradient(145deg,#c8d8e5,#6787a0); }
+    .body { padding:16px; }
+    .site { color:var(--green); font-size:11px; font-weight:800; letter-spacing:.06em; }
+    h2 { font:600 19px/1.25 Georgia,serif; margin:7px 0 7px; }
+    .description { color:var(--muted); font-size:13px; margin:0; }
+    .url { display:block; color:#7b8882; font-size:11px; margin-top:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .note { margin:10px 0 0; padding-top:9px; border-top:1px solid var(--line); color:#4f5d57; font-size:12px; }
+    .note b { color:var(--green); }
+    .note ul { margin:5px 0 0; padding-left:18px; }
+    .card-tags { display:flex; gap:5px; flex-wrap:wrap; margin-top:10px; }
+    .card-tag { padding:3px 7px; border-radius:999px; background:var(--green2); color:var(--green); font-size:10px; font-weight:750; }
+    .empty { display:none; padding:52px; text-align:center; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:14px; }
+    .empty h2 { color:var(--ink); font-size:22px; margin:0 0 6px; }
+    .empty p { margin:0; }
+    .initial-empty { display:none; padding:68px 32px; text-align:center; background:#fff; border:1px solid var(--line); border-radius:14px; }
+    .initial-empty.show { display:block; }
+    .initial-empty .empty-mark { width:48px; height:56px; margin:0 auto 16px; background:var(--green2); border-radius:8px 8px 14px 14px; }
+    .initial-empty h2 { font-size:25px; margin:0 0 7px; }
+    .initial-empty p { color:var(--muted); margin:0 0 18px; }
+    .initial-empty a { display:inline-block; color:#fff; background:var(--green); border-radius:9px; padding:10px 15px; text-decoration:none; font-weight:700; }
+    body.mode-empty .search-wrap, body.mode-empty .top-filters, body.mode-empty .count, body.mode-empty #grid, body.mode-empty .side-filters, body.mode-empty #empty { display:none !important; }
+    body.mode-empty .library-layout { display:block; }
+    @media(max-width:720px){ .grid{grid-template-columns:1fr;} body.mode-sidebar .library-layout{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><i></i>Keep</div><a class="save-link" href="/">+ Save a link</a></header>
+  <main data-harness-ready="true">
+    <div class="eyebrow">Your library</div>
+    <h1>Find what you saved.</h1>
+    <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search your bookmarks…" aria-label="Search saved bookmarks"></div>
+    <div class="top-filters">
+      <p class="filter-label">Filter by tag</p>
+      <div class="filter-row"><button class="tag-filter active" data-tag="all">All</button><button class="tag-filter" data-tag="recipes">Recipes</button><button class="tag-filter" data-tag="work">Work</button><button class="tag-filter" data-tag="reading">Reading</button></div>
+    </div>
+    <div class="library-layout">
+      <aside class="side-filters">
+        <p class="filter-label">Library</p>
+        <button class="tag-filter view-filter active" data-view="all">All bookmarks</button><button class="tag-filter view-filter" data-view="later">Read later</button>
+        <button class="tag-filter view-filter archive-view" data-view="archive">Archive</button>
+        <div style="height:12px"></div>
+        <p class="filter-label">Tags</p>
+        <button class="tag-filter active" data-tag="all">All tags</button><button class="tag-filter" data-tag="recipes">Recipes</button><button class="tag-filter" data-tag="work">Work</button><button class="tag-filter" data-tag="reading">Reading</button>
+      </aside>
+      <div>
+      <p class="count" id="count">3 bookmarks</p>
+      <section class="grid" id="grid">
+      <article class="card" data-tags="recipes" data-search="simple weeknight pasta recipe tomatoes garlic kitchennotes.test/weeknight-pasta remember book a table invite sam">
+        <button class="later-control" aria-label="Add Simple weeknight pasta to read later">Read later</button>
+        <button class="archive-button">Archive</button><div class="more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="archive-menu-action">Archive</button></div></div>
+        <button class="delete-button">Delete permanently</button><div class="delete-more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="delete-menu-action">Delete permanently</button></div></div>
+        <div class="image food"></div><div class="body"><div class="site">KITCHEN NOTES</div><h2>Simple weeknight pasta</h2><p class="description">A flexible tomato pasta recipe for busy evenings.</p><div class="card-tags"><span class="card-tag">Recipes</span></div><span class="url">kitchennotes.test/weeknight-pasta</span><div class="note"><b>Remember:</b><ul><li>Book a table</li><li>Invite Sam</li></ul></div></div>
+      </article>
+      <article class="card" data-tags="work reading" data-search="practical guide focused work attention meaningful example.com/already-saved send to maya">
+        <button class="later-control marked" aria-label="Remove A practical guide to focused work from read later">Saved for later</button>
+        <button class="archive-button">Archive</button><div class="more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="archive-menu-action">Archive</button></div></div>
+        <button class="delete-button">Delete permanently</button><div class="delete-more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="delete-menu-action">Delete permanently</button></div></div>
+        <div class="image work"></div><div class="body"><div class="site">EXAMPLE.COM</div><h2>A practical guide to focused work</h2><p class="description">Ideas for protecting your attention and making time for meaningful work.</p><div class="card-tags"><span class="card-tag">Work</span><span class="card-tag">Reading</span></div><span class="url">example.com/already-saved</span><p class="note"><b>My note:</b> Send to Maya</p></div>
+      </article>
+      <article class="card" data-tags="reading" data-search="live presence age productivity reflection purpose quiet marginalian.org/presence reread when overwhelmed">
+        <button class="later-control" aria-label="Add How to live with presence to read later">Read later</button>
+        <button class="archive-button">Archive</button><div class="more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="archive-menu-action">Archive</button></div></div>
+        <button class="delete-button">Delete permanently</button><div class="delete-more-wrap"><button class="more-button" aria-label="More actions">•••</button><div class="more-menu"><button class="delete-menu-action">Delete permanently</button></div></div>
+        <div class="image"></div><div class="body"><div class="site">THE MARGINALIAN</div><h2>How to live with presence</h2><p class="description">A reflection on attention, purpose, and the quiet work of being fully alive.</p><div class="card-tags"><span class="card-tag">Reading</span></div><span class="url">marginalian.org/presence</span><p class="note"><b>My note:</b> Reread when overwhelmed</p></div>
+      </article>
+    </section>
+    <div class="empty" id="empty"><h2>No bookmarks match that search</h2><p>Clear or change the search to bring your library back.</p></div>
+    <div class="initial-empty" id="initial-empty"><div class="empty-mark"></div><h2>Your library is ready</h2><p>Save your first link to start building a collection you can find again.</p><a href="/">Save your first link</a></div>
+      </div>
+    </div>
+  </main>
+  <div class="modal-backdrop" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <div class="modal"><h2 id="delete-title">Delete this bookmark permanently?</h2><p><strong id="delete-name"></strong> will be removed for good. This cannot be undone.</p><div class="modal-actions"><button class="cancel-delete">Cancel</button><button class="confirm-delete">Delete permanently</button></div></div>
+  </div>
+  <script>
+    const search = document.querySelector('#search');
+    const cards = [...document.querySelectorAll('.card')];
+    const count = document.querySelector('#count');
+    const empty = document.querySelector('#empty');
+    const mode = new URLSearchParams(location.search).get('tags');
+    if (mode === 'chips') document.body.classList.add('mode-chips');
+    if (mode === 'sidebar') document.body.classList.add('mode-sidebar');
+    const laterMode = new URLSearchParams(location.search).get('later');
+    if (laterMode === 'text') document.body.classList.add('mode-sidebar', 'mode-later-text');
+    if (laterMode === 'icon') document.body.classList.add('mode-sidebar', 'mode-later-icon');
+    const archiveMode = new URLSearchParams(location.search).get('archive');
+    if (archiveMode === 'button') document.body.classList.add('mode-sidebar', 'mode-archive-button');
+    if (archiveMode === 'menu') document.body.classList.add('mode-sidebar', 'mode-archive-menu');
+    const deleteMode = new URLSearchParams(location.search).get('delete');
+    if (deleteMode === 'button') document.body.classList.add('mode-sidebar', 'mode-archive-button', 'mode-delete-button');
+    if (deleteMode === 'menu') document.body.classList.add('mode-sidebar', 'mode-archive-button', 'mode-delete-menu');
+    let selectedTag = 'all';
+    let selectedView = 'all';
+    cards[1].dataset.later = 'true';
+    if (deleteMode) cards[2].dataset.archived = 'true';
+    function filterCards() {
+      const query = search.value.trim().toLocaleLowerCase();
+      let shown = 0;
+      cards.forEach(card => {
+        const textMatch = card.dataset.search.toLocaleLowerCase().includes(query);
+        const tagMatch = selectedTag === 'all' || card.dataset.tags.split(' ').includes(selectedTag);
+        const archived = card.dataset.archived === 'true';
+        const viewMatch = selectedView === 'archive' ? archived : (!archived && (selectedView === 'all' || card.dataset.later === 'true'));
+        const match = textMatch && tagMatch && viewMatch;
+        card.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      count.textContent = `${shown} bookmark${shown === 1 ? '' : 's'}`;
+      if (!shown) {
+        if (selectedView === 'later' && !query && selectedTag === 'all') empty.innerHTML = '<h2>Nothing saved for later</h2><p>Use “Read later” on any bookmark and it will appear here.</p>';
+        else if (selectedView === 'archive' && !query && selectedTag === 'all') empty.innerHTML = '<h2>Your archive is empty</h2><p>Bookmarks you archive will stay safe here until you restore or delete them.</p>';
+        else if (selectedTag !== 'all' && !query) empty.innerHTML = '<h2>No bookmarks with this tag</h2><p>Choose another tag or return to all tags.</p>';
+        else empty.innerHTML = '<h2>No bookmarks match that search</h2><p>Clear or change the search to bring your library back.</p>';
+      }
+      empty.style.display = shown ? 'none' : 'block';
+    }
+    search.addEventListener('input', filterCards);
+    document.querySelectorAll('.tag-filter').forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.view) return;
+      selectedTag = button.dataset.tag;
+      document.querySelectorAll('.tag-filter[data-tag]').forEach(item => item.classList.toggle('active', item.dataset.tag === selectedTag));
+      filterCards();
+    }));
+    document.querySelectorAll('.view-filter').forEach(button => button.addEventListener('click', () => {
+      selectedView = button.dataset.view;
+      document.querySelectorAll('.view-filter').forEach(item => item.classList.toggle('active', item === button));
+      filterCards();
+    }));
+    document.querySelectorAll('.later-control').forEach(button => button.addEventListener('click', () => {
+      const card = button.closest('.card');
+      const marked = card.dataset.later === 'true';
+      card.dataset.later = marked ? 'false' : 'true';
+      button.classList.toggle('marked', !marked);
+      button.textContent = marked ? 'Read later' : 'Saved for later';
+      button.setAttribute('aria-label', `${marked ? 'Add' : 'Remove'} ${card.querySelector('h2').textContent} ${marked ? 'to' : 'from'} read later`);
+      filterCards();
+    }));
+    function toggleArchive(card) {
+      const archived = card.dataset.archived === 'true';
+      card.dataset.archived = archived ? 'false' : 'true';
+      card.querySelector('.archive-button').textContent = archived ? 'Archive' : 'Restore';
+      card.querySelector('.archive-menu-action').textContent = archived ? 'Archive' : 'Restore';
+      filterCards();
+    }
+    document.querySelectorAll('.archive-button, .archive-menu-action').forEach(button => button.addEventListener('click', () => toggleArchive(button.closest('.card'))));
+    document.querySelectorAll('.more-button').forEach(button => button.addEventListener('click', () => button.nextElementSibling.classList.toggle('show')));
+    const deleteModal = document.querySelector('#delete-modal');
+    let pendingDelete = null;
+    document.querySelectorAll('.delete-button, .delete-menu-action').forEach(button => button.addEventListener('click', () => {
+      pendingDelete = button.closest('.card');
+      document.querySelector('#delete-name').textContent = pendingDelete.querySelector('h2').textContent;
+      deleteModal.classList.add('show');
+    }));
+    document.querySelector('.cancel-delete').addEventListener('click', () => { deleteModal.classList.remove('show'); pendingDelete = null; });
+    document.querySelector('.confirm-delete').addEventListener('click', () => { if (pendingDelete) pendingDelete.remove(); deleteModal.classList.remove('show'); cards.splice(cards.indexOf(pendingDelete),1); pendingDelete=null; filterCards(); });
+    if (new URLSearchParams(location.search).get('empty') === 'library') {
+      document.body.classList.add('mode-empty');
+      cards.forEach(card => card.remove()); cards.splice(0, cards.length);
+      document.querySelector('#count').textContent = '0 bookmarks';
+      document.querySelector('#initial-empty').classList.add('show');
+    }
+    if (new URLSearchParams(location.search).get('empty') === 'later') cards.forEach(card => card.dataset.later = 'false');
+  </script>
+</body>
+</html>

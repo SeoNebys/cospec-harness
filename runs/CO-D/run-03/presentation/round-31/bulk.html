@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bulk actions — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:24px 20px 120px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  .searchbar { position:relative; margin-bottom:10px; }
+  .searchbar input { width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 14px 10px 38px; font-size:14px; outline:none; }
+  .searchbar .mag { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); }
+  .toprow { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; }
+  .seg { display:inline-flex; background:#eef1f5; border-radius:9px; padding:3px; }
+  .seg button { border:none; background:transparent; padding:6px 13px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-radius:7px; }
+  .seg button.active { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .selectall { font-size:13px; color:var(--accent); cursor:pointer; }
+  .count { font-size:13px; color:var(--muted); margin:0 2px 8px; }
+  .list { display:flex; flex-direction:column; gap:9px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:12px; }
+  .card.sel { border-color:var(--accent); box-shadow:0 0 0 2px rgba(47,109,246,.14); }
+  .card input[type=checkbox]{ width:18px; height:18px; cursor:pointer; flex:none; }
+  .card .body { flex:1; min-width:0; }
+  .card .title { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .card .meta { color:var(--muted); font-size:12.5px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .chip { background:#e7f0ff; color:#245; border-radius:999px; padding:2px 8px; font-size:11.5px; }
+  .badge { font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px; }
+  .badge.toread { background:#eaf1fe; color:var(--accent); } .badge.finished { background:#e5f6ec; color:var(--green); }
+
+  .matchbanner { background:#fff8e6; border:1px solid #f0dca8; color:#7a5a12; border-radius:9px; padding:9px 13px; font-size:13px; margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .matchbanner b { font-weight:700; } .matchbanner .link { color:var(--accent); cursor:pointer; font-weight:600; }
+
+  .bar { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#1e2430; color:#fff; border-radius:14px; padding:10px 12px; display:flex; align-items:center; gap:6px; box-shadow:0 12px 40px rgba(0,0,0,.35); flex-wrap:wrap; max-width:94vw; }
+  .bar .nsel { font-size:13px; font-weight:700; padding:0 8px; white-space:nowrap; }
+  .bar button { background:#2b3340; color:#fff; border:1px solid #3a4350; border-radius:8px; padding:8px 11px; font-size:12.5px; cursor:pointer; white-space:nowrap; }
+  .bar button:hover { background:#38414f; }
+  .bar button.danger { color:#ffb4ab; border-color:#5a2b28; }
+  .bar button.close { background:transparent; border:none; color:#9aa2ad; font-size:16px; }
+  .popover { position:fixed; left:50%; bottom:74px; transform:translateX(-50%); background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:14px; width:320px; box-shadow:0 14px 40px rgba(0,0,0,.28); display:none; }
+  .popover.show { display:block; }
+  .popover h4 { margin:0 0 8px; font-size:14px; }
+  .popover input { width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; }
+  .popover .pchips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .popover .pact { margin-top:12px; display:flex; gap:8px; justify-content:flex-end; }
+  .popover .pact button { border:none; border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer; }
+  .popover .apply { background:var(--accent); color:#fff; font-weight:600; } .popover .cancel { background:#eef1f5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Select several and act on them together.</p>
+  <div class="searchbar"><span class="mag">🔍</span><input id="q" value="#reading" readonly /></div>
+  <div class="toprow">
+    <div class="seg"><button>To read</button><button>Finished</button><button class="active">All</button></div>
+    <span class="selectall" id="selpage">Select all on this page</span>
+  </div>
+  <div id="matchmount"></div>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+</div>
+<div class="popover" id="pop"></div>
+<div id="barmount"></div>
+<script>
+const TOTAL_MATCH=137; // total bookmarks matching current search "#reading" across whole collection
+let DATA=[];
+for(let i=1;i<=8;i++){ DATA.push({ id:i, title:["Deep work and attention","Slow reading manifesto","On rereading books","A history of marginalia","Notes on note-taking","The paper vs screen debate","Why we forget what we read","Building a reading habit"][i-1],
+  site:["blog.example.org","press.example","books.example.org","arch.example","zettel.example","nytimes.com","sci.example","habit.example"][i-1],
+  status:(i%3===0?"finished":"toread"), tags:["reading", i%2?"focus":"longform"] }); }
+let selected=new Set();
+let selectAllMatching=false;
+
+const listEl=document.getElementById("list"), countEl=document.getElementById("count");
+const matchmount=document.getElementById("matchmount"), barmount=document.getElementById("barmount"), pop=document.getElementById("pop");
+
+function render(){
+  countEl.textContent="Showing "+DATA.length+" of "+TOTAL_MATCH+" bookmarks matching “#reading”";
+  listEl.innerHTML=DATA.map(b=>{
+    const on=selectAllMatching||selected.has(b.id);
+    return '<div class="card'+(on?' sel':'')+'">'+
+      '<input type="checkbox" data-id="'+b.id+'" '+(on?'checked':'')+' '+(selectAllMatching?'disabled':'')+'/>'+
+      '<div class="body"><div class="title">'+b.title+'</div>'+
+        '<div class="meta"><span>'+b.site+'</span> <span class="badge '+b.status+'">'+(b.status==="finished"?"Finished":"To read")+'</span> '+
+          b.tags.map(t=>'<span class="chip">#'+t+'</span>').join(' ')+'</div></div></div>';
+  }).join('');
+  listEl.querySelectorAll("input[type=checkbox]").forEach(cb=>cb.onchange=()=>{
+    const id=+cb.dataset.id; if(cb.checked) selected.add(id); else selected.delete(id); selectAllMatching=false; renderBarAndBanner(); render(); });
+  renderBarAndBanner();
+}
+function selCount(){ return selectAllMatching?TOTAL_MATCH:selected.size; }
+function renderBarAndBanner(){
+  // banner appears when all on-page selected (and not yet "all matching")
+  const allPage=DATA.every(b=>selected.has(b.id));
+  if(allPage && !selectAllMatching && selected.size>0){
+    matchmount.innerHTML='<div class="matchbanner"><span>✔ All <b>'+DATA.length+'</b> on this page are selected.</span>'+
+      '<span class="link" id="selMatch">Select all '+TOTAL_MATCH+' bookmarks that match “#reading”</span></div>';
+    document.getElementById("selMatch").onclick=()=>{ selectAllMatching=true; renderBarAndBanner(); render(); };
+  } else if(selectAllMatching){
+    matchmount.innerHTML='<div class="matchbanner"><span>✔ All <b>'+TOTAL_MATCH+'</b> matching bookmarks are selected (across every page).</span>'+
+      '<span class="link" id="clearMatch">Clear selection</span></div>';
+    document.getElementById("clearMatch").onclick=()=>{ selectAllMatching=false; selected.clear(); renderBarAndBanner(); render(); };
+  } else matchmount.innerHTML="";
+
+  if(selCount()===0){ barmount.innerHTML=""; pop.classList.remove("show"); return; }
+  barmount.innerHTML='<div class="bar">'+
+    '<span class="nsel">'+selCount()+' selected</span>'+
+    '<button data-a="addtags">＋ Add tags</button>'+
+    '<button data-a="remtags">－ Remove tags</button>'+
+    '<button data-a="finished">✓ Mark read</button>'+
+    '<button data-a="toread">📖 Mark unread</button>'+
+    '<button data-a="archive">🗄 Archive</button>'+
+    '<button data-a="delete" class="danger">🗑 Delete</button>'+
+    '<button class="close" id="barclose">✕</button>'+
+  '</div>';
+  document.getElementById("barclose").onclick=()=>{ selected.clear(); selectAllMatching=false; renderBarAndBanner(); render(); };
+  barmount.querySelectorAll("[data-a]").forEach(el=>el.onclick=()=>act(el.dataset.a));
+}
+function act(a){
+  const n=selCount();
+  if(a==="addtags"||a==="remtags"){
+    pop.classList.add("show");
+    pop.innerHTML='<h4>'+(a==="addtags"?"Add tags to ":"Remove tags from ")+n+' bookmarks</h4>'+
+      (a==="addtags"?'<input placeholder="Type a tag and press Enter…"/><div class="pchips"><span class="chip">reading</span><span class="chip">to-revisit</span></div>'
+                    :'<div class="pchips"><span class="chip">reading ✕</span><span class="chip">focus ✕</span><span class="chip">longform ✕</span></div><div style="font-size:12px;color:var(--muted);margin-top:8px;">Pick tags to remove from the selected bookmarks.</div>')+
+      '<div class="pact"><button class="cancel" id="pcancel">Cancel</button><button class="apply" id="papply">Apply to '+n+'</button></div>';
+    document.getElementById("pcancel").onclick=()=>pop.classList.remove("show");
+    document.getElementById("papply").onclick=()=>{ pop.classList.remove("show"); toast("Updated tags on "+n+" bookmarks."); };
+    return;
+  }
+  if(a==="delete"){
+    pop.classList.add("show");
+    pop.innerHTML='<h4>Delete '+n+' bookmarks permanently?</h4>'+
+      '<div style="font-size:13px;color:#4a5260;line-height:1.5;">This can\'t be undone. If you only want them out of your main list, use <b>Archive</b> instead.</div>'+
+      '<div class="pact"><button class="cancel" id="pcancel">Cancel</button><button class="apply" id="papply" style="background:var(--danger);">Delete '+n+' permanently</button></div>';
+    document.getElementById("pcancel").onclick=()=>pop.classList.remove("show");
+    document.getElementById("papply").onclick=()=>{ pop.classList.remove("show"); toast("Deleted "+n+" bookmarks."); };
+    return;
+  }
+  const label={finished:"Marked "+n+" as read (Finished)",toread:"Marked "+n+" as unread (To read)",archive:"Archived "+n+" bookmarks"}[a];
+  toast(label);
+}
+function toast(msg){ const t=document.createElement("div"); t.textContent=msg;
+  t.style.cssText="position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#1c7a4d;color:#fff;padding:9px 15px;border-radius:8px;font-size:13px;z-index:120;box-shadow:0 8px 24px rgba(0,0,0,.25)";
+  document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+document.getElementById("selpage").onclick=()=>{ DATA.forEach(b=>selected.add(b.id)); selectAllMatching=false; render(); };
+// presets for screenshots
+const preset=new URLSearchParams(location.search).get("s");
+render();
+if(preset==="some"){ selected.add(1); selected.add(3); render(); }
+if(preset==="allmatch"){ DATA.forEach(b=>selected.add(b.id)); selectAllMatching=true; render(); }
+if(preset==="allpage"){ DATA.forEach(b=>selected.add(b.id)); render(); }
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

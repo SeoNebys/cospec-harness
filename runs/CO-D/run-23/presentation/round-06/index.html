@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — your bookmarks, findable</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1e2a26;
+      --muted: #68746f;
+      --line: #dfe6e1;
+      --paper: #f5f4ee;
+      --card: #fffefa;
+      --green: #255d48;
+      --green-dark: #194534;
+      --mint: #dcebe3;
+      --shadow: 0 16px 40px rgba(35, 55, 46, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 16% 0%, rgba(219, 232, 220, .8), transparent 34rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 232px 1fr;
+    }
+
+    aside {
+      padding: 30px 22px;
+      border-right: 1px solid rgba(37, 93, 72, .12);
+      background: rgba(249, 249, 244, .68);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 0 10px 44px;
+      font-family: Georgia, serif;
+      font-size: 24px;
+      letter-spacing: -.6px;
+    }
+
+    .brand-mark {
+      width: 33px;
+      height: 33px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px 11px 11px 3px;
+      background: var(--green);
+      color: white;
+      font: 700 18px Georgia, serif;
+      transform: rotate(-3deg);
+    }
+
+    nav { display: grid; gap: 6px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 11px 13px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #56625d;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .nav-item.active { background: var(--mint); color: var(--green-dark); }
+    .nav-icon { width: 20px; text-align: center; font-size: 16px; }
+    .count {
+      margin-left: auto;
+      min-width: 24px;
+      padding: 2px 7px;
+      border-radius: 12px;
+      background: rgba(37, 93, 72, .1);
+      text-align: center;
+      font-size: 11px;
+    }
+
+    main { padding: 31px 48px 64px; }
+    .topbar {
+      display: flex;
+      justify-content: flex-end;
+      min-height: 42px;
+    }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #d8dfda;
+      border-radius: 50%;
+      background: var(--card);
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .content { max-width: 900px; margin: 10px auto 0; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(36px, 4vw, 51px);
+      font-weight: 500;
+      letter-spacing: -1.7px;
+      line-height: 1.08;
+    }
+    .lede { margin: 12px 0 30px; color: var(--muted); font-size: 16px; }
+
+    .save-panel {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid rgba(37, 93, 72, .16);
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .url-wrap { position: relative; flex: 1; }
+    .link-symbol {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      color: #8b9691;
+      transform: translateY(-50%);
+    }
+    #url-input {
+      width: 100%;
+      height: 50px;
+      padding: 0 16px 0 43px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: 15px;
+    }
+    #url-input::placeholder { color: #98a19d; }
+    #save-button {
+      min-width: 113px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--green);
+      color: white;
+      font-weight: 750;
+      transition: transform .15s ease, background .15s ease;
+    }
+    #save-button:hover { background: var(--green-dark); transform: translateY(-1px); }
+    #save-button:disabled { cursor: wait; opacity: .78; transform: none; }
+
+    .hint { margin: 10px 4px 0; color: #87918d; font-size: 12px; }
+    .search-panel {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 8px 9px;
+      border: 1px solid #d9e1dc;
+      border-radius: 13px;
+      background: rgba(255, 254, 250, .78);
+    }
+    .search-panel.show { display: flex; }
+    .search-icon { padding-left: 7px; color: #7b8782; }
+    #search-input {
+      flex: 1;
+      min-width: 0;
+      height: 42px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+    }
+    #search-button {
+      display: none;
+      height: 40px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 9px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 750;
+    }
+    #search-button.show { display: block; }
+    .library-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 40px 0 16px;
+    }
+    .library-head h2 { margin: 0; font: 500 22px Georgia, serif; }
+    .library-head span { color: var(--muted); font-size: 13px; }
+
+    .empty-state {
+      min-height: 226px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed #cbd5cf;
+      border-radius: 18px;
+      background: rgba(255, 254, 250, .47);
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-icon {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      background: var(--mint);
+      color: var(--green);
+      font-size: 22px;
+    }
+    .empty-state strong { display: block; margin-bottom: 5px; color: var(--ink); }
+
+    .bookmark-card {
+      display: none;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--card);
+      box-shadow: 0 7px 24px rgba(35, 55, 46, .05);
+      animation: arrive .3s ease both;
+    }
+    .bookmark-card.show { display: grid; }
+    .bookmark-card + .bookmark-card { margin-top: 12px; }
+    .site-row { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+    .favicon {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: #24292f;
+      color: white;
+      font: 700 13px Georgia, serif;
+    }
+    .domain { color: var(--muted); font-size: 12px; }
+    .bookmark-title { margin: 0 0 7px; font: 600 20px Georgia, serif; }
+    .bookmark-description { max-width: 650px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .saved-chip {
+      align-self: start;
+      padding: 7px 10px;
+      border-radius: 20px;
+      background: var(--mint);
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .site-blue { background: #2867b2; }
+    .site-coral { background: #bd5841; }
+    .site-violet { background: #6652a3; }
+    .no-results {
+      display: none;
+      padding: 48px 20px;
+      border: 1px dashed #cbd5cf;
+      border-radius: 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .no-results.show { display: block; }
+    .toast {
+      position: fixed;
+      right: 30px;
+      bottom: 28px;
+      padding: 13px 17px;
+      border-radius: 11px;
+      background: var(--ink);
+      color: white;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @keyframes arrive { from { opacity: 0; transform: translateY(8px); } }
+
+    @media (max-width: 760px) {
+      .app-shell { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 20px 48px; }
+      .content { margin-top: 22px; }
+      .save-panel { display: grid; }
+      #save-button { height: 46px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell" data-harness-ready="true">
+    <aside>
+      <div class="brand"><span class="brand-mark">T</span> Trove</div>
+      <nav aria-label="Bookmark views">
+        <button class="nav-item active"><span class="nav-icon">⌂</span>All bookmarks <span class="count" id="nav-count">0</span></button>
+        <button class="nav-item"><span class="nav-icon">◷</span>Read later</button>
+        <button class="nav-item"><span class="nav-icon">◇</span>Labels</button>
+        <button class="nav-item"><span class="nav-icon">⌕</span>Search</button>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="topbar"><div class="avatar" aria-label="Personal account">ME</div></div>
+      <section class="content">
+        <p class="eyebrow">Your personal library</p>
+        <h1>Save something worth<br>finding again.</h1>
+        <p class="lede">Paste a link and its details will be gathered for you.</p>
+
+        <form class="save-panel" id="save-form">
+          <div class="url-wrap">
+            <span class="link-symbol" aria-hidden="true">↗</span>
+            <input id="url-input" type="url" required autocomplete="off" aria-label="Web address" placeholder="Paste a web address…">
+          </div>
+          <button id="save-button" type="submit">Save link</button>
+        </form>
+        <p class="hint">For this prototype, try: https://github.com/features/copilot</p>
+
+        <form class="search-panel" id="search-form" role="search">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input id="search-input" type="search" autocomplete="off" aria-label="Search saved bookmarks" placeholder="Search titles, descriptions, and more…">
+          <button id="search-button" type="submit">Search</button>
+        </form>
+
+        <div class="library-head">
+          <h2>Recently saved</h2>
+          <span id="result-count">0 bookmarks</span>
+        </div>
+
+        <div class="empty-state" id="empty-state">
+          <div>
+            <div class="empty-icon">↗</div>
+            <strong>Your library is waiting</strong>
+            <span>Your first saved link will appear here.</span>
+          </div>
+        </div>
+
+        <article class="bookmark-card" id="bookmark-card" aria-live="polite">
+          <div>
+            <div class="site-row">
+              <span class="favicon">GH</span>
+              <span class="domain" id="domain">github.com</span>
+            </div>
+            <h3 class="bookmark-title">GitHub Copilot · Your AI pair programmer</h3>
+            <p class="bookmark-description">Get suggestions for whole lines or entire functions right inside your editor, powered by AI and trained on billions of lines of code.</p>
+          </div>
+          <span class="saved-chip">Saved just now</span>
+        </article>
+
+        <article class="bookmark-card library-card" data-search="inclusive components accessible interface patterns keyboard navigation forms menus heydon pickering https://inclusive-components.design/">
+          <div>
+            <div class="site-row">
+              <span class="favicon site-coral">IC</span>
+              <span class="domain">inclusive-components.design</span>
+            </div>
+            <h3 class="bookmark-title">Inclusive Components</h3>
+            <p class="bookmark-description">Accessible interface patterns explained through practical examples, including keyboard navigation, forms, and menus.</p>
+          </div>
+          <span class="saved-chip">Saved May 18</span>
+        </article>
+
+        <article class="bookmark-card library-card" data-search="understanding css grid complete guide layout rows columns web design https://css-tricks.com/snippets/css/complete-guide-grid/">
+          <div>
+            <div class="site-row">
+              <span class="favicon site-blue">CS</span>
+              <span class="domain">css-tricks.com</span>
+            </div>
+            <h3 class="bookmark-title">A Complete Guide to CSS Grid</h3>
+            <p class="bookmark-description">A visual reference for building web layouts with grid containers, rows, columns, and alignment.</p>
+          </div>
+          <span class="saved-chip">Saved Apr 06</span>
+        </article>
+
+        <article class="bookmark-card library-card" data-search="how to take smart notes reading knowledge ideas note taking sönke ahrens https://www.goodreads.com/book/show/34507927-how-to-take-smart-notes">
+          <div>
+            <div class="site-row">
+              <span class="favicon site-violet">BK</span>
+              <span class="domain">goodreads.com</span>
+            </div>
+            <h3 class="bookmark-title">How to Take Smart Notes</h3>
+            <p class="bookmark-description">A practical guide to turning reading and research into connected ideas you can find and use later.</p>
+          </div>
+          <span class="saved-chip">Saved Mar 29</span>
+        </article>
+
+        <div class="no-results" id="no-results">No saved bookmarks match those words.</div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status">Link saved with its details</div>
+
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url-input');
+    const button = document.querySelector('#save-button');
+    const empty = document.querySelector('#empty-state');
+    const card = document.querySelector('#bookmark-card');
+    const toast = document.querySelector('#toast');
+    const params = new URLSearchParams(window.location.search);
+    const searchMode = params.get('flow') === 'search';
+    const searchInteraction = params.get('interaction') || 'live';
+    const searchPanel = document.querySelector('#search-form');
+    const searchInput = document.querySelector('#search-input');
+    const searchButton = document.querySelector('#search-button');
+    const libraryCards = [...document.querySelectorAll('.library-card')];
+    const noResults = document.querySelector('#no-results');
+
+    function applySearch() {
+      const words = searchInput.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      let visible = 0;
+      libraryCards.forEach((item) => {
+        const matches = words.every((word) => item.dataset.search.includes(word));
+        item.classList.toggle('show', matches);
+        if (matches) visible += 1;
+      });
+      noResults.classList.toggle('show', visible === 0);
+      document.querySelector('#result-count').textContent = `${visible} ${visible === 1 ? 'bookmark' : 'bookmarks'}`;
+    }
+
+    if (searchMode) {
+      document.querySelector('h1').innerHTML = 'Find what you saved.<br>Right when you need it.';
+      document.querySelector('.lede').textContent = 'Search across your personal library by the words you remember.';
+      searchPanel.classList.add('show');
+      empty.style.display = 'none';
+      card.style.display = 'none';
+      libraryCards.forEach((item) => item.classList.add('show'));
+      document.querySelector('#nav-count').textContent = '3';
+      document.querySelector('#result-count').textContent = '3 bookmarks';
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+      document.querySelectorAll('.nav-item')[3].classList.add('active');
+      if (searchInteraction === 'button') searchButton.classList.add('show');
+      if (searchInteraction === 'live') searchInput.addEventListener('input', applySearch);
+    }
+
+    searchPanel.addEventListener('submit', (event) => {
+      event.preventDefault();
+      applySearch();
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Gathering…';
+      window.setTimeout(() => {
+        empty.style.display = 'none';
+        card.classList.add('show');
+        document.querySelector('#nav-count').textContent = '1';
+        document.querySelector('#result-count').textContent = '1 bookmark';
+        button.disabled = false;
+        button.textContent = 'Save link';
+        input.value = '';
+        toast.classList.add('show');
+        window.setTimeout(() => toast.classList.remove('show'), 2200);
+      }, 700);
+    });
+  </script>
+</body>
+</html>

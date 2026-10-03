@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookmarks — prototype</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1c2430; --muted:#6b7686;
+    --line:#e6e9ef; --accent:#2f6fed; --accent-soft:#eaf1ff; --chip:#eef1f6;
+    --warn:#8a5a00; --warn-soft:#fff4e0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+
+  .composer{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-bottom:28px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  .composer label{display:block;font-size:12px;font-weight:600;color:var(--muted);
+    margin:0 0 4px;letter-spacing:.02em;text-transform:uppercase}
+  .composer input,.composer textarea{width:100%;border:1px solid var(--line);border-radius:9px;
+    padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
+  .composer input:focus,.composer textarea:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft)}
+  .row{margin-bottom:12px}
+  .two{display:flex;gap:12px}
+  .two>div{flex:1}
+  textarea{resize:vertical;min-height:52px}
+  .save{background:var(--accent);color:#fff;border:none;border-radius:9px;padding:10px 18px;
+    font-size:15px;font-weight:600;cursor:pointer}
+  .save:hover{background:#255fd6}
+
+  /* auto-fill preview */
+  .preview{display:none;align-items:center;gap:10px;background:#f9fbff;border:1px solid var(--accent-soft);
+    border-radius:10px;padding:8px 10px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+  .preview.show{display:flex}
+  .spinner{width:14px;height:14px;border:2px solid #cdd7ea;border-top-color:var(--accent);
+    border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .fields{display:none}
+  .fields.show{display:block}
+
+  .favicon{width:20px;height:20px;border-radius:4px;flex:0 0 20px;display:inline-flex;
+    align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;
+    background:var(--accent);overflow:hidden}
+  .favicon img{width:100%;height:100%;object-fit:cover}
+
+  /* tag input */
+  .tagwrap{position:relative}
+  .suggest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);
+    border-radius:9px;box-shadow:0 6px 20px rgba(20,30,50,.12);margin-top:4px;z-index:5;overflow:hidden;display:none}
+  .suggest.show{display:block}
+  .suggest div{padding:8px 12px;font-size:14px;cursor:pointer}
+  .suggest div:hover,.suggest div.active{background:var(--accent-soft)}
+
+  .listhead{display:flex;align-items:baseline;justify-content:space-between;margin:0 0 12px}
+  .listhead h2{font-size:15px;margin:0}
+  .count{color:var(--muted);font-size:13px}
+
+  .empty{text-align:center;color:var(--muted);padding:48px 16px;border:1px dashed var(--line);
+    border-radius:14px;background:#fff}
+  .empty .big{font-size:15px;color:var(--ink);margin-bottom:4px}
+
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+    margin-bottom:12px;box-shadow:0 1px 2px rgba(20,30,50,.04)}
+  .item .head{display:flex;gap:10px;align-items:flex-start}
+  .item .favicon{width:28px;height:28px;flex:0 0 28px;border-radius:6px;font-size:14px;margin-top:2px}
+  .item .title{font-size:16px;font-weight:600;margin:0 0 2px}
+  .item .title a{color:var(--ink);text-decoration:none}
+  .item .title a:hover{text-decoration:underline}
+  .item .url{font-size:12px;color:var(--accent);word-break:break-all;margin:0}
+  .item .desc{font-size:14px;color:#37414f;margin:8px 0 10px}
+  .tags{display:flex;flex-wrap:wrap;gap:6px}
+  .tag{background:var(--chip);color:#41505f;font-size:12px;padding:3px 9px;border-radius:20px}
+  .edit-btn{background:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;
+    font-size:13px;color:#41505f;cursor:pointer;margin-top:10px}
+  .edit-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .just-added{animation:flash 1.4s ease}
+  .highlight{box-shadow:0 0 0 3px var(--accent-soft),0 1px 2px rgba(20,30,50,.04);border-color:var(--accent)}
+  @keyframes flash{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+
+  .dupbanner{display:none;align-items:center;gap:8px;background:var(--warn-soft);color:var(--warn);
+    border:1px solid #f0d9a8;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:14px}
+  .dupbanner.show{display:flex}
+
+  /* inline editor */
+  .editor{background:#f9fbff;border:1px dashed var(--accent);border-radius:10px;padding:12px;margin-top:10px}
+  .editor label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px;text-transform:uppercase}
+  .editor input,.editor textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+    font-size:14px;font-family:inherit;margin-bottom:8px}
+  .editor .save{padding:7px 14px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Paste a link — the title, description and site icon fill in for you.</p>
+
+  <div class="dupbanner" id="dupbanner"></div>
+
+  <form class="composer" id="composer">
+    <div class="row">
+      <label for="url">Link</label>
+      <input id="url" type="text" placeholder="Paste or type a web address" autocomplete="off">
+    </div>
+
+    <div class="preview" id="preview">
+      <span class="spinner"></span><span>Fetching page details…</span>
+    </div>
+
+    <div class="fields" id="fields">
+      <div class="row two" style="align-items:flex-start">
+        <div style="flex:0 0 auto">
+          <label>Icon</label>
+          <span class="favicon" id="favicon" style="width:38px;height:38px;font-size:16px"></span>
+        </div>
+        <div>
+          <label for="title">Title</label>
+          <input id="title" type="text" autocomplete="off">
+        </div>
+      </div>
+      <div class="row">
+        <label for="desc">Description</label>
+        <textarea id="desc"></textarea>
+      </div>
+      <div class="row tagwrap">
+        <label for="tags">Tags</label>
+        <input id="tags" type="text" placeholder="Type a tag, comma to add another" autocomplete="off">
+        <div class="suggest" id="suggest"></div>
+      </div>
+      <div class="row">
+        <label for="note">Note (private)</label>
+        <textarea id="note" placeholder="Optional reminder to yourself"></textarea>
+      </div>
+      <button class="save" type="submit">Save bookmark</button>
+    </div>
+  </form>
+
+  <div class="listhead">
+    <h2>Saved</h2>
+    <span class="count" id="count"></span>
+  </div>
+  <div id="list"></div>
+</div>
+
+<script>
+  // ---- simulated page-metadata lookup (a prototype fakes the external fetch) ----
+  var CANNED = {
+    'nytimes.com': {t:'The New York Times — Breaking News', d:'Live coverage of world news, politics, business, and culture.'},
+    'wikipedia.org': {t:'Wikipedia, the free encyclopedia', d:'The free encyclopedia that anyone can edit.'},
+    'seriouseats.com': {t:'Serious Eats: Recipes & Techniques', d:'Tested recipes and the science of great home cooking.'},
+    'github.com': {t:'GitHub', d:'Where the world builds software.'},
+    'youtube.com': {t:'YouTube', d:'Watch, share, and discover videos.'}
+  };
+  function domainOf(url){
+    var u = url.replace(/^https?:\/\//i,'').replace(/^www\./i,'');
+    return u.split('/')[0].toLowerCase();
+  }
+  function normalize(url){
+    return url.replace(/^https?:\/\//i,'').replace(/^www\./i,'').replace(/\/+$/,'').toLowerCase();
+  }
+  function palette(dom){
+    var colors=['#2f6fed','#e0663a','#2fa36b','#8a4fd0','#d0434f','#1f8a9c','#c78a1a'];
+    var s=0; for(var i=0;i<dom.length;i++) s+=dom.charCodeAt(i);
+    return colors[s%colors.length];
+  }
+  function faviconHTML(dom,cls){
+    var letter = dom.charAt(0).toUpperCase();
+    var color = palette(dom);
+    // try a real favicon, fall back to a colored letter tile
+    return '<span class="favicon'+(cls?' '+cls:'')+'" style="background:'+color+'">'+
+      '<img src="https://www.google.com/s2/favicons?domain='+encodeURIComponent(dom)+'&sz=64" '+
+      'onerror="this.style.display=\'none\'" alt="">'+
+      '<span style="position:absolute">'+letter+'</span></span>';
+  }
+  function lookup(url){
+    var dom = domainOf(url);
+    var base = CANNED[dom];
+    if(base) return {title:base.t, desc:base.d, dom:dom};
+    var name = dom.split('.')[0];
+    name = name.charAt(0).toUpperCase()+name.slice(1);
+    return {title:name, desc:'A page saved from '+dom+'.', dom:dom};
+  }
+
+  var items = [];
+  var usedTags = {};
+  var listEl=document.getElementById('list'), countEl=document.getElementById('count');
+  var urlEl=document.getElementById('url'), previewEl=document.getElementById('preview'),
+      fieldsEl=document.getElementById('fields'), faviconEl=document.getElementById('favicon'),
+      titleEl=document.getElementById('title'), descEl=document.getElementById('desc'),
+      tagsEl=document.getElementById('tags'), noteEl=document.getElementById('note'),
+      suggestEl=document.getElementById('suggest'), dupEl=document.getElementById('dupbanner');
+  var currentDom='';
+  var fetchTimer=null;
+
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  // ---- URL entered -> duplicate check or simulated auto-fill ----
+  urlEl.addEventListener('input', function(){
+    dupEl.classList.remove('show');
+    var url = urlEl.value.trim();
+    clearTimeout(fetchTimer);
+    if(!url){ previewEl.classList.remove('show'); fieldsEl.classList.remove('show'); return; }
+
+    // duplicate?
+    var existing = items.find(function(b){return normalize(b.url)===normalize(url);});
+    if(existing){
+      previewEl.classList.remove('show'); fieldsEl.classList.remove('show');
+      showDuplicate(existing);
+      return;
+    }
+
+    previewEl.classList.add('show'); fieldsEl.classList.remove('show');
+    fetchTimer = setTimeout(function(){
+      var meta = lookup(url);
+      currentDom = meta.dom;
+      titleEl.value = meta.title; descEl.value = meta.desc;
+      faviconEl.outerHTML = faviconHTML(meta.dom).replace('class="favicon','id="favicon" class="favicon');
+      faviconEl = document.getElementById('favicon');
+      faviconEl.style.width='38px'; faviconEl.style.height='38px'; faviconEl.style.fontSize='16px';
+      previewEl.classList.remove('show'); fieldsEl.classList.add('show');
+    }, 700);
+  });
+
+  function showDuplicate(b){
+    dupEl.innerHTML = 'You already saved this link. <a href="#bm-'+b.id+'" style="color:inherit;font-weight:600;margin-left:4px">Go to it to update →</a>';
+    dupEl.classList.add('show');
+    dupEl.querySelector('a').onclick=function(e){e.preventDefault();openEditor(b.id,true);};
+  }
+
+  // ---- tag suggestions ----
+  var activeSug=-1;
+  tagsEl.addEventListener('input', function(){
+    var val=tagsEl.value; var parts=val.split(','); var cur=parts[parts.length-1].trim().toLowerCase();
+    if(!cur){ suggestEl.classList.remove('show'); return; }
+    var chosen = parts.slice(0,-1).map(function(t){return t.trim().toLowerCase();});
+    var matches=Object.keys(usedTags).filter(function(t){
+      return t.indexOf(cur)===0 && chosen.indexOf(t)<0;
+    }).slice(0,6);
+    if(!matches.length){ suggestEl.classList.remove('show'); return; }
+    activeSug=-1;
+    suggestEl.innerHTML=matches.map(function(t){return '<div>'+esc(t)+'</div>';}).join('');
+    Array.prototype.forEach.call(suggestEl.children,function(el){
+      el.onclick=function(){ applyTag(parts,el.textContent); };
+    });
+    suggestEl.classList.add('show');
+  });
+  function applyTag(parts,tag){
+    parts[parts.length-1]=' '+tag;
+    tagsEl.value=parts.join(',')+', ';
+    suggestEl.classList.remove('show'); tagsEl.focus();
+  }
+  tagsEl.addEventListener('keydown',function(e){
+    if(!suggestEl.classList.contains('show')) return;
+    var opts=suggestEl.children;
+    if(e.key==='ArrowDown'){e.preventDefault();activeSug=Math.min(activeSug+1,opts.length-1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeSug=Math.max(activeSug-1,0);}
+    else if(e.key==='Enter'&&activeSug>=0){e.preventDefault();opts[activeSug].click();return;}
+    else return;
+    Array.prototype.forEach.call(opts,function(el,i){el.classList.toggle('active',i===activeSug);});
+  });
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('.tagwrap')) suggestEl.classList.remove('show');
+  });
+
+  function parseTags(raw){
+    return raw ? raw.split(',').map(function(t){return t.trim();}).filter(Boolean) : [];
+  }
+  function rememberTags(tags){ tags.forEach(function(t){usedTags[t.toLowerCase()]=true;}); }
+
+  // ---- save ----
+  document.getElementById('composer').addEventListener('submit',function(e){
+    e.preventDefault();
+    var url=urlEl.value.trim(); if(!url) return;
+    var existing=items.find(function(b){return normalize(b.url)===normalize(url);});
+    if(existing){ openEditor(existing.id,true); return; }
+    var tags=parseTags(tagsEl.value);
+    var b={id:Date.now(),url:url,title:titleEl.value.trim()||url,desc:descEl.value.trim(),
+      note:noteEl.value.trim(),tags:tags,dom:currentDom||domainOf(url)};
+    items.unshift(b); rememberTags(tags);
+    urlEl.value='';titleEl.value='';descEl.value='';tagsEl.value='';noteEl.value='';
+    fieldsEl.classList.remove('show');
+    render(b.id); urlEl.focus();
+  });
+
+  // ---- inline editor on an existing bookmark ----
+  function openEditor(id,scroll){
+    render(null,id);
+    if(scroll){var el=document.getElementById('bm-'+id);
+      if(el){el.scrollIntoView({behavior:'smooth',block:'center'});
+        el.classList.add('highlight');setTimeout(function(){el.classList.remove('highlight');},1600);}}
+  }
+
+  function render(justAddedId,editId){
+    countEl.textContent = items.length ? items.length+(items.length===1?' bookmark':' bookmarks') : '';
+    if(!items.length){
+      listEl.innerHTML='<div class="empty"><div class="big">No bookmarks yet</div>'+
+        'Paste a link above to save your first one.</div>'; return;
+    }
+    listEl.innerHTML=items.map(function(b){
+      if(b.id===editId){
+        return '<div class="item highlight" id="bm-'+b.id+'">'+
+          '<div class="head">'+faviconHTML(b.dom)+
+          '<div><div class="title">'+esc(b.title)+'</div><div class="url">'+esc(b.url)+'</div></div></div>'+
+          '<div class="editor">'+
+            '<label>Description</label><textarea id="e-desc">'+esc(b.desc)+'</textarea>'+
+            '<label>Tags</label><input id="e-tags" value="'+esc((b.tags||[]).join(', '))+'">'+
+            '<label>Note</label><textarea id="e-note">'+esc(b.note||'')+'</textarea>'+
+            '<button class="save" onclick="saveEdit('+b.id+')">Update bookmark</button>'+
+          '</div></div>';
+      }
+      var tags=(b.tags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join('');
+      return '<div class="item'+(b.id===justAddedId?' just-added':'')+'" id="bm-'+b.id+'">'+
+        '<div class="head">'+faviconHTML(b.dom)+
+        '<div style="flex:1"><div class="title"><a href="'+esc(b.url)+'" target="_blank" rel="noopener">'+esc(b.title)+'</a></div>'+
+        '<div class="url">'+esc(b.url)+'</div></div></div>'+
+        (b.desc?'<div class="desc">'+esc(b.desc)+'</div>':'')+
+        (tags?'<div class="tags">'+tags+'</div>':'')+
+        '<button class="edit-btn" onclick="openEditor('+b.id+',false)">Edit</button>'+
+      '</div>';
+    }).join('');
+  }
+
+  window.openEditor=openEditor;
+  window.saveEdit=function(id){
+    var b=items.find(function(x){return x.id===id;}); if(!b) return;
+    b.desc=document.getElementById('e-desc').value.trim();
+    b.tags=parseTags(document.getElementById('e-tags').value);
+    b.note=document.getElementById('e-note').value.trim();
+    rememberTags(b.tags);
+    render(id);
+    var el=document.getElementById('bm-'+id);
+    if(el){el.classList.add('highlight');setTimeout(function(){el.classList.remove('highlight');},1600);}
+  };
+
+  render();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

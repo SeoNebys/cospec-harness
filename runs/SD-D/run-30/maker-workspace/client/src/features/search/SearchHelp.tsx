@@ -1,0 +1,1 @@
+export function SearchHelp(){return <details className="search-help"><summary>Search tips</summary><p>Use ordinary words together for AND, <code>#tag</code> for an exact tag, quotes for an exact phrase, and the words <code>OR</code> or <code>NOT</code> to combine or exclude.</p></details>}

@@ -1,0 +1,2 @@
+import{NextRequest,NextResponse}from"next/server";import{metadataPreview}from"@/server/services/metadata-service";
+export async function POST(req:NextRequest){try{const{url}=await req.json();return NextResponse.json(await metadataPreview(url));}catch(e){return NextResponse.json({code:"metadata_unavailable",message:e instanceof Error?e.message:"Details unavailable",title:"",description:"",iconUrl:""},{status:200});}}

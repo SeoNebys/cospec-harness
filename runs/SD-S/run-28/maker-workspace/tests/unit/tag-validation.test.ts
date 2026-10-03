@@ -1,0 +1,2 @@
+import { describe,expect,it } from "vitest";import { normalizeTagName } from "@/lib/bookmarks/tags";
+describe("tag normalization",()=>{it("trims, folds whitespace, and creates a case-insensitive key",()=>expect(normalizeTagName("  Product   Design ")).toEqual({name:"Product Design",normalized:"product design"}));it("rejects empty and overlong tags",()=>{expect(()=>normalizeTagName(" ")).toThrow();expect(()=>normalizeTagName("x".repeat(51))).toThrow();});});

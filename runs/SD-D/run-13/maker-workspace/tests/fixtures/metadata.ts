@@ -1,0 +1,1 @@
+export const metadataHtml=`<!doctype html><html><head><title>Fixture title</title><meta name="description" content="Fixture description"><meta property="og:image" content="/preview.png"><link rel="icon" href="/icon.png"></head><body></body></html>`;

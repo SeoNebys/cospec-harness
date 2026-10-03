@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — tags (version B)</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1f2933; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #2563eb; --accent-soft: #eff4ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 22px 28px; background: var(--card); border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .variant-tag { display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:3px 10px; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+  .panel h2 { margin: 0 0 14px; font-size: 15px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+  input[type=text], input[type=url], textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; }
+  textarea { resize: vertical; min-height: 60px; }
+  button { border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:disabled { background: #9db8f0; cursor: default; }
+  .status-line { font-size: 12px; min-height: 16px; margin-top: 8px; }
+  .status-fetching { color: var(--accent); }
+  .status-done { color: #15803d; }
+  .autofilled { background: var(--accent-soft); border-color: #c7d8fb; transition: background .4s ease; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; font-size: 14px; }
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  li.item { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  li.item .title { font-weight: 600; font-size: 15px; }
+  li.item .title a { color: var(--ink); text-decoration: none; }
+  li.item .url { font-size: 12px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+  li.item .desc { font-size: 13px; color: #4b5563; margin-top: 8px; }
+  .chips { margin-top: 10px; }
+  .chip { display:inline-block; font-size:12px; color:#334155; background:#eef2f7; border:1px solid #e2e8f0; border-radius:999px; padding:3px 10px; margin:0 6px 6px 0; }
+
+  /* tag editor */
+  .tagbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:7px 8px; background:#fff; }
+  .tagbox:focus-within { border-color: var(--accent); }
+  .tagbox .chip { display:inline-flex; align-items:center; margin:0; background:var(--accent-soft); border-color:#c7d8fb; color:#1e40af; }
+  .tagbox .chip button { background:none; border:none; color:#1e40af; font-size:14px; line-height:1; padding:0 0 0 6px; cursor:pointer; font-weight:700; }
+  .tagbox input { border:none; outline:none; flex:1; min-width:120px; padding:4px; font-size:14px; }
+  .suggest { margin-top:8px; }
+  .suggest span { display:inline-block; font-size:12px; color:var(--muted); margin-right:6px; }
+  .suggest .sug { color:var(--accent); background:var(--accent-soft); border:1px solid #c7d8fb; border-radius:999px; padding:3px 10px; margin:0 6px 6px 0; cursor:pointer; }
+  .count { color: var(--muted); font-size: 12px; font-weight: 400; }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Prototype for review — behaviour exploration only</p>
+  <span class="variant-tag">Tag entry — Version B: press Enter to add a tag chip; reuse earlier tags with one click</span>
+</header>
+<main>
+  <section class="panel">
+    <h2>Save a link</h2>
+    <label for="url">Paste a link</label>
+    <input id="url" type="url" placeholder="https://…" autocomplete="off" />
+    <div id="status" class="status-line"></div>
+
+    <label for="title">Title</label>
+    <input id="title" type="text" placeholder="Filled in automatically" />
+
+    <label for="desc">Description</label>
+    <textarea id="desc" placeholder="Filled in automatically"></textarea>
+
+    <label for="taginput">Tags</label>
+    <div class="tagbox" id="tagbox">
+      <input id="taginput" type="text" placeholder="Type a tag, press Enter" autocomplete="off" />
+    </div>
+    <div class="hint">Press Enter (or comma) to turn a word into a tag. Click a tag's × to remove it.</div>
+    <div class="suggest" id="suggest"></div>
+
+    <div style="margin-top:16px">
+      <button id="save" class="btn-primary" disabled>Save bookmark</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Saved <span id="count" class="count"></span></h2>
+    <div id="empty" class="empty">No bookmarks yet. Paste a link above to save your first one.</div>
+    <ul id="list" class="list"></ul>
+  </section>
+</main>
+
+<script>
+  const CANNED = {
+    "developer.mozilla.org": { title: "MDN Web Docs", desc: "Resources for developers, by developers — documentation for web technologies including HTML, CSS, and JavaScript." },
+    "en.wikipedia.org": { title: "Wikipedia — the free encyclopedia", desc: "A free online encyclopedia, created and edited by volunteers around the world." },
+    "www.nytimes.com": { title: "The New York Times — Breaking News & Analysis", desc: "Live news, investigations, opinion, photos and video from the reporters of The New York Times." },
+    "github.com": { title: "GitHub", desc: "Where the world builds software. Millions of developers build and ship on GitHub." }
+  };
+  function prettifyPath(u){try{const url=new URL(u);const host=url.hostname.replace(/^www\./,"");let slug=(url.pathname||"").split("/").filter(Boolean).pop()||"";slug=decodeURIComponent(slug).replace(/[-_]+/g," ").replace(/\.\w+$/,"").trim();if(slug){return {title:slug.replace(/\b\w/g,c=>c.toUpperCase()),desc:"Saved from "+host+"."};}return {title:host.split(".")[0].replace(/\b\w/g,c=>c.toUpperCase()),desc:"Saved from "+host+"."};}catch(e){return {title:"",desc:""};}}
+  function lookup(u){try{const host=new URL(u).hostname;if(CANNED[host])return CANNED[host];}catch(e){}return prettifyPath(u);}
+  function isValidUrl(u){try{const x=new URL(u);return x.protocol==="http:"||x.protocol==="https:";}catch(e){return false;}}
+
+  const urlEl=document.getElementById("url"),titleEl=document.getElementById("title"),descEl=document.getElementById("desc"),statusEl=document.getElementById("status"),saveEl=document.getElementById("save"),listEl=document.getElementById("list"),emptyEl=document.getElementById("empty"),countEl=document.getElementById("count");
+  const tagbox=document.getElementById("tagbox"),tagInput=document.getElementById("taginput"),suggestEl=document.getElementById("suggest");
+  const bookmarks=[]; let fetchTimer=null;
+  let currentTags=[]; const knownTags=new Set();
+
+  function refreshSaveState(){saveEl.disabled=!isValidUrl(urlEl.value.trim());}
+  function autofill(){const u=urlEl.value.trim();if(!isValidUrl(u)){statusEl.textContent="";return;}statusEl.textContent="Fetching details…";statusEl.className="status-line status-fetching";clearTimeout(fetchTimer);fetchTimer=setTimeout(()=>{const m=lookup(u);titleEl.value=m.title;descEl.value=m.desc;titleEl.classList.add("autofilled");descEl.classList.add("autofilled");statusEl.textContent="Details filled in for you — edit if you like.";statusEl.className="status-line status-done";},650);}
+  urlEl.addEventListener("input",()=>{refreshSaveState();titleEl.classList.remove("autofilled");descEl.classList.remove("autofilled");});
+  urlEl.addEventListener("change",autofill); urlEl.addEventListener("blur",autofill);
+  [titleEl,descEl].forEach(el=>el.addEventListener("input",()=>el.classList.remove("autofilled")));
+
+  function renderTagEditor(){
+    tagbox.querySelectorAll(".chip").forEach(c=>c.remove());
+    currentTags.forEach(tag=>{
+      const chip=document.createElement("span");chip.className="chip";chip.textContent="#"+tag;
+      const x=document.createElement("button");x.type="button";x.textContent="×";x.addEventListener("click",()=>{currentTags=currentTags.filter(t=>t!==tag);renderTagEditor();renderSuggest();});
+      chip.appendChild(x);tagbox.insertBefore(chip,tagInput);
+    });
+  }
+  function addTag(raw){const t=raw.trim();if(!t)return;if(!currentTags.includes(t)){currentTags.push(t);knownTags.add(t);}tagInput.value="";renderTagEditor();renderSuggest();}
+  tagInput.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();addTag(tagInput.value);}else if(e.key==="Backspace"&&!tagInput.value&&currentTags.length){currentTags.pop();renderTagEditor();renderSuggest();}});
+  function renderSuggest(){
+    const avail=[...knownTags].filter(t=>!currentTags.includes(t));
+    suggestEl.innerHTML="";
+    if(!avail.length)return;
+    const lbl=document.createElement("span");lbl.textContent="Reuse:";suggestEl.appendChild(lbl);
+    avail.forEach(t=>{const b=document.createElement("span");b.className="sug";b.textContent="#"+t;b.addEventListener("click",()=>addTag(t));suggestEl.appendChild(b);});
+  }
+
+  function render(){
+    listEl.innerHTML="";countEl.textContent=bookmarks.length?"("+bookmarks.length+")":"";emptyEl.style.display=bookmarks.length?"none":"block";
+    bookmarks.forEach(b=>{
+      const li=document.createElement("li");li.className="item";
+      const t=document.createElement("div");t.className="title";const a=document.createElement("a");a.href=b.url;a.textContent=b.title||b.url;a.target="_blank";t.appendChild(a);
+      const url=document.createElement("div");url.className="url";url.textContent=b.url;
+      li.appendChild(t);li.appendChild(url);
+      if(b.desc){const d=document.createElement("div");d.className="desc";d.textContent=b.desc;li.appendChild(d);}
+      if(b.tags&&b.tags.length){const c=document.createElement("div");c.className="chips";b.tags.forEach(tag=>{const s=document.createElement("span");s.className="chip";s.textContent="#"+tag;c.appendChild(s);});li.appendChild(c);}
+      listEl.appendChild(li);
+    });
+  }
+  saveEl.addEventListener("click",()=>{const u=urlEl.value.trim();if(!isValidUrl(u))return;if(tagInput.value.trim())addTag(tagInput.value);bookmarks.unshift({url:u,title:titleEl.value.trim()||lookup(u).title,desc:descEl.value.trim(),tags:currentTags.slice()});urlEl.value="";titleEl.value="";descEl.value="";currentTags=[];renderTagEditor();renderSuggest();statusEl.textContent="";refreshSaveState();render();});
+  tagbox.addEventListener("click",()=>tagInput.focus());
+  render();
+  document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Your library</title>
+  <style>
+    :root { --ink:#17201d; --muted:#68736e; --line:#dfe6e2; --paper:#fff; --wash:#f3f6f3; --green:#28664f; --green2:#e5f1eb; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--wash); color:var(--ink); font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    header { height:68px; background:var(--paper); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 5vw; }
+    .brand { font:700 21px/1.2 Georgia,serif; letter-spacing:.01em; }
+    .brand i { display:inline-block; width:11px; height:15px; margin-right:9px; background:var(--green); border-radius:2px 2px 5px 5px; vertical-align:-2px; }
+    .save-link { color:var(--green); text-decoration:none; font-weight:700; }
+    main { width:min(980px,90vw); margin:54px auto; }
+    .eyebrow { color:var(--green); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; }
+    h1 { font:600 clamp(34px,5vw,48px)/1.08 Georgia,serif; margin:8px 0 26px; letter-spacing:-.025em; }
+    .search-wrap { position:relative; margin-bottom:14px; }
+    .search-wrap span { position:absolute; left:16px; top:13px; color:var(--muted); font-size:18px; }
+    #search { width:100%; height:50px; border:1px solid #c8d2cd; border-radius:12px; padding:0 16px 0 46px; font:16px system-ui,sans-serif; outline:none; background:#fff; }
+    #search:focus { border-color:var(--green); box-shadow:0 0 0 3px var(--green2); }
+    .count { color:var(--muted); font-size:13px; margin:0 0 20px; }
+    .filter-label { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin:0 0 8px; }
+    .top-filters { display:none; margin:16px 0 20px; }
+    .filter-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .tag-filter { border:1px solid #c8d2cd; background:#fff; color:#405048; border-radius:999px; padding:8px 13px; font:650 13px/1 system-ui,sans-serif; cursor:pointer; }
+    .tag-filter.active { background:var(--green); border-color:var(--green); color:#fff; }
+    .library-layout { display:block; }
+    .side-filters { display:none; }
+    body.mode-chips .top-filters { display:block; }
+    body.mode-sidebar .library-layout { display:grid; grid-template-columns:170px 1fr; gap:24px; align-items:start; }
+    body.mode-sidebar .side-filters { display:block; background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; }
+    body.mode-sidebar .side-filters .tag-filter { display:block; width:100%; text-align:left; margin:6px 0; border-radius:8px; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; min-height:252px; }
+    .image { height:104px; background:linear-gradient(145deg,#d4e3da,#839f8e); }
+    .image.food { background:linear-gradient(145deg,#f0cda2,#bd7655); }
+    .image.work { background:linear-gradient(145deg,#c8d8e5,#6787a0); }
+    .body { padding:16px; }
+    .site { color:var(--green); font-size:11px; font-weight:800; letter-spacing:.06em; }
+    h2 { font:600 19px/1.25 Georgia,serif; margin:7px 0 7px; }
+    .description { color:var(--muted); font-size:13px; margin:0; }
+    .url { display:block; color:#7b8882; font-size:11px; margin-top:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .note { margin:10px 0 0; padding-top:9px; border-top:1px solid var(--line); color:#4f5d57; font-size:12px; }
+    .note b { color:var(--green); }
+    .card-tags { display:flex; gap:5px; flex-wrap:wrap; margin-top:10px; }
+    .card-tag { padding:3px 7px; border-radius:999px; background:var(--green2); color:var(--green); font-size:10px; font-weight:750; }
+    .empty { display:none; padding:52px; text-align:center; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:14px; }
+    @media(max-width:720px){ .grid{grid-template-columns:1fr;} body.mode-sidebar .library-layout{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header><div class="brand"><i></i>Keep</div><a class="save-link" href="/">+ Save a link</a></header>
+  <main data-harness-ready="true">
+    <div class="eyebrow">Your library</div>
+    <h1>Find what you saved.</h1>
+    <div class="search-wrap"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search your bookmarks…" aria-label="Search saved bookmarks"></div>
+    <div class="top-filters">
+      <p class="filter-label">Filter by tag</p>
+      <div class="filter-row"><button class="tag-filter active" data-tag="all">All</button><button class="tag-filter" data-tag="recipes">Recipes</button><button class="tag-filter" data-tag="work">Work</button><button class="tag-filter" data-tag="reading">Reading</button></div>
+    </div>
+    <div class="library-layout">
+      <aside class="side-filters">
+        <p class="filter-label">Tags</p>
+        <button class="tag-filter active" data-tag="all">All bookmarks</button><button class="tag-filter" data-tag="recipes">Recipes</button><button class="tag-filter" data-tag="work">Work</button><button class="tag-filter" data-tag="reading">Reading</button>
+      </aside>
+      <div>
+      <p class="count" id="count">3 bookmarks</p>
+      <section class="grid" id="grid">
+      <article class="card" data-tags="recipes" data-search="simple weeknight pasta recipe tomatoes garlic kitchennotes.test/weeknight-pasta try this weekend">
+        <div class="image food"></div><div class="body"><div class="site">KITCHEN NOTES</div><h2>Simple weeknight pasta</h2><p class="description">A flexible tomato pasta recipe for busy evenings.</p><div class="card-tags"><span class="card-tag">Recipes</span></div><span class="url">kitchennotes.test/weeknight-pasta</span><p class="note"><b>My note:</b> Try this weekend</p></div>
+      </article>
+      <article class="card" data-tags="work reading" data-search="practical guide focused work attention meaningful example.com/already-saved send to maya">
+        <div class="image work"></div><div class="body"><div class="site">EXAMPLE.COM</div><h2>A practical guide to focused work</h2><p class="description">Ideas for protecting your attention and making time for meaningful work.</p><div class="card-tags"><span class="card-tag">Work</span><span class="card-tag">Reading</span></div><span class="url">example.com/already-saved</span><p class="note"><b>My note:</b> Send to Maya</p></div>
+      </article>
+      <article class="card" data-tags="reading" data-search="live presence age productivity reflection purpose quiet marginalian.org/presence reread when overwhelmed">
+        <div class="image"></div><div class="body"><div class="site">THE MARGINALIAN</div><h2>How to live with presence</h2><p class="description">A reflection on attention, purpose, and the quiet work of being fully alive.</p><div class="card-tags"><span class="card-tag">Reading</span></div><span class="url">marginalian.org/presence</span><p class="note"><b>My note:</b> Reread when overwhelmed</p></div>
+      </article>
+    </section>
+    <div class="empty" id="empty">No bookmarks match that search.</div>
+      </div>
+    </div>
+  </main>
+  <script>
+    const search = document.querySelector('#search');
+    const cards = [...document.querySelectorAll('.card')];
+    const count = document.querySelector('#count');
+    const empty = document.querySelector('#empty');
+    const mode = new URLSearchParams(location.search).get('tags');
+    if (mode === 'chips') document.body.classList.add('mode-chips');
+    if (mode === 'sidebar') document.body.classList.add('mode-sidebar');
+    let selectedTag = 'all';
+    function filterCards() {
+      const query = search.value.trim().toLocaleLowerCase();
+      let shown = 0;
+      cards.forEach(card => {
+        const textMatch = card.dataset.search.toLocaleLowerCase().includes(query);
+        const tagMatch = selectedTag === 'all' || card.dataset.tags.split(' ').includes(selectedTag);
+        const match = textMatch && tagMatch;
+        card.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      count.textContent = `${shown} bookmark${shown === 1 ? '' : 's'}`;
+      empty.style.display = shown ? 'none' : 'block';
+    }
+    search.addEventListener('input', filterCards);
+    document.querySelectorAll('.tag-filter').forEach(button => button.addEventListener('click', () => {
+      selectedTag = button.dataset.tag;
+      document.querySelectorAll('.tag-filter').forEach(item => item.classList.toggle('active', item.dataset.tag === selectedTag));
+      filterCards();
+    }));
+  </script>
+</body>
+</html>

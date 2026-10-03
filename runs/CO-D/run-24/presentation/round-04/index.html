@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eef2ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 80px;
+  }
+  .saver {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .saver input[type=url] {
+    flex: 1 1 320px;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .saver button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .saver button:disabled { opacity: .55; cursor: default; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 2px 0; }
+  .list { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .favicon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--accent-soft);
+    display: grid; place-items: center;
+    font-weight: 700; color: var(--accent);
+    flex: none; font-size: 15px; overflow: hidden;
+  }
+  .favicon img { width: 22px; height: 22px; display: block; }
+  .card .body { flex: 1; min-width: 0; }
+  .card .preview {
+    width: 100%; height: 132px; object-fit: cover;
+    border-radius: 8px; margin-bottom: 8px; display: block;
+    border: 1px solid var(--line);
+  }
+  .card .title { font-weight: 600; font-size: 15px; margin: 0 0 3px; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: 0 0 6px; line-height: 1.4; }
+  .card .site { color: var(--accent); font-size: 12px; word-break: break-all; }
+  .card.saving { opacity: .7; }
+  .card.flash { animation: flash 1.4s ease; }
+  @keyframes flash {
+    0% { box-shadow: 0 0 0 0 rgba(37,99,235,.0); border-color: var(--accent); }
+    25% { box-shadow: 0 0 0 4px rgba(37,99,235,.18); border-color: var(--accent); }
+    100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); border-color: var(--line); }
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 10px;
+    font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0;
+    transition: opacity .25s, transform .25s; pointer-events: none; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .7s linear infinite; display: inline-block; vertical-align: -3px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty {
+    text-align: center; color: var(--muted); padding: 48px 20px;
+    border: 1px dashed var(--line); border-radius: 12px; margin-top: 22px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Bookmarks</h1>
+  <p>Save a link and I'll fill in the page details for you.</p>
+</header>
+<main>
+  <form class="saver" id="saver" autocomplete="off">
+    <input type="url" id="url" placeholder="Paste a link, e.g. https://…" required />
+    <button type="submit" id="saveBtn">Save</button>
+  </form>
+  <div class="hint">Paste any web address and press Save.</div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty">No bookmarks yet. Paste a link above to save your first one.</div>
+</main>
+
+<script>
+// --- Prototype: simulated page-detail lookup (no real network needed) ---
+// Simulated preview image, so "preview when available" renders even offline.
+function previewImage(label, c1, c2) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='320'>
+    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/>
+    </linearGradient></defs>
+    <rect width='640' height='320' fill='url(#g)'/>
+    <text x='40' y='180' font-family='Segoe UI, Arial' font-size='44' font-weight='700' fill='#ffffff'>${label}</text>
+  </svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+const KNOWN = {
+  "github.com": { site: "GitHub", title: "GitHub · Build and ship software", desc: "The complete developer platform to build, scale, and deliver secure software.", preview: previewImage("GitHub", "#24292e", "#57606a") },
+  "en.wikipedia.org": { site: "Wikipedia", title: "Wikipedia, the free encyclopedia", desc: "A free online encyclopedia, created and edited by volunteers around the world.", preview: previewImage("Wikipedia", "#3366cc", "#111111") },
+  "nytimes.com": { site: "The New York Times", title: "The New York Times — Breaking News, World News & Multimedia", desc: "Live news, investigations, opinion, photos and video.", preview: previewImage("The New York Times", "#000000", "#333333") },
+  "youtube.com": { site: "YouTube", title: "YouTube", desc: "Enjoy the videos and music you love, upload original content, and share it all.", preview: previewImage("YouTube", "#ff0000", "#7a0000") },
+  "developer.mozilla.org": { site: "MDN Web Docs", title: "MDN Web Docs", desc: "Resources for developers, by developers. Documentation for web technologies.", preview: previewImage("MDN Web Docs", "#0b5fff", "#001b44") },
+  "medium.com": { site: "Medium", title: "Medium — Where good ideas find you", desc: "Read and write stories, deepen your understanding of the topics that matter.", preview: previewImage("Medium", "#000000", "#4d4d4d") },
+};
+function faviconUrl(host) {
+  return "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=64";
+}
+function normalizeUrl(url) {
+  let u = url.trim();
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  try {
+    const p = new URL(u);
+    let path = p.pathname.replace(/\/$/, "");
+    return (p.hostname.replace(/^www\./, "") + path + p.search).toLowerCase();
+  } catch { return u.toLowerCase().replace(/\/$/, ""); }
+}
+function metadataFor(url) {
+  let host;
+  try { host = new URL(/^https?:\/\//i.test(url) ? url : "https://" + url).hostname.replace(/^www\./, ""); }
+  catch { host = url.replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, ""); }
+  const base = KNOWN[host]
+    ? { ...KNOWN[host], host }
+    : (() => {
+        const name = (host.split(".")[0] || host).replace(/[-_]/g, " ");
+        const pretty = name.charAt(0).toUpperCase() + name.slice(1);
+        // Unknown sites: no preview image available.
+        return { site: pretty, title: pretty + " — " + host, desc: "Saved page from " + host + ".", host, preview: null };
+      })();
+  base.favicon = faviconUrl(host);
+  return base;
+}
+
+const list = document.getElementById("list");
+const empty = document.getElementById("empty");
+const form = document.getElementById("saver");
+const urlInput = document.getElementById("url");
+const saveBtn = document.getElementById("saveBtn");
+
+let bookmarks = [];
+
+function faviconHtml(b) {
+  const initial = (b.site || b.host || "?").trim().charAt(0).toUpperCase();
+  if (b.loading) return '<span class="spinner"></span>';
+  if (b.favicon) {
+    return `<img src="${b.favicon}" alt="" onerror="this.replaceWith(document.createTextNode('${initial}'))" />`;
+  }
+  return initial;
+}
+function render() {
+  empty.style.display = bookmarks.length ? "none" : "block";
+  list.innerHTML = "";
+  for (const b of bookmarks) {
+    const card = document.createElement("div");
+    card.className = "card" + (b.loading ? " saving" : "");
+    card.dataset.key = b.key;
+    const preview = (!b.loading && b.preview)
+      ? `<img class="preview" src="${b.preview}" alt="Page preview" />` : "";
+    card.innerHTML = `
+      <div class="favicon">${faviconHtml(b)}</div>
+      <div class="body">
+        ${preview}
+        <p class="title">${b.loading ? "Fetching page details…" : escapeHtml(b.title)}</p>
+        <p class="desc">${b.loading ? "" : escapeHtml(b.desc)}</p>
+        <span class="site">${escapeHtml(b.url)}</span>
+      </div>`;
+    list.appendChild(card);
+  }
+}
+let toastTimer;
+function showToast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function flashCard(key) {
+  const el = list.querySelector(`[data-key="${CSS.escape(key)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.remove("flash");
+  void el.offsetWidth;
+  el.classList.add("flash");
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const url = urlInput.value.trim();
+  if (!url) return;
+  const key = normalizeUrl(url);
+  // Duplicate: don't add a second copy — bring up the one already saved.
+  const existing = bookmarks.find(b => b.key === key);
+  if (existing) {
+    urlInput.value = "";
+    flashCard(key);
+    showToast("You already saved this — here it is. (Editing comes next.)");
+    return;
+  }
+  const entry = { url, key, loading: true, id: Date.now() };
+  bookmarks.unshift(entry);
+  urlInput.value = "";
+  saveBtn.disabled = true;
+  render();
+  // Simulate the brief moment of fetching page details.
+  setTimeout(() => {
+    const meta = metadataFor(url);
+    Object.assign(entry, meta, { loading: false });
+    saveBtn.disabled = false;
+    render();
+  }, 650);
+});
+
+render();
+document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

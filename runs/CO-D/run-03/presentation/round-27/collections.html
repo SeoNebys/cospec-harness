@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Saved collections — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; --green:#1c9d63; --danger:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .layout { max-width:900px; margin:0 auto; padding:24px 20px 80px; display:grid; grid-template-columns:220px 1fr; gap:22px; }
+  @media(max-width:680px){ .layout{ grid-template-columns:1fr; } }
+  h1 { font-size:20px; margin:0 0 12px; }
+  .side h2 { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 8px; }
+  .coll { display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 11px; font-size:13.5px; margin-bottom:7px; cursor:pointer; }
+  .coll.active { border-color:var(--accent); background:#eef4ff; color:var(--accent); font-weight:600; }
+  .coll .c2 { font-size:11.5px; color:var(--muted); margin-top:2px; font-weight:400; }
+  .coll.active .c2 { color:#5a86e6; }
+
+  .builder { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:15px 17px; margin-bottom:16px; }
+  .fl { font-size:12px; color:var(--muted); display:block; margin:10px 0 5px; font-weight:600; }
+  .fl:first-child { margin-top:0; }
+  .ein { width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:14px; outline:none; }
+  .ein:focus { border-color:var(--accent); }
+  .chipbox { display:flex; flex-wrap:wrap; gap:6px; align-items:center; border:1px solid var(--line); border-radius:8px; padding:7px 9px; min-height:40px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px; font-size:13px; }
+  .chip.inc { background:#e7f4ec; color:#1c7a4d; } .chip.exc { background:#fdecea; color:#b23c30; }
+  .chip .x { cursor:pointer; font-weight:700; opacity:.7; }
+  .chipbox input { border:none; outline:none; flex:1; min-width:90px; font-size:13px; padding:3px; }
+  .suggest { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .sug { background:#fff; border:1px dashed #c4cbd6; color:#54607a; border-radius:999px; padding:3px 10px; font-size:12.5px; cursor:pointer; }
+  .savebar { display:flex; gap:9px; margin-top:14px; align-items:center; flex-wrap:wrap; }
+  .btn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; color:var(--ink); }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+  .count { font-size:13px; color:var(--muted); margin:0 2px 10px; }
+  .list { display:flex; flex-direction:column; gap:9px; }
+  .bk { background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 14px; }
+  .bk .t { font-size:15px; font-weight:600; margin:0 0 3px; }
+  .bk .m { color:var(--muted); font-size:12.5px; }
+  .tg { background:#e7f0ff; color:#245; border-radius:999px; padding:1px 8px; font-size:11.5px; margin-left:3px; }
+  .savednote { font-size:12.5px; color:var(--green); margin-top:8px; min-height:16px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="side">
+    <h1 style="font-size:16px;">Collections</h1>
+    <div id="colls"></div>
+    <h2 style="margin-top:16px;">Browse</h2>
+    <button class="coll" id="allbtn">All bookmarks</button>
+  </div>
+  <div class="main">
+    <h1 id="heading">New collection</h1>
+    <div class="builder">
+      <label class="fl">Search text</label>
+      <input class="ein" id="text" placeholder="e.g. layout" />
+      <label class="fl">Include tags <span style="font-weight:400;color:#9aa2ad;">— must have all of these</span></label>
+      <div id="incMount"></div>
+      <label class="fl">Exclude tags <span style="font-weight:400;color:#9aa2ad;">— hide any with these</span></label>
+      <div id="excMount"></div>
+      <div class="savebar">
+        <input class="ein" id="cname" style="max-width:220px;" placeholder="Name this collection…" />
+        <button class="btn primary" id="saveColl">＋ Save as collection</button>
+        <button class="btn" id="clearBuilder">Clear</button>
+      </div>
+      <div class="savednote" id="savednote"></div>
+    </div>
+    <div class="count" id="count"></div>
+    <div class="list" id="results"></div>
+  </div>
+</div>
+<script>
+const USED=["reading","focus","css","reference","recipes","dessert","rust","book","article","longform","history","productivity"];
+const DATA=[
+  {t:"CSS Flexbox layout — MDN", site:"developer.mozilla.org", tags:["css","reference"]},
+  {t:"CSS Grid in depth", site:"web.dev", tags:["css","reference","longform"]},
+  {t:"The Quiet Art of Reading Later", site:"nytimes.com", tags:["reading","focus"]},
+  {t:"Rust ownership explained", site:"doc.rust-lang.org", tags:["rust","reference","reading"]},
+  {t:"Chocolate tart recipe", site:"seriouseats.com", tags:["recipes","dessert"]},
+  {t:"Weeknight pasta", site:"seriouseats.com", tags:["recipes"]},
+  {t:"SPQR: History of Rome", site:"books.example.org", tags:["book","history","reading"]}
+];
+let COLLS=[
+  {name:"CSS references", text:"", inc:["css"], exc:[]},
+  {name:"Reading, no desserts", text:"", inc:["reading"], exc:["dessert"]}
+];
+let inc=[], exc=[], activeColl=null;
+
+function chipWidget(mount, arr, cls, other){
+  let typed="";
+  function draw(){
+    const q=typed.trim().toLowerCase();
+    const matches=USED.filter(s=>!arr.includes(s)&&!other.includes(s)&&q&&s.includes(q));
+    mount.innerHTML='<div class="chipbox">'+arr.map(t=>'<span class="chip '+cls+'">'+(cls==='exc'?'−':'')+t+'<span class="x" data-x="'+t+'">×</span></span>').join('')+
+      '<input placeholder="type a tag…" value="'+typed.replace(/"/g,'&quot;')+'"/></div>'+
+      (q?'<div class="suggest">'+matches.map(s=>'<span class="sug" data-s="'+s+'">'+s+'</span>').join('')+
+        (!USED.some(s=>s===q)?'':'')+'</div>':'');
+    const input=mount.querySelector("input"); input.focus(); input.setSelectionRange(input.value.length,input.value.length);
+    input.oninput=()=>{ typed=input.value; draw(); };
+    input.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=input.value.trim(); if(v&&!arr.includes(v)){arr.push(v);} typed=""; draw(); apply(); } };
+    mount.querySelectorAll(".sug").forEach(s=>s.onclick=()=>{ arr.push(s.dataset.s); typed=""; draw(); apply(); });
+    mount.querySelectorAll("[data-x]").forEach(x=>x.onclick=()=>{ const i=arr.indexOf(x.dataset.x); if(i>=0)arr.splice(i,1); draw(); apply(); });
+  }
+  draw();
+}
+const incMount=document.getElementById("incMount"), excMount=document.getElementById("excMount");
+const textEl=document.getElementById("text"), countEl=document.getElementById("count"), resultsEl=document.getElementById("results");
+function matches(b){
+  const q=textEl.value.trim().toLowerCase();
+  if(q && !(b.t.toLowerCase().includes(q)||b.site.toLowerCase().includes(q)||b.tags.join(" ").includes(q))) return false;
+  if(inc.length && !inc.every(t=>b.tags.includes(t))) return false;
+  if(exc.length && exc.some(t=>b.tags.includes(t))) return false;
+  return true;
+}
+function apply(){
+  const rows=DATA.filter(matches);
+  countEl.innerHTML=rows.length+" bookmark"+(rows.length===1?"":"s")+" match this collection"+
+    (activeColl?' · <b>'+activeColl+'</b> (updates automatically as you save new matching bookmarks)':'');
+  resultsEl.innerHTML=rows.map(b=>'<div class="bk"><div class="t">'+b.t+'</div><div class="m">'+b.site+' '+
+    b.tags.map(t=>'<span class="tg">#'+t+'</span>').join('')+'</div></div>').join('')||'<div class="count">No bookmarks match yet.</div>';
+}
+function renderColls(){
+  document.getElementById("colls").innerHTML=COLLS.map((c,i)=>'<button class="coll'+(activeColl===c.name?' active':'')+'" data-c="'+i+'">'+c.name+
+    '<div class="c2">'+(c.text?'“'+c.text+'” ':'')+c.inc.map(t=>'#'+t).join(' ')+' '+c.exc.map(t=>'−#'+t).join(' ')+'</div></button>').join('');
+  document.querySelectorAll("[data-c]").forEach(el=>el.onclick=()=>{ const c=COLLS[+el.dataset.c];
+    textEl.value=c.text; inc=[...c.inc]; exc=[...c.exc]; activeColl=c.name;
+    document.getElementById("heading").textContent=c.name;
+    document.getElementById("cname").value=c.name;
+    chipWidget(incMount,inc,"inc",exc); chipWidget(excMount,exc,"exc",inc); renderColls(); apply(); });
+}
+document.getElementById("saveColl").onclick=()=>{ const name=document.getElementById("cname").value.trim()||"Untitled collection";
+  const existing=COLLS.find(c=>c.name===name);
+  if(existing){ existing.text=textEl.value.trim(); existing.inc=[...inc]; existing.exc=[...exc]; }
+  else COLLS.push({name, text:textEl.value.trim(), inc:[...inc], exc:[...exc]});
+  activeColl=name; document.getElementById("heading").textContent=name;
+  document.getElementById("savednote").textContent="✓ Saved “"+name+"”. It stays in your Collections and updates automatically as matching bookmarks come and go.";
+  renderColls(); apply(); };
+document.getElementById("clearBuilder").onclick=()=>{ textEl.value=""; inc=[]; exc=[]; activeColl=null;
+  document.getElementById("heading").textContent="New collection"; document.getElementById("cname").value=""; document.getElementById("savednote").textContent="";
+  chipWidget(incMount,inc,"inc",exc); chipWidget(excMount,exc,"exc",inc); renderColls(); apply(); };
+document.getElementById("allbtn").onclick=()=>document.getElementById("clearBuilder").click();
+textEl.oninput=apply;
+
+// preset
+const pc=new URLSearchParams(location.search).get("coll");
+chipWidget(incMount,inc,"inc",exc); chipWidget(excMount,exc,"exc",inc); renderColls(); apply();
+if(pc==="1"){ document.querySelector("[data-c='1']").click(); }
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

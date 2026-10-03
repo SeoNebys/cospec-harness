@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keep — Tag filtering prototype</title>
+  <style>
+    :root { color-scheme:light; --ink:#17211d; --muted:#68736e; --line:#dce3df; --paper:#fbfcfa; --green:#245c45; --green-soft:#e7f1eb; --cream:#f3f0e8; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    header { height:68px; display:flex; align-items:center; border-bottom:1px solid var(--line); }
+    .shell { width:min(920px,calc(100% - 48px)); margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:11px; font-weight:750; font-size:18px; }
+    .mark { width:29px; height:34px; border-radius:4px 4px 9px 9px; background:var(--green); }
+    main { padding:56px 0; }
+    .eyebrow { color:var(--green); font-weight:700; font-size:12px; letter-spacing:.11em; text-transform:uppercase; }
+    h1 { margin:8px 0 30px; font:600 40px/1.08 Georgia,serif; letter-spacing:-.03em; }
+    .active-filter { display:none; align-items:center; justify-content:space-between; margin:0 0 18px; padding:12px 14px; border-radius:10px; background:var(--green-soft); color:var(--green); }
+    .active-filter.visible { display:flex; }
+    .clear { border:0; background:transparent; color:var(--green); font:700 13px inherit; cursor:pointer; text-decoration:underline; }
+    .library-head { display:flex; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:13px; }
+    h2 { margin:0; font-size:17px; }
+    .count { color:var(--muted); font-size:13px; }
+    .card { display:grid; grid-template-columns:52px 1fr; gap:15px; padding:20px 4px; border-bottom:1px solid var(--line); }
+    .card[hidden] { display:none; }
+    .thumb { width:52px; height:52px; display:grid; place-items:center; border-radius:11px; background:var(--cream); color:var(--green); font:700 19px Georgia,serif; }
+    .domain { color:var(--green); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; }
+    .title { margin:2px 0; font:600 19px/1.25 Georgia,serif; }
+    .summary { margin:0; color:var(--muted); font-size:14px; }
+    .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+    .tag { height:25px; padding:0 9px; border:0; border-radius:999px; background:var(--green-soft); color:var(--green); font:680 12px inherit; cursor:pointer; }
+    .tag:hover,.tag:focus-visible { outline:2px solid #8bb09e; outline-offset:1px; }
+    @media(max-width:620px){.shell{width:min(100% - 28px,920px)}}
+  </style>
+</head>
+<body>
+  <header><div class="shell brand"><span class="mark" aria-hidden="true"></span><span>Keep</span></div></header>
+  <main class="shell" data-harness-ready="true">
+    <div class="eyebrow">Your bookmark library</div>
+    <h1>All bookmarks</h1>
+    <div class="active-filter" id="active-filter"><strong>Showing tag: <span id="filter-name"></span></strong><button class="clear" id="clear" type="button">Clear filter</button></div>
+    <section>
+      <div class="library-head"><h2 id="list-title">Saved</h2><span class="count" id="count">4 bookmarks</span></div>
+      <article class="card" data-tags="design work">
+        <div class="thumb">D</div><div><div class="domain">example.com</div><h3 class="title">Design systems, without the jargon</h3><p class="summary">A practical guide to reusable foundations and shared patterns.</p><div class="tags"><button class="tag">design</button><button class="tag">work</button></div></div>
+      </article>
+      <article class="card" data-tags="design inspiration">
+        <div class="thumb">C</div><div><div class="domain">alistapart.com</div><h3 class="title">Colour that works</h3><p class="summary">Building accessible palettes for digital products.</p><div class="tags"><button class="tag">design</button><button class="tag">inspiration</button></div></div>
+      </article>
+      <article class="card" data-tags="cooking weekend">
+        <div class="thumb">S</div><div><div class="domain">kitchen.example</div><h3 class="title">Simple sourdough for Saturday</h3><p class="summary">A forgiving bread recipe with an overnight rise.</p><div class="tags"><button class="tag">cooking</button><button class="tag">weekend</button></div></div>
+      </article>
+      <article class="card" data-tags="work research">
+        <div class="thumb">R</div><div><div class="domain">research.example</div><h3 class="title">Planning useful customer interviews</h3><p class="summary">Questions and prompts for learning what people need.</p><div class="tags"><button class="tag">work</button><button class="tag">research</button></div></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const cards = [...document.querySelectorAll('.card')];
+    const filterBox = document.querySelector('#active-filter');
+    function showTag(tag) {
+      const matches = cards.filter(card => card.dataset.tags.split(' ').includes(tag));
+      cards.forEach(card => card.hidden = !matches.includes(card));
+      document.querySelector('#filter-name').textContent = tag;
+      document.querySelector('#count').textContent = `${matches.length} bookmarks`;
+      document.querySelector('#list-title').textContent = `Tagged “${tag}”`;
+      filterBox.classList.add('visible');
+    }
+    document.querySelectorAll('.tag').forEach(button => button.addEventListener('click', () => showTag(button.textContent)));
+    document.querySelector('#clear').addEventListener('click', () => {
+      cards.forEach(card => card.hidden = false);
+      document.querySelector('#count').textContent = '4 bookmarks';
+      document.querySelector('#list-title').textContent = 'Saved';
+      filterBox.classList.remove('visible');
+    });
+  </script>
+</body>
+</html>

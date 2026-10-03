@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Bookmarks</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<!-- Auth screen -->
+<section id="authScreen" class="auth" hidden>
+  <div class="authCard">
+    <h1>My Bookmarks</h1>
+    <p class="sub">Your one place to save and find links — on every device.</p>
+    <div class="tabs">
+      <button type="button" id="tabLogin" class="tab active">Sign in</button>
+      <button type="button" id="tabRegister" class="tab">Create account</button>
+    </div>
+    <form id="authForm" autocomplete="on">
+      <label>Email <input type="email" id="authEmail" required autocomplete="username" /></label>
+      <label>Password <input type="password" id="authPassword" required autocomplete="current-password" minlength="8" /></label>
+      <div class="authErr" id="authErr"></div>
+      <button type="submit" id="authSubmit" class="primary">Sign in</button>
+    </form>
+    <p class="reviewHint" id="reviewHint"></p>
+  </div>
+</section>
+
+<!-- App screen -->
+<section id="appScreen" hidden>
+  <header>
+    <div class="headRow">
+      <div><h1>My Bookmarks</h1><p class="sub" id="whoami"></p></div>
+      <div class="headBtns">
+        <button type="button" id="settingsBtn" class="ghost">⚙ Settings</button>
+        <button type="button" id="logoutBtn" class="ghost">Sign out</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <form class="saver" id="saver" autocomplete="off">
+      <input type="text" id="urlInput" placeholder="Paste a link here…  e.g. example.com/article" required />
+      <button type="submit" class="primary">Save</button>
+    </form>
+    <div class="saverErr" id="saverErr"></div>
+
+    <div class="viewsBar" id="viewsBar">
+      <span class="viewsLabel">Views</span>
+      <span id="viewsChips"></span>
+      <button type="button" id="saveViewBtn" class="viewSaveBtn">＋ Save current view</button>
+    </div>
+
+    <div class="searchbar"><input type="search" id="searchInput" placeholder="Search your saved links…" autocomplete="off" /></div>
+    <p class="hint">Combine words with <code>AND</code>, <code>OR</code>, <code>NOT</code>, group with <code>( )</code>, wrap a phrase in <code>"quotes"</code>, or search a tag with <code>#tag</code>.</p>
+    <div class="activeTags" id="activeTags" hidden></div>
+
+    <div class="flash" id="flash"></div>
+
+    <div class="toolbar">
+      <div class="filters" id="filters">
+        <button type="button" data-filter="all" class="active">All</button>
+        <button type="button" data-filter="unread">To read</button>
+        <button type="button" data-filter="read">Read</button>
+        <button type="button" data-filter="archived">Archived</button>
+      </div>
+      <div class="toolRight">
+        <button type="button" id="selectBtn" class="ghost">Select</button>
+        <label class="sortLabel">Sort
+          <select id="sortSelect">
+            <option value="added-desc">Newest first</option>
+            <option value="added-asc">Oldest first</option>
+            <option value="title-asc">Title A–Z</option>
+            <option value="title-desc">Title Z–A</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="bulkBar" id="bulkBar" hidden>
+      <span class="bulkCount" id="bulkCount">0 selected</span>
+      <button type="button" id="bulkSelectAll">Select all</button>
+      <span class="bulkGroup" id="bulkActive">
+        <button type="button" data-bulk="readlater">Read later</button>
+        <button type="button" data-bulk="read">Mark as read</button>
+        <button type="button" data-bulk="archive">Archive</button>
+      </span>
+      <span class="bulkGroup" id="bulkArchived" hidden><button type="button" data-bulk="restore">Restore</button></span>
+      <span class="bulkTag">
+        <input type="text" id="bulkTagField" placeholder="tag name…" autocomplete="off" />
+        <button type="button" data-bulk="addtag">Add tag</button>
+        <button type="button" data-bulk="removetag">Remove tag</button>
+      </span>
+      <button type="button" data-bulk="delete" class="danger">Delete</button>
+      <button type="button" id="bulkCancel">Done</button>
+    </div>
+
+    <p class="count" id="count"></p>
+    <ul class="list" id="list"></ul>
+    <div class="loadMoreWrap" id="loadMoreWrap"></div>
+  </main>
+</section>
+
+<!-- Editor / review modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="head" id="modalHead">Review &amp; save</div>
+    <div class="loading" id="loadingBox"><div class="spinner"></div><div>Fetching page details…</div></div>
+    <div class="pad" id="formBox" hidden>
+      <div class="mNotice" id="mNotice" hidden></div>
+      <div class="previewImg" id="mPreview"></div>
+      <div class="fieldLabel"><span class="fav" id="mFav"></span> Title</div>
+      <input type="text" id="mTitle" />
+      <div class="fieldLabel">Description</div>
+      <textarea id="mDesc"></textarea>
+      <div class="fieldLabel">Address</div>
+      <input type="text" id="mUrl" />
+      <div class="fieldLabel">Tags</div>
+      <div class="tagInput" id="mTagInput"><input type="text" id="mTagField" placeholder="Add a tag and press Enter" autocomplete="off" /><div class="tagSuggest" id="mTagSuggest"></div></div>
+      <div class="fieldLabel">Note (Markdown: headings, **bold**, *italic*, links, lists)</div>
+      <textarea id="mNote" placeholder="Your own note (optional)"></textarea>
+      <label class="readLaterRow" id="readLaterRow"><input type="checkbox" id="mReadLater" /> <span>Add to my “Read later” list</span></label>
+      <div class="mErr" id="mErr"></div>
+    </div>
+    <div class="foot" id="footBox" hidden>
+      <button class="ghost" id="mCancel">Cancel</button>
+      <button class="primary" id="mSave">Save bookmark</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal small">
+    <div class="head" id="confirmTitle">Delete bookmark?</div>
+    <div class="pad" id="confirmBody"></div>
+    <div class="foot"><button class="ghost" id="confirmCancel">Cancel</button><button class="danger solid" id="confirmDelete">Delete</button></div>
+  </div>
+</div>
+
+<!-- Note viewer -->
+<div class="overlay" id="noteOverlay">
+  <div class="modal">
+    <div class="head" id="noteHead">Note</div>
+    <div class="pad noteView" id="noteView"></div>
+    <div class="foot"><button class="ghost" id="noteEdit">Edit</button><button class="primary" id="noteClose">Close</button></div>
+  </div>
+</div>
+
+<!-- Snapshot viewer -->
+<div class="overlay" id="snapOverlay">
+  <div class="modal">
+    <div class="head" id="snapHead">Saved copy</div>
+    <div class="pad"><div class="snapBanner" id="snapBanner"></div><div class="noteView" id="snapView"></div></div>
+    <div class="foot"><a id="snapOriginal" href="#" target="_blank" rel="noopener" class="snapOrig">Open original ↗</a><button class="primary" id="snapClose">Close</button></div>
+  </div>
+</div>
+
+<!-- Save view -->
+<div class="overlay" id="viewOverlay">
+  <div class="modal small">
+    <div class="head">Save this view</div>
+    <div class="pad">
+      <div class="fieldLabel">Name</div><input type="text" id="viewName" placeholder="e.g. Unread articles" />
+      <div class="fieldLabel">Include tags (must have all)</div>
+      <div class="tagInput" id="incInput"><input type="text" id="incField" placeholder="Add a tag…" autocomplete="off" /><div class="tagSuggest" id="incSuggest"></div></div>
+      <div class="fieldLabel">Exclude tags (hide any with these)</div>
+      <div class="tagInput" id="excInput"><input type="text" id="excField" placeholder="Add a tag…" autocomplete="off" /><div class="tagSuggest" id="excSuggest"></div></div>
+      <div class="viewSummary" id="viewSummary"></div>
+      <div class="mErr" id="viewErr"></div>
+    </div>
+    <div class="foot"><button class="ghost" id="viewCancel">Cancel</button><button class="primary" id="viewSave">Save view</button></div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="head">Settings</div>
+    <div class="pad">
+      <div class="fieldLabel">Default sort order</div>
+      <select id="setSort" class="setSelect"><option value="added-desc">Newest first</option><option value="added-asc">Oldest first</option><option value="title-asc">Title A–Z</option><option value="title-desc">Title Z–A</option></select>
+      <div class="fieldLabel">Items to load at once</div>
+      <select id="setPageSize" class="setSelect"><option value="20">20</option><option value="50">50</option><option value="100">100</option></select>
+      <div class="fieldLabel">Text size</div>
+      <select id="setTextSize" class="setSelect"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select>
+      <div class="fieldLabel">Your data</div>
+      <div class="dataRow">
+        <button type="button" id="exportJson" class="dataBtn">Export backup (.json)</button>
+        <button type="button" id="exportHtml" class="dataBtn">Export bookmarks (.html)</button>
+      </div>
+      <div class="dataRow"><label class="importLabel">Import a file<input type="file" id="importFile" accept=".json,.html,.htm,application/json,text/html" /></label></div>
+      <div class="importResult" id="importResult"></div>
+    </div>
+    <div class="foot"><button class="primary" id="setClose">Done</button></div>
+  </div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

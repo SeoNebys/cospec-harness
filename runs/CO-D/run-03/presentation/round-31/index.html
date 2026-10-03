@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background:var(--bg); color:var(--ink); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .saver { background:var(--card); border:1px solid var(--line); border-radius:12px;
+           padding:16px; display:flex; gap:10px; align-items:center; }
+  .saver input { flex:1; border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+                 font-size:15px; outline:none; }
+  .saver input:focus { border-color: var(--accent); }
+  .saver button { background:var(--accent); color:#fff; border:none; border-radius:8px;
+                  padding:12px 20px; font-size:15px; font-weight:600; cursor:pointer; }
+  .hint { color:var(--muted); font-size:13px; margin:10px 2px 0; min-height:18px; }
+
+  /* Review (edit-before-save) panel */
+  .review { margin-top:18px; background:var(--card); border:1px solid var(--accent);
+            border-radius:12px; padding:0; overflow:hidden; box-shadow:0 4px 18px rgba(47,109,246,.12); }
+  .review .banner { height:150px; background-size:cover; background-position:center; }
+  .review .body { padding:16px 18px; }
+  .review .tag { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em;
+                 text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+  .fieldrow { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .fieldrow img.fav { width:18px; height:18px; border-radius:4px; }
+  label.fl { display:block; font-size:12px; color:var(--muted); margin:12px 0 4px; font-weight:600; }
+  .review input.t, .review textarea.d { width:100%; border:1px solid var(--line); border-radius:8px;
+                 padding:10px 12px; font-size:14px; font-family:inherit; outline:none; }
+  .review input.t:focus, .review textarea.d:focus { border-color:var(--accent); }
+  .review textarea.d { resize:vertical; min-height:64px; }
+  .review .actions { display:flex; gap:10px; margin-top:16px; }
+  .btn-primary { background:var(--accent); color:#fff; border:none; border-radius:8px;
+                 padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--line);
+               border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer; }
+
+  .list { margin-top: 28px; display:flex; flex-direction:column; gap:14px; }
+  .empty { color:var(--muted); text-align:center; padding:48px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          overflow:hidden; animation: pop .25s ease; }
+  @keyframes pop { from { transform: translateY(-6px); opacity:0; } to { transform:none; opacity:1; } }
+  .card .preview { height:130px; background-size:cover; background-position:center; }
+  .card .preview.placeholder { display:flex; align-items:center; justify-content:center;
+        background:repeating-linear-gradient(45deg,#eef0f3,#eef0f3 12px,#e7eaee 12px,#e7eaee 24px); }
+  .card .preview.placeholder span { color:#9aa2ad; font-size:13px; font-weight:600;
+        letter-spacing:.03em; background:rgba(255,255,255,.7); padding:4px 10px; border-radius:6px; }
+  .card .cbody { padding:14px 16px; position:relative; }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 5px; line-height:1.35; padding-right:56px; }
+  .card .desc { font-size:13px; color:#4a5260; margin:0 0 10px; line-height:1.45; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
+  .card .meta img.fav { width:16px; height:16px; border-radius:4px; }
+  .card a.link { color:var(--muted); font-size:12px; text-decoration:none; word-break:break-all; }
+  .edit-btn { position:absolute; top:14px; right:14px; background:#f0f2f6; border:1px solid var(--line);
+              color:#495; border-radius:7px; padding:5px 12px; font-size:12px; cursor:pointer; color:var(--ink); }
+  .filling { color: var(--accent); }
+  .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent);
+         animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">A readable place to save links and find them again.</p>
+
+  <div class="saver">
+    <input id="url" type="text" placeholder="Paste a link and press Save…" autocomplete="off" />
+    <button id="save">Save</button>
+  </div>
+  <div class="hint" id="hint"></div>
+
+  <div id="reviewMount"></div>
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+// --- Prototype only: simulates fetching a page's rich details. ---
+// Real app would read the page's title / description / icon / preview image.
+// Here we simulate those for a few known links and derive a fallback otherwise.
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site.replace(/^www\./,'')[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`);
+}
+function previewSVG(site,title){ const h=color(site);
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h} 65% 55%)"/><stop offset="1" stop-color="hsl(${(h+40)%360} 65% 42%)"/></linearGradient></defs><rect width="760" height="300" fill="url(#g)"/><text x="40" y="165" font-family="sans-serif" font-size="34" font-weight="700" fill="white">${site.replace(/^www\./,'')}</text></svg>`);
+}
+const KNOWN = {
+  "en.wikipedia.org/wiki/Bookmark_(digital)": {
+    title:"Bookmark (digital) — Wikipedia", site:"Wikipedia",
+    desc:"A digital bookmark is a stored link to a web page, kept for easy retrieval later.", hasImage:true },
+  "developer.mozilla.org/en-US/docs/Web/CSS/Flexbox": {
+    title:"CSS Flexbox layout — MDN Web Docs", site:"MDN Web Docs",
+    desc:"A one-dimensional layout method for arranging items in rows or columns.", hasImage:true },
+  "www.nytimes.com/2026/01/12/technology/reading-later.html": {
+    title:"The Quiet Art of Reading Later", site:"The New York Times",
+    desc:"Why saving articles to read later can make you a calmer, more deliberate reader.", hasImage:true }
+};
+function normalize(raw){ let u=raw.trim(); if(!u) return null;
+  if(!/^https?:\/\//i.test(u)) u="https://"+u; try{return new URL(u);}catch{return null;} }
+function lookupMeta(url){
+  const key=(url.host+url.pathname).replace(/\/$/,"");
+  const site = url.host.replace(/^www\./,"");
+  if(KNOWN[key]){ const k=KNOWN[key]; return {title:k.title, site:k.site, desc:k.desc,
+    fav:favSVG(url.host), image:k.hasImage?previewSVG(url.host,k.title):"" }; }
+  const seg=url.pathname.split("/").filter(Boolean).pop();
+  const title=seg?seg.replace(/[-_]/g," ").replace(/\.\w+$/,"").replace(/\b\w/g,c=>c.toUpperCase()):site;
+  // No page-provided description or preview image: leave them genuinely empty.
+  return {title, site, desc:"", fav:favSVG(url.host), image:""};
+}
+
+let bookmarks=[];
+let draft=null;                // the in-progress save under review
+let editingId=null;            // id of a saved bookmark being edited
+const listEl=document.getElementById("list");
+const mount=document.getElementById("reviewMount");
+const urlEl=document.getElementById("url");
+const hint=document.getElementById("hint");
+let nextId=1;
+
+function renderReview(){
+  if(!draft){ mount.innerHTML=""; return; }
+  if(draft.filling){
+    mount.innerHTML='<div class="review"><div class="body"><span class="filling">'+
+      '<span class="dot"></span> Reading the page and filling in its details…</span></div></div>';
+    return;
+  }
+  mount.innerHTML =
+    '<div class="review">'+
+      (draft.image?'<div class="banner" style="background-image:url(\''+draft.image+'\')"></div>':'')+
+      '<div class="body">'+
+        '<span class="tag">Review before saving</span>'+
+        '<div class="fieldrow"><img class="fav" src="'+draft.fav+'"/> <span>'+draft.site+'</span>'+
+          ' · <a class="link" href="'+draft.url+'" target="_blank" rel="noopener">'+draft.url+'</a></div>'+
+        '<label class="fl">Title</label>'+
+        '<input class="t" id="dTitle" value="'+escapeAttr(draft.title)+'"/>'+
+        '<label class="fl">Description</label>'+
+        '<textarea class="d" id="dDesc">'+escapeHtml(draft.desc)+'</textarea>'+
+        '<div class="actions">'+
+          '<button class="btn-primary" id="confirmSave">Save bookmark</button>'+
+          '<button class="btn-ghost" id="cancelSave">Cancel</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  document.getElementById("confirmSave").onclick=confirmSave;
+  document.getElementById("cancelSave").onclick=()=>{ draft=null; hint.textContent=""; renderReview(); };
+}
+
+function render(){
+  if(bookmarks.length===0 && !draft){
+    listEl.innerHTML='<div class="empty">No bookmarks yet. Paste a link above to save your first one.</div>';
+    return;
+  }
+  listEl.innerHTML="";
+  bookmarks.forEach(b=>{
+    const card=document.createElement("div");
+    card.className="card";
+    if(editingId===b.id){
+      card.innerHTML =
+        '<div class="cbody">'+
+          '<span class="tag" style="color:var(--accent);font-size:11px;font-weight:700;text-transform:uppercase;">Editing</span>'+
+          '<label class="fl">Title</label>'+
+          '<input class="t" id="eTitle" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;" value="'+escapeAttr(b.title)+'"/>'+
+          '<label class="fl">Description</label>'+
+          '<textarea class="d" id="eDesc" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;min-height:60px;font-family:inherit;">'+escapeHtml(b.desc)+'</textarea>'+
+          '<div class="actions" style="display:flex;gap:10px;margin-top:14px;">'+
+            '<button class="btn-primary" data-save="'+b.id+'">Save changes</button>'+
+            '<button class="btn-ghost" data-cancel="'+b.id+'">Cancel</button>'+
+          '</div>'+
+        '</div>';
+    } else {
+      card.innerHTML =
+        (b.image
+          ? '<div class="preview" style="background-image:url(\''+b.image+'\')"></div>'
+          : '<div class="preview placeholder"><span>No preview image</span></div>')+
+        '<div class="cbody">'+
+          '<button class="edit-btn" data-edit="'+b.id+'">Edit</button>'+
+          '<div class="title">'+escapeHtml(b.title)+'</div>'+
+          (b.desc?'<div class="desc">'+escapeHtml(b.desc)+'</div>':'')+
+          '<div class="meta"><img class="fav" src="'+b.fav+'"/> <span>'+b.site+'</span></div>'+
+          '<a class="link" href="'+b.url+'" target="_blank" rel="noopener">'+b.url+'</a>'+
+        '</div>';
+    }
+    listEl.appendChild(card);
+  });
+  listEl.querySelectorAll("[data-edit]").forEach(el=>el.onclick=()=>{ editingId=+el.dataset.edit; render(); });
+  listEl.querySelectorAll("[data-cancel]").forEach(el=>el.onclick=()=>{ editingId=null; render(); });
+  listEl.querySelectorAll("[data-save]").forEach(el=>el.onclick=()=>{
+    const b=bookmarks.find(x=>x.id==el.dataset.save);
+    b.title=document.getElementById("eTitle").value.trim()||b.title;
+    b.desc=document.getElementById("eDesc").value.trim();
+    editingId=null; render();
+  });
+}
+
+function beginSave(){
+  const url=normalize(urlEl.value);
+  if(!url){ hint.textContent="That doesn't look like a link — please check it."; return; }
+  draft={ url:url.href, filling:true };
+  urlEl.value="";
+  hint.textContent="";
+  renderReview(); render();
+  setTimeout(()=>{
+    const m=lookupMeta(url);
+    draft={ url:url.href, filling:false, title:m.title, desc:m.desc, site:m.site, fav:m.fav, image:m.image };
+    hint.textContent="Details filled in — you can correct the title or description before saving.";
+    renderReview();
+  },700);
+}
+function confirmSave(){
+  draft.title=document.getElementById("dTitle").value.trim()||draft.title;
+  draft.desc=document.getElementById("dDesc").value.trim();
+  bookmarks.unshift({ id:nextId++, url:draft.url, title:draft.title, desc:draft.desc,
+                      site:draft.site, fav:draft.fav, image:draft.image });
+  draft=null; hint.textContent="Saved.";
+  renderReview(); render();
+}
+function escapeHtml(s){ return (s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escapeAttr(s){ return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+document.getElementById("save").addEventListener("click",beginSave);
+urlEl.addEventListener("keydown",e=>{ if(e.key==="Enter") beginSave(); });
+
+// Optional preset for screenshots/demo: ?demo=review | saved | edit
+function preset(){
+  const p=new URLSearchParams(location.search).get("demo");
+  if(!p) return;
+  const url=new URL("https://www.nytimes.com/2026/01/12/technology/reading-later.html");
+  const m=lookupMeta(url);
+  if(p==="review"){ draft={url:url.href,filling:false,title:m.title,desc:m.desc,site:m.site,fav:m.fav,image:m.image};
+    hint.textContent="Details filled in — you can correct the title or description before saving."; }
+  if(p==="saved"||p==="edit"){
+    bookmarks.push({id:nextId++,url:url.href,title:m.title,desc:m.desc,site:m.site,fav:m.fav,image:m.image});
+    const u2=new URL("https://developer.mozilla.org/en-US/docs/Web/CSS/Flexbox"); const m2=lookupMeta(u2);
+    bookmarks.unshift({id:nextId++,url:u2.href,title:m2.title,desc:m2.desc,site:m2.site,fav:m2.fav,image:m2.image});
+    if(p==="edit") editingId=bookmarks[bookmarks.length-1].id;
+  }
+  if(p==="missing"||p==="missing-edit"){
+    const u=new URL("https://blog.example.org/posts/an-untagged-note");
+    const m=lookupMeta(u); // no page description, no preview image
+    bookmarks.unshift({id:nextId++,url:u.href,title:m.title,desc:m.desc,site:m.site,fav:m.fav,image:m.image});
+    if(p==="missing-edit") editingId=bookmarks[0].id;
+  }
+}
+preset();
+renderReview(); render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

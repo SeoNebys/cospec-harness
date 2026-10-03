@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager Internal API
+  version: 1.0.0
+  description: Same-origin JSON and file contracts for the single-user web UI.
+servers:
+  - url: /api
+paths:
+  /metadata/preview:
+    post:
+      summary: Safely retrieve editable page metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UrlInput' }
+      responses:
+        '200': { description: Available metadata or a non-blocking retrieval outcome }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /bookmarks:
+    get:
+      summary: Search, filter, sort, and page bookmarks
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: scope, in: query, schema: { type: string, enum: [active, archived, all] } }
+        - { name: read, in: query, schema: { type: string, enum: [all, read, unread] } }
+        - { name: sort, in: query, schema: { $ref: '#/components/schemas/Sort' } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, enum: [10, 25, 50, 100] } }
+      responses:
+        '200': { description: Results, total, and interpreted criteria }
+        '422': { $ref: '#/components/responses/SearchError' }
+    post:
+      summary: Create a unique bookmark
+      responses:
+        '201': { description: Created }
+        '409': { description: Duplicate; returns canonical bookmark ID and archive state }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /bookmarks/{id}:
+    patch:
+      summary: Update bookmark content or state
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '200': { description: Updated }
+        '409': { description: Address belongs to another canonical bookmark }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      summary: Permanently delete after confirmed UI flow
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses:
+        '204': { description: Deleted }
+  /bulk-actions/preview:
+    post:
+      summary: Recompute and snapshot eligible targets
+      responses:
+        '200': { description: Opaque token, current count, summary, expiry, and warning }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /bulk-actions/execute:
+    post:
+      summary: Execute an unchanged preview exactly once
+      responses:
+        '200': { description: Requested, changed, skipped, and failed counts }
+        '409': { description: stale_selection with replacement preview token/count, or used/expired token }
+  /saved-searches:
+    get: { summary: List saved searches, responses: { '200': { description: Saved searches } } }
+    post:
+      summary: Save valid versioned criteria under a unique name
+      responses:
+        '201': { description: Created }
+        '409': { description: Name conflict }
+        '422': { $ref: '#/components/responses/SearchError' }
+  /saved-searches/{id}:
+    patch: { summary: Rename or replace criteria, parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: Updated } } }
+    delete: { summary: Delete without affecting bookmarks, parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '204': { description: Deleted } } }
+  /imports/bookmarks:
+    post:
+      summary: Import browser HTML without overwriting duplicates
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties: { file: { type: string, contentMediaType: text/html } }
+      responses:
+        '200': { description: Added, skipped-duplicate, failed counts and reason summaries }
+        '413': { description: File exceeds limit }
+        '422': { description: Unsupported or unreadable file; no bookmarks added }
+  /exports/bookmarks:
+    get:
+      summary: Export active and archived bookmarks
+      responses:
+        '200': { description: Escaped UTF-8 browser bookmark HTML plus download headers }
+  /preferences:
+    get: { summary: Read display preferences, responses: { '200': { description: Preferences } } }
+    put: { summary: Replace validated display preferences, responses: { '200': { description: Saved preferences } } }
+components:
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+  schemas:
+    UrlInput:
+      type: object
+      required: [url]
+      properties: { url: { type: string, format: uri, maxLength: 2048 } }
+    Sort: { type: string, enum: [newest, oldest, title_asc, title_desc, updated] }
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        fields: { type: object, additionalProperties: true }
+  responses:
+    ValidationError:
+      description: Invalid input with retained field values and actionable errors
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    SearchError:
+      description: Query error with code, source span, offending text, and suggestion
+      content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } }

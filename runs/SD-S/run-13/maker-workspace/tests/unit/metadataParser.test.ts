@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest';
+import { parseMetadata } from '../../src/server/services/metadataParser.js';
+describe('metadata parser',()=>{it('prefers OG title, normal description, and strips markup',()=>{const r=parseMetadata('<title>Other</title><meta property="og:title" content="  Great &amp; Good "><meta name="description" content="A useful page">',new URL('https://example.com'),new URL('https://example.com'));expect(r).toMatchObject({title:'Great & Good',description:'A useful page',status:'retrieved'});});it('returns a hostname fallback',()=>expect(parseMetadata('<html></html>',new URL('https://www.example.com'),new URL('https://www.example.com')).title).toBe('example.com'));});

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edit tags — Version B (direct on chips)</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#1c2430;--muted:#6b7684;--line:#e3e7ec;--accent:#2f6bff;--shadow:0 1px 2px rgba(20,30,50,.06),0 4px 16px rgba(20,30,50,.05);}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;}
+  header.top{background:var(--card);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:12px;}
+  header.top h1{font-size:18px;margin:0;}
+  header.top .dot{width:22px;height:22px;border-radius:7px;background:var(--accent);}
+  .badge{margin-left:auto;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 10px;}
+  main{max-width:760px;margin:0 auto;padding:20px;}
+  .section-label{color:var(--muted);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin:0 2px 12px;}
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+  li.item{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;}
+  .titlerow{display:flex;align-items:center;gap:8px;}
+  li.item .title{font-size:16px;font-weight:600;color:var(--ink);text-decoration:none;}
+  .pencil{border:none;background:transparent;cursor:pointer;color:var(--muted);font-size:15px;padding:4px;border-radius:8px;}
+  .pencil:hover{background:#eef1f5;color:var(--ink);}
+  li.item .url{font-size:13px;color:var(--muted);word-break:break-all;margin-top:2px;}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center;}
+  .chip{font-size:12px;background:#eef1f5;color:#48566a;border-radius:999px;padding:3px 6px 3px 10px;display:inline-flex;align-items:center;gap:4px;}
+  .chip .x{cursor:pointer;border:none;background:transparent;color:#9aa6b4;font-size:14px;line-height:1;padding:0 2px;border-radius:50%;}
+  .chip .x:hover{background:#d9dee5;color:#48566a;}
+  .addtag{font-size:12px;border:1px dashed var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:4px 11px;cursor:pointer;}
+  .addtag:hover{border-color:var(--accent);color:var(--accent);}
+  .tagfield{position:relative;display:inline-block;}
+  .tagfield input{font-size:13px;padding:5px 9px;border:1px solid var(--accent);border-radius:999px;outline:none;box-shadow:0 0 0 3px rgba(47,107,255,.12);width:130px;}
+  .suggest{position:absolute;left:0;top:calc(100% + 4px);min-width:170px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:9;overflow:hidden;display:none;}
+  .suggest.open{display:block;}
+  .suggest .opt{padding:8px 11px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;gap:12px;}
+  .suggest .opt:hover{background:#eef1f5;}
+  .suggest .cnt{color:var(--muted);font-size:12px;}
+</style>
+</head>
+<body>
+  <header class="top"><div class="dot"></div><h1>My Bookmarks</h1><span class="badge">Version B · edit chips directly</span></header>
+  <main>
+    <div class="section-label">Recent</div>
+    <ul class="list" id="list"></ul>
+  </main>
+<script>
+  const items=[
+    {url:'https://en.wikipedia.org/wiki/Bookmark',title:'Bookmark - Wikipedia',tags:['reading','referance'],adding:false},
+    {url:'https://developer.mozilla.org/en-US/docs/Web/JavaScript',title:'JavaScript | MDN',tags:['work'],adding:false},
+  ];
+  const listEl=document.getElementById('list');
+  function allTags(){const c={};items.forEach(i=>i.tags.forEach(t=>c[t]=(c[t]||0)+1));return c;}
+  function render(){
+    listEl.innerHTML='';
+    items.forEach(it=>{
+      const li=document.createElement('li');li.className='item';
+      const chips=it.tags.map((t,ti)=>`<span class="chip">#${t}<button class="x" data-ti="${ti}" title="Remove tag">×</button></span>`).join('');
+      const adder=it.adding
+        ? `<span class="tagfield"><input class="tagin" placeholder="tag…" /><div class="suggest"></div></span>`
+        : `<button class="addtag">＋ tag</button>`;
+      li.innerHTML=`<div class="titlerow"><a class="title" href="${it.url}" target="_blank" rel="noopener">${it.title}</a><button class="pencil" title="Rename title">✎</button></div><div class="url">${it.url}</div><div class="chips">${chips}${adder}</div>`;
+      li.querySelectorAll('.chip .x').forEach(x=>x.onclick=()=>{it.tags.splice(+x.dataset.ti,1);render();});
+      const addBtn=li.querySelector('.addtag');
+      if(addBtn)addBtn.onclick=()=>{items.forEach(x=>x.adding=false);it.adding=true;render();};
+      const tagin=li.querySelector('.tagin');
+      if(tagin){
+        const sug=li.querySelector('.suggest');
+        const commit=()=>{const v=tagin.value.trim().toLowerCase();if(v&&!it.tags.includes(v))it.tags.push(v);it.adding=false;render();};
+        function showSug(){
+          const frag=tagin.value.trim().toLowerCase();const c=allTags();
+          let opts=Object.keys(c).filter(t=>t.includes(frag)&&!it.tags.includes(t));
+          opts=opts.sort((a,b)=>c[b]-c[a]).slice(0,6);
+          if(!opts.length){sug.classList.remove('open');return;}
+          sug.innerHTML=opts.map(t=>`<div class="opt" data-t="${t}">#${t}<span class="cnt">${c[t]} saved</span></div>`).join('');
+          sug.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{if(!it.tags.includes(o.dataset.t))it.tags.push(o.dataset.t);it.adding=false;render();});
+          sug.classList.add('open');
+        }
+        tagin.addEventListener('input',showSug);
+        tagin.addEventListener('keydown',e=>{if(e.key==='Enter')commit();if(e.key==='Escape'){it.adding=false;render();}});
+        tagin.addEventListener('blur',()=>setTimeout(()=>{if(it.adding)commit();},150));
+        setTimeout(()=>{tagin.focus();showSug();},0);
+      }
+      li.querySelector('.pencil').onclick=()=>{const t=prompt('Rename title',it.title);if(t&&t.trim()){it.title=t.trim();render();}};
+      listEl.appendChild(li);
+    });
+  }
+  render();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Search — prototype</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#ffffff; --line:#e4e7eb; --ink:#1e2430; --muted:#6b7480; --accent:#2f6df6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .searchbar { position:relative; }
+  .searchbar input { width:100%; border:1px solid var(--line); border-radius:10px; padding:13px 16px 13px 42px; font-size:15px; outline:none; background:#fff; }
+  .searchbar input:focus { border-color:var(--accent); }
+  .searchbar .mag { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; }
+  .syntax { font-size:12px; color:var(--muted); margin:8px 2px 0; }
+  .syntax code { background:#eef2f8; border-radius:4px; padding:1px 5px; }
+  .count { color:var(--muted); font-size:13px; margin:12px 2px 0; }
+  .count .clear { color:var(--accent); cursor:pointer; margin-left:8px; }
+  .list { margin-top:14px; display:flex; flex-direction:column; gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .card .title { font-size:16px; font-weight:600; margin:0 0 4px; }
+  .card .desc { font-size:13px; color:#4a5260; margin:0 0 8px; }
+  .card .note { font-size:12.5px; color:#5a5030; background:#fbf6e9; border-left:3px solid #e5c96b; padding:6px 10px; border-radius:0 5px 5px 0; margin:0 0 8px; }
+  .card .taglist { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px; }
+  .chip { display:inline-block; background:#e7f0ff; color:#245; border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; }
+  .chip:hover { background:#d4e5ff; }
+  .card .meta { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12.5px; }
+  .card .url { color:var(--muted); font-size:12px; word-break:break-all; margin:4px 0 0; display:block; text-decoration:none; }
+  .fav { width:16px; height:16px; border-radius:4px; }
+  .matchwhere { font-size:11px; color:var(--accent); margin-top:6px; font-weight:600; }
+  mark { background:#fff2a8; color:inherit; border-radius:3px; padding:0 1px; }
+  .empty { text-align:center; color:var(--muted); padding:44px 16px; background:#fff; border:1px dashed var(--line); border-radius:12px; }
+  .empty b { color:var(--ink); }
+  .err { color:#b23; font-size:13px; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>My Bookmarks</h1>
+  <p class="sub">Find anything you've saved.</p>
+  <div class="searchbar">
+    <span class="mag">🔍</span>
+    <input id="q" type="text" placeholder="Search — try focus, #book, &quot;read later&quot;, rome (#article OR #book)…" autocomplete="off" />
+  </div>
+  <div class="syntax">Tips: <code>#tag</code> matches a tag · <code>"exact phrase"</code> · combine with <code>AND</code> <code>OR</code> <code>NOT</code> and <code>( )</code> · quote a word like <code>"OR"</code> to search the word itself.</div>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+</div>
+
+<script>
+function color(seed){ let h=0; for(const c of seed) h=(h*31+c.charCodeAt(0))%360; return h; }
+function favSVG(site){ const h=color(site); const l=site.replace(/^www\./,'')[0].toUpperCase();
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="7" fill="hsl(${h} 70% 55%)"/><text x="16" y="22" font-family="sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">${l}</text></svg>`); }
+
+const DATA=[
+  { title:"The Quiet Art of Reading Later", site:"nytimes.com", url:"https://www.nytimes.com/2026/01/12/technology/reading-later.html",
+    desc:"Why saving articles to read later can make you a calmer, more deliberate reader.",
+    note:"Read before writing my weekend post on focus.", tags:["reading","focus","weekend-writing"] },
+  { title:"CSS Flexbox layout — MDN Web Docs", site:"developer.mozilla.org", url:"https://developer.mozilla.org/en-US/docs/Web/CSS/Flexbox",
+    desc:"A one-dimensional layout method for arranging items in rows or columns.",
+    note:"Reference for the settings screen.", tags:["css","reference"] },
+  { title:"How to roast vegetables perfectly", site:"seriouseats.com", url:"https://www.seriouseats.com/roasted-vegetables-guide",
+    desc:"A guide to caramelised, evenly cooked roasted vegetables every time.",
+    note:"Try the high-heat method this weekend.", tags:["recipes","weekend-writing"] },
+  { title:"A calm approach to focus at work", site:"blog.example.org", url:"https://blog.example.org/posts/calm-focus",
+    desc:"Small habits that protect attention during the day.",
+    note:"Good quotes on deep work and focus.", tags:["focus","productivity"] },
+  { title:"A weekend in Rome: what to see", site:"travel.example.com", url:"https://travel.example.com/guides/rome-weekend",
+    desc:"Highlights for a short first trip to Rome, from the Forum to Trastevere.",
+    note:"Plan the itinerary before booking.", tags:["rome","article","travel"] },
+  { title:"SPQR: A History of Ancient Rome", site:"books.example.org", url:"https://books.example.org/spqr-mary-beard",
+    desc:"Mary Beard's sweeping history of ancient Rome and its people.",
+    note:"Buy the paperback edition.", tags:["rome","book","history"] }
+];
+
+// ---------- query language ----------
+function tokenize(q){
+  const toks=[]; let i=0;
+  while(i<q.length){
+    const c=q[i];
+    if(/\s/.test(c)){ i++; continue; }
+    if(c==='('){ toks.push({t:'('}); i++; continue; }
+    if(c===')'){ toks.push({t:')'}); i++; continue; }
+    if(c==='"'){ let j=i+1; let s=""; while(j<q.length && q[j]!=='"'){ s+=q[j]; j++; }
+      i=(j<q.length)?j+1:j; toks.push({t:'term',kind:'phrase',v:s}); continue; }
+    if(c==='#'){ let j=i+1; let s=""; while(j<q.length && /[^\s()]/.test(q[j])){ s+=q[j]; j++; }
+      i=j; toks.push({t:'term',kind:'tag',v:s}); continue; }
+    // bare word
+    let j=i; let s=""; while(j<q.length && /[^\s()]/.test(q[j]) && q[j]!=='"'){ s+=q[j]; j++; }
+    i=j;
+    const up=s.toUpperCase();
+    if(up==='AND'||up==='OR'||up==='NOT'){ toks.push({t:'op',v:up}); }
+    else { toks.push({t:'term',kind:'word',v:s}); }
+  }
+  return toks;
+}
+// recursive descent: OR < AND < NOT < atom ; adjacency = implicit AND
+function parse(toks){
+  let p=0;
+  const peek=()=>toks[p];
+  function parseOr(){ let node=parseAnd(); while(peek()&&peek().t==='op'&&peek().v==='OR'){ p++; const r=parseAnd(); node={op:'or',l:node,r}; } return node; }
+  function parseAnd(){ let node=parseNot();
+    while(peek() && !(peek().t==='op'&&peek().v==='OR') && peek().t!==')'){
+      if(peek().t==='op'&&peek().v==='AND'){ p++; }
+      const r=parseNot(); node={op:'and',l:node,r};
+    } return node; }
+  function parseNot(){ if(peek()&&peek().t==='op'&&peek().v==='NOT'){ p++; return {op:'not',c:parseNot()}; } return parseAtom(); }
+  function parseAtom(){
+    const tk=peek();
+    if(!tk) return {op:'true'};
+    if(tk.t==='('){ p++; const n=parseOr(); if(peek()&&peek().t===')') p++; return n; }
+    if(tk.t==='term'){ p++; return {op:'term',kind:tk.kind,v:tk.v}; }
+    if(tk.t==='op'){ p++; return {op:'term',kind:'word',v:tk.v}; } // stray operator → literal word
+    p++; return {op:'true'};
+  }
+  const tree=parseOr();
+  return tree;
+}
+function fieldsText(b){ return [b.title,b.url,b.desc,b.note,b.site,b.tags.join(" ")].join(" ").toLowerCase(); }
+function evalNode(n,b){
+  switch(n.op){
+    case 'true': return true;
+    case 'and': return evalNode(n.l,b)&&evalNode(n.r,b);
+    case 'or': return evalNode(n.l,b)||evalNode(n.r,b);
+    case 'not': return !evalNode(n.c,b);
+    case 'term':
+      if(n.kind==='tag') return b.tags.some(t=>t.toLowerCase()===n.v.toLowerCase());
+      return fieldsText(b).includes(n.v.toLowerCase());
+  }
+  return true;
+}
+function positiveTerms(n,acc){ // collect terms to highlight (skip those under NOT)
+  if(!n) return;
+  if(n.op==='term'){ acc.push(n.v); return; }
+  if(n.op==='and'||n.op==='or'){ positiveTerms(n.l,acc); positiveTerms(n.r,acc); }
+  // n.op==='not' → skip its subtree
+}
+
+const qEl=document.getElementById("q");
+const listEl=document.getElementById("list");
+const countEl=document.getElementById("count");
+function esc(s){ return (s||"").replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function hl(text,terms){ let out=esc(text);
+  terms.filter(Boolean).forEach(t=>{ const re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+    out=out.replace(re,'<mark>$1</mark>'); });
+  return out; }
+function whereMatched(b,terms){ const w=[];
+  const has=s=>terms.some(t=>s.toLowerCase().includes(t.toLowerCase()));
+  if(has(b.title))w.push("title"); if(b.tags.some(tg=>terms.some(t=>tg.toLowerCase()===t.toLowerCase()||tg.toLowerCase().includes(t.toLowerCase()))))w.push("tag");
+  if(has(b.note))w.push("note"); if(has(b.desc))w.push("description"); if(has(b.url)||has(b.site))w.push("web address");
+  return w; }
+
+function render(){
+  const q=qEl.value.trim();
+  let rows, terms=[];
+  if(!q){ rows=DATA.map(b=>({b})); }
+  else {
+    const tree=parse(tokenize(q));
+    positiveTerms(tree,terms);
+    rows=DATA.filter(b=>evalNode(tree,b)).map(b=>({b}));
+  }
+  countEl.innerHTML = q ? (rows.length+" of "+DATA.length+" bookmarks match <b>"+esc(q)+"</b> <span class='clear' id='clr'>clear</span>") : (DATA.length+" bookmarks");
+  const clr=document.getElementById("clr"); if(clr) clr.onclick=()=>{ qEl.value=""; render(); qEl.focus(); };
+  if(rows.length===0){
+    listEl.innerHTML='<div class="empty">No bookmarks match <b>'+esc(q)+'</b>.<br>Try a different word, a <code>#tag</code>, or fewer conditions.</div>';
+    return;
+  }
+  listEl.innerHTML="";
+  rows.forEach(({b})=>{
+    const card=document.createElement("div"); card.className="card";
+    const where=terms.length?whereMatched(b,terms):[];
+    card.innerHTML=
+      '<div class="title">'+hl(b.title,terms)+'</div>'+
+      '<div class="desc">'+hl(b.desc,terms)+'</div>'+
+      '<div class="note">📝 '+hl(b.note,terms)+'</div>'+
+      '<div class="taglist">'+b.tags.map(t=>'<span class="chip" data-tag="'+t+'">'+hl(t,terms)+'</span>').join('')+'</div>'+
+      '<div class="meta"><img class="fav" src="'+favSVG(b.site)+'"/> <span>'+hl(b.site,terms)+'</span></div>'+
+      '<a class="url" href="'+b.url+'" target="_blank" rel="noopener">'+hl(b.url,terms)+'</a>'+
+      (where.length ? '<div class="matchwhere">matched in '+where.join(", ")+'</div>' : '');
+    listEl.appendChild(card);
+  });
+  listEl.querySelectorAll("[data-tag]").forEach(el=>el.onclick=()=>{ qEl.value="#"+el.dataset.tag; render(); });
+}
+qEl.addEventListener("input",render);
+const pq=new URLSearchParams(location.search).get("q");
+if(pq!==null) qEl.value=pq;
+render();
+document.body.setAttribute("data-harness-ready","true");
+</script>
+</body>
+</html>

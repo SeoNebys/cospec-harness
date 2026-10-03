@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — Your bookmark collection</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell" id="app">
+    <aside class="rail">
+      <a class="wordmark" href="#" aria-label="Trove home"><span class="wordmark-icon">T</span><span>Trove</span></a>
+
+      <nav class="primary-nav" aria-label="Bookmark views">
+        <p class="nav-caption">Library</p>
+        <button class="nav-link active" type="button" data-view="all">
+          <span class="nav-icon" aria-hidden="true">▤</span><span>All bookmarks</span><span class="nav-count" id="allCount">0</span>
+        </button>
+        <button class="nav-link" type="button" data-view="read-later">
+          <span class="nav-icon" aria-hidden="true">◇</span><span>Read later</span><span class="nav-count" id="laterCount">0</span>
+        </button>
+        <button class="nav-link" type="button" data-view="archive">
+          <span class="nav-icon" aria-hidden="true">□</span><span>Archive</span><span class="nav-count" id="archiveCount">0</span>
+        </button>
+      </nav>
+
+      <section class="labels-nav" aria-labelledby="labelsHeading">
+        <p class="nav-caption" id="labelsHeading">Labels</p>
+        <div id="labelLinks" class="label-links"></div>
+      </section>
+
+      <p class="personal-note">Your personal collection<br><span>Stored on this app</span></p>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header">
+        <div>
+          <p class="eyebrow" id="viewEyebrow">Your library</p>
+          <h1 id="viewTitle">All bookmarks</h1>
+          <p class="view-summary" id="viewSummary">Loading your collection…</p>
+        </div>
+        <button class="primary-button" id="openSave" type="button"><span aria-hidden="true">＋</span> Save link</button>
+      </header>
+
+      <section class="search-wrap" aria-label="Search collection">
+        <span class="search-symbol" aria-hidden="true">⌕</span>
+        <label class="sr-only" for="search">Search bookmarks</label>
+        <input id="search" type="search" placeholder="Search titles, descriptions, sites, labels, or use precise search…" autocomplete="off">
+        <button class="clear-search" id="clearSearch" type="button" aria-label="Clear search">×</button>
+        <p class="search-message" id="searchMessage" aria-live="polite"></p>
+      </section>
+
+      <section class="collection" aria-live="polite" aria-busy="true">
+        <div class="collection-heading">
+          <p id="collectionLabel">Your collection</p>
+          <span id="shownCount"></span>
+        </div>
+        <div class="bookmark-list" id="bookmarkList"></div>
+        <div class="load-more-wrap" id="loadMoreWrap"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="modal" id="saveDialog" aria-labelledby="saveDialogTitle">
+    <form method="dialog" class="modal-card" id="saveForm" novalidate>
+      <div class="modal-top">
+        <div><p class="modal-kicker">New bookmark</p><h2 id="saveDialogTitle">Save a link</h2></div>
+        <button class="icon-button" value="cancel" type="button" data-close="saveDialog" aria-label="Close">×</button>
+      </div>
+
+      <section id="saveAddressStep">
+        <p class="modal-copy">Paste the page address. Trove will retrieve its readable details before saving.</p>
+        <label for="saveUrl">Web address</label>
+        <input id="saveUrl" type="url" placeholder="https://example.com/article" autocomplete="off">
+        <p class="field-error" id="saveUrlError" role="alert"></p>
+        <div class="modal-actions">
+          <button class="quiet-button" type="button" data-close="saveDialog">Cancel</button>
+          <button class="primary-button" id="fetchDetails" type="submit">Get page details</button>
+        </div>
+      </section>
+
+      <section id="saveReviewStep" hidden>
+        <button class="text-button" id="backToAddress" type="button">← Change address</button>
+        <div class="status-panel" id="metadataStatus"></div>
+        <h3>Review before saving</h3>
+        <p class="modal-copy" id="metadataHelp">Fix anything that will not help you recognize this page later.</p>
+        <label for="saveTitle">Title</label>
+        <input id="saveTitle" type="text">
+        <p class="field-error" id="saveTitleError" role="alert"></p>
+        <label for="saveDescription">Description <span class="optional">Optional</span></label>
+        <textarea id="saveDescription" rows="4"></textarea>
+        <div class="site-preview"><span class="site-avatar" id="saveAvatar"></span><span id="saveSite"></span></div>
+        <div class="modal-actions">
+          <button class="quiet-button" type="button" data-close="saveDialog">Cancel</button>
+          <button class="primary-button" id="createBookmark" type="button">Save bookmark</button>
+        </div>
+      </section>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="editDialog" aria-labelledby="editDialogTitle">
+    <form method="dialog" class="modal-card" id="editForm" novalidate>
+      <div class="modal-top">
+        <div><p class="modal-kicker">Saved bookmark</p><h2 id="editDialogTitle">Edit bookmark</h2></div>
+        <button class="icon-button" value="cancel" type="button" data-close="editDialog" aria-label="Close">×</button>
+      </div>
+      <p class="modal-copy">Update the destination and the details you use to recognize and organize this bookmark.</p>
+      <input id="editId" type="hidden">
+      <label for="editUrl">Web address</label>
+      <input id="editUrl" type="url">
+      <p class="field-error" id="editUrlError" role="alert"></p>
+      <label for="editTitle">Title</label>
+      <input id="editTitle" type="text">
+      <p class="field-error" id="editTitleError" role="alert"></p>
+      <label for="editDescription">Description <span class="optional">Optional</span></label>
+      <textarea id="editDescription" rows="4"></textarea>
+
+      <label for="labelInput">Labels</label>
+      <div class="selected-labels" id="selectedLabels"></div>
+      <div class="label-entry">
+        <input id="labelInput" type="text" placeholder="Start typing a label" autocomplete="off">
+        <div class="suggestions" id="labelSuggestions"></div>
+      </div>
+      <p class="field-note">Choose a suggestion, or press Enter to create a new label.</p>
+
+      <div class="modal-actions split-actions">
+        <button class="danger-soft" id="openDelete" type="button">Delete bookmark</button>
+        <span class="action-spacer"></span>
+        <button class="quiet-button" type="button" data-close="editDialog">Cancel</button>
+        <button class="primary-button" type="submit">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal confirm-modal" id="deleteDialog" aria-labelledby="deleteDialogTitle">
+    <form method="dialog" class="modal-card compact-card">
+      <span class="warning-icon" aria-hidden="true">!</span>
+      <h2 id="deleteDialogTitle">Delete this bookmark permanently?</h2>
+      <p class="modal-copy">This removes it from your collection completely. It will not appear in Archive, and this action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="quiet-button" type="button" data-close="deleteDialog">Keep bookmark</button>
+        <button class="danger-button" id="confirmDelete" type="button">Delete permanently</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

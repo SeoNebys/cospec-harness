@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Link Library — prototype</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --card: #ffffff; --ink: #2b2b2b; --muted: #8a8a83; --line: #e7e5df;
+    --accent: #5b6cff; --accent-soft: #eef0ff; --danger: #c0392b;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.04);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.5; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 96px; }
+  header h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+  .headactions { display: flex; gap: 8px; flex: none; }
+  .hbtn { border: 1px solid var(--line); background: #fff; color: #5f5e57; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 9px; cursor: pointer; }
+  .hbtn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .saver { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+    box-shadow: var(--shadow); display: flex; gap: 10px; align-items: center; transition: border-color .15s; }
+  .saver.invalid { border-color: var(--danger); }
+  .saver input { flex: 1; border: none; outline: none; font-size: 15px; background: transparent; color: var(--ink); padding: 8px 6px; }
+  .saver input::placeholder { color: #b6b4ac; }
+  .saver button { border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+    padding: 10px 18px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+
+  .status { min-height: 20px; margin: 12px 2px 0; font-size: 13px; color: var(--muted); }
+  .status.error { color: var(--danger); }
+  .status.info { color: var(--accent); }
+
+  .draft { margin-top: 16px; background: var(--card); border: 1px solid var(--accent); border-radius: 16px;
+    box-shadow: var(--shadow); overflow: hidden; animation: rise .22s ease; }
+  .draft .banner { background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 600; padding: 8px 18px; }
+  .draft .body { padding: 18px; }
+  .preview { height: 150px; border-radius: 12px; margin-bottom: 16px; display: flex; align-items: flex-end; padding: 10px 12px; color: #fff; font-size: 11px; }
+  .preview .tag { background: rgba(0,0,0,.28); padding: 3px 8px; border-radius: 20px; }
+
+  .pills { display: flex; gap: 8px; margin-bottom: 16px; }
+  .pill { border: 1px solid var(--line); background: #fff; color: #5f5e57; font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+  .pill.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .pilllabel { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: .02em; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; letter-spacing: .02em; }
+  .field input, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; font-family: inherit; color: var(--ink); background: #fcfcfb; outline: none; resize: vertical; }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .field input.err { border-color: var(--danger); }
+  .fielderr { color: var(--danger); font-size: 12px; margin-top: 5px; }
+  .suggest { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .suggest b { color: #5f5e57; font-weight: 600; }
+  .suggest button { background: none; border: none; color: var(--accent); font-weight: 600; font-size: 12px; cursor: pointer; padding: 0 0 0 2px; }
+  .rowbtn { display: flex; gap: 8px; align-items: center; }
+  .srcline { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin: 14px 0 16px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 10px; }
+  .btn-primary { border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; padding: 10px 18px; border-radius: 10px; cursor: pointer; }
+  .btn-ghost { border: 1px solid var(--line); background: #fff; color: #5f5e57; font-weight: 500; font-size: 14px; padding: 10px 16px; border-radius: 10px; cursor: pointer; }
+  .btn-small { border: 1px solid var(--line); background: #fff; color: var(--accent); font-weight: 600; font-size: 13px; padding: 9px 14px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+
+  .favicon { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700; flex: none; }
+
+  .tagbox { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 10px; background: #fcfcfb; }
+  .tagbox:focus-within { border-color: var(--accent); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; font-weight: 600; padding: 3px 4px 3px 10px; border-radius: 999px; }
+  .chip button { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; }
+  .taginput { border: none !important; outline: none; background: transparent !important; flex: 1; min-width: 90px; padding: 2px !important; font-size: 13px; }
+  .taghint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .tagsuggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tagsuggest .s-lead { font-size: 12px; color: var(--muted); align-self: center; }
+  .tagsuggest button { background: #f2f1ec; color: #6f6d66; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: none; cursor: pointer; }
+  .tagsuggest button:hover { background: var(--accent-soft); color: var(--accent); }
+
+  .searchbar { margin: 26px 0 0; display: flex; align-items: center; gap: 8px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow); }
+  .searchbar svg { flex: none; }
+  .searchbar input { flex: 1; border: none; outline: none; font-size: 14px; background: transparent; color: var(--ink); }
+  .searchbar .clear { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+  .searchhint { font-size: 12px; color: var(--muted); margin: 8px 2px 0; flex: 1; }
+  .controlrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sortrow { display: flex; align-items: center; gap: 6px; margin: 8px 2px 0; }
+  .sortrow label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .sortrow select { border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-family: inherit;
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; outline: none; }
+  .sortrow select:focus { border-color: var(--accent); }
+  .tagfilter { margin: 12px 2px 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tagfilter .chip button { font-size: 12px; }
+  .tagfilter .chip.excl { background: #fdecea; color: var(--danger); }
+  .tagfilter .chip.excl button { color: var(--danger); }
+  .savedviews { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 2px 14px; }
+  .savedviews .sv-lead { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+  .sv-chip { display: inline-flex; align-items: center; background: var(--accent-soft); border-radius: 999px; }
+  .sv-chip button { border: none; background: none; color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; padding: 5px 6px 5px 12px; }
+  .sv-chip .sv-x { padding: 5px 10px 5px 4px; font-weight: 700; }
+  .sv-chip button:hover { text-decoration: underline; }
+  .saverow { margin: 10px 2px 0; }
+  .saverow button { border: 1px dashed var(--accent); background: #fff; color: var(--accent); font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
+  .saverow button:hover { background: var(--accent-soft); }
+
+  .filters { display: flex; gap: 6px; margin: 18px 0 0; border-bottom: 1px solid var(--line); }
+  .filter { border: none; background: none; color: var(--muted); font-size: 13px; font-weight: 600; padding: 10px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .filter.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .filter .n { color: var(--muted); font-weight: 500; }
+
+  .bulkbar { position: sticky; top: 8px; z-index: 5; background: var(--accent); color: #fff; border-radius: 12px;
+    padding: 10px 14px; margin: 14px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; box-shadow: var(--shadow); }
+  .bulkbar .b-count { font-weight: 700; font-size: 13px; }
+  .bulkbar .spacer { flex: 1; }
+  .bulkbar button { border: none; background: rgba(255,255,255,.16); color: #fff; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+  .bulkbar button:hover { background: rgba(255,255,255,.3); }
+  .bulkbar button.b-danger { background: rgba(0,0,0,.2); }
+  .bulkbar input, .bulkbar select { border: none; border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit; color: var(--ink); }
+  .bulkbar input { width: 120px; }
+  .bulktagwrap { position: relative; display: inline-flex; }
+  .bulk-suggest { position: absolute; top: calc(100% + 4px); left: 0; background: #fff; border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: var(--shadow); padding: 4px; display: none; flex-direction: column; min-width: 150px; z-index: 10; }
+  .bulk-suggest button { display: block; width: 100%; text-align: left; background: none; color: #5f5e57; font-weight: 600; padding: 6px 8px; border-radius: 6px; }
+  .bulk-suggest button:hover { background: var(--accent-soft); color: var(--accent); }
+  .titlerow { display: flex; align-items: flex-start; gap: 10px; }
+  .selbox { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex: none; }
+  li.item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .count { margin: 18px 2px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .empty { margin-top: 30px; text-align: center; color: var(--muted); font-size: 14px; padding: 40px 20px; }
+  .empty .big { font-size: 15px; color: #6f6d66; margin-bottom: 6px; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  li.item { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0; box-shadow: var(--shadow); animation: rise .25s ease; overflow: hidden; }
+  li.item.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .item .thumb { height: 120px; }
+  .item .content { padding: 15px 18px; }
+  .item .title { font-size: 16px; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; }
+  .item .title a { color: var(--ink); text-decoration: none; }
+  .item .title a:hover { text-decoration: underline; }
+  .item .desc { font-size: 14px; color: #5f5e57; margin: 0 0 8px; overflow-wrap: anywhere; }
+  .notice { background: #fdf0e6; color: #b9791f; font-size: 13px; padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; }
+  .item .note { font-size: 13px; color: #6f6d66; margin: 0 0 10px; padding-left: 10px; border-left: 2px solid var(--line); overflow-wrap: anywhere; }
+  .item .note.md > :first-child { margin-top: 0; }
+  .item .note.md > :last-child { margin-bottom: 0; }
+  .item .note.md p { margin: 6px 0; }
+  .item .note.md ul { margin: 6px 0; padding-left: 20px; }
+  .item .note.md h3, .item .note.md h4, .item .note.md h5 { margin: 8px 0 4px; font-size: 13px; color: #5f5e57; }
+  .item .note.md code { background: #f2f1ec; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .item .note.md a { color: var(--accent); }
+  .item .note.md blockquote { margin: 6px 0; padding-left: 10px; border-left: 2px solid var(--line); color: var(--muted); }
+  .item .note.md strong { color: #5f5e57; }
+  .item .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+  .item .tags .tagchip { background: #f2f1ec; color: #6f6d66; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; cursor: pointer; border: none; }
+  .item .tags .tagchip:hover { background: var(--accent-soft); color: var(--accent); }
+  .item .meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  .item .meta .dot { opacity: .5; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .badge.toread { background: #fff4e5; color: #b9791f; }
+  .badge.reference { background: #e9f3ee; color: #2f7d54; }
+  .item .act { margin-left: auto; display: flex; gap: 4px; }
+  .item .linkbtn { color: var(--accent); font-size: 12px; font-weight: 600; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  .item .linkbtn.plain { color: var(--muted); }
+  .item .linkbtn:hover { background: var(--accent-soft); }
+  mark { background: #fff2a8; color: inherit; padding: 0 1px; border-radius: 2px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="headrow">
+        <div><h1>My Link Library</h1><p>A calm place for links worth keeping.</p></div>
+        <div class="headactions">
+          <button id="importBtn" class="hbtn">Import</button>
+          <button id="exportBtn" class="hbtn">Export</button>
+          <input id="importFile" type="file" accept=".html,.htm,text/html" hidden />
+        </div>
+      </div>
+    </header>
+
+    <form class="saver" id="saver" autocomplete="off">
+      <input id="url" type="text" placeholder="Paste a link and press Save…" aria-label="Link address" />
+      <button id="saveBtn" type="submit">Save</button>
+    </form>
+    <div class="status" id="status"></div>
+
+    <div id="draftMount"></div>
+
+    <div id="discovery"></div>
+    <div class="filters" id="filters"></div>
+    <div id="bulkbar" class="bulkbar" style="display:none"></div>
+    <div class="count" id="count" hidden></div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="empty"></div>
+  </div>
+
+<script>
+  const TODAY = "Sep 24, 2026";
+  const KNOWN = {
+    "nytimes.com":     { site: "The New York Times", title: "How Deep-Sea Cables Quietly Run the Internet", desc: "A look at the fragile undersea network carrying nearly all of the world's data traffic.", image: true },
+    "wikipedia.org":   { site: "Wikipedia", title: "Zettelkasten — the note-taking method", desc: "A system of interconnected notes used by researchers and writers to develop ideas over time.", image: false },
+    "github.com":      { site: "GitHub", title: "sqlite/sqlite: the most-deployed database engine", desc: "Source mirror of SQLite, a small, fast, self-contained SQL database engine.", image: false },
+    "css-tricks.com":  { site: "CSS-Tricks", title: "A Complete Guide to Flexbox", desc: "Everything you need to lay out elements along a row or column, with clear diagrams.", image: true },
+    "arstechnica.com": { site: "Ars Technica", title: "The Quiet Revival of the RSS Reader", desc: "Why a decades-old technology is finding new life among readers tired of algorithms.", image: true }
+  };
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function formatDate(ts){ const d = new Date(ts*1000); return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+  function nowTs(){ return Math.floor(Date.now()/1000); }
+  function colorFor(s){ let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))%360; return h; }
+  function grad(d){ const h=colorFor(d||"x"); return `linear-gradient(135deg, hsl(${h} 60% 55%), hsl(${(h+40)%360} 55% 42%))`; }
+  function normalize(raw){
+    raw = (raw||"").trim();
+    if(!raw || /\s/.test(raw)) return { ok:false };
+    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : "https://" + raw;
+    let u; try { u = new URL(withScheme); } catch(e){ return { ok:false }; }
+    if(!/^https?:$/.test(u.protocol)) return { ok:false };
+    if(!u.hostname.includes(".") || u.hostname.split(".").some(p => p.length === 0)) return { ok:false };
+    return { ok:true, url:u.href, domain:u.hostname.replace(/^www\./,"") };
+  }
+  function lookup(domain){
+    if(KNOWN[domain]) return { ...KNOWN[domain], domain };
+    const name = domain.split(".")[0];
+    return { site: domain, title: name.charAt(0).toUpperCase()+name.slice(1)+" — saved page", desc:"", image:false, domain };
+  }
+
+  // ---------- Search query language ----------
+  // Grammar: OR (lowest) > AND (implicit between terms) > NOT > primary.
+  // Terms: bare word (substring over title/desc/url/note), "phrase", #tag,
+  // parentheses for grouping. AND/OR/NOT are operators only in capitals.
+  function tokenize(q){
+    const toks = []; let i = 0;
+    while(i < q.length){
+      const ch = q[i];
+      if(/\s/.test(ch)){ i++; continue; }
+      if(ch === "("){ toks.push({t:"("}); i++; continue; }
+      if(ch === ")"){ toks.push({t:")"}); i++; continue; }
+      if(ch === '"'){ let j=i+1, s=""; while(j<q.length && q[j] !== '"'){ s+=q[j]; j++; } i = j<q.length? j+1 : j; toks.push({t:"phrase", v:s}); continue; }
+      if(ch === "#"){ let j=i+1, s=""; while(j<q.length && !/[\s()"]/.test(q[j])){ s+=q[j]; j++; } i=j;
+        if(s) toks.push({t:"tag", v:s}); else toks.push({t:"word", v:"#"}); continue; }
+      let j=i, s=""; while(j<q.length && !/[\s()"]/.test(q[j])){ s+=q[j]; j++; } i=j;
+      if(/^(and|or|not)$/i.test(s)) toks.push({t:s.toUpperCase()}); else toks.push({t:"word", v:s});  // operators are case-insensitive; quote to search literally
+    }
+    return toks;
+  }
+  function parseQuery(q){
+    const toks = tokenize(q||""); let pos = 0;
+    const peek = () => toks[pos]; const next = () => toks[pos++];
+    function parseExpr(){ return parseOr(); }
+    function parseOr(){ let n = parseAnd(); while(peek() && peek().t === "OR"){ next(); const r = parseAnd(); n = {op:"or", l:n, r}; } return n; }
+    function parseAnd(){
+      let n = parseNot();
+      while(true){ const p = peek(); if(!p || p.t === "OR" || p.t === ")") break;
+        if(p.t === "AND") next(); const r = parseNot(); if(r == null) break; n = n == null ? r : {op:"and", l:n, r}; }
+      return n;
+    }
+    function parseNot(){ if(peek() && peek().t === "NOT"){ next(); return {op:"not", c:parseNot()}; } return parsePrimary(); }
+    function parsePrimary(){
+      const p = peek(); if(!p) return null;
+      if(p.t === "("){ next(); const e = parseExpr(); if(peek() && peek().t === ")") next(); return e; }
+      if(p.t === "word"){ next(); return {op:"word", v:p.v}; }
+      if(p.t === "phrase"){ next(); return {op:"phrase", v:p.v}; }
+      if(p.t === "tag"){ next(); return {op:"tag", v:p.v}; }
+      next(); return null;
+    }
+    let ast; try { ast = parseExpr(); } catch(e){ ast = null; }
+    return ast;
+  }
+  function textOf(it){ return [it.title, it.desc, it.url, it.note].join(" ").toLowerCase(); }
+  function evalNode(n, it){
+    if(!n) return true;
+    switch(n.op){
+      case "word": return textOf(it).includes((n.v||"").toLowerCase());
+      case "phrase": return textOf(it).includes((n.v||"").toLowerCase());
+      case "tag": return (it.tags||[]).some(t => t.toLowerCase() === (n.v||"").toLowerCase());
+      case "and": return evalNode(n.l, it) && evalNode(n.r, it);
+      case "or": return evalNode(n.l, it) || evalNode(n.r, it);
+      case "not": return !evalNode(n.c, it);
+    }
+    return true;
+  }
+  function collectTerms(n, neg, acc){
+    if(!n) return acc;
+    if(n.op === "word" || n.op === "phrase"){ if(!neg && n.v) acc.push(n.v); }
+    else if(n.op === "and" || n.op === "or"){ collectTerms(n.l, neg, acc); collectTerms(n.r, neg, acc); }
+    else if(n.op === "not"){ collectTerms(n.c, !neg, acc); }
+    return acc;
+  }
+
+  // Model
+  let items = [];
+  let draft = null;
+  let filter = "all";
+  let searchText = "";
+  let includeTags = [];              // links must have all of these
+  let excludeTags = [];              // links must have none of these
+  let savedViews = [];               // reusable {id,name,search,include[],exclude[]}
+  let sortBy = "newest";              // newest | oldest | title-az | title-za
+  let seq = 0;                        // monotonic order of addition
+  let selected = new Set();           // ids selected for bulk actions
+  let queryAst = null;
+  let highlightTerms = [];
+  const listEl = document.getElementById("list");
+  const emptyEl = document.getElementById("empty");
+  const countEl = document.getElementById("count");
+  const statusEl = document.getElementById("status");
+  const urlEl = document.getElementById("url");
+  const saverEl = document.getElementById("saver");
+  const draftMount = document.getElementById("draftMount");
+  const filtersEl = document.getElementById("filters");
+  const discoveryEl = document.getElementById("discovery");
+
+  function setStatus(msg, kind){ statusEl.textContent = msg || ""; statusEl.className = "status" + (kind ? " "+kind : ""); }
+  function esc(s){ return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function favEl(o){ return `<span class="favicon" style="background:${grad(o.domain)}">${esc((o.site||"?").charAt(0).toUpperCase())}</span>`; }
+  function hi(text){
+    const t = esc(text);
+    if(!highlightTerms.length) return t;
+    const terms = [...highlightTerms].sort((a,b)=>b.length-a.length).map(w => w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")).filter(Boolean);
+    if(!terms.length) return t;
+    return t.replace(new RegExp("("+terms.join("|")+")","ig"), "<mark>$1</mark>");
+  }
+  function allTags(){ return [...new Set(items.flatMap(it => it.tags || []))].sort(); }
+
+  // Minimal, safe Markdown renderer for the personal note.
+  function mdInline(s){
+    s = s.replace(/`([^`]+)`/g, (m,c)=>`<code>${c}</code>`);
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m,txt,url)=>{ const safe = /^(https?:|mailto:)/i.test(url) ? url : "#"; return `<a href="${safe}" target="_blank" rel="noopener">${txt}</a>`; });
+    s = s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/__([^_]+)__/g,"<strong>$1</strong>");
+    s = s.replace(/(^|[^*])\*([^*]+)\*/g,"$1<em>$2</em>").replace(/(^|[^_])_([^_]+)_/g,"$1<em>$2</em>");
+    return s;
+  }
+  function renderMarkdown(src){
+    const lines = esc(src).split(/\r?\n/); let html = ""; let inList = false;
+    const closeList = () => { if(inList){ html += "</ul>"; inList = false; } };
+    for(const raw of lines){
+      const line = raw.trim();
+      if(line === ""){ closeList(); continue; }
+      let m;
+      if(m = line.match(/^(#{1,3})\s+(.*)$/)){ closeList(); const lvl = m[1].length + 2; html += `<h${lvl}>${mdInline(m[2])}</h${lvl}>`; continue; }
+      if(m = line.match(/^[-*]\s+(.*)$/)){ if(!inList){ html += "<ul>"; inList = true; } html += `<li>${mdInline(m[1])}</li>`; continue; }
+      if(m = line.match(/^>\s+(.*)$/)){ closeList(); html += `<blockquote>${mdInline(m[1])}</blockquote>`; continue; }
+      closeList(); html += `<p>${mdInline(line)}</p>`;
+    }
+    closeList(); return html;
+  }
+
+  const inToRead = it => !!it.toRead;
+  const active = () => items.filter(it => !it.archived);
+  const counts = () => ({ all: active().length, toread: active().filter(inToRead).length, reference: active().filter(it => !it.toRead).length, archived: items.filter(it => it.archived).length });
+
+  function visible(){
+    let list;
+    if(filter === "archived"){ list = items.filter(it => it.archived); }
+    else { list = items.filter(it => !it.archived);
+      if(filter === "toread") list = list.filter(inToRead);
+      else if(filter === "reference") list = list.filter(it => !it.toRead); }
+    if(includeTags.length) list = list.filter(it => includeTags.every(t => (it.tags||[]).includes(t)));
+    if(excludeTags.length) list = list.filter(it => !excludeTags.some(t => (it.tags||[]).includes(t)));
+    if(searchText.trim()) list = list.filter(it => evalNode(queryAst, it));
+    return sortList(list);
+  }
+  function sortList(list){
+    const arr = [...list];
+    arr.sort((a,b) => {
+      if(sortBy === "newest") return (b.ts - a.ts) || (b.createdAt - a.createdAt);
+      if(sortBy === "oldest") return (a.ts - b.ts) || (a.createdAt - b.createdAt);
+      if(sortBy === "updated") return b.updatedAt - a.updatedAt;
+      if(sortBy === "title-az") return a.title.localeCompare(b.title, undefined, {sensitivity:"base"}) || b.createdAt - a.createdAt;
+      if(sortBy === "title-za") return b.title.localeCompare(a.title, undefined, {sensitivity:"base"}) || b.createdAt - a.createdAt;
+      return 0;
+    });
+    return arr;
+  }
+
+  // ---------- Save flow ----------
+  saverEl.addEventListener("submit", function(e){
+    e.preventDefault();
+    const n = normalize(urlEl.value);
+    if(!n.ok){ saverEl.classList.add("invalid");
+      setStatus("That doesn't look like a usable web address. Try something like nytimes.com or https://example.com/article.", "error"); return; }
+    saverEl.classList.remove("invalid");
+    const existing = items.find(it => it.url === n.url);
+    if(existing){ setStatus("This link is already in your library — opening it so you can edit it.", "info");
+      urlEl.value = ""; draft = null; renderDraft(); startEdit(existing.id, true); return; }
+    setStatus("Looking up the page details…"); urlEl.value = "";
+    draft = { url:n.url, domain:n.domain, loading:true }; renderDraft();
+    setTimeout(() => {
+      // Simulated fetch failure: a page we couldn't reach (e.g. a ".test" host).
+      if(/\.test$/i.test(n.domain)){
+        draft = { url:n.url, domain:n.domain, loading:false, fetchFailed:true, title:"", desc:"", site:n.domain, image:false, savedAt:TODAY, shelf:"reference", tags:[], note:"" };
+        setStatus(""); renderDraft();
+        const t = document.getElementById("draftTitle"); if(t) t.focus();
+        return;
+      }
+      const meta = lookup(n.domain);
+      draft = { url:n.url, domain:n.domain, loading:false, title:meta.title, desc:meta.desc, site:meta.site, image:meta.image, savedAt:TODAY, shelf:"reference", tags:[], note:"" };
+      setStatus(""); renderDraft();
+      const t = document.getElementById("draftTitle"); if(t) t.focus();
+    }, 800);
+  });
+
+  function shelfPills(current, kind){
+    return `<div class="pilllabel">Add to</div><div class="pills">
+      <button type="button" class="pill ${current==='toread'?'active':''}" data-shelf="toread" data-kind="${kind}">📖 To read</button>
+      <button type="button" class="pill ${current==='reference'?'active':''}" data-shelf="reference" data-kind="${kind}">🔖 Reference</button></div>`;
+  }
+  function tagEditor(tags, kind){
+    const chips = (tags||[]).map(t => `<span class="chip">#${esc(t)}<button type="button" data-rmtag="${kind}" data-tag="${esc(t)}">×</button></span>`).join("");
+    return `<div class="field"><label>Tags</label>
+      <div class="tagbox">${chips}<input class="taginput" id="taginput-${kind}" placeholder="Add a tag…" autocomplete="off" /></div>
+      <div class="tagsuggest" id="tagsuggest-${kind}"></div>
+      <div class="taghint">Type a word and press Enter. Suggestions come from tags you've used.</div></div>`;
+  }
+  function noteField(id, val){ return `<div class="field"><label for="${id}">Your note (optional)</label><textarea id="${id}" rows="3" placeholder="Why you saved this…">${esc(val||"")}</textarea><div class="taghint">Supports Markdown — **bold**, *italic*, \`code\`, - lists, [links](url).</div></div>`; }
+
+  function stashDraft(){ const t=document.getElementById("draftTitle"), d=document.getElementById("draftDesc"), nn=document.getElementById("draftNote");
+    if(t) draft.title=t.value; if(d) draft.desc=d.value; if(nn) draft.note=nn.value; }
+
+  function renderDraft(){
+    draftMount.innerHTML = "";
+    if(!draft) return;
+    const d = document.createElement("div"); d.className = "draft";
+    if(draft.loading){
+      d.innerHTML = `<div class="banner">Reviewing before saving</div><div class="body">
+        <div style="height:150px;border-radius:12px;margin-bottom:16px;background:#f0efec"></div></div>`;
+    } else {
+      d.innerHTML = `<div class="banner">Review &amp; adjust before saving</div><div class="body">
+        ${draft.fetchFailed ? `<div class="notice">We couldn't automatically fetch this page's details. You can still save it and fill in the title, description, and note yourself.</div>` : ``}
+        ${draft.image ? `<div class="preview" style="background:${grad(draft.domain)}"><span class="tag">Preview image from the page</span></div>` : ``}
+        ${shelfPills(draft.shelf, "draft")}
+        <div class="field"><label for="draftTitle">Title</label><input id="draftTitle" type="text" value="${esc(draft.title)}" /></div>
+        <div class="field"><label for="draftDesc">Description</label><textarea id="draftDesc" rows="2">${esc(draft.desc)}</textarea></div>
+        ${noteField("draftNote", draft.note)}
+        ${tagEditor(draft.tags, "draft")}
+        <div class="srcline">${favEl(draft)}<span>${esc(draft.site)}</span><span class="dot">·</span><span>${esc(draft.domain)}</span><span class="dot">·</span><span>Saved ${draft.savedAt}</span></div>
+        <div class="actions"><button class="btn-primary" id="draftSave">Save to library</button><button class="btn-ghost" id="draftCancel">Cancel</button></div></div>`;
+    }
+    draftMount.appendChild(d);
+    wireShelfPills(); wireTagEditors();
+    if(draft._focusTag){ const el=document.getElementById("taginput-draft"); if(el) el.focus(); draft._focusTag=false; }
+    const s = document.getElementById("draftSave"), c = document.getElementById("draftCancel");
+    if(s) s.onclick = confirmDraft;
+    if(c) c.onclick = () => { draft = null; renderDraft(); setStatus(""); };
+  }
+
+  function wireShelfPills(){
+    document.querySelectorAll("[data-shelf]").forEach(b => b.onclick = () => {
+      const kind = b.dataset.kind, shelf = b.dataset.shelf;
+      if(kind === "draft"){ draft.shelf = shelf; } else { const it = items.find(x => x.id === kind); if(it){ stashFields(it); it.editShelf = shelf; } }
+      b.parentElement.querySelectorAll(".pill").forEach(p => p.classList.toggle("active", p === b));
+    });
+  }
+  function tagsOf(kind){ if(kind === "draft"){ draft.tags = draft.tags||[]; return draft.tags; } const it = items.find(x=>x.id===kind); it.editTags = it.editTags||[]; return it.editTags; }
+  function reRenderFor(kind){ if(kind === "draft"){ stashDraft(); draft._focusTag = true; renderDraft(); } else { const it=items.find(x=>x.id===kind); stashFields(it); it._focusTag = true; render(); } }
+  function addTag(kind, raw){ const val = (raw||"").trim().toLowerCase().replace(/^#/,""); if(!val) return; const arr = tagsOf(kind); if(!arr.includes(val)) arr.push(val); }
+  function wireTagEditors(){
+    document.querySelectorAll(".taginput").forEach(inp => {
+      const kind = inp.id.replace("taginput-","");
+      inp.onkeydown = (e) => {
+        if(e.key === "Enter" || e.key === ","){ e.preventDefault(); addTag(kind, inp.value); inp.value=""; reRenderFor(kind); }
+        else if(e.key === "Backspace" && inp.value === ""){ const arr = tagsOf(kind); if(arr.length){ arr.pop(); reRenderFor(kind); } }
+      };
+      inp.oninput = () => showTagSuggest(kind, inp.value);
+    });
+    document.querySelectorAll("[data-rmtag]").forEach(b => b.onclick = () => {
+      const arr = tagsOf(b.dataset.rmtag); const i = arr.indexOf(b.dataset.tag); if(i>=0) arr.splice(i,1); reRenderFor(b.dataset.rmtag);
+    });
+    items.filter(it=>it.editing && it._focusTag).forEach(it => { const el=document.getElementById("taginput-"+it.id); if(el){ el.focus(); it._focusTag=false; } });
+  }
+  function showTagSuggest(kind, val){
+    const box = document.getElementById("tagsuggest-"+kind); if(!box) return;
+    const cur = tagsOf(kind); const v = (val||"").trim().toLowerCase().replace(/^#/,"");
+    const matches = v ? allTags().filter(t => t.includes(v) && !cur.includes(t)).slice(0,6) : [];
+    box.innerHTML = matches.length ? `<span class="s-lead">Reuse:</span>` + matches.map(t => `<button type="button" data-addtag="${kind}" data-tag="${esc(t)}">#${esc(t)}</button>`).join("") : "";
+    box.querySelectorAll("[data-addtag]").forEach(b => b.onclick = () => { addTag(b.dataset.addtag, b.dataset.tag); reRenderFor(b.dataset.addtag); });
+  }
+
+  function confirmDraft(){
+    stashDraft();
+    const item = { id: Date.now()+"-"+Math.random().toString(36).slice(2,6),
+      url:draft.url, domain:draft.domain, site:draft.site, title:(draft.title||"").trim()||draft.domain, desc:(draft.desc||"").trim(),
+      note:(draft.note||"").trim(), image:draft.image, ts: nowTs(), savedAt: formatDate(nowTs()), createdAt: seq, updatedAt: seq++, toRead: draft.shelf === "toread", tags:[...(draft.tags||[])], archived:false };
+    items.unshift(item);
+    draft = null; renderDraft();
+    setStatus("Saved to your library.", "info"); render(item.id);
+    setTimeout(() => { if(statusEl.textContent === "Saved to your library.") setStatus(""); }, 2600);
+  }
+
+  function touch(it){ it.updatedAt = seq++; }
+
+  // ---------- Bulk selection & actions ----------
+  const selItems = () => items.filter(it => selected.has(it.id));
+  function toggleSelect(id){ if(selected.has(id)) selected.delete(id); else selected.add(id); render(); }
+  function clearSelection(){ selected.clear(); }
+  // After any bulk action, drop from the selection any links that are no longer
+  // in the current view (moved out or deleted); keep those still visible.
+  function pruneSelection(){ const vis = new Set(visible().map(v => v.id)); [...selected].forEach(id => { if(!vis.has(id)) selected.delete(id); }); }
+  function bulkAddTag(raw){ const v = (raw||"").trim().toLowerCase().replace(/^#/,""); if(!v) return; selItems().forEach(it => { it.tags = it.tags||[]; if(!it.tags.includes(v)){ it.tags.push(v); touch(it); } }); pruneSelection(); render(); }
+  function bulkRemoveTag(v){ if(!v) return; selItems().forEach(it => { if(it.tags){ const i = it.tags.indexOf(v); if(i>=0){ it.tags.splice(i,1); touch(it); } } }); pruneSelection(); render(); }
+  function bulkSetRead(toReadVal){ selItems().forEach(it => { it.toRead = toReadVal; touch(it); }); pruneSelection(); render(); }
+  function bulkArchive(v){ selItems().forEach(it => { it.archived = v; touch(it); }); pruneSelection(); render(); }
+  function bulkDelete(){ if(confirm(`Permanently delete ${selected.size} link${selected.size===1?"":"s"}? This cannot be undone.`)){ items = items.filter(it => !selected.has(it.id)); pruneSelection(); render(); } }
+
+  function renderBulk(){
+    const bar = document.getElementById("bulkbar");
+    if(selected.size === 0){ bar.style.display = "none"; bar.innerHTML = ""; return; }
+    bar.style.display = "flex";
+    const visIds = visible().map(v => v.id);
+    const allVisSelected = visIds.length > 0 && visIds.every(id => selected.has(id));
+    const arch = filter === "archived";
+    const tagsInSel = [...new Set(selItems().flatMap(it => it.tags||[]))].sort();
+    bar.innerHTML = `
+      <span class="b-count">${selected.size} selected</span>
+      <button data-selall>${allVisSelected ? "Clear selection" : `Select all ${visIds.length} matching`}</button>
+      <span class="spacer"></span>
+      <span class="bulktagwrap"><input id="bulkTag" placeholder="add tag…" autocomplete="off" /><div id="bulkTagSuggest" class="bulk-suggest"></div></span>
+      <button data-bulkaddtag>Add tag</button>
+      ${tagsInSel.length ? `<select id="bulkRmTag"><option value="">remove tag…</option>${tagsInSel.map(t => `<option value="${esc(t)}">#${esc(t)}</option>`).join("")}</select>` : ``}
+      ${arch ? `<button data-bulkrestore>Restore</button><button class="b-danger" data-bulkdelete>Delete</button>`
+             : `<button data-bulkread>Mark read</button><button data-bulktoread>To read</button><button data-bulkarchive>Archive</button>`}
+      <button data-bulkclear title="Clear selection">✕</button>`;
+    bar.querySelector("[data-selall]").onclick = () => { if(allVisSelected){ visIds.forEach(id => selected.delete(id)); } else { visIds.forEach(id => selected.add(id)); } render(); };
+    const addBtn = bar.querySelector("[data-bulkaddtag]"), tagInp = bar.querySelector("#bulkTag");
+    addBtn.onclick = () => bulkAddTag(tagInp.value);
+    tagInp.onkeydown = (e) => { if(e.key === "Enter"){ e.preventDefault(); bulkAddTag(tagInp.value); } };
+    tagInp.oninput = () => {
+      const box = bar.querySelector("#bulkTagSuggest"); const v = tagInp.value.trim().toLowerCase().replace(/^#/,"");
+      const matches = v ? allTags().filter(t => t.includes(v)).slice(0,6) : [];
+      box.innerHTML = matches.map(t => `<button type="button" data-bsug="${esc(t)}">#${esc(t)}</button>`).join("");
+      box.style.display = matches.length ? "flex" : "none";
+      box.querySelectorAll("[data-bsug]").forEach(sb => sb.onclick = () => bulkAddTag(sb.dataset.bsug));
+    };
+    const rm = bar.querySelector("#bulkRmTag"); if(rm) rm.onchange = () => bulkRemoveTag(rm.value);
+    const b = sel => bar.querySelector(sel);
+    if(b("[data-bulkread]")) b("[data-bulkread]").onclick = () => bulkSetRead(false);
+    if(b("[data-bulktoread]")) b("[data-bulktoread]").onclick = () => bulkSetRead(true);
+    if(b("[data-bulkarchive]")) b("[data-bulkarchive]").onclick = () => bulkArchive(true);
+    if(b("[data-bulkrestore]")) b("[data-bulkrestore]").onclick = () => bulkArchive(false);
+    if(b("[data-bulkdelete]")) b("[data-bulkdelete]").onclick = () => bulkDelete();
+    b("[data-bulkclear]").onclick = () => { clearSelection(); render(); };
+  }
+  function markRead(id){ const it = items.find(x=>x.id===id); if(it){ it.toRead = false; touch(it); render(); } }
+  function markToRead(id){ const it = items.find(x=>x.id===id); if(it){ it.toRead = true; touch(it); render(); } }
+  function archive(id){ const it = items.find(x=>x.id===id); if(it){ it.archived = true; touch(it); render(); } }   // tidy away, not delete
+  function restore(id){ const it = items.find(x=>x.id===id); if(it){ it.archived = false; touch(it); render(); } }
+  function deleteItem(id){ const it = items.find(x=>x.id===id); if(!it) return;
+    if(confirm("Permanently delete “"+(it.title||it.domain)+"”? This cannot be undone.")){ items = items.filter(x=>x.id!==id); render(); } }
+
+  // ---------- Edit ----------
+  function startEdit(id, flash){
+    const it = items.find(x => x.id === id); if(!it) return;
+    if(filter === "toread" && !inToRead(it)) filter = "all";
+    it.editing = true; it.editAddr = it.url; it.fetchedFor = it.url; it.suggest = null; it.addrErr = "";
+    it.editShelf = it.toRead ? "toread" : "reference"; it.editTags = [...(it.tags||[])];
+    render(flash ? id : null);
+    const t = document.getElementById("edit-title-"+id); if(t) t.focus({preventScroll:true});
+    const card = document.getElementById("card-"+id); if(card) card.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+  function fetchNewAddress(id){
+    const it = items.find(x => x.id === id); if(!it) return; stashFields(it);
+    const n = normalize(it.editAddr);
+    if(!n.ok){ it.addrErr = "That doesn't look like a usable web address."; render(); return; }
+    if(n.url !== it.url && items.some(o => o.id !== it.id && o.url === n.url)){ it.addrErr = "Another saved link already uses that address."; render(); return; }
+    it.addrErr = "";
+    if(n.url === it.url){ it.fetchedFor = it.url; it.suggest = null; render(); return; }
+    it.suggest = lookup(n.domain); it.fetchedFor = n.url; render();
+  }
+  function stashFields(it){
+    const t = document.getElementById("edit-title-"+it.id), d = document.getElementById("edit-desc-"+it.id),
+      a = document.getElementById("edit-addr-"+it.id), nn = document.getElementById("edit-note-"+it.id);
+    if(t) it.tmpTitle = t.value; if(d) it.tmpDesc = d.value; if(a) it.editAddr = a.value; if(nn) it.tmpNote = nn.value;
+  }
+  function saveEdit(id){
+    const it = items.find(x => x.id === id); if(!it) return; stashFields(it);
+    const n = normalize(it.editAddr);
+    if(!n.ok){ it.addrErr = "That doesn't look like a usable web address."; render(); return; }
+    if(n.url !== it.url && items.some(o => o.id !== it.id && o.url === n.url)){ it.addrErr = "Another saved link already uses that address."; render(); return; }
+    if(n.url !== it.url && it.fetchedFor !== n.url){ it.addrErr = "You changed the address — press “Fetch page details” to review the new page first."; render(); return; }
+    it.title = (it.tmpTitle ?? it.title).trim() || n.domain;
+    it.desc = (it.tmpDesc ?? it.desc).trim();
+    it.note = (it.tmpNote ?? it.note ?? "").trim();
+    if(n.url !== it.url && it.suggest){ it.site = it.suggest.site; it.image = it.suggest.image; }
+    it.url = n.url; it.domain = n.domain;
+    if(it.editShelf) it.toRead = (it.editShelf === "toread");
+    it.tags = [...(it.editTags||[])];
+    touch(it);
+    it.editing = false; it.suggest = null; it.tmpTitle = it.tmpDesc = it.tmpNote = undefined; it.addrErr = ""; it.editTags = undefined;
+    render(id);
+  }
+
+  // ---------- Discovery ----------
+  const hasActiveFilter = () => !!(searchText.trim() || includeTags.length || excludeTags.length);
+  function applySavedView(v){ searchText = v.search||""; includeTags = [...(v.include||[])]; excludeTags = [...(v.exclude||[])];
+    queryAst = parseQuery(searchText); highlightTerms = collectTerms(queryAst, false, []); filter = "all"; clearSelection(); render(); }
+  function saveCurrentView(){
+    if(!hasActiveFilter()){ return; }
+    const name = (prompt("Name this view:", "") || "").trim(); if(!name) return;
+    savedViews.push({ id: Date.now()+"", name, search: searchText, include: [...includeTags], exclude: [...excludeTags] });
+    render();
+  }
+  function deleteSavedView(id){ savedViews = savedViews.filter(v => v.id !== id); render(); }
+
+  function renderDiscovery(){
+    if(items.length === 0){ discoveryEl.innerHTML = ""; return; }
+    const tagChip = (t, mode) => `<span class="chip ${mode==='exclude'?'excl':''}">${mode==='exclude'?'−':''}#${esc(t)}<button type="button" data-flip="${esc(t)}" data-mode="${mode}" title="${mode==='exclude'?'Include instead':'Exclude instead'}">${mode==='exclude'?'＋':'⊘'}</button><button type="button" data-rmfilter="${esc(t)}" data-mode="${mode}" title="Remove">×</button></span>`;
+    discoveryEl.innerHTML = `
+      ${savedViews.length ? `<div class="savedviews"><span class="sv-lead">Saved views</span>${savedViews.map(v=>`<span class="sv-chip"><button data-applyview="${v.id}">${esc(v.name)}</button><button class="sv-x" data-delview="${v.id}" title="Delete view">×</button></span>`).join("")}</div>` : ``}
+      <div class="searchbar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a8a83" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="search" type="text" placeholder="Search words, &quot;a phrase&quot;, #tag, and / or / not…" value="${esc(searchText)}" />
+        <button class="clear" id="clearSearch" style="display:${searchText?'inline':'none'}">Clear</button>
+      </div>
+      <div class="controlrow">
+        <div class="searchhint">Words narrow together; use "quotes" for a phrase, #tag for a tag, and and / or / not with ( ) to combine.</div>
+        <div class="sortrow"><label for="sortby">Sort</label><select id="sortby">
+          <option value="newest"${sortBy==='newest'?' selected':''}>Newest first</option>
+          <option value="updated"${sortBy==='updated'?' selected':''}>Recently updated</option>
+          <option value="oldest"${sortBy==='oldest'?' selected':''}>Oldest first</option>
+          <option value="title-az"${sortBy==='title-az'?' selected':''}>Title A–Z</option>
+          <option value="title-za"${sortBy==='title-za'?' selected':''}>Title Z–A</option>
+        </select></div>
+      </div>
+      ${(includeTags.length || excludeTags.length) ? `<div class="tagfilter">Filtering
+        ${includeTags.map(t=>tagChip(t,'include')).join(" ")}
+        ${excludeTags.map(t=>tagChip(t,'exclude')).join(" ")}</div>` : ``}
+      ${hasActiveFilter() ? `<div class="saverow"><button id="saveView">＋ Save this view</button></div>` : ``}`;
+    const sortSel = document.getElementById("sortby");
+    if(sortSel) sortSel.onchange = () => { sortBy = sortSel.value; renderList(); };
+    const sv = document.getElementById("saveView"); if(sv) sv.onclick = saveCurrentView;
+    discoveryEl.querySelectorAll("[data-applyview]").forEach(b => b.onclick = () => { const v = savedViews.find(x=>x.id===b.dataset.applyview); if(v) applySavedView(v); });
+    discoveryEl.querySelectorAll("[data-delview]").forEach(b => b.onclick = () => deleteSavedView(b.dataset.delview));
+    discoveryEl.querySelectorAll("[data-flip]").forEach(b => b.onclick = () => {
+      const t = b.dataset.flip;
+      if(b.dataset.mode === "include"){ includeTags = includeTags.filter(x=>x!==t); if(!excludeTags.includes(t)) excludeTags.push(t); }
+      else { excludeTags = excludeTags.filter(x=>x!==t); if(!includeTags.includes(t)) includeTags.push(t); }
+      render();
+    });
+    const s = document.getElementById("search");
+    if(s){
+      s.oninput = () => { searchText = s.value; queryAst = parseQuery(searchText); highlightTerms = collectTerms(queryAst, false, []);
+        document.getElementById("clearSearch").style.display = searchText ? "inline" : "none"; renderList(); };
+      s.onkeydown = (e) => { if(e.key === "Escape"){ searchText=""; queryAst=null; highlightTerms=[]; renderDiscovery(); renderList(); } };
+    }
+    const cs = document.getElementById("clearSearch"); if(cs) cs.onclick = () => { searchText=""; queryAst=null; highlightTerms=[]; renderDiscovery(); renderList(); };
+    discoveryEl.querySelectorAll("[data-rmfilter]").forEach(b => b.onclick = () => {
+      const t = b.dataset.rmfilter;
+      if(b.dataset.mode === "exclude") excludeTags = excludeTags.filter(x => x !== t);
+      else includeTags = includeTags.filter(x => x !== t);
+      render();
+    });
+  }
+
+  function renderFilters(){
+    const c = counts();
+    const defs = [["all","All",c.all],["toread","To read",c.toread],["reference","Reference",c.reference],["archived","Archived",c.archived]];
+    filtersEl.innerHTML = defs.map(([k,label,n]) => `<button class="filter ${filter===k?'active':''}" data-filter="${k}">${label} <span class="n">${n}</span></button>`).join("");
+    filtersEl.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { filter = b.dataset.filter; renderFilters(); renderList(); });
+    filtersEl.hidden = items.length === 0;
+  }
+
+  function render(flashId){ renderDiscovery(); renderFilters(); renderBulk(); renderList(flashId); }
+
+  function renderList(flashId){
+    const vis = visible();
+    countEl.hidden = items.length === 0;
+    listEl.innerHTML = "";
+    if(items.length === 0){
+      emptyEl.innerHTML = `<div class="big">Your library is empty.</div><div>Paste a link above to save your first one.</div>`;
+    } else if(vis.length === 0){
+      if(hasActiveFilter()){ emptyEl.innerHTML = `<div class="big">No links match your search.</div><div>Try fewer or different words.</div>`; }
+      else { const msg = filter === "toread" ? ["Nothing left to read.","Links you mark “To read” show up here."]
+          : filter === "reference" ? ["No reference links yet.","Keep pages here for looking up later."]
+          : filter === "archived" ? ["Nothing archived.","Links you tidy away rest here — kept, not deleted."] : ["Nothing here.",""];
+        emptyEl.innerHTML = `<div class="big">${msg[0]}</div><div>${msg[1]}</div>`; }
+    } else emptyEl.innerHTML = "";
+    countEl.textContent = vis.length + (vis.length === 1 ? " link" : " links");
+
+    vis.forEach(it => {
+      const li = document.createElement("li"); li.id = "card-"+it.id;
+      li.className = "item" + (it.id === flashId ? " flash" : "") + (selected.has(it.id) ? " selected" : "");
+      if(it.editing){
+        const src = it.suggest || it; const titleVal = it.tmpTitle ?? it.title; const descVal = it.tmpDesc ?? it.desc; const noteVal = it.tmpNote ?? it.note;
+        li.innerHTML = `<div class="content">
+          <div class="field"><label>Web address</label><div class="rowbtn">
+            <input id="edit-addr-${it.id}" class="${it.addrErr?'err':''}" type="text" value="${esc(it.editAddr)}" />
+            <button class="btn-small" data-fetch="${it.id}">Fetch page details</button></div>
+            ${it.addrErr ? `<div class="fielderr">${esc(it.addrErr)}</div>` : ``}</div>
+          ${src.image ? `<div class="preview" style="background:${grad(src.domain)}"><span class="tag">Preview image from the page</span></div>` : ``}
+          ${shelfPills(it.editShelf, it.id)}
+          <div class="field"><label>Title</label><input id="edit-title-${it.id}" type="text" value="${esc(titleVal)}" />
+            ${it.suggest ? `<div class="suggest">This page suggests: <b>${esc(it.suggest.title)}</b> <button data-usetitle="${it.id}">Use this</button></div>` : ``}</div>
+          <div class="field"><label>Description</label><textarea id="edit-desc-${it.id}" rows="2">${esc(descVal)}</textarea>
+            ${it.suggest && it.suggest.desc ? `<div class="suggest">This page suggests: <b>${esc(it.suggest.desc)}</b> <button data-usedesc="${it.id}">Use this</button></div>` : ``}</div>
+          ${noteField("edit-note-"+it.id, noteVal)}
+          ${tagEditor(it.editTags, it.id)}
+          <div class="srcline">${favEl(src)}<span>${esc(src.site)}</span><span class="dot">·</span><span>${esc(src.domain)}</span><span class="dot">·</span><span>Saved ${it.savedAt}</span></div>
+          <div class="actions"><button class="btn-primary" data-save="${it.id}">Save changes</button><button class="btn-ghost" data-cancel="${it.id}">Cancel</button></div></div>`;
+      } else {
+        const badge = it.toRead ? `<span class="badge toread">To read</span>` : `<span class="badge reference">Reference</span>`;
+        const act = it.archived
+          ? `<button class="linkbtn" data-restore="${it.id}">Restore</button><button class="linkbtn plain" data-delete="${it.id}">Delete</button>`
+          : `${it.toRead ? `<button class="linkbtn" data-read="${it.id}">Mark as read</button>` : `<button class="linkbtn plain" data-toread="${it.id}">Move to “To read”</button>`}<button class="linkbtn plain" data-archive="${it.id}">Archive</button><button class="linkbtn" data-edit="${it.id}">Edit</button>`;
+        const tags = (it.tags||[]).length ? `<div class="tags">${it.tags.map(t=>`<button class="tagchip" data-tagfilter="${esc(t)}">#${esc(t)}</button>`).join("")}</div>` : ``;
+        li.innerHTML = `${it.image ? `<div class="thumb" style="background:${grad(it.domain)}"></div>` : ``}
+          <div class="content">
+            <div class="titlerow">
+              <input type="checkbox" class="selbox" data-select="${it.id}" ${selected.has(it.id)?"checked":""} aria-label="Select this link" />
+              <div class="title"><a href="${it.url}" target="_blank" rel="noopener">${hi(it.title)}</a></div>
+            </div>
+            ${it.desc ? `<div class="desc">${hi(it.desc)}</div>` : ``}
+            ${it.note ? `<div class="note md">${renderMarkdown(it.note)}</div>` : ``}
+            ${tags}
+            <div class="meta">${favEl(it)}<span>${hi(it.site)}</span><span class="dot">·</span><span>Saved ${it.savedAt}</span>${badge}
+              <span class="act">${act}</span></div>
+          </div>`;
+      }
+      listEl.appendChild(li);
+    });
+
+    wireShelfPills(); wireTagEditors();
+    listEl.querySelectorAll("[data-select]").forEach(b => b.onchange = () => toggleSelect(b.dataset.select));
+    listEl.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => startEdit(b.dataset.edit));
+    listEl.querySelectorAll("[data-read]").forEach(b => b.onclick = () => markRead(b.dataset.read));
+    listEl.querySelectorAll("[data-toread]").forEach(b => b.onclick = () => markToRead(b.dataset.toread));
+    listEl.querySelectorAll("[data-archive]").forEach(b => b.onclick = () => archive(b.dataset.archive));
+    listEl.querySelectorAll("[data-restore]").forEach(b => b.onclick = () => restore(b.dataset.restore));
+    listEl.querySelectorAll("[data-delete]").forEach(b => b.onclick = () => deleteItem(b.dataset.delete));
+    listEl.querySelectorAll("[data-tagfilter]").forEach(b => b.onclick = () => { const t=b.dataset.tagfilter; excludeTags = excludeTags.filter(x=>x!==t); if(!includeTags.includes(t)) includeTags.push(t); render(); });
+    listEl.querySelectorAll("[data-fetch]").forEach(b => b.onclick = () => fetchNewAddress(b.dataset.fetch));
+    listEl.querySelectorAll("[data-save]").forEach(b => b.onclick = () => saveEdit(b.dataset.save));
+    listEl.querySelectorAll("[data-cancel]").forEach(b => b.onclick = () => {
+      const it = items.find(x => x.id === b.dataset.cancel);
+      it.editing = false; it.suggest = null; it.tmpTitle = it.tmpDesc = it.tmpNote = undefined; it.addrErr = ""; it.editShelf = undefined; it.editTags = undefined; render(); });
+    listEl.querySelectorAll("[data-usetitle]").forEach(b => b.onclick = () => {
+      const it = items.find(x => x.id === b.dataset.usetitle); stashFields(it); it.tmpTitle = it.suggest.title;
+      document.getElementById("edit-title-"+it.id).value = it.suggest.title; b.parentElement.remove(); });
+    listEl.querySelectorAll("[data-usedesc]").forEach(b => b.onclick = () => {
+      const it = items.find(x => x.id === b.dataset.usedesc); stashFields(it); it.tmpDesc = it.suggest.desc;
+      document.getElementById("edit-desc-"+it.id).value = it.suggest.desc; b.parentElement.remove(); });
+    items.filter(it => it.editing).forEach(it => {
+      const a = document.getElementById("edit-addr-"+it.id), t = document.getElementById("edit-title-"+it.id),
+        d = document.getElementById("edit-desc-"+it.id), nn = document.getElementById("edit-note-"+it.id);
+      if(a) a.addEventListener("input", () => { it.editAddr = a.value; if(it.addrErr){ it.addrErr=""; a.classList.remove("err"); const fe=a.closest(".field").querySelector(".fielderr"); if(fe) fe.remove(); } });
+      if(t) t.addEventListener("input", () => it.tmpTitle = t.value);
+      if(d) d.addEventListener("input", () => it.tmpDesc = d.value);
+      if(nn) nn.addEventListener("input", () => it.tmpNote = nn.value);
+    });
+  }
+
+  urlEl.addEventListener("input", () => { if(saverEl.classList.contains("invalid")){ saverEl.classList.remove("invalid"); setStatus(""); } });
+
+  // ---------- Import / export standard bookmark HTML ----------
+  function escAttr(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function exportHtml(){
+    const lines = ['<!DOCTYPE NETSCAPE-Bookmark-file-1>',
+      '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+      '<TITLE>Bookmarks</TITLE>', '<H1>My Link Library</H1>', '<DL><p>'];
+    items.forEach(it => {
+      const tags = (it.tags||[]).join(",");
+      let a = `    <DT><A HREF="${escAttr(it.url)}" ADD_DATE="${it.ts||nowTs()}"` + (tags ? ` TAGS="${escAttr(tags)}"` : "") + `>${esc(it.title)}</A>`;
+      lines.push(a);
+      if(it.desc) lines.push(`    <DD>${esc(it.desc)}`);
+    });
+    lines.push('</DL><p>');
+    return lines.join("\n");
+  }
+  function doExport(){
+    const blob = new Blob([exportHtml()], {type:"text/html"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "link-library-bookmarks.html";
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    setStatus(`Exported ${items.length} link${items.length===1?"":"s"} as a bookmark file.`, "info");
+  }
+  // Generic browser root folders that would only add noise as tags.
+  const GENERIC_FOLDERS = new Set(["bookmarks","bookmarks bar","bookmarks menu","bookmarks toolbar","other bookmarks","favorites bar","favorites","mobile bookmarks"]);
+  function folderPath(a){
+    const names = []; let dl = a.closest("dl");
+    while(dl){
+      let prev = dl.previousElementSibling, h3 = null;
+      while(prev && !h3){ h3 = prev.tagName === "H3" ? prev : (prev.querySelector ? prev.querySelector(":scope > h3") : null); prev = prev.previousElementSibling; }
+      if(h3 && h3.textContent.trim()) names.unshift(h3.textContent.trim());
+      dl = dl.parentElement ? dl.parentElement.closest("dl") : null;
+    }
+    return names;
+  }
+  function doImport(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      let added = 0, skipped = 0;
+      try {
+        const docp = new DOMParser().parseFromString(String(reader.result), "text/html");
+        docp.querySelectorAll("a").forEach(a => {
+          const n = normalize(a.getAttribute("href") || ""); if(!n.ok){ skipped++; return; }
+          if(items.some(it => it.url === n.url)){ skipped++; return; }
+          const ad = parseInt(a.getAttribute("add_date") || "", 10);
+          const ts = Number.isFinite(ad) && ad > 0 ? (ad > 1e12 ? Math.floor(ad/1000) : ad) : nowTs();
+          const attrTags = (a.getAttribute("tags") || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+          const folderTags = folderPath(a).map(s => s.toLowerCase()).filter(f => f && !GENERIC_FOLDERS.has(f));
+          const tags = [...new Set([...folderTags, ...attrTags])];
+          const title = (a.textContent || "").trim() || n.domain;
+          items.unshift({ id: Date.now()+"-"+Math.random().toString(36).slice(2,6), url:n.url, domain:n.domain, site:n.domain,
+            title, desc:"", note:"", image:false, ts, savedAt: formatDate(ts), createdAt: seq, updatedAt: seq++, toRead:false, tags, archived:false });
+          added++;
+        });
+      } catch(e){ setStatus("That file couldn't be read as a bookmark file.", "error"); return; }
+      clearSelection(); render();
+      setStatus(`Imported ${added} link${added===1?"":"s"}${skipped ? `, skipped ${skipped} (duplicates or invalid)` : ""}.`, "info");
+    };
+    reader.readAsText(file);
+  }
+  document.getElementById("exportBtn").onclick = doExport;
+  document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
+  document.getElementById("importFile").onchange = (e) => { const f = e.target.files[0]; if(f) doImport(f); e.target.value = ""; };
+
+  render();
+  document.body.setAttribute("data-harness-ready", "true");
+</script>
+</body>
+</html>

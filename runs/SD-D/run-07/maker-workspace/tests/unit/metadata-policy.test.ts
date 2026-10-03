@@ -1,0 +1,2 @@
+import { describe,expect,it } from "vitest";import { isPublicAddress,validateFetchUrl } from "@/lib/metadata/network-policy";
+describe("metadata network policy",()=>{it.each(["127.0.0.1","10.0.0.1","169.254.169.254","::1","fc00::1"])("blocks %s",ip=>expect(isPublicAddress(ip)).toBe(false));it.each(["1.1.1.1","2606:4700:4700::1111"])("admits %s",ip=>expect(isPublicAddress(ip)).toBe(true));it("rejects credentials and custom ports",()=>{expect(()=>validateFetchUrl("https://a:b@example.com")).toThrow();expect(()=>validateFetchUrl("https://example.com:444")).toThrow()})});

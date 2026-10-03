@@ -1,0 +1,2 @@
+import{test,expect}from'@playwright/test';
+test('searches with a hashtag expression and resets',async({page})=>{await page.goto('/');await page.getByLabel('Search bookmarks').fill('#recipes AND "olive oil"');await expect(page.getByText(/searching with/i)).toBeVisible();await page.getByRole('button',{name:'Clear search and filters'}).click();await expect(page.getByLabel('Search bookmarks')).toHaveValue('');});

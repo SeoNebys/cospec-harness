@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — Bookmark prototype</title>
+  <style>
+    :root {
+      --paper: #f7f5ef;
+      --ink: #202621;
+      --muted: #6d756e;
+      --line: #dedfd8;
+      --green: #245943;
+      --green-hover: #184a36;
+      --white: #fff;
+      --shadow: 0 18px 50px rgba(32, 38, 33, .1);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 880px;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+
+    .app { display: grid; min-height: 100vh; grid-template-columns: 250px 1fr; }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      padding: 32px 24px 24px;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, .42);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 46px; font-weight: 760; font-size: 21px; letter-spacing: -.02em; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; color: var(--white); background: var(--green); border-radius: 10px; font-family: Georgia, serif; font-size: 22px; }
+    .nav-title { margin: 0 0 10px 12px; color: #8a918b; font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: var(--muted); font-size: 14px; }
+    .nav-item.active { color: var(--ink); background: #e8ebe4; font-weight: 650; }
+    .nav-item svg { width: 18px; height: 18px; }
+    .future { margin-top: 25px; opacity: .55; }
+    .sidebar-note { margin-top: auto; color: #969c97; font-size: 12px; line-height: 1.45; }
+
+    main { padding: 44px 6vw; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 38px; font-weight: 500; letter-spacing: -.025em; }
+    .subhead { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+    .add-button { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; color: var(--white); background: var(--green); font-weight: 700; box-shadow: 0 6px 16px rgba(36, 89, 67, .18); }
+    .add-button:hover { background: var(--green-hover); }
+    .add-button span { font-size: 21px; font-weight: 400; line-height: 1; }
+
+    .content { margin-top: 46px; }
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 450px;
+      padding: 60px;
+      border: 1px dashed #cfd3cb;
+      border-radius: 24px;
+      background: rgba(255,255,255,.24);
+      text-align: center;
+    }
+    .empty-icon { display: grid; place-items: center; width: 74px; height: 74px; margin: 0 auto 20px; border-radius: 22px; color: var(--green); background: #e6ece6; }
+    .empty h2 { margin: 0 0 9px; font-family: Georgia, serif; font-size: 25px; font-weight: 500; }
+    .empty p { max-width: 400px; margin: 0 auto 24px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+    .bookmark-list { display: none; }
+    .bookmark-list.visible { display: block; }
+    .list-heading { margin: 0 0 14px; color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .card {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 17px;
+      padding: 19px 20px;
+      color: inherit;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.75);
+      box-shadow: 0 8px 30px rgba(32, 38, 33, .04);
+      text-decoration: none;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+    .card:hover { transform: translateY(-2px); border-color: #bdc7bd; box-shadow: 0 12px 30px rgba(32, 38, 33, .09); }
+    .favicon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; color: #fff; background: #d94836; font-family: Georgia, serif; font-size: 22px; font-weight: bold; }
+    .card-copy { min-width: 0; }
+    .card-title { margin: 0 0 5px; font-size: 16px; font-weight: 720; }
+    .card-description { overflow: hidden; margin: 0 0 7px; color: var(--muted); font-size: 13px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+    .card-domain { color: #8a918b; font-size: 12px; }
+    .external { color: #899089; }
+
+    .overlay { position: fixed; inset: 0; display: none; place-items: center; padding: 24px; background: rgba(25, 31, 26, .45); backdrop-filter: blur(4px); }
+    .overlay.open { display: grid; }
+    .dialog { width: min(550px, 100%); padding: 28px; border: 1px solid rgba(255,255,255,.65); border-radius: 22px; background: var(--white); box-shadow: var(--shadow); }
+    .dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+    .dialog h2 { margin: 0 0 8px; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
+    .dialog p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .close { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; color: #737b74; background: #f2f3ef; font-size: 20px; }
+    label { display: block; margin: 25px 0 8px; font-size: 13px; font-weight: 700; }
+    .url-input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid #cdd2cc; border-radius: 11px; outline: none; }
+    .url-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(36, 89, 67, .12); }
+    .error { min-height: 18px; margin: 6px 0 0; color: #a33a2d; font-size: 12px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .secondary, .save { min-height: 42px; padding: 0 17px; border-radius: 10px; font-weight: 700; }
+    .secondary { border: 1px solid var(--line); color: #596159; background: #fff; }
+    .save { border: 0; color: #fff; background: var(--green); }
+    .save:disabled { cursor: wait; opacity: .75; }
+    .save-status { display: none; }
+    .save.loading .save-label { display: none; }
+    .save.loading .save-status { display: inline; }
+    .toast { position: fixed; right: 28px; bottom: 28px; display: none; align-items: center; gap: 10px; padding: 13px 17px; border-radius: 12px; color: #fff; background: #26392f; box-shadow: var(--shadow); font-size: 13px; font-weight: 650; }
+    .toast.show { display: flex; animation: rise .2s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  </style>
+</head>
+<body>
+  <div class="app" data-harness-ready="true">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">T</span> Trove</div>
+      <p class="nav-title">Library</p>
+      <nav class="nav" aria-label="Library">
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4.5h14v15H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          All bookmarks
+        </div>
+        <div class="future">
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4h10v16l-5-3-5 3z"/></svg>
+            Read later
+          </div>
+          <div class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16v13H4zM3 4h18v3H3zM9 11h6"/></svg>
+            Archive
+          </div>
+        </div>
+      </nav>
+      <p class="sidebar-note">Personal library<br>No account needed</p>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <h1>All bookmarks</h1>
+          <p class="subhead" id="count">Your saved links will live here.</p>
+        </div>
+        <button class="add-button" id="addLink" type="button"><span>+</span> Save link</button>
+      </header>
+
+      <section class="content">
+        <div class="empty" id="emptyState">
+          <div>
+            <div class="empty-icon">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 3.5h12v17L12 17l-6 3.5z"/><path d="M9 8h6"/></svg>
+            </div>
+            <h2>Save your first find</h2>
+            <p>Paste a web address and Trove will turn it into a bookmark you can recognize later.</p>
+            <button class="add-button" id="emptyAdd" type="button"><span>+</span> Save a link</button>
+          </div>
+        </div>
+
+        <div class="bookmark-list" id="bookmarkList">
+          <p class="list-heading">Recently saved</p>
+          <a class="card" id="savedCard" href="https://www.seriouseats.com/the-best-roast-potatoes-ever-recipe" target="_blank" rel="noopener">
+            <div class="favicon">S</div>
+            <div class="card-copy">
+              <p class="card-title">The Best Crispy Roast Potatoes Ever</p>
+              <p class="card-description">These roast potatoes maximize the contrast between crisp, crunchy exteriors and creamy centers.</p>
+              <span class="card-domain">seriouseats.com</span>
+            </div>
+            <svg class="external" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="Opens website"><path d="M14 5h5v5M19 5l-8 8"/><path d="M18 13v6H5V6h6"/></svg>
+          </a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <form class="dialog" id="saveForm">
+      <div class="dialog-header">
+        <div>
+          <h2 id="dialogTitle">Save a link</h2>
+          <p>Paste the page address. The title, description, and icon will be filled in for you.</p>
+        </div>
+        <button class="close" id="closeDialog" type="button" aria-label="Close">×</button>
+      </div>
+      <label for="url">Web address</label>
+      <input class="url-input" id="url" name="url" type="url" placeholder="https://example.com/article" autocomplete="off" required>
+      <p class="error" id="error" role="alert"></p>
+      <div class="dialog-actions">
+        <button class="secondary" id="cancel" type="button">Cancel</button>
+        <button class="save" id="save" type="submit"><span class="save-label">Save link</span><span class="save-status">Fetching page details…</span></button>
+      </div>
+    </form>
+  </div>
+
+  <div class="toast" id="toast" role="status">✓ Bookmark saved with page details</div>
+
+  <script>
+    const overlay = document.querySelector('#overlay');
+    const urlInput = document.querySelector('#url');
+    const saveForm = document.querySelector('#saveForm');
+    const saveButton = document.querySelector('#save');
+    const error = document.querySelector('#error');
+
+    function openDialog() {
+      overlay.classList.add('open');
+      error.textContent = '';
+      setTimeout(() => urlInput.focus(), 0);
+    }
+
+    function closeDialog() {
+      overlay.classList.remove('open');
+      saveForm.reset();
+      error.textContent = '';
+    }
+
+    document.querySelector('#addLink').addEventListener('click', openDialog);
+    document.querySelector('#emptyAdd').addEventListener('click', openDialog);
+    document.querySelector('#closeDialog').addEventListener('click', closeDialog);
+    document.querySelector('#cancel').addEventListener('click', closeDialog);
+    overlay.addEventListener('click', event => { if (event.target === overlay) closeDialog(); });
+
+    saveForm.addEventListener('submit', event => {
+      event.preventDefault();
+      let parsed;
+      try { parsed = new URL(urlInput.value); } catch { error.textContent = 'Enter a full web address, including https://'; return; }
+      if (!['http:', 'https:'].includes(parsed.protocol)) { error.textContent = 'Enter a web address that begins with http:// or https://'; return; }
+      error.textContent = '';
+      saveButton.disabled = true;
+      saveButton.classList.add('loading');
+      setTimeout(() => {
+        closeDialog();
+        saveButton.disabled = false;
+        saveButton.classList.remove('loading');
+        document.querySelector('#emptyState').style.display = 'none';
+        document.querySelector('#bookmarkList').classList.add('visible');
+        document.querySelector('#count').textContent = '1 saved bookmark';
+        const toast = document.querySelector('#toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2600);
+      }, 700);
+    });
+  </script>
+</body>
+</html>

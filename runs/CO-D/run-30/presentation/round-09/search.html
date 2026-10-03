@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarks — Find saved pages</title>
+  <style>
+    :root{--ink:#20251f;--muted:#687066;--line:#dfe3da;--paper:#fbfcf8;--panel:#fff;--green:#285943;--green-dark:#1d4332;--green-soft:#e8f0e9;--cream:#f4f2e8}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;color:var(--ink);background:radial-gradient(circle at 15% -10%,#eef3e8 0,transparent 34rem),var(--paper);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input{font:inherit}button{cursor:pointer}.shell{width:min(1120px,calc(100% - 40px));margin:auto}
+    header{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(223,227,218,.8)}
+    .brand{display:flex;align-items:center;gap:11px;font-weight:750;letter-spacing:-.02em;font-size:18px}.brand-mark{width:32px;height:36px;border-radius:7px 7px 10px 10px;display:grid;place-items:center;color:#fff;background:var(--green)}.brand-mark svg{width:17px}
+    .primary{border:0;border-radius:10px;padding:11px 17px;background:var(--green);color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:8px}.primary:hover{background:var(--green-dark)}
+    main{padding:48px 0 80px}.heading{display:flex;align-items:end;justify-content:space-between;margin-bottom:25px}h1{font-family:Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(34px,5vw,48px);letter-spacing:-.035em;margin:0 0 8px}.subtitle{color:var(--muted);margin:0;font-size:16px}.count{color:var(--muted);font-size:14px;background:var(--cream);border:1px solid var(--line);border-radius:999px;padding:7px 11px}
+    .search-form{display:flex;align-items:center;gap:10px;margin:0 0 27px;max-width:670px}.search-box{position:relative;flex:1}.search-box svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:19px;color:var(--muted)}
+    .search-box input{width:100%;height:48px;border:1px solid #cbd1c7;border-radius:12px;padding:0 44px 0 45px;outline:0;background:#fff;color:var(--ink);box-shadow:0 5px 16px rgba(36,50,40,.04)}.search-box input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(40,89,67,.12)}
+    .clear{display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);width:29px;height:29px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:19px}.clear:hover{background:#f0f2ed}.search-submit{height:48px;padding-inline:20px}
+    .label-bar{display:none;gap:8px;flex-wrap:wrap;margin:-5px 0 27px}.label-button{border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:650;border-radius:999px;padding:8px 14px}.label-button:hover{border-color:#b8c4b9;color:var(--green)}.label-button.active{background:var(--green);border-color:var(--green);color:#fff}
+    .collection-layout.with-sidebar{display:grid;grid-template-columns:170px minmax(0,1fr);gap:28px;align-items:start}.label-sidebar{display:none;position:sticky;top:24px;padding:17px 10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.76)}.label-sidebar h2{margin:0 9px 11px;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}.label-sidebar .label-button{display:block;width:100%;border:0;border-radius:8px;text-align:left;margin:2px 0;padding:9px 10px;background:transparent}.label-sidebar .label-button.active{background:var(--green-soft);color:var(--green)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.card{position:relative;min-height:246px;padding:22px;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:0 8px 26px rgba(36,50,40,.07);animation:enter .22s ease-out both}@keyframes enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .site{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:13px;font-weight:650;margin-bottom:23px;padding-right:45px}.favicon{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;color:#fff;font-family:Georgia,serif;font-size:16px;font-weight:700;flex:none}.card h2{margin:0 0 10px;font-family:Georgia,"Times New Roman",serif;font-size:21px;line-height:1.22;font-weight:600;letter-spacing:-.018em}.description{margin:0;color:var(--muted);font-size:14px;line-height:1.52;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.url{margin-top:auto;padding-top:19px;color:#7b8378;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.edit{position:absolute;right:16px;top:18px;border:1px solid var(--line);background:#fff;color:var(--green);font-weight:700;border-radius:8px;padding:7px 10px;font-size:12px}
+    .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:15px}.tag{font-size:11px;color:var(--green);background:var(--green-soft);border-radius:999px;padding:4px 8px;font-weight:700}
+    .no-results{display:none;min-height:270px;border:1px solid var(--line);border-radius:16px;background:#fff;text-align:center;place-items:center;color:var(--muted)}.no-results strong{display:block;color:var(--ink);font-family:Georgia,serif;font-size:23px;margin-bottom:8px;font-weight:500}
+    @media(max-width:800px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-layout.with-sidebar{grid-template-columns:145px minmax(0,1fr)}}@media(max-width:600px){.shell{width:calc(100% - 28px)}header{height:72px}header .primary span{display:none}main{padding-top:32px}.heading{align-items:start}.grid{grid-template-columns:1fr}.search-form{align-items:stretch}.search-submit{padding-inline:14px}.collection-layout.with-sidebar{display:block}.label-sidebar{position:static;margin-bottom:18px}.label-sidebar .label-button{display:inline-block;width:auto;margin:3px}.label-sidebar h2{display:none}}
+  </style>
+</head>
+<body>
+  <div class="shell" data-harness-ready="true">
+    <header>
+      <div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 3.8h12v16.4l-6-3.5-6 3.5z"/></svg></span>Bookmarks</div>
+      <button class="primary" type="button"><b>＋</b><span>Add bookmark</span></button>
+    </header>
+    <main>
+      <div class="heading"><div><h1>Your collection</h1><p class="subtitle">Everything worth coming back to.</p></div><span class="count" id="count">6 saved</span></div>
+      <form class="search-form" id="search-form" role="search">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+          <input id="search" type="search" placeholder="Search your bookmarks" aria-label="Search your bookmarks" autocomplete="off">
+          <button class="clear" id="clear" type="button" aria-label="Clear search">×</button>
+        </div>
+        <button class="primary search-submit" id="search-submit" type="submit">Search</button>
+      </form>
+      <nav class="label-bar" id="label-bar" aria-label="Filter by label"></nav>
+      <div class="collection-layout" id="collection-layout">
+        <aside class="label-sidebar" id="label-sidebar"><h2>Labels</h2><div id="sidebar-buttons"></div></aside>
+        <div>
+          <section class="grid" id="grid" aria-live="polite"></section>
+          <section class="no-results" id="no-results"><div><strong>No bookmarks found</strong>Try a different word or phrase.</div></section>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const bookmarks=[
+      {site:'Serious Eats',letter:'S',color:'#cc2f26',title:'The Best Crispy Roast Potatoes Ever',description:'Crunchy shells and fluffy centers make these the perfect roast potatoes.',url:'seriouseats.com/roast-potatoes',labels:['Recipes']},
+      {site:'Smashing Magazine',letter:'S',color:'#d94432',title:'Making Sense of Color Palettes',description:'A practical guide to building accessible, expressive color systems for digital products.',url:'smashingmagazine.com/color-palettes',labels:['Work']},
+      {site:'Bon Appétit',letter:'B',color:'#253d63',title:'Weeknight Pasta for Tired People',description:'A deeply savory pantry pasta that comes together in less than thirty minutes.',url:'bonappetit.com/weeknight-pasta',labels:['Recipes']},
+      {site:'Wanderlog',letter:'W',color:'#3477db',title:'Planning a Long Weekend in Kyoto',description:'Temples, quiet gardens, coffee shops, and a walkable three-day route.',url:'wanderlog.com/kyoto-weekend',labels:['Travel']},
+      {site:'Cal Newport',letter:'C',color:'#333b43',title:'On Deep Work and Digital Distraction',description:'Notes on protecting your attention and making time for demanding creative work.',url:'calnewport.com/deep-work',labels:['Work']},
+      {site:'The Spruce',letter:'T',color:'#538157',title:'A Calm Guide to Happy Houseplants',description:'How to read the light in your home and water indoor plants with confidence.',url:'thespruce.com/houseplant-guide',labels:['Home']}
+    ];
+    const params=new URLSearchParams(location.search);const mode=params.get('mode')||'live';const labelLayout=params.get('labels');let activeLabel='All';
+    const form=document.querySelector('#search-form');const input=document.querySelector('#search');const submit=document.querySelector('#search-submit');const clear=document.querySelector('#clear');const grid=document.querySelector('#grid');const empty=document.querySelector('#no-results');const count=document.querySelector('#count');
+    if(mode==='live')submit.remove();
+    function card(item){const tags=labelLayout?`<div class="tags">${item.labels.map(label=>`<span class="tag">${label}</span>`).join('')}</div>`:'';return `<article class="card"><div class="site"><span class="favicon" style="background:${item.color}">${item.letter}</span>${item.site}</div><button class="edit" type="button">Edit</button><h2>${item.title}</h2><p class="description">${item.description}</p>${tags}<div class="url">${item.url}</div></article>`}
+    function show(query=''){const term=query.trim().toLowerCase();const matches=bookmarks.filter(item=>(activeLabel==='All'||item.labels.includes(activeLabel))&&`${item.site} ${item.title} ${item.description} ${item.url}`.toLowerCase().includes(term));grid.innerHTML=matches.map(card).join('');grid.style.display=matches.length?'grid':'none';empty.style.display=matches.length?'none':'grid';count.textContent=(term||activeLabel!=='All')?`${matches.length} ${matches.length===1?'result':'results'}`:'6 saved';clear.style.display=term?'block':'none'}
+    function labelButtons(){return ['All','Recipes','Work','Travel','Home'].map(label=>`<button class="label-button ${label==='All'?'active':''}" type="button" data-label="${label}">${label}</button>`).join('')}
+    function chooseLabel(event){const button=event.target.closest('[data-label]');if(!button)return;activeLabel=button.dataset.label;document.querySelectorAll('[data-label]').forEach(item=>item.classList.toggle('active',item.dataset.label===activeLabel));show(input.value)}
+    if(labelLayout==='chips'){const bar=document.querySelector('#label-bar');bar.innerHTML=labelButtons();bar.style.display='flex';bar.addEventListener('click',chooseLabel)}else if(labelLayout==='sidebar'){const side=document.querySelector('#label-sidebar');side.style.display='block';document.querySelector('#collection-layout').classList.add('with-sidebar');document.querySelector('#sidebar-buttons').innerHTML=labelButtons();side.addEventListener('click',chooseLabel)}
+    if(mode==='live')input.addEventListener('input',()=>show(input.value));
+    form.addEventListener('submit',event=>{event.preventDefault();show(input.value)});
+    clear.addEventListener('click',()=>{input.value='';show('');input.focus()});
+    show();
+  </script>
+</body>
+</html>

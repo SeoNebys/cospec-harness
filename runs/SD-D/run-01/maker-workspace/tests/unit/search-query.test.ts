@@ -1,0 +1,2 @@
+import{describe,expect,it}from'vitest';import{parseSearchQuery,SearchQueryError}from'../../src/server/services/bookmarks/search-query.js';
+describe('search grammar',()=>{it('quotes and ANDs every word and exact phrase',()=>expect(parseSearchQuery('design "quiet tools"')).toBe('"design" AND "quiet tools"'));it('does not pass operators through',()=>expect(parseSearchQuery('cats OR dogs*')).toBe('"cats" AND "OR" AND "dogs"'));it('rejects unmatched quotes',()=>expect(()=>parseSearchQuery('"unfinished')).toThrow(SearchQueryError));});

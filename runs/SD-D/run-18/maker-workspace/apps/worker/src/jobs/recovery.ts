@@ -1,0 +1,2 @@
+import fs from 'node:fs';import path from 'node:path';import type { DB } from '../../../../packages/persistence/src/database.js';import { now } from '../../../../packages/domain/src/identity.js';
+export function recoverWorkerState(db:DB,tmpDir:string){db.prepare("UPDATE jobs SET state='queued',leased_until=NULL WHERE state='running' AND leased_until<?").run(now());if(fs.existsSync(tmpDir))for(const name of fs.readdirSync(tmpDir))if(name.endsWith('.stage'))try{fs.unlinkSync(path.join(tmpDir,name))}catch{/* Retried at the next startup. */}}

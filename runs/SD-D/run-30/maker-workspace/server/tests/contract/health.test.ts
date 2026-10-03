@@ -1,0 +1,2 @@
+import { afterEach,describe,expect,it } from 'vitest';import request from 'supertest';import { testDatabase } from '../helpers/database.js';import { createApp } from '../../src/app.js';import { loadConfig } from '../../src/config.js';
+describe('health contract',()=>{const db=testDatabase();afterEach(()=>db.close());it('reports database-backed readiness',async()=>{const response=await request(createApp(db,loadConfig({NODE_ENV:'test'}))).get('/api/health');expect(response.status).toBe(200);expect(response.body).toEqual({status:'ready'})})});

@@ -1,0 +1,516 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager Application API
+  version: 1.0.0
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: |
+    Authenticated same-origin JSON contract for the initial bookmark-manager release.
+    Better Auth owns routes below /api/auth; its generated contract is pinned to the
+    installed library version. All routes here require an authenticated, verified
+    account and an owner-scoped data-access check. Unsafe methods also require a
+    session-bound CSRF token in X-CSRF-Token and same-origin validation.
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+tags:
+  - name: Metadata
+    description: Safe retrieval of proposed page details and normalized icons
+  - name: Bookmarks
+    description: Owner-scoped bookmark collection reads and mutations
+  - name: Tags
+    description: Owner-scoped tag navigation data
+
+paths:
+  /metadata/preview:
+    post:
+      tags: [Metadata]
+      summary: Retrieve proposed page details for a URL
+      operationId: previewMetadata
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  maxLength: 4096
+      responses:
+        '200':
+          description: Complete or partial metadata proposal; retrieval failure is recoverable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataPreview'
+        '409':
+          description: The normalized URL already exists in this user's active or archived collection
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Problem'
+                  - type: object
+                    required: [existingBookmarkId]
+                    properties:
+                      existingBookmarkId: { type: string, format: uuid }
+                      existingView: { type: string, enum: [active, archive] }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /bookmarks:
+    get:
+      tags: [Bookmarks]
+      summary: List, search, filter, and sort bookmarks in one collection view
+      operationId: listBookmarks
+      parameters:
+        - name: view
+          in: query
+          schema: { type: string, enum: [active, unread, archive], default: active }
+        - name: q
+          in: query
+          description: Search expression defined by search-query.md
+          schema: { type: string, maxLength: 1000 }
+        - name: tag
+          in: query
+          description: Optional normalized single-tag filter in addition to q
+          schema: { type: string, maxLength: 64 }
+        - name: readingState
+          in: query
+          schema: { type: string, enum: [none, unread, read] }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [newest, oldest, title], default: newest }
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Owner-scoped page of bookmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, hasMore, totalVisible]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/BookmarkSummary' }
+                  nextCursor: { type: [string, 'null'] }
+                  hasMore: { type: boolean }
+                  totalVisible: { type: integer, minimum: 0 }
+        '422':
+          description: Invalid filters, cursor, or search expression
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Problem'
+                  - type: object
+                    properties:
+                      queryOffset: { type: integer, minimum: 0 }
+                      queryHint: { type: string }
+    post:
+      tags: [Bookmarks]
+      summary: Save a new bookmark
+      operationId: createBookmark
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkWrite'
+      responses:
+        '201':
+          description: Bookmark saved
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkDetail' }
+        '409':
+          description: Duplicate normalized URL; no bookmark created
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Problem'
+                  - type: object
+                    required: [existingBookmarkId]
+                    properties:
+                      existingBookmarkId: { type: string, format: uuid }
+                      existingView: { type: string, enum: [active, archive] }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      tags: [Bookmarks]
+      summary: Get one bookmark owned by the current user
+      operationId: getBookmark
+      responses:
+        '200':
+          description: Bookmark details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkDetail' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Bookmarks]
+      summary: Edit bookmark content or state
+      operationId: updateBookmark
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                url: { type: string, maxLength: 4096 }
+                title: { type: string, minLength: 1, maxLength: 500 }
+                pageDescription: { type: [string, 'null'], maxLength: 2000 }
+                noteMarkdown: { type: [string, 'null'], maxLength: 50000 }
+                tags:
+                  type: array
+                  maxItems: 50
+                  uniqueItems: true
+                  items: { type: string, minLength: 1, maxLength: 64 }
+                readingState: { $ref: '#/components/schemas/ReadingState' }
+                archived: { type: boolean }
+                refreshMetadata: { type: boolean, default: false }
+                acceptProposedTitle: { type: boolean, default: false }
+                acceptProposedDescription: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Updated bookmark
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkDetail' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Edited URL collides with an existing active or archived bookmark; original remains unchanged
+          content:
+            application/problem+json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Problem'
+                  - type: object
+                    properties:
+                      existingBookmarkId: { type: string, format: uuid }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookmarks/{bookmarkId}/icon:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      tags: [Bookmarks]
+      summary: Serve the normalized same-origin bookmark icon
+      operationId: getBookmarkIcon
+      responses:
+        '200':
+          description: Static normalized PNG or generic domain icon
+          headers:
+            X-Content-Type-Options:
+              schema: { type: string, const: nosniff }
+          content:
+            image/png:
+              schema: { type: string, contentEncoding: binary }
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /bookmarks/{bookmarkId}/permanent-delete:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    post:
+      tags: [Bookmarks]
+      summary: Permanently delete one explicitly confirmed bookmark
+      operationId: permanentlyDeleteBookmark
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [confirmPermanent, expectedCount]
+              properties:
+                confirmPermanent: { type: boolean, const: true }
+                expectedCount: { type: integer, const: 1 }
+      responses:
+        '200':
+          description: Deletion outcome; already-missing items do not reveal ownership
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkResult' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookmarks/bulk:
+    post:
+      tags: [Bookmarks]
+      summary: Apply one operation to up to 100 explicitly selected bookmarks
+      operationId: bulkUpdateBookmarks
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkRequest'
+      responses:
+        '200':
+          description: Per-item results for the committed operation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkResult' }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tags:
+    get:
+      tags: [Tags]
+      summary: List current user's tags and active bookmark counts
+      operationId: listTags
+      responses:
+        '200':
+          description: Tags sorted by display name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, normalizedName, activeCount, archivedCount]
+                      properties:
+                        name: { type: string }
+                        normalizedName: { type: string }
+                        activeCount: { type: integer, minimum: 0 }
+                        archivedCount: { type: integer, minimum: 0 }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string, minLength: 32 }
+
+  responses:
+    Unauthorized:
+      description: Authentication is missing, expired, or invalid
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Missing or not owned by the current user
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Request validation failed without discarding submitted values
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - type: object
+                properties:
+                  fieldErrors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+    RateLimited:
+      description: Rate limit reached; retry after the indicated interval
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    ReadingState:
+      type: string
+      enum: [none, unread, read]
+
+    MetadataPreview:
+      type: object
+      additionalProperties: false
+      required: [requestedUrl, normalizedUrl, title, status, warnings]
+      properties:
+        requestedUrl: { type: string }
+        normalizedUrl: { type: string }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        pageDescription: { type: [string, 'null'], maxLength: 2000 }
+        iconPreviewKey: { type: [string, 'null'] }
+        status: { type: string, enum: [complete, partial, failed] }
+        warnings:
+          type: array
+          items: { type: string }
+
+    BookmarkWrite:
+      type: object
+      additionalProperties: false
+      required: [url, title]
+      properties:
+        url: { type: string, maxLength: 4096 }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        pageDescription: { type: [string, 'null'], maxLength: 2000 }
+        iconPreviewKey: { type: [string, 'null'] }
+        noteMarkdown: { type: [string, 'null'], maxLength: 50000 }
+        tags:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+        readingState: { $ref: '#/components/schemas/ReadingState' }
+
+    BookmarkSummary:
+      type: object
+      required: [id, url, title, domain, iconUrl, tags, readingState, archived, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string }
+        title: { type: string }
+        domain: { type: string }
+        iconUrl: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        readingState: { $ref: '#/components/schemas/ReadingState' }
+        archived: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    BookmarkDetail:
+      allOf:
+        - $ref: '#/components/schemas/BookmarkSummary'
+        - type: object
+          required: [normalizedUrl, noteMarkdown, metadataStatus]
+          properties:
+            normalizedUrl: { type: string }
+            pageDescription: { type: [string, 'null'] }
+            noteMarkdown: { type: [string, 'null'] }
+            metadataStatus: { type: string, enum: [complete, partial, failed, not_requested] }
+            metadataFetchedAt: { type: [string, 'null'], format: date-time }
+            archivedAt: { type: [string, 'null'], format: date-time }
+
+    BulkRequest:
+      type: object
+      additionalProperties: false
+      required: [ids, operation]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        operation:
+          type: string
+          enum: [add_tags, remove_tags, mark_read, mark_unread, archive, restore, permanent_delete]
+        tagNames:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+        confirmPermanent: { type: boolean }
+        expectedCount: { type: integer, minimum: 1, maximum: 100 }
+      allOf:
+        - if:
+            properties:
+              operation: { enum: [add_tags, remove_tags] }
+          then:
+            required: [tagNames]
+            properties:
+              tagNames:
+                type: array
+                minItems: 1
+                maxItems: 50
+                uniqueItems: true
+                items: { type: string, minLength: 1, maxLength: 64 }
+        - if:
+            properties:
+              operation: { const: permanent_delete }
+          then:
+            required: [confirmPermanent, expectedCount]
+            properties:
+              confirmPermanent: { const: true }
+              expectedCount: { type: integer, minimum: 1, maximum: 100 }
+
+    BulkResult:
+      type: object
+      additionalProperties: false
+      required: [requestedCount, succeededIds, failures]
+      properties:
+        requestedCount: { type: integer, minimum: 1, maximum: 100 }
+        succeededIds:
+          type: array
+          items: { type: string, format: uuid }
+        failures:
+          type: array
+          items:
+            type: object
+            required: [id, code, retryable]
+            properties:
+              id: { type: string, format: uuid }
+              code: { type: string, enum: [not_found, invalid_state, conflict, temporarily_unavailable] }
+              retryable: { type: boolean }
+
+    Problem:
+      type: object
+      additionalProperties: true
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        requestId: { type: string }

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tag entry — comparison</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#f5f6f8; color:#1d2430; }
+  header { background:#fff; border-bottom:1px solid #e4e7eb; padding:16px 24px; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:4px 0 0; color:#6b7580; font-size:13px; }
+  main { max-width:1080px; margin:0 auto; padding:24px; display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .opt { background:#fff; border:1px solid #e4e7eb; border-radius:12px; padding:16px; }
+  .opt h2 { font-size:14px; margin:0 0 4px; }
+  .opt .lead { color:#6b7580; font-size:12.5px; margin:0 0 14px; min-height:34px; }
+  .mini { border:1px solid #eef1f5; border-radius:9px; padding:12px; }
+  .mini .t { font-weight:600; font-size:14px; }
+  .mini .h { color:#6b7580; font-size:11px; margin-top:2px; }
+  label { display:block; font-size:11px; color:#6b7580; margin:14px 0 5px; text-transform:uppercase; letter-spacing:.03em; }
+  .chip { background:#eef3ff; color:#2554b0; border:1px solid #d7e2fb; border-radius:999px; padding:3px 10px; font-size:12px; display:inline-flex; align-items:center; gap:6px; }
+  .chip .x { cursor:pointer; font-weight:700; color:#6f8bc7; }
+  .chip.suggest { background:#f3f4f6; color:#444; border-color:#e4e7eb; cursor:pointer; }
+  .chip.suggest.on { background:#eef3ff; color:#2554b0; border-color:#d7e2fb; }
+  .chip-input { display:flex; flex-wrap:wrap; gap:6px; border:1px solid #e4e7eb; border-radius:7px; padding:6px; }
+  .chip-input input { border:none; outline:none; flex:1; min-width:90px; font-size:14px; padding:3px; }
+  .plain { width:100%; border:1px solid #e4e7eb; border-radius:7px; padding:8px 9px; font-size:14px; outline:none; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  .out { margin-top:12px; font-size:12px; color:#6b7580; }
+  .out b { color:#1d2430; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Adding a tag — three ways to compare</h1>
+  <p>Same bookmark in each column. Only the way you add a tag differs. Try each and see which feels best.</p>
+</header>
+<main>
+  <!-- A: chips, type + Enter -->
+  <section class="opt">
+    <h2>A · Type &amp; Enter</h2>
+    <p class="lead">Type a tag and press Enter to turn it into a removable chip. Repeat for more.</p>
+    <div class="mini"><div class="t">The Practical Test Pyramid</div><div class="h">martinfowler.com</div></div>
+    <label>Tags</label>
+    <div class="chip-input" id="aBox"><input id="aInput" type="text" placeholder="Type a tag, press Enter…" /></div>
+    <div class="out">Tags: <b id="aOut">—</b></div>
+  </section>
+
+  <!-- B: comma-separated single field -->
+  <section class="opt">
+    <h2>B · One text field</h2>
+    <p class="lead">Type all tags in a single field, separated by commas.</p>
+    <div class="mini"><div class="t">The Practical Test Pyramid</div><div class="h">martinfowler.com</div></div>
+    <label>Tags (comma-separated)</label>
+    <input class="plain" id="bInput" type="text" placeholder="testing, engineering, read-later" />
+    <div class="out">Tags: <b id="bOut">—</b></div>
+  </section>
+
+  <!-- C: suggestions + free text -->
+  <section class="opt">
+    <h2>C · Pick or type</h2>
+    <p class="lead">Click any of your existing tags to add it, or type a new one and press Enter.</p>
+    <div class="mini"><div class="t">The Practical Test Pyramid</div><div class="h">martinfowler.com</div></div>
+    <label>Your tags</label>
+    <div class="row" id="cSuggest"></div>
+    <label>Add new</label>
+    <div class="chip-input" id="cBox"><input id="cInput" type="text" placeholder="New tag, press Enter…" /></div>
+    <div class="out">Tags: <b id="cOut">—</b></div>
+  </section>
+</main>
+<script>
+function esc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// A
+const aTags=[];
+function aRender(){
+  const box=document.getElementById('aBox'), inp=document.getElementById('aInput');
+  box.querySelectorAll('.chip').forEach(c=>c.remove());
+  aTags.forEach((t,i)=>{const s=document.createElement('span');s.className='chip';s.innerHTML=esc(t)+'<span class="x">×</span>';box.insertBefore(s,inp);s.querySelector('.x').onclick=()=>{aTags.splice(i,1);aRender();};});
+  document.getElementById('aOut').textContent=aTags.length?aTags.join(', '):'—';
+}
+document.getElementById('aInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=e.target.value.trim();if(v&&!aTags.includes(v)){aTags.push(v);e.target.value='';aRender();}}});
+
+// B
+document.getElementById('bInput').addEventListener('input',e=>{
+  const parts=e.target.value.split(',').map(s=>s.trim()).filter(Boolean);
+  document.getElementById('bOut').textContent=parts.length?parts.join(', '):'—';
+});
+
+// C
+const existing=['testing','engineering','read-later','reference'];
+const cTags=[];
+function cRender(){
+  const wrap=document.getElementById('cSuggest'); wrap.innerHTML='';
+  existing.forEach(t=>{const s=document.createElement('span');s.className='chip suggest'+(cTags.includes(t)?' on':'');s.textContent=t;s.onclick=()=>{if(cTags.includes(t))cTags.splice(cTags.indexOf(t),1);else cTags.push(t);cRender();};wrap.appendChild(s);});
+  const box=document.getElementById('cBox'), inp=document.getElementById('cInput');
+  box.querySelectorAll('.chip').forEach(c=>c.remove());
+  cTags.filter(t=>!existing.includes(t)).forEach((t)=>{const s=document.createElement('span');s.className='chip';s.innerHTML=esc(t)+'<span class="x">×</span>';box.insertBefore(s,inp);s.querySelector('.x').onclick=()=>{cTags.splice(cTags.indexOf(t),1);cRender();};});
+  document.getElementById('cOut').textContent=cTags.length?cTags.join(', '):'—';
+}
+document.getElementById('cInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=e.target.value.trim();if(v&&!cTags.includes(v)){cTags.push(v);e.target.value='';cRender();}}});
+
+aRender(); cRender();
+window.addEventListener('load',()=>document.body.setAttribute('data-harness-ready','true'));
+</script>
+</body>
+</html>

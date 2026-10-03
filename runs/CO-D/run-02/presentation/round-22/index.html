@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --card: #ffffff;
+    --ink: #2b2b2b;
+    --muted: #8a8a82;
+    --line: #e8e6e0;
+    --accent: #4a6b57;
+    --accent-soft: #eef2ef;
+    --warm: #fff7e8;
+    --warm-line: #f0dfb8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 48px 20px 80px; }
+  header h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+
+  .saver {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px; display: flex; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .saver input {
+    flex: 1; border: none; outline: none; font-size: 15px;
+    padding: 10px 8px; background: transparent; color: var(--ink);
+  }
+  .saver button {
+    border: none; background: var(--accent); color: #fff; font-size: 14px;
+    font-weight: 600; padding: 0 18px; border-radius: 10px; cursor: pointer;
+  }
+  .saver button:active { transform: translateY(1px); }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 4px 0; min-height: 18px; }
+  .hint.warn { color: #b5741f; }
+
+  /* Review / edit panel */
+  .review {
+    margin-top: 14px; background: var(--card); border: 1px solid var(--accent);
+    border-radius: 14px; padding: 18px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    animation: rise 0.24s ease;
+  }
+  .review .cap { font-size: 12px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px; }
+  .review .source { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    font: inherit; font-size: 14px; color: var(--ink); background: #fdfdfc; outline: none; resize: vertical;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .review .actions { display: flex; gap: 8px; margin-top: 6px; }
+  .btn-primary { border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; padding: 9px 18px; border-radius: 10px; cursor: pointer; }
+  .btn-ghost { border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 14px; padding: 9px 16px; border-radius: 10px; cursor: pointer; }
+
+  .views { margin-top: 28px; display: flex; gap: 6px; background: #efece5; padding: 4px; border-radius: 12px; }
+  .view-tab {
+    flex: 1; border: none; background: transparent; color: var(--muted); font: inherit; font-size: 14px;
+    font-weight: 600; padding: 8px 10px; border-radius: 9px; cursor: pointer;
+  }
+  .view-tab.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+  .card-actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .act {
+    border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 12.5px;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .act:hover { border-color: var(--accent); color: var(--accent); }
+  .act.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .act.primary:hover { color: #fff; }
+  .act.danger-text { color: #b3261e; }
+  .act.danger-text:hover { border-color: #b3261e; color: #b3261e; }
+  .act.danger { background: #b3261e; border-color: #b3261e; color: #fff; }
+  .act.danger:hover { color: #fff; }
+  .confirm-text { font-size: 12.5px; color: #b3261e; align-self: center; margin-right: 2px; }
+  .card-dates { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+  .status-chip {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; margin-bottom: 8px;
+  }
+  .status-chip.read { background: #e7efe9; color: var(--accent); }
+  .status-chip.archived { background: #efece5; color: #8a7a55; }
+
+  .searchbar {
+    margin-top: 16px; display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px;
+  }
+  .searchbar .mag { color: var(--muted); font-size: 18px; line-height: 1; }
+  .searchbar input { flex: 1; border: none; outline: none; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+  .searchbar .clear { border: none; background: transparent; color: var(--muted); font-size: 18px; cursor: pointer; visibility: hidden; }
+  .searchbar .clear.show { visibility: visible; }
+  .sortbar { margin-top: 12px; display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .sortbar label { font-size: 12.5px; color: var(--muted); }
+  .sortbar select { font: inherit; font-size: 13px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 6px 10px; cursor: pointer; }
+  .sortbar select:focus { outline: none; border-color: var(--accent); }
+  .save-search { border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; padding: 5px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .save-search:hover { border-color: var(--accent); color: var(--accent); }
+
+  .saved-strip { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .saved-strip .lead { font-size: 12px; color: var(--muted); margin-right: 2px; }
+  .saved-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 12px; font-size: 12.5px; }
+  .saved-chip .name { cursor: pointer; color: var(--ink); }
+  .saved-chip .name:hover { color: var(--accent); }
+  .saved-chip .rm { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; }
+  .saved-chip .rm:hover { color: #b3261e; }
+  .save-form { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; }
+  .save-form input { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; min-width: 180px; }
+  .save-form .lbl { font-size: 12.5px; color: var(--accent); }
+  .save-form button { border: none; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .save-form .ok { background: var(--accent); color: #fff; } .save-form .no { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .search-count { color: var(--muted); font-size: 12.5px; margin: 12px 4px 0; }
+  .list { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .empty { text-align: center; color: var(--muted); font-size: 14px; padding: 40px 20px; }
+
+  .item {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); animation: rise 0.28s ease;
+    transition: box-shadow .2s, border-color .2s, background .4s;
+  }
+  .item { position: relative; }
+  .item.flash { border-color: var(--warm-line); background: var(--warm); box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+  .item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .sel { position: absolute; top: 12px; right: 12px; z-index: 2; }
+  .sel input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
+  .bulkbar { position: sticky; top: 8px; z-index: 5; background: var(--accent); color: #fff; border-radius: 12px; padding: 12px 14px; margin: 16px 0; box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+  .bulk-row1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13.5px; }
+  .bulk-row1 .link { color: #fff; text-decoration: underline; background: none; border: none; cursor: pointer; font: inherit; opacity: .9; padding: 0; }
+  .bulk-row1 .link:hover { opacity: 1; }
+  .bulk-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .bulk-btn { border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.12); color: #fff; font: inherit; font-size: 12.5px; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .bulk-btn:hover { background: rgba(255,255,255,.22); }
+  .bulk-btn.danger { border-color: #ffd9d4; background: #d3402f; }
+  .bulk-form { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .bulk-form input { border: none; border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px; min-width: 160px; }
+  .bulk-note { font-size: 12px; opacity: .9; margin-top: 8px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .preview-img {
+    height: 150px; border-radius: 10px; margin: 0 0 12px; position: relative; overflow: hidden;
+    display: flex; align-items: flex-end; color: #fff;
+  }
+  .preview-img .pv-title {
+    position: relative; z-index: 1; padding: 12px 14px; font-size: 14px; font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,.35); word-break: break-word;
+  }
+  .preview-img::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.32), rgba(0,0,0,0) 55%); }
+  .review .preview-img { height: 120px; }
+  .pv-note { font-size: 11px; color: var(--muted); margin: -4px 0 12px; }
+  .item .title { font-size: 15px; font-weight: 600; color: var(--ink); word-break: break-word; margin: 0 0 4px; display: block; }
+  .item a.title { text-decoration: none; }
+  .item a.title:hover { color: var(--accent); text-decoration: underline; }
+  .item .preview-img { cursor: pointer; }
+  .item .tag { cursor: pointer; }
+  .item .tag:hover { background: #dfe8e2; }
+  .item .desc { font-size: 13.5px; color: #5f5f58; margin: 0 0 8px; word-break: break-word; }
+  .item .url { font-size: 12.5px; color: var(--accent); word-break: break-all; text-decoration: none; }
+  .item .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .source-line { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+  .fav { width: 16px; height: 16px; border-radius: 4px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 700; }
+  .fav img { width: 16px; height: 16px; display: block; }
+  .edit-link { background: none; border: none; color: var(--muted); font-size: 12.5px; cursor: pointer; padding: 2px 4px; }
+  .edit-link:hover { color: var(--accent); }
+
+  /* Tags — the client's own labels, deliberately distinct from the muted source line */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; background: var(--accent-soft);
+    color: var(--accent); font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 999px;
+  }
+  .tag .x { cursor: pointer; opacity: .6; font-size: 13px; line-height: 1; }
+  .tag .x:hover { opacity: 1; }
+  .tag-input { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 14px; outline: none; background: #fdfdfc; }
+  .tag-input:focus { border-color: var(--accent); }
+  .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chips:not(:empty) { margin-bottom: 8px; }
+  .tag-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .tag-toggle {
+    border: 1px solid var(--line); background: #fff; color: var(--muted); font-size: 12px;
+    padding: 4px 11px; border-radius: 999px; cursor: pointer;
+  }
+  .tag-toggle.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); font-weight: 600; }
+  .tag-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); cursor: pointer; margin: 4px 0 14px; }
+  .chk input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+  .md-toolbar { display: flex; gap: 6px; margin-bottom: 6px; }
+  .md-btn { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+  .md-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .note-hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .note-preview { margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 9px; background: #fbfbf9; font-size: 13.5px; color: #4a4a44; }
+  .note-preview:empty { display: none; }
+  .note-preview .pv-label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); display: block; margin-bottom: 4px; }
+  .note-body p { margin: 0 0 6px; } .note-body p:last-child { margin-bottom: 0; }
+  .note-body ul { margin: 4px 0; padding-left: 18px; } .note-body li { margin: 2px 0; }
+  .note-body a { color: var(--accent); }
+
+  .item .note { font-size: 13.5px; color: #4a4a44; margin: 0 0 10px; padding: 8px 11px; background: #fbfaf7; border-left: 3px solid var(--accent-soft); border-radius: 0 8px 8px 0; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Bookmarks</h1>
+      <p>One calm place for the links you want to keep.</p>
+    </header>
+
+    <form class="saver" id="saver">
+      <input id="url" type="text" placeholder="Paste a link to save…" autocomplete="off" autofocus />
+      <button type="submit">Add</button>
+    </form>
+    <div class="hint" id="hint"></div>
+
+    <div id="reviewMount"></div>
+
+    <div class="views" id="views" style="display:none">
+      <button type="button" class="view-tab on" data-view="all">Collection</button>
+      <button type="button" class="view-tab" data-view="reading">Reading list</button>
+      <button type="button" class="view-tab" data-view="archive">Archive</button>
+    </div>
+
+    <div class="searchbar" id="searchbar" style="display:none">
+      <span class="mag">⌕</span>
+      <input id="search" type="text" placeholder="Search your bookmarks…" autocomplete="off" />
+      <button type="button" id="clearSearch" class="clear" aria-label="Clear search">×</button>
+      <button type="button" id="saveSearch" class="save-search">☆ Save</button>
+    </div>
+
+    <div id="savedMount"></div>
+
+    <div class="sortbar" id="sortbar" style="display:none">
+      <label for="sort">Sort by</label>
+      <select id="sort">
+        <option value="added-desc">Newest first</option>
+        <option value="added-asc">Oldest first</option>
+        <option value="updated-desc">Recently updated</option>
+        <option value="title-asc">Title A–Z</option>
+        <option value="title-desc">Title Z–A</option>
+      </select>
+    </div>
+
+    <div id="bulkMount"></div>
+
+    <div class="list" id="list">
+      <div class="empty" id="empty">Nothing saved yet. Paste a link above to begin.</div>
+    </div>
+  </div>
+
+<script>
+  const form = document.getElementById('saver');
+  const input = document.getElementById('url');
+  const list = document.getElementById('list');
+  const hint = document.getElementById('hint');
+  const reviewMount = document.getElementById('reviewMount');
+  const searchbar = document.getElementById('searchbar');
+  const search = document.getElementById('search');
+  const clearSearch = document.getElementById('clearSearch');
+  const views = document.getElementById('views');
+  const sortbar = document.getElementById('sortbar');
+  const sortSel = document.getElementById('sort');
+  const bulkMount = document.getElementById('bulkMount');
+  const saveSearchBtn = document.getElementById('saveSearch');
+  const savedMount = document.getElementById('savedMount');
+
+  let savedSearches = [];   // {id, name, query, view}
+  let savedSeq = 1;
+  const viewName = v => v === 'reading' ? 'Reading list' : v === 'archive' ? 'Archive' : 'Collection';
+
+  function renderSaved() {
+    // Preserve an open naming form across redraws.
+    if (savedMount.querySelector('.save-form')) return;
+    savedMount.innerHTML = '';
+    if (savedSearches.length === 0) return;
+    const strip = document.createElement('div'); strip.className = 'saved-strip';
+    const lead = document.createElement('span'); lead.className = 'lead'; lead.textContent = 'Saved searches:'; strip.appendChild(lead);
+    savedSearches.forEach(function (s) {
+      const chip = document.createElement('span'); chip.className = 'saved-chip';
+      const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = s.name;
+      nm.title = 'Apply: ' + (s.query || '(all)') + ' — in ' + viewName(s.view);
+      nm.addEventListener('click', function () {
+        currentView = s.view; search.value = s.query; redraw();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×'; rm.title = 'Remove saved search';
+      rm.addEventListener('click', function () { savedSearches = savedSearches.filter(x => x.id !== s.id); renderSaved(); });
+      chip.appendChild(nm); chip.appendChild(rm); strip.appendChild(chip);
+    });
+    savedMount.appendChild(strip);
+  }
+
+  function openSaveForm() {
+    const q = search.value.trim();
+    if (!q) { hint.className = 'hint warn'; hint.textContent = 'Type a search first, then save it.'; return; }
+    savedMount.innerHTML = '';
+    const form = document.createElement('div'); form.className = 'save-form';
+    const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'Save “' + q + '” in ' + viewName(currentView) + ' as:';
+    const inp = document.createElement('input'); inp.value = q;
+    const ok = document.createElement('button'); ok.className = 'ok'; ok.textContent = 'Save search';
+    const no = document.createElement('button'); no.className = 'no'; no.textContent = 'Cancel';
+    ok.addEventListener('click', function () {
+      const name = inp.value.trim() || q;
+      savedSearches.push({ id: savedSeq++, name: name, query: q, view: currentView });
+      savedMount.innerHTML = ''; renderSaved();
+    });
+    no.addEventListener('click', function () { savedMount.innerHTML = ''; renderSaved(); });
+    form.appendChild(lbl); form.appendChild(inp); form.appendChild(ok); form.appendChild(no);
+    savedMount.appendChild(form); setTimeout(() => { inp.focus(); inp.select(); }, 0);
+  }
+
+  let currentView = 'all';   // 'all' | 'reading' | 'archive'
+  let currentSort = 'added-desc';
+  let selected = new Set();   // ids selected for bulk actions
+
+  function parseSearch() {
+    const q = search.value.trim();
+    let ast = null, err = false;
+    if (q) { try { ast = parseQuery(q); } catch (e) { ast = fallbackAst(q); err = true; } }
+    return { q: q, ast: ast, err: err };
+  }
+  function currentVisible() {
+    const ast = parseSearch().ast;
+    return items.filter(inView).filter(it => !ast || evalQuery(ast, it));
+  }
+  function sortComparator() {
+    switch (currentSort) {
+      case 'added-asc': return (a, b) => a.created - b.created;
+      case 'updated-desc': return (a, b) => b.updated - a.updated;
+      case 'title-asc': return (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+      case 'title-desc': return (a, b) => b.title.localeCompare(a.title, undefined, { sensitivity: 'base' });
+      default: return (a, b) => b.created - a.created;   // added-desc (newest first)
+    }
+  }
+  function inView(it) {
+    if (currentView === 'archive') return it.archived;
+    if (currentView === 'reading') return !it.archived && it.toRead;
+    return !it.archived;   // 'all' = active collection
+  }
+  function mutate(id, fn) {
+    const it = items.find(x => x.id === id);
+    if (it) fn(it);
+    redraw();
+  }
+  function filterByTag(t) {
+    // Filter by that exact tag within whichever view is current (search stays scoped).
+    search.value = /\s/.test(t) ? '#"' + t + '"' : '#' + t;
+    redraw();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ---- Bulk actions on selected bookmarks -------------------------------
+  let bulkTagFormOpen = false;
+
+  function bulkApply(fn) {
+    let changed = false;
+    items.forEach(it => { if (selected.has(it.id)) { fn(it); it.updated = Date.now(); changed = true; } });
+    if (changed) redraw();   // redraw prunes selection to what stays visible
+  }
+
+  function renderBulkBar(visible) {
+    bulkMount.innerHTML = '';
+    if (selected.size === 0) { bulkTagFormOpen = false; return; }
+    const bar = document.createElement('div'); bar.className = 'bulkbar';
+
+    const r1 = document.createElement('div'); r1.className = 'bulk-row1';
+    const count = document.createElement('span'); count.textContent = selected.size + ' selected'; r1.appendChild(count);
+    // "Select all" spans every bookmark matching the current view + search
+    // (the whole match set, not just cards on screen once paging exists).
+    const allSelected = visible.length > 0 && visible.every(it => selected.has(it.id));
+    const selAll = document.createElement('button'); selAll.className = 'link';
+    selAll.textContent = allSelected
+      ? 'Clear selection'
+      : ('Select all ' + visible.length + (visible.length === 1 ? ' matching bookmark' : ' matching bookmarks'));
+    selAll.addEventListener('click', function () {
+      if (allSelected) selected.clear(); else visible.forEach(it => selected.add(it.id));
+      redraw();
+    });
+    r1.appendChild(selAll);
+    if (!allSelected) {
+      const clr = document.createElement('button'); clr.className = 'link'; clr.textContent = 'Clear';
+      clr.addEventListener('click', function () { selected.clear(); redraw(); });
+      r1.appendChild(clr);
+    }
+    bar.appendChild(r1);
+
+    const acts = document.createElement('div'); acts.className = 'bulk-actions';
+    const mk = (label, cls, fn) => { const b = document.createElement('button'); b.className = 'bulk-btn' + (cls ? ' ' + cls : ''); b.textContent = label; b.addEventListener('click', fn); return b; };
+    acts.appendChild(mk('Tag / untag…', '', function () { bulkTagFormOpen = !bulkTagFormOpen; renderBulkBar(currentVisible()); }));
+    if (currentView !== 'archive') {
+      acts.appendChild(mk('Mark as read', '', () => bulkApply(it => { it.toRead = false; })));
+      acts.appendChild(mk('Mark as unread', '', () => bulkApply(it => { it.toRead = true; })));
+      acts.appendChild(mk('Archive', '', () => bulkApply(it => { it.archived = true; })));
+    } else {
+      acts.appendChild(mk('Restore to collection', '', () => bulkApply(it => { it.archived = false; })));
+    }
+    acts.appendChild(mk('Delete', 'danger', function () { showBulkDelete(bar); }));
+    bar.appendChild(acts);
+
+    if (bulkTagFormOpen) {
+      const form = document.createElement('div'); form.className = 'bulk-form';
+      const inp = document.createElement('input'); inp.placeholder = 'Tag name (e.g. reading)'; inp.setAttribute('list', 'bulk-tags');
+      const dl = document.createElement('datalist'); dl.id = 'bulk-tags';
+      allTags().forEach(t => { const o = document.createElement('option'); o.value = t; dl.appendChild(o); });
+      const apply = (mode) => {
+        const t = cleanTag(inp.value); if (!t) return;
+        bulkApply(it => {
+          it.tags = it.tags || [];
+          if (mode === 'add') { if (!it.tags.includes(t)) it.tags.push(t); }
+          else it.tags = it.tags.filter(x => x !== t);
+        });
+      };
+      const add = document.createElement('button'); add.className = 'bulk-btn'; add.textContent = 'Add to selected';
+      const rem = document.createElement('button'); rem.className = 'bulk-btn'; rem.textContent = 'Remove from selected';
+      add.addEventListener('click', () => apply('add'));
+      rem.addEventListener('click', () => apply('remove'));
+      form.appendChild(inp); form.appendChild(dl); form.appendChild(add); form.appendChild(rem);
+      bar.appendChild(form);
+      setTimeout(() => inp.focus(), 0);
+    }
+
+    bulkMount.appendChild(bar);
+  }
+
+  function showBulkDelete(bar) {
+    if (bar.querySelector('.bulk-delete')) return;
+    const box = document.createElement('div'); box.className = 'bulk-form bulk-delete';
+    const msg = document.createElement('span'); msg.className = 'bulk-note';
+    msg.textContent = 'Delete ' + selected.size + (selected.size === 1 ? ' bookmark' : ' bookmarks') + ' for good? This can’t be undone.';
+    const del = document.createElement('button'); del.className = 'bulk-btn danger'; del.textContent = 'Delete permanently';
+    const cancel = document.createElement('button'); cancel.className = 'bulk-btn'; cancel.textContent = 'Cancel';
+    del.addEventListener('click', function () { items = items.filter(it => !selected.has(it.id)); selected.clear(); redraw(); });
+    cancel.addEventListener('click', function () { box.remove(); });
+    box.appendChild(msg); box.appendChild(del); box.appendChild(cancel);
+    bar.appendChild(box);
+  }
+
+  let items = [];           // {id, key, url, host, title, desc, tags, hasPreview}
+  let seq = 1;
+  let editingId = null;     // id when editing an existing item, else null
+
+  // Tag-adding interaction under comparison: a = chips, b = comma text, c = pick-from-existing
+  const MODE = (new URLSearchParams(location.search).get('tags') || 'c').toLowerCase();
+  // Note-writing interaction under comparison: md = type formatting, toolbar = buttons
+  const NOTE_MODE = (new URLSearchParams(location.search).get('note') || 'toolbar').toLowerCase();
+
+  // Minimal, safe formatter for personal notes: bold, italic, bullet lists, links, line breaks.
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function renderNote(md) {
+    if (!md || !md.trim()) return '';
+    const lines = md.replace(/\r\n/g, '\n').split('\n');
+    let html = '', listOpen = false;
+    const inline = (t) => esc(t)
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, txt, url) => '<a href="' + url + '" target="_blank" rel="noopener">' + txt + '</a>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    let para = [];
+    const flushPara = () => { if (para.length) { html += '<p>' + para.join('<br>') + '</p>'; para = []; } };
+    lines.forEach(function (ln) {
+      if (/^\s*[-*]\s+/.test(ln)) {
+        flushPara();
+        if (!listOpen) { html += '<ul>'; listOpen = true; }
+        html += '<li>' + inline(ln.replace(/^\s*[-*]\s+/, '')) + '</li>';
+      } else if (ln.trim() === '') {
+        if (listOpen) { html += '</ul>'; listOpen = false; }
+        flushPara();
+      } else {
+        if (listOpen) { html += '</ul>'; listOpen = false; }
+        para.push(inline(ln));
+      }
+    });
+    if (listOpen) html += '</ul>';
+    flushPara();
+    return html;
+  }
+
+  function allTags() {
+    const set = [];
+    items.forEach(it => (it.tags || []).forEach(t => { if (!set.includes(t)) set.push(t); }));
+    return set;
+  }
+  function cleanTag(t) { return t.trim().replace(/^#/, '').replace(/\s+/g, ' ').toLowerCase(); }
+  function uniq(arr) { const o = []; arr.forEach(t => { if (t && !o.includes(t)) o.push(t); }); return o; }
+
+  function normalise(raw) {
+    let v = (raw || '').trim();
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try { return new URL(v); } catch (e) { return null; }
+  }
+  function keyOf(u) {
+    const host = u.hostname.replace(/^www\./, '').toLowerCase();
+    const path = u.pathname.replace(/\/+$/, '');
+    return host + path + (u.search || '');
+  }
+  function guessTitle(u) {
+    let path = decodeURIComponent(u.pathname).replace(/\/+$/, '');
+    let last = path.split('/').filter(Boolean).pop();
+    if (last) {
+      last = last.replace(/[-_]+/g, ' ').replace(/\.[a-z0-9]+$/i, '');
+      return last.charAt(0).toUpperCase() + last.slice(1);
+    }
+    return u.hostname.replace(/^www\./, '');
+  }
+  function favEl(host) {
+    const span = document.createElement('span');
+    span.className = 'fav';
+    span.textContent = host.charAt(0).toUpperCase();
+    const img = new Image();
+    img.width = 16; img.height = 16;
+    img.onload = function () { span.textContent = ''; span.appendChild(img); };
+    img.onerror = function () {};
+    img.src = 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(host) + '&sz=64';
+    return span;
+  }
+  function hueOf(host) {
+    let h = 0; for (let i = 0; i < host.length; i++) h = (h * 31 + host.charCodeAt(i)) % 360;
+    return h;
+  }
+  function previewEl(host, title) {
+    // Simulated preview image (stand-in for the page's real preview picture).
+    const h = hueOf(host);
+    const div = document.createElement('div');
+    div.className = 'preview-img';
+    div.style.background = 'linear-gradient(135deg, hsl(' + h + ',42%,58%), hsl(' + ((h + 40) % 360) + ',46%,42%))';
+    const t = document.createElement('div'); t.className = 'pv-title'; t.textContent = title;
+    div.appendChild(t);
+    return div;
+  }
+  function openReview(data, isEdit) {
+    reviewMount.innerHTML = '';
+    editingId = isEdit ? data.id : null;
+    const host = data.host;
+    const panel = document.createElement('div');
+    panel.className = 'review';
+    panel.innerHTML =
+      '<div class="cap">' + (isEdit ? 'Edit bookmark' : 'Review before saving') + '</div>' +
+      '<div class="source" id="src"></div>' +
+      '<div class="field"><label>Address</label><input id="fAddr" type="text" /></div>' +
+      '<div class="field"><label>Title</label><input id="fTitle" type="text" /></div>' +
+      '<div class="field"><label>Description (from the page)</label><textarea id="fDesc" rows="2" placeholder="A short summary of this page"></textarea></div>' +
+      '<div class="field"><label>Your note</label>' +
+        (NOTE_MODE === 'toolbar'
+          ? '<div class="md-toolbar"><button type="button" class="md-btn" data-md="bold">Bold</button><button type="button" class="md-btn" data-md="italic">Italic</button><button type="button" class="md-btn" data-md="list">• List</button></div>'
+          : '') +
+        '<textarea id="fNote" rows="3" placeholder="Your own note about this — separate from the page description"></textarea>' +
+        '<div class="note-hint">' + (NOTE_MODE === 'toolbar'
+          ? 'Select text and use the buttons above to format it.'
+          : 'Simple formatting: **bold**, *italic*, "- " for bullets, [text](https://link).') + '</div>' +
+        '<div class="note-preview" id="notePrev"></div>' +
+      '</div>' +
+      '<div class="field"><label>Tags</label><div id="fTags"></div></div>' +
+      '<label class="chk"><input type="checkbox" id="fRead" /> Add to reading list</label>' +
+      '<div class="actions">' +
+        '<button class="btn-primary" id="doSave">' + (isEdit ? 'Save changes' : 'Save bookmark') + '</button>' +
+        '<button class="btn-ghost" id="doCancel">Cancel</button>' +
+      '</div>';
+    reviewMount.appendChild(panel);
+    const cap = panel.querySelector('.cap');
+    const pv = previewEl(host, data.title || host);
+    cap.insertAdjacentElement('afterend', pv);
+    const note = document.createElement('div');
+    note.className = 'pv-note';
+    note.textContent = 'Preview picture gathered from the page (stand-in shown here).';
+    pv.insertAdjacentElement('afterend', note);
+    const src = panel.querySelector('#src');
+    src.appendChild(favEl(host));
+    const s = document.createElement('span');
+    s.textContent = host + '  ·  ' + data.url;
+    src.appendChild(s);
+    const fTitle = panel.querySelector('#fTitle');
+    const fDesc = panel.querySelector('#fDesc');
+    fTitle.value = data.title || '';
+    fDesc.value = data.desc || '';
+
+    const getTags = buildTagInput(panel.querySelector('#fTags'), (data.tags || []).slice());
+    const fRead = panel.querySelector('#fRead');
+    fRead.checked = !!data.toRead;
+    const fAddr = panel.querySelector('#fAddr');
+    fAddr.value = data.url || '';
+    const fNote = panel.querySelector('#fNote');
+    fNote.value = data.note || '';
+    const notePrev = panel.querySelector('#notePrev');
+    function paintNote() {
+      const h = renderNote(fNote.value);
+      notePrev.innerHTML = h ? '<span class="pv-label">Preview</span><div class="note-body">' + h + '</div>' : '';
+    }
+    fNote.addEventListener('input', paintNote);
+    paintNote();
+    // Toolbar buttons (only present in the toolbar variant) wrap the selection.
+    panel.querySelectorAll('.md-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const s = fNote.selectionStart, e = fNote.selectionEnd, v = fNote.value;
+        const sel = v.slice(s, e) || (btn.dataset.md === 'list' ? 'item' : 'text');
+        let out;
+        if (btn.dataset.md === 'bold') out = '**' + sel + '**';
+        else if (btn.dataset.md === 'italic') out = '*' + sel + '*';
+        else out = (s > 0 && v[s - 1] !== '\n' ? '\n' : '') + '- ' + sel;
+        fNote.value = v.slice(0, s) + out + v.slice(e);
+        fNote.focus(); paintNote();
+      });
+    });
+    fTitle.focus(); fTitle.select();
+
+    panel.querySelector('#doCancel').addEventListener('click', function () {
+      reviewMount.innerHTML = ''; editingId = null; input.focus();
+    });
+    panel.querySelector('#doSave').addEventListener('click', function () {
+      let addr = fAddr.value.trim();
+      const parsed = normalise(addr);   // keep the old address if the new one isn't usable
+      commit(data, {
+        address: parsed ? parsed.href : data.url,
+        title: fTitle.value.trim() || guessTitle(new URL(parsed ? parsed.href : data.url)),
+        desc: fDesc.value.trim(),
+        note: fNote.value.trim(),
+        tags: getTags(),
+        toRead: fRead.checked
+      });
+    });
+  }
+
+  // Builds the tag-adding widget for the mode under comparison; returns a getter for the chosen tags.
+  function buildTagInput(mount, current) {
+    mount.innerHTML = '';
+    if (MODE === 'b') {
+      // Comma-separated free text
+      const inp = document.createElement('input');
+      inp.className = 'tag-input';
+      inp.placeholder = 'e.g. work, reading, ai';
+      inp.value = current.join(', ');
+      const hint = document.createElement('div');
+      hint.className = 'tag-hint'; hint.textContent = 'Separate tags with commas.';
+      mount.appendChild(inp); mount.appendChild(hint);
+      return () => uniq(inp.value.split(',').map(cleanTag).filter(Boolean));
+    }
+    if (MODE === 'c') {
+      // Pick from existing, plus add a new one
+      let chosen = current.slice();
+      const pick = document.createElement('div'); pick.className = 'tag-pick';
+      const inp = document.createElement('input');
+      inp.className = 'tag-input'; inp.placeholder = 'Tap a tag, or type to filter / add a new one';
+      const hint = document.createElement('div');
+      hint.className = 'tag-hint';
+      function paint() {
+        pick.innerHTML = '';
+        const q = cleanTag(inp.value);
+        const universe = uniq(allTags().concat(chosen));
+        // As you type, narrow the existing tags to those that match; chosen tags stay visible.
+        const shown = universe.filter(t => chosen.includes(t) || !q || t.includes(q));
+        shown.forEach(function (t) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'tag-toggle' + (chosen.includes(t) ? ' on' : '');
+          b.textContent = t;
+          b.addEventListener('click', function () {
+            if (chosen.includes(t)) chosen = chosen.filter(x => x !== t); else chosen.push(t);
+            inp.value = ''; paint(); inp.focus();
+          });
+          pick.appendChild(b);
+        });
+        const exactExists = universe.includes(q);
+        if (universe.length === 0) {
+          hint.textContent = 'No tags yet — type one and press Enter to create it.';
+        } else if (q && !exactExists) {
+          hint.textContent = 'Press Enter to create the new tag "' + q + '".';
+        } else if (q && shown.filter(t => !chosen.includes(t)).length === 0 && !exactExists) {
+          hint.textContent = 'No matches — press Enter to create "' + q + '".';
+        } else {
+          hint.textContent = 'Tap an existing tag to apply it, or type to filter / add a new one.';
+        }
+      }
+      inp.addEventListener('input', paint);
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const t = cleanTag(inp.value);
+          if (t && !chosen.includes(t)) chosen.push(t);
+          inp.value = ''; paint();
+        }
+      });
+      mount.appendChild(pick); mount.appendChild(inp); mount.appendChild(hint);
+      paint();
+      return () => uniq(chosen.map(cleanTag).filter(Boolean));
+    }
+    // MODE 'a' (default): chips added with Enter, removable with ×
+    let chips = current.slice();
+    const box = document.createElement('div'); box.className = 'tag-chips';
+    const inp = document.createElement('input');
+    inp.className = 'tag-input'; inp.placeholder = 'Type a tag and press Enter';
+    const hint = document.createElement('div');
+    hint.className = 'tag-hint'; hint.textContent = 'Press Enter to add each tag; click × to remove.';
+    function paint() {
+      box.innerHTML = '';
+      chips.forEach(function (t, i) {
+        const c = document.createElement('span'); c.className = 'tag';
+        c.appendChild(document.createTextNode(t));
+        const x = document.createElement('span'); x.className = 'x'; x.textContent = '×';
+        x.addEventListener('click', function () { chips.splice(i, 1); paint(); });
+        c.appendChild(x); box.appendChild(c);
+      });
+    }
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const t = cleanTag(inp.value);
+        if (t && !chips.includes(t)) chips.push(t);
+        inp.value = ''; paint();
+      } else if (e.key === 'Backspace' && !inp.value && chips.length) {
+        chips.pop(); paint();
+      }
+    });
+    mount.appendChild(box); mount.appendChild(inp); mount.appendChild(hint);
+    paint();
+    return () => uniq(chips.map(cleanTag).filter(Boolean));
+  }
+
+  function commit(data, f) {
+    const tags = f.tags || [];
+    const addrU = normalise(f.address) || normalise(data.url);
+    const host = addrU.hostname.replace(/^www\./, '');
+    const key = keyOf(addrU);
+    if (editingId) {
+      const it = items.find(x => x.id === editingId);
+      if (it) {
+        it.title = f.title; it.desc = f.desc; it.note = f.note; it.tags = tags; it.toRead = !!f.toRead;
+        it.url = addrU.href; it.host = host; it.key = key; it.updated = Date.now();
+      }
+      reviewMount.innerHTML = ''; editingId = null;
+      redraw();
+      const el = it ? document.getElementById('item-' + it.id) : null;
+      if (el) flashEl(el);
+    } else {
+      const now = Date.now();
+      const it = { id: seq++, key: key, url: addrU.href, host: host, title: f.title, desc: f.desc, note: f.note, tags: tags, hasPreview: true, archived: false, toRead: !!f.toRead, created: now, updated: now };
+      items.unshift(it);
+      reviewMount.innerHTML = '';
+      currentView = 'all';   // new saves land only in the collection
+      redraw();
+      hint.className = 'hint'; hint.textContent = 'Saved.';
+      setTimeout(() => { if (hint.textContent === 'Saved.') hint.textContent = ''; }, 1800);
+    }
+    input.value = ''; input.focus();
+  }
+
+  function flashEl(el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 1600);
+  }
+
+  // ---- Search query language --------------------------------------------
+  // Supports: plain words (implicit AND, case-insensitive substring across
+  // title, note, tags, site name AND full address), "quoted phrases",
+  // #tag, and AND / OR / NOT with ( ) grouping. An operator word in quotes
+  // is treated as ordinary text.
+  function haystackOf(it) {
+    return [it.title, it.desc, (it.tags || []).join(' '), it.host, it.url].join(' ').toLowerCase();
+  }
+  function tokenizeQuery(s) {
+    const toks = []; let i = 0;
+    const isWord = c => c && /[^\s()"]/.test(c);
+    while (i < s.length) {
+      const c = s[i];
+      if (/\s/.test(c)) { i++; continue; }
+      if (c === '(') { toks.push({ type: 'lparen' }); i++; continue; }
+      if (c === ')') { toks.push({ type: 'rparen' }); i++; continue; }
+      if (c === '"') {
+        i++; let buf = '';
+        while (i < s.length && s[i] !== '"') { buf += s[i]; i++; }
+        if (i < s.length) i++;
+        toks.push({ type: 'text', value: buf.toLowerCase() });   // quoted → literal, even if it's an operator word
+        continue;
+      }
+      if (c === '#') {
+        i++; let buf = '';
+        if (s[i] === '"') {            // #"multi word tag"
+          i++;
+          while (i < s.length && s[i] !== '"') { buf += s[i]; i++; }
+          if (i < s.length) i++;
+        } else {
+          while (isWord(s[i])) { buf += s[i]; i++; }
+        }
+        toks.push({ type: 'tag', value: buf.toLowerCase() });
+        continue;
+      }
+      let buf = '';
+      while (isWord(s[i])) { buf += s[i]; i++; }
+      const up = buf.toUpperCase();
+      if (up === 'AND') toks.push({ type: 'and' });
+      else if (up === 'OR') toks.push({ type: 'or' });
+      else if (up === 'NOT') toks.push({ type: 'not' });
+      else toks.push({ type: 'text', value: buf.toLowerCase() });
+    }
+    return toks;
+  }
+  function parseQuery(str) {
+    const toks = tokenizeQuery(str);
+    if (toks.length === 0) return null;
+    let pos = 0;
+    const peek = () => toks[pos];
+    const next = () => toks[pos++];
+    const operandStart = t => t && (t.type === 'text' || t.type === 'tag' || t.type === 'lparen' || t.type === 'not');
+    function parseOr() {
+      let node = parseAnd();
+      while (peek() && peek().type === 'or') { next(); node = { op: 'or', l: node, r: parseAnd() }; }
+      return node;
+    }
+    function parseAnd() {
+      let node = parseNot();
+      while (peek()) {
+        const t = peek();
+        if (t.type === 'and') { next(); node = { op: 'and', l: node, r: parseNot() }; }
+        else if (operandStart(t)) { node = { op: 'and', l: node, r: parseNot() }; }  // implicit AND
+        else break;
+      }
+      return node;
+    }
+    function parseNot() {
+      if (peek() && peek().type === 'not') { next(); return { op: 'not', c: parseNot() }; }
+      return parsePrimary();
+    }
+    function parsePrimary() {
+      const t = next();
+      if (!t) throw new Error('unexpected end');
+      if (t.type === 'lparen') { const n = parseOr(); const cl = next(); if (!cl || cl.type !== 'rparen') throw new Error('expected )'); return n; }
+      if (t.type === 'text') return { op: 'text', value: t.value };
+      if (t.type === 'tag') return { op: 'tag', value: t.value };
+      throw new Error('unexpected ' + t.type);
+    }
+    const ast = parseOr();
+    if (pos !== toks.length) throw new Error('trailing input');
+    return ast;
+  }
+  function fallbackAst(q) {
+    const words = q.toLowerCase().replace(/["#()]/g, ' ').split(/\s+/)
+      .filter(Boolean).filter(w => w !== 'and' && w !== 'or' && w !== 'not');
+    if (!words.length) return null;
+    return words.map(w => ({ op: 'text', value: w })).reduce((a, b) => ({ op: 'and', l: a, r: b }));
+  }
+  function evalQuery(node, it) {
+    switch (node.op) {
+      case 'text': return node.value === '' ? true : haystackOf(it).indexOf(node.value) !== -1;
+      case 'tag': return (it.tags || []).some(t => t === node.value);
+      case 'and': return evalQuery(node.l, it) && evalQuery(node.r, it);
+      case 'or': return evalQuery(node.l, it) || evalQuery(node.r, it);
+      case 'not': return !evalQuery(node.c, it);
+    }
+    return true;
+  }
+
+  function emptyEl(text) {
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = text; return e;
+  }
+
+  function actBtn(label, cls, fn) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'act' + (cls ? ' ' + cls : ''); b.textContent = label;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function renderItem(it) {
+    const el = document.createElement('div');
+    el.className = 'item' + (selected.has(it.id) ? ' selected' : ''); el.id = 'item-' + it.id;
+    // A "Reading list" marker only makes sense in the Collection, where read and
+    // to-read items sit side by side; the Archive view labels itself.
+    const showReadingChip = currentView === 'all' && it.toRead;
+    const showArchivedChip = currentView === 'archive';
+    el.innerHTML =
+      ((showReadingChip || showArchivedChip) ? '<span class="status-chip"></span>' : '') +
+      '<a class="title" target="_blank" rel="noopener"></a>' +
+      (it.desc ? '<div class="desc"></div>' : '') +
+      (renderNote(it.note) ? '<div class="note note-body"></div>' : '') +
+      ((it.tags && it.tags.length) ? '<div class="tags"></div>' : '') +
+      '<a class="url" target="_blank" rel="noopener"></a>' +
+      '<div class="foot"><span class="source-line"></span></div>' +
+      '<div class="card-dates"></div>' +
+      '<div class="card-actions"></div>';
+    if (showReadingChip) {
+      const chip = el.querySelector('.status-chip');
+      chip.classList.add('read'); chip.textContent = 'In reading list';
+    } else if (showArchivedChip) {
+      const chip = el.querySelector('.status-chip');
+      chip.classList.add('archived'); chip.textContent = 'Archived';
+    }
+    const sel = document.createElement('label'); sel.className = 'sel';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = selected.has(it.id);
+    cb.title = 'Select this bookmark';
+    cb.addEventListener('change', function () {
+      if (cb.checked) selected.add(it.id); else selected.delete(it.id);
+      el.classList.toggle('selected', cb.checked);
+      renderBulkBar(currentVisible());
+    });
+    sel.appendChild(cb);
+    el.appendChild(sel);
+
+    const titleEl = el.querySelector('.title');
+    titleEl.textContent = it.title; titleEl.href = it.url; titleEl.title = 'Open the original page';
+    if (it.hasPreview) {
+      const pv = previewEl(it.host, it.title);
+      pv.title = 'Open the original page';
+      pv.addEventListener('click', () => window.open(it.url, '_blank', 'noopener'));
+      el.insertBefore(pv, el.firstChild);
+    }
+    if (it.desc) el.querySelector('.desc').textContent = it.desc;
+    const noteHtml = renderNote(it.note);
+    if (noteHtml) el.querySelector('.note').innerHTML = noteHtml;
+    if (it.tags && it.tags.length) {
+      const tg = el.querySelector('.tags');
+      it.tags.forEach(t => {
+        const s = document.createElement('span'); s.className = 'tag'; s.textContent = t;
+        s.title = 'Filter your collection by “' + t + '”';
+        s.addEventListener('click', () => filterByTag(t));
+        tg.appendChild(s);
+      });
+    }
+    const a = el.querySelector('.url'); a.textContent = it.url; a.href = it.url;
+    const sl = el.querySelector('.source-line');
+    sl.appendChild(favEl(it.host));
+    const hs = document.createElement('span'); hs.textContent = it.host; sl.appendChild(hs);
+
+    const dates = el.querySelector('.card-dates');
+    let dtxt = 'Saved ' + fmtDate(it.created);
+    if (it.updated && new Date(it.updated).toDateString() !== new Date(it.created).toDateString()) {
+      dtxt += ' · Updated ' + fmtDate(it.updated);
+    }
+    dates.textContent = dtxt;
+
+    const actions = el.querySelector('.card-actions');
+    if (currentView === 'archive') {
+      actions.appendChild(actBtn('Restore to collection', '', () => mutate(it.id, x => { x.archived = false; })));
+    } else if (currentView === 'reading') {
+      actions.appendChild(actBtn('Mark as read', 'primary', () => mutate(it.id, x => { x.toRead = false; })));
+      actions.appendChild(actBtn('Archive', '', () => mutate(it.id, x => { x.archived = true; })));
+    } else { // collection
+      if (it.toRead) actions.appendChild(actBtn('Mark as read', '', () => mutate(it.id, x => { x.toRead = false; })));
+      else actions.appendChild(actBtn('Add to reading list', 'primary', () => mutate(it.id, x => { x.toRead = true; })));
+      actions.appendChild(actBtn('Archive', '', () => mutate(it.id, x => { x.archived = true; })));
+    }
+    actions.appendChild(actBtn('Edit', '', () => {
+      openReview({ id: it.id, url: it.url, host: it.host, title: it.title, desc: it.desc, note: it.note, tags: (it.tags || []).slice(), toRead: it.toRead }, true);
+      reviewMount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+    actions.appendChild(actBtn('Delete', 'danger-text', () => {
+      // Permanent delete is separate from Archive and requires explicit confirmation.
+      actions.innerHTML = '';
+      const warn = document.createElement('span');
+      warn.className = 'confirm-text';
+      warn.textContent = 'Delete for good? This can’t be undone.';
+      actions.appendChild(warn);
+      actions.appendChild(actBtn('Delete permanently', 'danger', () => {
+        items = items.filter(x => x.id !== it.id);
+        redraw();
+      }));
+      actions.appendChild(actBtn('Cancel', '', () => redraw()));
+    }));
+    return el;
+  }
+
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function redraw() {
+    list.innerHTML = '';
+    const hasItems = items.length > 0;
+    views.style.display = hasItems ? 'flex' : 'none';
+    searchbar.style.display = hasItems ? 'flex' : 'none';
+    sortbar.style.display = hasItems ? 'flex' : 'none';
+    clearSearch.classList.toggle('show', !!search.value);
+    renderSaved();
+    views.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('on', b.dataset.view === currentView));
+
+    if (!hasItems) {
+      list.appendChild(emptyEl('Nothing saved yet. Paste a link above to begin.'));
+      return;
+    }
+
+    const ps = parseSearch();
+    const q = ps.q, couldNotParse = ps.err;
+    const visible = items.filter(inView).filter(it => !ps.ast || evalQuery(ps.ast, it));
+
+    // Keep the selection consistent with what is actually visible.
+    const visibleIds = new Set(visible.map(it => it.id));
+    selected.forEach(id => { if (!visibleIds.has(id)) selected.delete(id); });
+    renderBulkBar(visible);
+
+    if (q) {
+      const count = document.createElement('div');
+      count.className = 'search-count';
+      const scope = currentView === 'reading' ? 'your reading list' : currentView === 'archive' ? 'the archive' : 'your collection';
+      count.textContent = visible.length + (visible.length === 1 ? ' match' : ' matches') + ' for “' + q + '”'
+        + ' in ' + scope
+        + (couldNotParse ? ' · couldn’t understand the search operators, so showing matches on the words instead' : '');
+      list.appendChild(count);
+    }
+
+    if (visible.length === 0) {
+      let msg;
+      const scope = currentView === 'reading' ? 'your reading list' : currentView === 'archive' ? 'the archive' : 'your collection';
+      if (q) msg = 'No bookmarks match “' + q + '” in ' + scope + '.';
+      else if (currentView === 'reading') msg = 'Your reading list is empty. Add a bookmark from your collection to read it later.';
+      else if (currentView === 'archive') msg = 'Nothing archived. Archived bookmarks are kept here, out of your collection and searches.';
+      else msg = 'Your collection is empty. Everything you have is archived.';
+      list.appendChild(emptyEl(msg));
+      return;
+    }
+
+    visible.slice().sort(sortComparator()).forEach(it => list.appendChild(renderItem(it)));
+  }
+
+  sortSel.addEventListener('change', function () { currentSort = sortSel.value; redraw(); });
+  saveSearchBtn.addEventListener('click', openSaveForm);
+
+  views.addEventListener('click', function (e) {
+    const tab = e.target.closest('.view-tab');
+    if (!tab) return;
+    currentView = tab.dataset.view;
+    redraw();
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const u = normalise(input.value);
+    if (!u) { hint.className = 'hint warn'; hint.textContent = "Hmm, that doesn't look like a link yet."; return; }
+    const key = keyOf(u);
+    const existing = items.find(x => x.key === key);
+    if (existing) {
+      hint.className = 'hint warn';
+      hint.textContent = "You've already saved this — here it is. You can update it.";
+      reviewMount.innerHTML = '';
+      currentView = existing.archived ? 'archive' : 'all';
+      search.value = '';
+      redraw();
+      const el = document.getElementById('item-' + existing.id);
+      if (el) {
+        flashEl(el);
+        openReview({ id: existing.id, url: existing.url, host: existing.host, title: existing.title, desc: existing.desc, note: existing.note, tags: (existing.tags || []).slice(), toRead: existing.toRead }, true);
+      }
+      input.value = '';
+      return;
+    }
+    hint.className = 'hint'; hint.textContent = '';
+    openReview({ key: key, url: u.href, host: u.hostname.replace(/^www\./, ''), title: guessTitle(u), desc: '' }, false);
+  });
+
+  search.addEventListener('input', redraw);
+  clearSearch.addEventListener('click', function () { search.value = ''; redraw(); search.focus(); });
+
+  // Sample-loaded edge-case demo (?demo=edge) — a prepared state to inspect how
+  // the layout holds under long text, many tags, bare cards, and a fuller list.
+  function seedDemo() {
+    const D = (n) => Date.now() - n * 86400000;
+    const mk = (o) => Object.assign({ id: seq++, tags: [], hasPreview: true, archived: false, toRead: false, created: D(3), updated: D(3) }, o);
+    items = [
+      mk({ key: 'k1', host: 'longform.example.org', url: 'https://longform.example.org/2026/the-remarkably-and-almost-comically-long-headline-that-keeps-going-well-past-any-reasonable-length-to-test-wrapping?ref=newsletter&utm_source=demo',
+        title: 'The remarkably and almost comically long headline that keeps going well past any reasonable length to test how titles wrap on a card',
+        desc: 'A deliberately long personal note to see how several lines of description sit within the calm card without pushing the layout around or feeling cramped when it wraps onto three or more lines.',
+        note: 'My take: **worth finishing.** Key points:\n- the *middle section* on data\n- follow-up: [related piece](https://example.com/related)',
+        tags: ['reading', 'longform', 'journalism', 'to-discuss', 'weekend', 'research', 'important'], toRead: true, created: D(28), updated: D(1) }),
+      mk({ key: 'k2', host: 'bare.example.com', url: 'https://bare.example.com/x', title: 'A bare bookmark with no note and no tags', hasPreview: false }),
+      mk({ key: 'k3', host: 'nytimes.com', url: 'https://nytimes.com/climate-outlook', title: 'Climate outlook 2026', desc: 'Read before the meeting', tags: ['news', 'climate'], toRead: true, created: D(19), updated: D(19) }),
+      mk({ key: 'k4', host: 'recipes.example', url: 'https://recipes.example/carbonara', title: 'Proper carbonara', desc: 'Dinner idea', tags: ['recipes', 'cooking'] }),
+      mk({ key: 'k5', host: 'dev.example', url: 'https://dev.example/async-guide', title: 'Async guide', tags: ['coding', 'reference'] }),
+      mk({ key: 'k6', host: 'aVeryLongSingleWordDomainWithNoBreaksExampleForTestingOverflow.example', url: 'https://averylongsingleworddomainwithnobreaksexamplefortestingoverflow.example/deep/path/segment', title: 'Edge domain', tags: ['supercalifragilisticexpialidocious-tag-name'] }),
+      mk({ key: 'k7', host: 'oldsite.example', url: 'https://oldsite.example/archived-thing', title: 'Something I put away', desc: 'Kept for reference, out of the way', tags: ['reference'], archived: true }),
+      mk({ key: 'k8', host: 'shop.example', url: 'https://shop.example/receipt', title: 'Old receipt', archived: true, hasPreview: false })
+    ];
+  }
+  if ((new URLSearchParams(location.search).get('demo')) === 'edge') seedDemo();
+  redraw();
+
+  document.body.setAttribute('data-harness-ready', 'true');
+</script>
+</body>
+</html>

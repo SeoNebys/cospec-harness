@@ -1,0 +1,2 @@
+import type { Page } from 'playwright';
+export async function captureSnapshot(page:Page,maxHeight:number){const height=await page.evaluate(()=>Math.max(document.documentElement.scrollHeight,document.body?.scrollHeight??0));const partial=height>maxHeight;if(partial)await page.setViewportSize({width:1440,height:maxHeight});const buffer=await page.screenshot({type:'png',fullPage:!partial,animations:'disabled'});return{buffer,width:1440,height:Math.min(height,maxHeight),partial};}

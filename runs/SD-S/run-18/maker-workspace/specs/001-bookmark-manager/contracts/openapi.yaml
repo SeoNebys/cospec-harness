@@ -1,0 +1,367 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager Resource Contract
+  version: 1.0.0
+  description: Owner-scoped resource endpoints used by the Bookmark Manager web UI.
+  license:
+    name: Unlicensed
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://maker:4000
+    description: Shared review environment
+security:
+  - sessionCookie: []
+paths:
+  /api/metadata/preview:
+    post:
+      operationId: previewMetadata
+      summary: Normalize a URL, detect an owner duplicate, and retrieve safe page metadata or fallback values.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url, requestId]
+              properties:
+                url:
+                  type: string
+                  maxLength: 2048
+                requestId:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+      responses:
+        "200":
+          description: Metadata retrieved or a usable fallback produced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataPreview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          description: Per-user or per-host preview limit reached.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /api/bookmarks:
+    get:
+      operationId: listBookmarks
+      summary: List the authenticated user's bookmarks newest first.
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+            maxLength: 300
+        - in: query
+          name: tag
+          schema:
+            type: string
+            maxLength: 50
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Owner-scoped page of bookmarks.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bookmark"
+                  nextCursor:
+                    type: [string, "null"]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      operationId: createBookmark
+      summary: Create a bookmark for the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkInput"
+      responses:
+        "201":
+          description: Bookmark created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/DuplicateBookmark"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: "#/components/parameters/BookmarkId"
+    patch:
+      operationId: updateBookmark
+      summary: Update an owner-scoped bookmark and its tag associations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookmarkInput"
+      responses:
+        "200":
+          description: Bookmark updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bookmark"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/DuplicateBookmark"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      operationId: deleteBookmark
+      summary: Permanently delete an owner-scoped bookmark after UI confirmation.
+      responses:
+        "204":
+          description: Bookmark deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/tags:
+    get:
+      operationId: listTags
+      summary: List tags in the authenticated user's library.
+      responses:
+        "200":
+          description: Owner-scoped tags with bookmark counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TagSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: bookmark_session
+      description: Opaque HttpOnly session cookie managed by the authentication layer.
+  parameters:
+    BookmarkId:
+      in: path
+      name: bookmarkId
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  schemas:
+    Bookmark:
+      type: object
+      additionalProperties: false
+      required: [id, url, title, description, tags, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, "null"]
+          maxLength: 1000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Tag"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BookmarkInput:
+      type: object
+      additionalProperties: false
+      required: [url, title, tags]
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, "null"]
+          maxLength: 1000
+        tags:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+    Tag:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+    TagSummary:
+      allOf:
+        - $ref: "#/components/schemas/Tag"
+        - type: object
+          required: [bookmarkCount]
+          properties:
+            bookmarkCount:
+              type: integer
+              minimum: 1
+    DuplicateSummary:
+      type: object
+      additionalProperties: false
+      required: [id, title]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+    MetadataPreview:
+      type: object
+      additionalProperties: false
+      required: [requestId, url, title, description, status, warningCode, duplicate]
+      properties:
+        requestId:
+          type: string
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        description:
+          type: [string, "null"]
+          maxLength: 1000
+        status:
+          type: string
+          enum: [retrieved, fallback]
+        warningCode:
+          type: [string, "null"]
+          enum: [unreachable, blocked, timeout, non_html, missing_title, null]
+        duplicate:
+          oneOf:
+            - $ref: "#/components/schemas/DuplicateSummary"
+            - type: "null"
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+        existingBookmark:
+          $ref: "#/components/schemas/DuplicateSummary"
+  responses:
+    Unauthorized:
+      description: No valid authenticated session.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Problem"
+              - type: object
+                properties:
+                  code:
+                    const: UNAUTHENTICATED
+    NotFound:
+      description: The resource does not exist for this owner.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Problem"
+              - type: object
+                properties:
+                  code:
+                    const: BOOKMARK_NOT_FOUND
+    DuplicateBookmark:
+      description: This owner already has the normalized destination.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Problem"
+              - type: object
+                required: [existingBookmark]
+                properties:
+                  code:
+                    const: DUPLICATE_BOOKMARK
+    ValidationError:
+      description: Submitted fields are invalid.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Problem"
+              - type: object
+                properties:
+                  code:
+                    const: VALIDATION_ERROR

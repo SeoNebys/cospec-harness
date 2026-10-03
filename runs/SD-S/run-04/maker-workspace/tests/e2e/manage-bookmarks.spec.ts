@@ -1,0 +1,26 @@
+import { test, expect } from '@playwright/test';
+test('edits, archives, restores, and confirms deletion', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /create an account/i }).click();
+  await page.getByLabel('Email address').fill(`manage-${Date.now()}@example.com`);
+  await page.getByLabel('Password').fill('correct horse battery staple');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByRole('button', { name: /add bookmark/i }).click();
+  await page.getByLabel(/web address/i).fill('https://example.com/manage');
+  await page.getByLabel(/title/i).fill('Manage me');
+  await page.getByRole('button', { name: 'Save bookmark' }).click();
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel(/title/i).fill('Changed title');
+  await page.getByRole('button', { name: /save changes/i }).click();
+  await page.getByLabel('active bookmarks').getByRole('button', { name: 'Archive' }).click();
+  await page.getByLabel('Collection views').getByRole('button', { name: 'Archive' }).click();
+  await expect(page.getByRole('link', { name: /Changed title/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await page.getByRole('button', { name: 'Collection' }).click();
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: /keep bookmark/i }).click();
+  await expect(page.getByRole('link', { name: /Changed title/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: /delete permanently/i }).click();
+  await expect(page.getByRole('link', { name: /Changed title/ })).toHaveCount(0);
+});

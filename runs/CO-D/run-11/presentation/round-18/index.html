@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks — prototype</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e4e6eb; --ink:#1c1e21; --sub:#65676b; --accent:#2f6fed; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:16px 20px; }
+  header h1 { margin:0; font-size:18px; }
+  main { max-width:760px; margin:0 auto; padding:20px 16px 60px; }
+  .capture { background:var(--card); border:1px solid var(--line); border-radius:12px;
+             padding:16px; margin-bottom:20px; }
+  .capture label { display:block; font-size:13px; color:var(--sub); margin:0 0 4px; }
+  .capture input { width:100%; padding:11px 12px; border:1px solid var(--line);
+                   border-radius:9px; font-size:15px; }
+  .capture input:focus, .tag-input:focus { outline:none; border-color:var(--accent); }
+  .row { display:flex; gap:10px; align-items:center; margin-top:12px; }
+  button.primary { background:var(--accent); color:#fff; border:0; border-radius:9px;
+                   padding:11px 18px; font-size:15px; cursor:pointer; }
+  button.primary:disabled { opacity:.5; cursor:not-allowed; }
+  button.ghost { background:transparent; border:1px solid var(--line); border-radius:8px;
+                 padding:7px 12px; font-size:13px; cursor:pointer; color:var(--ink); }
+  button.danger { background:transparent; border:1px solid #e2b4b4; border-radius:8px;
+                 padding:7px 12px; font-size:13px; cursor:pointer; color:#b42318; margin-left:auto; }
+  button.danger:hover { background:#fdeaea; }
+  .hint { font-size:12px; color:var(--sub); }
+  .examples { margin:10px 0 0; font-size:12px; color:var(--sub); }
+  .chip.example { display:inline-block; background:#eef1f6; border:0; border-radius:20px; padding:5px 11px;
+          margin:4px 6px 0 0; font-size:12px; cursor:pointer; color:var(--ink); }
+  .statusbar { margin:0 0 12px; display:flex; flex-wrap:wrap; align-items:center; }
+  .archived-pill { margin-left:auto; }
+  .item.is-archived { opacity:.85; border-style:dashed; }
+  .arch-note { font-size:12px; color:var(--sub); margin:0 0 12px; }
+  .badge-n { font-size:11px; opacity:.75; margin-left:2px; }
+  .unread-badge { display:inline-block; background:#ffe1b3; color:#8a5a00; font-size:11px;
+        font-weight:600; padding:1px 7px; border-radius:10px; margin-left:8px; vertical-align:middle; }
+  .item.is-read { opacity:.72; }
+  .item.is-read .title a { color:var(--sub); }
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:0 0 14px;
+        font-size:13px; color:var(--sub); }
+  .controls .ctl { display:inline-flex; align-items:center; gap:6px; }
+  .controls select { padding:6px 8px; border:1px solid var(--line); border-radius:7px; font-size:13px;
+        background:var(--card); }
+  .ctl-link { background:none; border:0; color:var(--accent); cursor:pointer; font-size:13px; padding:0; }
+  .ctl-link.saved { color:#2e7d32; }
+  .ctl-group { display:inline-flex; align-items:center; gap:5px; margin-left:auto; }
+  .ctl-btn { border:1px solid var(--line); background:var(--card); border-radius:7px; cursor:pointer;
+        padding:4px 9px; font-size:13px; }
+  .showmore { display:block; width:100%; margin:4px 0 10px; padding:10px; border:1px dashed var(--line);
+        background:var(--card); border-radius:9px; cursor:pointer; font-size:14px; color:var(--accent); }
+  /* text-size scales the list */
+  #list.ts-s { font-size:13px; } #list.ts-m { font-size:15px; } #list.ts-l { font-size:17px; }
+  #list.ts-s .item .title,#list.ts-m .item .title,#list.ts-l .item .title { font-size:1.02em; }
+  #list.ts-s .desc,#list.ts-s .note-line,#list.ts-m .desc,#list.ts-m .note-line,
+  #list.ts-l .desc,#list.ts-l .note-line { font-size:.9em; }
+  .searchbar { margin:0 0 12px; }
+  .searchbar input { width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:9px;
+        font-size:15px; background:var(--card); }
+  .searchbar input:focus { outline:none; border-color:var(--accent); }
+  mark { background:#fff2a8; color:inherit; border-radius:2px; }
+  .filterbar { margin:0 0 14px; }
+  .filterbar .lbl { font-size:12px; color:var(--sub); text-transform:uppercase; letter-spacing:.04em;
+          display:block; margin-bottom:7px; }
+  .pill { background:#eef1f6; border:0; border-radius:20px; padding:6px 13px; font-size:13px;
+          cursor:pointer; color:var(--ink); margin:0 6px 6px 0; }
+  .pill.active { background:var(--accent); color:#fff; }
+  .list-head { font-size:13px; color:var(--sub); margin:6px 0 10px; text-transform:uppercase;
+               letter-spacing:.04em; }
+  .item { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:0; margin-bottom:12px; overflow:hidden; transition:box-shadow .3s; }
+  .item.flash { box-shadow:0 0 0 3px rgba(47,111,237,.45); }
+  .item .preview { width:100%; height:150px; object-fit:cover; display:block; background:#eef1f6; }
+  .item .content { padding:14px 16px; display:flex; gap:12px; align-items:flex-start; }
+  .fav { width:28px; height:28px; border-radius:7px; background:#eef1f6; flex:0 0 auto;
+         display:flex; align-items:center; justify-content:center; font-size:15px; overflow:hidden; }
+  .fav img { width:100%; height:100%; object-fit:cover; }
+  .item .body { min-width:0; flex:1; }
+  .item .title { font-size:15px; font-weight:600; margin:0 0 3px; word-break:break-word; }
+  .item .title a { color:var(--ink); text-decoration:none; }
+  .item .title a:hover { text-decoration:underline; }
+  .item .desc { font-size:13px; color:#3a3c40; margin:0 0 6px; }
+  .item .note-line { font-size:13px; color:#3a3c40; margin:0 0 6px; background:#fff8e1;
+        border-left:3px solid #f0d478; padding:6px 10px; border-radius:0 6px 6px 0;
+        display:flex; gap:6px; }
+  .note-pin { color:#b7930f; }
+  .note-md { min-width:0; flex:1; }
+  .note-md > :first-child { margin-top:0; }
+  .note-md > :last-child { margin-bottom:0; }
+  .note-md h1,.note-md h2,.note-md h3,.note-md h4 { font-size:14px; margin:8px 0 4px; }
+  .note-md p { margin:6px 0; }
+  .note-md ul,.note-md ol { margin:6px 0; padding-left:20px; }
+  .note-md code { background:#eceff3; padding:1px 5px; border-radius:4px; font-size:12px; }
+  .note-md pre { background:#eceff3; padding:8px 10px; border-radius:7px; overflow:auto; margin:6px 0; }
+  .note-md pre code { background:none; padding:0; }
+  .note-md a { color:var(--accent); }
+  .item .url { font-size:12px; color:var(--sub); word-break:break-all; margin:0; }
+  .item .meta { font-size:12px; color:var(--sub); margin-top:6px; }
+  .chips { margin-top:9px; display:flex; flex-wrap:wrap; align-items:center; gap:6px; position:relative; }
+  .chip { display:inline-flex; align-items:center; background:#eef1f6; border-radius:16px;
+          padding:3px 5px 3px 10px; font-size:12px; color:#333; }
+  .chip .x { cursor:pointer; margin-left:4px; color:var(--sub); padding:0 4px; }
+  .chip.add { background:transparent; border:1px dashed var(--line); cursor:pointer; color:var(--sub);
+          padding:3px 10px; }
+  .tag-editor { display:inline-flex; align-items:center; position:relative; }
+  .tag-input { border:1px solid var(--accent); border-radius:16px; padding:3px 9px; font-size:12px;
+          width:130px; }
+  .suggest { position:absolute; top:100%; left:0; margin-top:4px; background:#fff; border:1px solid var(--line);
+          border-radius:9px; box-shadow:0 6px 20px rgba(0,0,0,.1); z-index:5; min-width:150px; overflow:hidden; }
+  .suggest div { padding:8px 11px; font-size:13px; cursor:pointer; }
+  .suggest div:hover, .suggest div.hl { background:#eef1f6; }
+  .suggest .new { color:var(--accent); }
+  .item .actions { margin-top:10px; }
+  .edit { padding:14px 16px; border-top:1px solid var(--line); background:#fafbfc; }
+  .edit label { display:block; font-size:12px; color:var(--sub); margin:0 0 4px; }
+  .edit input, .edit textarea { width:100%; padding:9px 11px; border:1px solid var(--line);
+        border-radius:8px; font-size:14px; margin-bottom:10px; font-family:inherit; }
+  .edit textarea { resize:vertical; min-height:56px; }
+  .empty { text-align:center; color:var(--sub); padding:40px 10px; }
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+           background:#1c1e21; color:#fff; padding:10px 16px; border-radius:9px; font-size:14px;
+           opacity:0; transition:opacity .2s; pointer-events:none; max-width:90%; text-align:center; }
+  .toast.show { opacity:1; }
+  @media (max-width:480px){ .row{flex-wrap:wrap;} button.primary{width:100%;} }
+</style>
+</head>
+<body>
+<header><h1>My Bookmarks</h1></header>
+<main>
+  <section class="capture">
+    <label for="url">Paste a link to save</label>
+    <input id="url" type="text" placeholder="https://…" autocomplete="off" />
+    <div class="row">
+      <button id="save" class="primary" disabled>Save link</button>
+      <span class="hint" id="cap-hint">Enter a link to enable saving.</span>
+    </div>
+    <p class="examples">No link handy? Try one of these examples:
+      <br><button class="chip example" data-ex="https://www.nasa.gov/mars-exploration">nasa.gov · Mars article</button>
+      <button class="chip example" data-ex="https://realpython.com/python-decorators">realpython.com · tutorial</button>
+      <button class="chip example" data-ex="https://www.seriouseats.com/perfect-pasta">seriouseats.com · recipe</button>
+    </p>
+  </section>
+
+  <div class="statusbar" id="statusbar" style="display:none">
+    <button class="pill active" data-view="all">All</button>
+    <button class="pill" data-view="unread">To read <span class="badge-n" id="n-unread"></span></button>
+    <button class="pill" data-view="read">Read <span class="badge-n" id="n-read"></span></button>
+    <button class="pill archived-pill" data-view="archived">Archive <span class="badge-n" id="n-arch"></span></button>
+  </div>
+
+  <div class="searchbar" id="searchbar" style="display:none">
+    <input id="search" type="search" placeholder="Search your bookmarks…" autocomplete="off" />
+  </div>
+
+  <div class="controls" id="controls" style="display:none">
+    <label class="ctl">Sort
+      <select id="sortsel">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="az">Title A–Z</option>
+        <option value="za">Title Z–A</option>
+      </select>
+    </label>
+    <label class="ctl">Show
+      <select id="pagesel">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="0">All</option>
+      </select>
+    </label>
+    <button class="ctl-link" id="setdefault" title="Remember this sort and page size as your default">Set as my default</button>
+    <span class="ctl-group" aria-label="Text size">Text
+      <button class="ctl-btn" id="textdown">A−</button>
+      <button class="ctl-btn" id="textup">A+</button>
+    </span>
+  </div>
+
+  <div class="filterbar" id="filterbar" style="display:none">
+    <span class="lbl">Filter by tag — select several to narrow (match all)</span>
+    <div id="tagbar"></div>
+  </div>
+
+  <p class="list-head" id="listhead">Saved links</p>
+  <div id="list"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+  // --- Simulated page-metadata lookup ---------------------------------------
+  var CANNED = {
+    'https://www.nasa.gov/mars-exploration': {
+      title:'Mars Exploration Program — NASA',
+      desc:'NASA’s ongoing robotic exploration of Mars, including rovers, orbiters and future crewed mission planning.',
+      icon:'https://www.google.com/s2/favicons?domain=nasa.gov&sz=64',
+      image:'https://images.unsplash.com/photo-1614728263952-84ea256f9679?w=800&q=60'
+    },
+    'https://realpython.com/python-decorators': {
+      title:'Primer on Python Decorators – Real Python',
+      desc:'Learn how decorators work and how to use them to wrap and extend the behaviour of your functions and classes.',
+      icon:'https://www.google.com/s2/favicons?domain=realpython.com&sz=64',
+      image:'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800&q=60'
+    },
+    'https://www.seriouseats.com/perfect-pasta': {
+      title:'The Food Lab: How to Cook Perfect Pasta',
+      desc:'A step-by-step guide to cooking pasta properly, from salting the water to timing the sauce.',
+      icon:'https://www.google.com/s2/favicons?domain=seriouseats.com&sz=64',
+      image:'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=800&q=60'
+    }
+  };
+
+  var items = [];
+  var seq = 0;
+  var activeTags = [];       // tags currently used to filter
+  var query = '';            // current search text
+  var statusView = 'all';    // 'all' | 'unread' | 'read'
+  var LS = window.localStorage;
+  var sortBy = (LS&&LS.getItem('bm_sort')) || 'new';
+  var pageSize = parseInt((LS&&LS.getItem('bm_page'))||'10',10);   // 0 = all
+  var textSize = (LS&&LS.getItem('bm_text')) || 'm';               // s|m|l
+  var visibleCount = pageSize;   // for "show more" paging within current filter
+  var openTagEditor = null;  // id of item whose add-tag input is open
+  var urlEl = document.getElementById('url');
+  var saveEl = document.getElementById('save');
+  var listEl = document.getElementById('list');
+  var hintEl = document.getElementById('cap-hint');
+  var toastEl = document.getElementById('toast');
+  var tagbarEl = document.getElementById('tagbar');
+  var filterbarEl = document.getElementById('filterbar');
+  var searchEl = document.getElementById('search');
+  var searchbarEl = document.getElementById('searchbar');
+  var statusbarEl = document.getElementById('statusbar');
+  var controlsEl = document.getElementById('controls');
+  var listheadEl = document.getElementById('listhead');
+
+  function normalize(u){
+    u = (u||'').trim(); if(!u) return '';
+    if(!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    return u.replace(/\/+$/,'');
+  }
+  function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./,''); } catch(e){ return u; } }
+  function validUrl(u){
+    try { var x=new URL(u);
+      if(x.protocol!=='http:'&&x.protocol!=='https:') return false;
+      if(/\s/.test(u)) return false;
+      if(x.hostname.indexOf('.')<0) return false; // needs a dot, e.g. example.com
+      return true;
+    } catch(e){ return false; }
+  }
+  function fmtDate(d){
+    return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' · ' +
+           d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  }
+  function toast(msg){
+    toastEl.textContent = msg; toastEl.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(function(){ toastEl.classList.remove('show'); },2400);
+  }
+  function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  // ---- Minimal, safe Markdown for notes ------------------------------------
+  // Escapes HTML first, then renders a small subset: headings, bold, italic,
+  // inline code, fenced code, links (http/https only), unordered & ordered lists.
+  function mdInline(s){
+    // s is already HTML-escaped. Protect inline code spans first.
+    var codes=[];
+    s=s.replace(/`([^`]+)`/g,function(_,c){ codes.push(c); return ' '+(codes.length-1)+' '; });
+    // links [text](url)
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,function(_,t,u){
+      return '<a href="'+u+'" target="_blank" rel="noopener">'+t+'</a>'; });
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    s=s.replace(/__([^_]+)__/g,'<strong>$1</strong>');
+    s=s.replace(/(^|[^*])\*([^*]+)\*/g,'$1<em>$2</em>');
+    s=s.replace(/ (\d+) /g,function(_,i){ return '<code>'+codes[+i]+'</code>'; });
+    return s;
+  }
+  function mdToHtml(src){
+    var esc=escapeHtml(src);
+    var lines=esc.split(/\n/);
+    var out=[], i=0;
+    while(i<lines.length){
+      var ln=lines[i];
+      // fenced code block
+      if(/^```/.test(ln)){
+        var buf=[]; i++;
+        while(i<lines.length && !/^```/.test(lines[i])){ buf.push(lines[i]); i++; }
+        i++; out.push('<pre><code>'+buf.join('\n')+'</code></pre>'); continue;
+      }
+      var h=ln.match(/^(#{1,6})\s+(.*)$/);
+      if(h){ var lvl=Math.min(h[1].length,4); out.push('<h'+lvl+'>'+mdInline(h[2])+'</h'+lvl+'>'); i++; continue; }
+      if(/^\s*[-*]\s+/.test(ln)){
+        out.push('<ul>');
+        while(i<lines.length && /^\s*[-*]\s+/.test(lines[i])){
+          out.push('<li>'+mdInline(lines[i].replace(/^\s*[-*]\s+/,''))+'</li>'); i++; }
+        out.push('</ul>'); continue;
+      }
+      if(/^\s*\d+\.\s+/.test(ln)){
+        out.push('<ol>');
+        while(i<lines.length && /^\s*\d+\.\s+/.test(lines[i])){
+          out.push('<li>'+mdInline(lines[i].replace(/^\s*\d+\.\s+/,''))+'</li>'); i++; }
+        out.push('</ol>'); continue;
+      }
+      if(/^\s*$/.test(ln)){ i++; continue; }
+      // paragraph: gather consecutive non-blank, non-special lines
+      var para=[];
+      while(i<lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6})\s/.test(lines[i])
+            && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^```/.test(lines[i])){
+        para.push(lines[i]); i++; }
+      out.push('<p>'+mdInline(para.join('<br>'))+'</p>');
+    }
+    return out.join('');
+  }
+  // Highlight query words within already-rendered note DOM, without breaking tags.
+  function highlightNotes(){
+    var words=(compileQuery(query).words||[]).filter(Boolean);
+    if(!words.length) return;
+    var re=new RegExp('('+words.map(function(w){return w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|')+')','ig');
+    listEl.querySelectorAll('.note-md').forEach(function(root){
+      var walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var nodes=[], nd; while(nd=walker.nextNode()) nodes.push(nd);
+      nodes.forEach(function(node){
+        if(node.parentNode.tagName==='CODE') return;
+        if(!re.test(node.nodeValue)) return;
+        var span=document.createElement('span');
+        span.innerHTML=escapeHtml(node.nodeValue).replace(re,'<mark>$1</mark>');
+        node.parentNode.replaceChild(span,node);
+      });
+    });
+  }
+  function fetchMeta(url){
+    if(CANNED[url]) return CANNED[url];
+    var h = hostOf(url);
+    return { title: h.charAt(0).toUpperCase()+h.slice(1), desc:'',
+             icon:'https://www.google.com/s2/favicons?domain='+h+'&sz=64', image:'' };
+  }
+  function byId(id){ for(var i=0;i<items.length;i++) if(items[i].id===id) return items[i]; return null; }
+  function findByUrl(url){ for(var i=0;i<items.length;i++){ if(items[i].url===url) return items[i]; } return null; }
+  function allTags(){ var s={}; items.forEach(function(it){ (it.tags||[]).forEach(function(t){s[t]=1;}); });
+    return Object.keys(s).sort(); }
+  // ---- Search query language ------------------------------------------------
+  // Supports: bare words (substring), "quoted phrases", #tag, AND/OR/NOT and
+  // parentheses. Implicit AND between adjacent terms. NOT > AND > OR. A quoted
+  // token is always a literal, even if it spells an operator.
+  function tokenize(q){
+    var toks=[], i=0, n=q.length;
+    while(i<n){
+      var c=q[i];
+      if(c===' '||c==='\t'){ i++; continue; }
+      if(c==='('){ toks.push({t:'('}); i++; continue; }
+      if(c===')'){ toks.push({t:')'}); i++; continue; }
+      if(c==='"'){ var j=i+1,s=''; while(j<n&&q[j]!=='"'){ s+=q[j++]; } i=(j<n)?j+1:j;
+        toks.push({t:'term',kind:'phrase',val:s.toLowerCase()}); continue; }
+      if(c==='#'){ var k=i+1,tg=''; while(k<n&&/[^\s()"]/.test(q[k])){ tg+=q[k++]; } i=k;
+        toks.push({t:'term',kind:'tag',val:tg.toLowerCase()}); continue; }
+      var m=i,w=''; while(m<n&&/[^\s()"]/.test(q[m])){ w+=q[m++]; } i=m;
+      var up=w.toUpperCase();
+      if(up==='AND'||up==='OR'||up==='NOT') toks.push({t:'op',val:up});
+      else toks.push({t:'term',kind:'word',val:w.toLowerCase()});
+    }
+    return toks;
+  }
+  function parse(toks){
+    var pos=0;
+    function peek(){ return toks[pos]; }
+    function parseOr(){ var node=parseAnd();
+      while(peek()&&peek().t==='op'&&peek().val==='OR'){ pos++; node={op:'or',l:node,r:parseAnd()}; }
+      return node; }
+    function parseAnd(){ var node=parseNot();
+      while(peek()){ var p=peek();
+        if(p.t==='op'&&p.val==='OR') break;
+        if(p.t===')') break;
+        if(p.t==='op'&&p.val==='AND'){ pos++; node={op:'and',l:node,r:parseNot()}; }
+        else { node={op:'and',l:node,r:parseNot()}; } // implicit AND
+      }
+      return node; }
+    function parseNot(){ if(peek()&&peek().t==='op'&&peek().val==='NOT'){ pos++; return {op:'not',x:parseNot()}; }
+      return parseAtom(); }
+    function parseAtom(){ var p=peek();
+      if(!p) throw 'eof';
+      if(p.t==='('){ pos++; var node=parseOr(); if(!peek()||peek().t!==')') throw 'paren'; pos++; return node; }
+      if(p.t==='term'){ pos++; return {op:'term',term:p}; }
+      throw 'unexpected';
+    }
+    var tree=parseOr();
+    if(pos!==toks.length) throw 'trailing';
+    return tree;
+  }
+  function hayOf(it){ return (it.title+' '+it.desc+' '+(it.note||'')+' '+it.url+' '+(it.tags||[]).join(' ')).toLowerCase(); }
+  function evalTree(node, it){
+    switch(node.op){
+      case 'or':  return evalTree(node.l,it)||evalTree(node.r,it);
+      case 'and': return evalTree(node.l,it)&&evalTree(node.r,it);
+      case 'not': return !evalTree(node.x,it);
+      case 'term':
+        var tm=node.term;
+        if(tm.kind==='tag') return (it.tags||[]).indexOf(tm.val)>=0;
+        if(!tm.val) return true;
+        return hayOf(it).indexOf(tm.val)>=0;
+    }
+    return true;
+  }
+  var _compiledQ=null, _compiledSrc=null;
+  function compileQuery(q){
+    if(q===_compiledSrc) return _compiledQ;
+    _compiledSrc=q;
+    if(!q.trim()){ _compiledQ={tree:null,words:[]}; return _compiledQ; }
+    var toks=tokenize(q);
+    var words=toks.filter(function(t){return t.t==='term'&&t.kind!=='tag'&&t.val;}).map(function(t){return t.val;});
+    try { _compiledQ={tree:parse(toks),words:words}; }
+    catch(e){ // fall back to plain all-words match (ignore stray operators/punctuation)
+      var plain=q.toLowerCase().replace(/[()"#]/g,' ').split(/\s+/)
+                 .filter(function(w){ return w && w!=='and' && w!=='or' && w!=='not'; });
+      _compiledQ={tree:null,plain:plain,words:plain};
+    }
+    return _compiledQ;
+  }
+  function matchesQuery(it, q){
+    var c=compileQuery(q);
+    if(c.tree) return evalTree(c.tree,it);
+    if(c.plain) return c.plain.every(function(w){ return hayOf(it).indexOf(w)>=0; });
+    return true;
+  }
+  function highlight(text, q){
+    var out = escapeHtml(text);
+    if(!q) return out;
+    var words=compileQuery(q).words||[];
+    words.forEach(function(w){ if(!w) return;
+      var re = new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+      out = out.replace(re,'<mark>$1</mark>');
+    });
+    return out;
+  }
+
+  function renderTagbar(){
+    var tags = allTags();
+    if(tags.length===0){ filterbarEl.style.display='none'; return; }
+    filterbarEl.style.display='block';
+    tagbarEl.innerHTML = tags.map(function(t){
+      return '<button class="pill '+(activeTags.indexOf(t)>=0?'active':'')+'" data-t="'+escapeHtml(t)+'">#'+escapeHtml(t)+'</button>';
+    }).join('') + (activeTags.length? '<button class="pill" data-clear="1">clear</button>':'');
+  }
+
+  function flash(id){
+    var el=document.getElementById('item-'+id); if(!el) return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    el.classList.add('flash'); setTimeout(function(){ el.classList.remove('flash'); },1400);
+  }
+
+  function render(){
+    renderTagbar();
+    searchbarEl.style.display = items.length ? 'block' : 'none';
+    statusbarEl.style.display = items.length ? 'block' : 'none';
+    controlsEl.style.display = items.length ? 'flex' : 'none';
+    listEl.className = 'ts-'+textSize;
+    // status counts + pill state (read/unread counted over non-archived items)
+    var active = items.filter(function(it){return !it.archived;});
+    var unread = active.filter(function(it){return !it.read;}).length;
+    document.getElementById('n-unread').textContent = unread;
+    document.getElementById('n-read').textContent = active.length-unread;
+    document.getElementById('n-arch').textContent = items.length-active.length;
+    statusbarEl.querySelectorAll('.pill').forEach(function(p){
+      p.classList.toggle('active', p.dataset.view===statusView); });
+    var inArchive = statusView==='archived';
+    var shown = items.filter(function(it){
+      if(inArchive){ if(!it.archived) return false; }
+      else { if(it.archived) return false;
+             if(statusView==='unread' && it.read) return false;
+             if(statusView==='read' && !it.read) return false; }
+      return activeTags.every(function(t){ return (it.tags||[]).indexOf(t)>=0; })
+             && matchesQuery(it, query);
+    });
+    // sort
+    shown.sort(function(a,b){
+      if(sortBy==='new') return b.saved-a.saved;
+      if(sortBy==='old') return a.saved-b.saved;
+      if(sortBy==='az') return a.title.toLowerCase()<b.title.toLowerCase()?-1:1;
+      if(sortBy==='za') return a.title.toLowerCase()>b.title.toLowerCase()?-1:1;
+      return 0;
+    });
+    var total = shown.length;
+    if(pageSize>0 && visibleCount<pageSize) visibleCount=pageSize;
+    var capped = pageSize>0 ? shown.slice(0, visibleCount) : shown;
+    var filtering = activeTags.length || query || statusView!=='all';
+    listheadEl.textContent = filtering
+      ? shown.length+' of '+items.length+' bookmarks'
+      : 'Saved links';
+    if(items.length===0){
+      listEl.innerHTML = '<div class="empty">No links saved yet. Paste one above to get started.</div>';
+      return;
+    }
+    if(shown.length===0){
+      var msg;
+      if(query) msg='No bookmarks match “'+escapeHtml(query)+'” with the current filters.';
+      else if(activeTags.length) msg='No bookmarks have all the selected tags'+(statusView!=='all'?' in this view.':'.');
+      else if(statusView==='unread') msg='Nothing left to read — you’re all caught up! 🎉';
+      else if(statusView==='read') msg='No bookmarks marked as read yet.';
+      else if(statusView==='archived') msg='Your archive is empty. Archive a bookmark to tuck it away here.';
+      else msg='No bookmarks to show.';
+      listEl.innerHTML = (inArchive?'<p class="arch-note">Archived bookmarks are kept here, out of your main list.</p>':'')+'<div class="empty">'+msg+'</div>';
+      return;
+    }
+    listEl.innerHTML = inArchive ? '<p class="arch-note">Archived bookmarks are kept here, out of your main list. Restore any to bring it back.</p>' : '';
+    capped.forEach(function(it){
+      var el = document.createElement('div');
+      el.className = 'item'+(it.read&&!it.archived?' is-read':'')+(it.archived?' is-archived':''); el.id = 'item-'+it.id;
+      var preview = it.image ? '<img class="preview" src="'+it.image+'" alt="" onerror="this.style.display=\'none\'">' : '';
+      var favInner = it.icon ? '<img src="'+it.icon+'" alt="" onerror="this.parentNode.textContent=\'🔖\'">' : '🔖';
+      var descHtml = it.desc ? '<p class="desc">'+highlight(it.desc, query)+'</p>' : '';
+      var noteHtml = it.note ? '<div class="note-line"><span class="note-pin">✎</span><div class="note-md">'+mdToHtml(it.note)+'</div></div>' : '';
+      var chips = (it.tags||[]).map(function(t){
+        return '<span class="chip">#'+escapeHtml(t)+'<span class="x" data-rm="'+it.id+'|'+escapeHtml(t)+'">×</span></span>';
+      }).join('');
+      var adder = openTagEditor===it.id
+        ? '<span class="tag-editor"><input class="tag-input" data-taginput="'+it.id+'" placeholder="type a tag…" autocomplete="off"><span class="suggest" data-suggest="'+it.id+'"></span></span>'
+        : '<span class="chip add" data-add="'+it.id+'">+ tag</span>';
+      el.innerHTML =
+        preview +
+        '<div class="content">' +
+          '<div class="fav">'+favInner+'</div>' +
+          '<div class="body">' +
+            '<p class="title"><a href="'+it.url+'" target="_blank" rel="noopener">'+highlight(it.title, query)+'</a>' +
+              (it.read?'':'<span class="unread-badge">To read</span>')+'</p>' +
+            descHtml + noteHtml +
+            '<p class="url">'+escapeHtml(it.url)+'</p>' +
+            '<p class="meta">Saved '+fmtDate(it.saved)+'</p>' +
+            '<div class="chips">'+chips+adder+'</div>' +
+            '<div class="actions">' +
+              (it.archived
+                ? '<button class="ghost" data-archive="'+it.id+'">Restore to list</button> '
+                : '<button class="ghost" data-toggle-read="'+it.id+'">'+(it.read?'Mark as unread':'Mark as read')+'</button> ' +
+                  '<button class="ghost" data-archive="'+it.id+'">Archive</button> ') +
+              '<button class="ghost" data-edit="'+it.id+'">Edit</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      if(it.editing) el.appendChild(buildEditor(it));
+      listEl.appendChild(el);
+    });
+    if(pageSize>0 && total>capped.length){
+      var more=document.createElement('button');
+      more.className='showmore'; more.id='showmore';
+      more.textContent='Show more ('+(total-capped.length)+' more of '+total+')';
+      listEl.appendChild(more);
+    }
+    highlightNotes();
+    if(openTagEditor!==null){
+      var inp = listEl.querySelector('[data-taginput="'+openTagEditor+'"]');
+      if(inp){ inp.focus(); updateSuggest(openTagEditor,''); }
+    }
+  }
+
+  function buildEditor(it){
+    var box = document.createElement('div');
+    box.className = 'edit';
+    box.innerHTML =
+      '<label>Title</label><input data-f="title" value="'+escapeHtml(it.title)+'">' +
+      '<label>Web address</label><input data-f="url" value="'+escapeHtml(it.url)+'">' +
+      '<label>Description <span class="hint">(from the page)</span></label><textarea data-f="desc">'+escapeHtml(it.desc||'')+'</textarea>' +
+      '<label>Your note <span class="hint">(private, your own words)</span></label><textarea data-f="note" placeholder="Why you saved this, what to look at…">'+escapeHtml(it.note||'')+'</textarea>' +
+      '<div class="row" style="margin-top:0"><button class="primary" data-save-edit="'+it.id+'">Save changes</button>' +
+      '<button class="ghost" data-cancel-edit="'+it.id+'">Cancel</button>' +
+      '<button class="danger" data-delete="'+it.id+'">Delete permanently</button></div>';
+    return box;
+  }
+
+  function refreshButton(){
+    var has = urlEl.value.trim().length > 0;
+    saveEl.disabled = !has;
+    hintEl.textContent = has ? 'Ready to save.' : 'Enter a link to enable saving.';
+  }
+
+  function save(){
+    var raw = urlEl.value.trim(); if(!raw) return;
+    var url = normalize(raw);
+    if(!validUrl(url)){
+      hintEl.textContent = 'That doesn’t look like a web address. Try something like example.com/page.';
+      hintEl.style.color = '#b42318';
+      return;
+    }
+    hintEl.style.color = '';
+    var existing = findByUrl(url);
+    if(existing){
+      items.forEach(function(x){ x.editing=false; });
+      existing.editing = true;
+      urlEl.value=''; refreshButton(); render(); flash(existing.id);
+      toast('You already saved this link — opened it for editing.');
+      return;
+    }
+    var m = fetchMeta(url);
+    var it = { id:++seq, url:url, title:m.title, desc:m.desc, icon:m.icon, image:m.image,
+               saved:new Date(), editing:false, tags:[], read:false, note:'', archived:false };
+    items.unshift(it);
+    urlEl.value=''; refreshButton(); render(); urlEl.focus();
+    toast('Saved “'+it.title+'”');
+  }
+
+  // ---- tag add with suggestions --------------------------------------------
+  function addTagTo(id, raw){
+    var t = (raw||'').trim().toLowerCase().replace(/^#/,'');
+    if(!t) return;
+    var it = byId(id);
+    if(it && it.tags.indexOf(t)<0) it.tags.push(t);
+    openTagEditor = id; // keep open for adding several
+    render();
+    var inp = listEl.querySelector('[data-taginput="'+id+'"]');
+    if(inp){ inp.value=''; inp.focus(); updateSuggest(id,''); }
+  }
+  function updateSuggest(id, q){
+    var box = listEl.querySelector('[data-suggest="'+id+'"]'); if(!box) return;
+    var it = byId(id); var have = it? it.tags : [];
+    q = q.trim().toLowerCase();
+    var matches = allTags().filter(function(t){ return have.indexOf(t)<0 && t.indexOf(q)>=0; }).slice(0,6);
+    var html = matches.map(function(t){ return '<div data-pick="'+escapeHtml(t)+'">#'+escapeHtml(t)+'</div>'; }).join('');
+    if(q && allTags().indexOf(q)<0 && have.indexOf(q)<0){
+      html += '<div class="new" data-pick="'+escapeHtml(q)+'">+ create “'+escapeHtml(q)+'”</div>';
+    }
+    if(!html){ box.style.display='none'; return; }
+    box.style.display='block'; box.innerHTML = html;
+  }
+
+  // ---- events ---------------------------------------------------------------
+  listEl.addEventListener('click', function(e){
+    var t = e.target;
+    if(t.dataset.edit){ var it=byId(+t.dataset.edit); items.forEach(function(x){x.editing=false;}); it.editing=true; openTagEditor=null; render(); }
+    else if(t.dataset.cancelEdit){ byId(+t.dataset.cancelEdit).editing=false; render(); }
+    else if(t.dataset.delete){ var d=byId(+t.dataset.delete);
+      if(confirm('Delete “'+d.title+'” permanently? This cannot be undone.')){
+        items = items.filter(function(x){ return x.id!==d.id; });
+        activeTags = activeTags.filter(function(x){ return allTags().indexOf(x)>=0; });
+        render(); toast('Bookmark deleted permanently.');
+      } }
+    else if(t.dataset.saveEdit){
+      var s=byId(+t.dataset.saveEdit); var box=t.closest('.edit');
+      var newUrl=normalize(box.querySelector('[data-f=url]').value);
+      if(!newUrl){ toast('A web address is required.'); return; }
+      if(!validUrl(newUrl)){ toast('That doesn’t look like a web address.'); return; }
+      var clash=findByUrl(newUrl);
+      if(clash && clash.id!==s.id){ toast('Another bookmark already uses that address — showing it.');
+        s.editing=false; render(); flash(clash.id); return; }
+      s.title=(box.querySelector('[data-f=title]').value.trim())||s.title;
+      s.url=newUrl; s.desc=box.querySelector('[data-f=desc]').value.trim();
+      s.note=box.querySelector('[data-f=note]').value.trim();
+      s.editing=false; render(); flash(s.id); toast('Changes saved.');
+    }
+    else if(t.dataset.rm){ var p=t.dataset.rm.split('|'); var it2=byId(+p[0]);
+      if(it2){ it2.tags=it2.tags.filter(function(x){return x!==p[1];});
+        activeTags=activeTags.filter(function(x){ return allTags().indexOf(x)>=0; }); render(); } }
+    else if(t.dataset.toggleRead){ var r=byId(+t.dataset.toggleRead); r.read=!r.read;
+      render(); if(document.getElementById('item-'+r.id)) flash(r.id);
+      toast(r.read?'Marked as read.':'Marked as still to read.'); }
+    else if(t.dataset.archive){ var a=byId(+t.dataset.archive); a.archived=!a.archived; a.editing=false;
+      render(); toast(a.archived?'Archived — moved out of your main list.':'Restored to your list.'); }
+    else if(t.dataset.add){ openTagEditor=+t.dataset.add; render(); }
+    else if(t.dataset.pick){ addTagTo(openTagEditor, t.dataset.pick); }
+  });
+  listEl.addEventListener('input', function(e){
+    if(e.target.dataset.taginput){ updateSuggest(+e.target.dataset.taginput, e.target.value); }
+  });
+  listEl.addEventListener('keydown', function(e){
+    if(!e.target.dataset.taginput) return;
+    var id=+e.target.dataset.taginput;
+    if(e.key==='Enter'){ e.preventDefault(); addTagTo(id, e.target.value); }
+    else if(e.key==='Escape'){ openTagEditor=null; render(); }
+  });
+  document.addEventListener('click', function(e){
+    if(openTagEditor!==null && !e.target.closest('.tag-editor') && !e.target.dataset.add){
+      openTagEditor=null; render();
+    }
+  });
+
+  statusbarEl.addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    statusView=b.dataset.view; visibleCount=pageSize; render();
+  });
+
+  // display controls
+  var sortsel=document.getElementById('sortsel'), pagesel=document.getElementById('pagesel');
+  var setdefault=document.getElementById('setdefault');
+  sortsel.value=sortBy; pagesel.value=String(pageSize);
+  sortsel.addEventListener('change', function(){ sortBy=sortsel.value; visibleCount=pageSize; markDefaultDirty(); render(); });
+  pagesel.addEventListener('change', function(){ pageSize=parseInt(pagesel.value,10); visibleCount=pageSize; markDefaultDirty(); render(); });
+  setdefault.addEventListener('click', function(){
+    if(LS){ LS.setItem('bm_sort',sortBy); LS.setItem('bm_page',String(pageSize)); LS.setItem('bm_text',textSize); }
+    setdefault.textContent='Saved as default ✓'; setdefault.classList.add('saved');
+    toast('These settings are now your default.');
+  });
+  function markDefaultDirty(){ setdefault.textContent='Set as my default'; setdefault.classList.remove('saved'); }
+  document.getElementById('textup').addEventListener('click', function(){
+    textSize = textSize==='s'?'m':(textSize==='m'?'l':'l'); if(LS)LS.setItem('bm_text',textSize); markDefaultDirty(); render(); });
+  document.getElementById('textdown').addEventListener('click', function(){
+    textSize = textSize==='l'?'m':(textSize==='m'?'s':'s'); if(LS)LS.setItem('bm_text',textSize); markDefaultDirty(); render(); });
+  listEl.addEventListener('click', function(e){
+    if(e.target.id==='showmore'){ visibleCount += (pageSize||0); render(); }
+  });
+  tagbarEl.addEventListener('click', function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.clear){ activeTags=[]; }
+    else { var t=b.dataset.t; var i=activeTags.indexOf(t); if(i>=0)activeTags.splice(i,1); else activeTags.push(t); }
+    visibleCount=pageSize; render();
+  });
+
+  document.querySelectorAll('.chip.example').forEach(function(c){
+    c.addEventListener('click', function(){ urlEl.value=c.dataset.ex; refreshButton(); urlEl.focus(); });
+  });
+  searchEl.addEventListener('input', function(){ query = searchEl.value.trim(); visibleCount=pageSize; render(); });
+  urlEl.addEventListener('input', refreshButton);
+  urlEl.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); save(); }});
+  saveEl.addEventListener('click', save);
+
+  render(); refreshButton();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body>
+</html>

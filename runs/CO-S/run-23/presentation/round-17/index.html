@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trove — bookmark prototype</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #19231f;
+      --muted: #63706a;
+      --paper: #f4f0e6;
+      --card: #fffdf7;
+      --line: #d9d3c5;
+      --accent: #176b51;
+      --accent-dark: #0e513c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 80% 5%, rgba(239, 181, 82, .17), transparent 26rem),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header, main { width: min(980px, calc(100% - 40px)); margin-inline: auto; }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 32px 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+    .header-right { display: flex; align-items: center; gap: 18px; }
+    .brand { font: 700 1.55rem Georgia, serif; letter-spacing: -.02em; }
+    .count { color: var(--muted); font-size: .9rem; }
+    main { padding: 56px 0 100px; }
+    h1 { max-width: 600px; margin: 0 0 10px; font: 700 clamp(2rem, 5vw, 3.25rem)/1.04 Georgia, serif; letter-spacing: -.035em; }
+    .lede { margin: 0 0 28px; color: var(--muted); font-size: 1.05rem; }
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      max-width: 760px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      box-shadow: 0 10px 35px rgba(38, 47, 42, .07);
+    }
+    input {
+      min-width: 0;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--ink);
+      padding: 12px 13px;
+      font: inherit;
+    }
+    button {
+      border: 0;
+      border-radius: 9px;
+      background: var(--accent);
+      color: white;
+      padding: 0 21px;
+      min-height: 46px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-dark); }
+    .status { min-height: 24px; margin: 12px 4px; color: var(--muted); font-size: .91rem; }
+    .status.success { color: var(--accent-dark); }
+    .status.error { color: #8a3528; font-weight: 650; }
+    .collection { margin-top: 54px; }
+    .search-wrap { max-width: 520px; margin: 34px 0 0; }
+    .search-wrap label { display: block; margin-bottom: 8px; color: var(--muted); font-size: .86rem; font-weight: 700; }
+    .search-box { width: 100%; border: 1px solid var(--line); border-radius: 11px; background: var(--card); padding: 13px 15px; box-shadow: 0 7px 22px rgba(38, 47, 42, .045); }
+    .collection-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+    h2 { margin: 0; font: 700 1.25rem Georgia, serif; }
+    .empty {
+      border: 1px dashed #c7c0b2;
+      border-radius: 14px;
+      padding: 44px 24px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255, 253, 247, .45);
+    }
+    .bookmark {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 22px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 21px 22px;
+      background: var(--card);
+      box-shadow: 0 8px 25px rgba(38, 47, 42, .055);
+    }
+    .bookmark h3 { margin: 5px 0 7px; font: 700 1.18rem Georgia, serif; }
+    .bookmark p { max-width: 650px; margin: 0; color: var(--muted); line-height: 1.45; }
+    .domain { color: var(--accent); font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .saved { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+    .bookmark + .bookmark { margin-top: 10px; }
+    .bookmark.attention { outline: 3px solid rgba(232, 176, 78, .45); }
+    .no-results { border: 1px dashed #c7c0b2; border-radius: 14px; padding: 38px 24px; color: var(--muted); text-align: center; }
+    .tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
+    .tag {
+      min-height: 0;
+      padding: 6px 9px;
+      border: 1px solid #c9d7d1;
+      border-radius: 999px;
+      background: #edf5f1;
+      color: var(--accent-dark);
+      font-size: .78rem;
+      font-weight: 750;
+    }
+    .tag:hover { background: #deede6; }
+    .filter-note { color: var(--muted); font-size: .9rem; }
+    .clear-filter { min-height: 0; padding: 7px 11px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: .82rem; }
+    .clear-filter:hover { background: #ebe6da; }
+    .read-later-nav { display: flex; align-items: center; gap: 7px; }
+    .nav-action { min-height: 0; padding: 8px 11px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: .82rem; }
+    .nav-action:hover, .nav-action.active { background: var(--ink); color: white; }
+    .badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: 5px; border-radius: 99px; background: #e8b04e; color: #3c2b0b; font-size: .72rem; }
+    .queue-control { margin-top: 15px; }
+    .queue-action { min-height: 0; padding: 8px 11px; border: 1px solid #bdcec7; background: #f2f7f4; color: var(--accent-dark); font-size: .82rem; }
+    .queue-action:hover, .queue-action.selected { background: #dcece5; }
+    .queue-check { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-dark); font-size: .84rem; font-weight: 700; cursor: pointer; }
+    .queue-check input { width: 17px; height: 17px; padding: 0; accent-color: var(--accent); }
+    .queue-icon { display: inline-grid; grid-template-columns: auto auto; align-items: center; gap: 7px; min-height: 0; padding: 7px 10px; border: 1px solid #bdcec7; background: #f2f7f4; color: var(--accent-dark); font-size: .82rem; }
+    .done-action { min-height: 0; padding: 8px 11px; background: var(--accent); font-size: .82rem; }
+    .variant-strip { display: flex; gap: 8px; margin-top: 24px; }
+    .variant-link { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); text-decoration: none; font-size: .8rem; font-weight: 800; }
+    .variant-link.active { border-color: var(--accent); background: #e5f0eb; color: var(--accent-dark); }
+    .inline-action { min-height: 0; margin-left: 8px; padding: 7px 10px; font-size: .8rem; }
+    .edit-panel { max-width: 760px; margin: 18px 0 34px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: 0 10px 35px rgba(38, 47, 42, .07); }
+    .edit-panel h2 { margin-bottom: 18px; }
+    .edit-grid { display: grid; gap: 14px; }
+    .edit-grid label { display: grid; gap: 7px; color: var(--muted); font-size: .82rem; font-weight: 750; }
+    .edit-grid input, .edit-grid textarea { width: 100%; border: 1px solid var(--line); border-radius: 9px; background: white; padding: 11px 12px; color: var(--ink); font: inherit; }
+    .edit-grid textarea { min-height: 82px; resize: vertical; }
+    .edit-actions { display: flex; gap: 9px; margin-top: 18px; }
+    .cancel-action { min-height: 42px; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+    .cancel-action:hover { background: #ebe6da; }
+    .card-actions { margin-top: 15px; }
+    .delete-action { min-height: 0; padding: 7px 10px; border: 1px solid #d9b9b1; background: #fff8f5; color: #8a3528; font-size: .82rem; }
+    .delete-action:hover { background: #f8e8e3; }
+    .confirm-row { display: flex; align-items: center; gap: 9px; margin-top: 12px; padding: 11px; border-radius: 9px; background: #f7e9e4; color: #6f2d23; font-size: .84rem; }
+    .confirm-row span { margin-right: auto; }
+    .danger-action { min-height: 34px; padding: 6px 9px; background: #9b3b2d; font-size: .78rem; }
+    .quiet-action { min-height: 34px; padding: 6px 9px; border: 1px solid #d5c3bd; background: transparent; color: var(--ink); font-size: .78rem; }
+    .toast { position: fixed; left: 50%; bottom: 28px; translate: -50% 0; display: flex; align-items: center; gap: 18px; padding: 12px 14px 12px 18px; border-radius: 11px; background: var(--ink); color: white; box-shadow: 0 12px 35px rgba(0,0,0,.2); }
+    .toast button { min-height: 32px; padding: 5px 10px; background: white; color: var(--ink); font-size: .78rem; }
+    @media (max-width: 620px) {
+      main { padding-top: 38px; }
+      form { grid-template-columns: 1fr; }
+      button { min-height: 48px; }
+      .bookmark { grid-template-columns: 1fr; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Trove</div>
+    <div class="header-right">
+      <nav class="read-later-nav" id="read-later-nav" aria-label="Bookmark views" hidden>
+        <button class="nav-action active" type="button" data-view="all">All</button>
+        <button class="nav-action" type="button" data-view="later">Read later <span class="badge" id="later-count">0</span></button>
+      </nav>
+      <div class="count" id="count">0 bookmarks</div>
+    </div>
+  </header>
+  <main data-harness-ready="true">
+    <h1>Keep what’s worth finding again.</h1>
+    <p class="lede">Save a page now. We’ll fill in the useful details.</p>
+
+    <form id="save-form" novalidate>
+      <input id="url" type="url" aria-label="Web address" value="https://example.com/articles/calm-reading-habit" required>
+      <button type="submit">Save bookmark</button>
+    </form>
+    <div class="status" id="status" aria-live="polite">The sample address is ready to save.</div>
+
+    <section class="edit-panel" id="edit-panel" aria-labelledby="edit-title" hidden>
+      <h2 id="edit-title">Edit bookmark</h2>
+      <div class="edit-grid">
+        <label>Web address<input id="edit-url" type="url"></label>
+        <label>Title<input id="edit-name" type="text"></label>
+        <label>Description<textarea id="edit-description"></textarea></label>
+        <label>Tags<input id="edit-tags" type="text" aria-describedby="tag-hint"><span id="tag-hint">Separate tags with commas</span></label>
+      </div>
+      <div class="edit-actions">
+        <button id="save-changes" type="button">Save changes</button>
+        <button class="cancel-action" id="cancel-edit" type="button">Cancel</button>
+      </div>
+    </section>
+
+    <div class="search-wrap" id="search-wrap" hidden>
+      <label for="search">Find a saved page</label>
+      <input class="search-box" id="search" type="search" placeholder="Search titles and page details">
+    </div>
+
+    <section class="collection" aria-labelledby="collection-title">
+      <div class="collection-head">
+        <h2 id="collection-title">Your bookmarks</h2>
+        <div id="filter-state"></div>
+      </div>
+      <div id="bookmarks">
+        <div class="empty">Your saved pages will appear here.</div>
+      </div>
+    </section>
+    <div class="toast" id="toast" role="status" hidden><span>Bookmark deleted.</span><button id="undo-delete" type="button">Undo</button></div>
+  </main>
+  <script>
+    const form = document.querySelector('#save-form');
+    const input = document.querySelector('#url');
+    const status = document.querySelector('#status');
+    const list = document.querySelector('#bookmarks');
+    const count = document.querySelector('#count');
+    const collectionTitle = document.querySelector('#collection-title');
+    const filterState = document.querySelector('#filter-state');
+    const searchWrap = document.querySelector('#search-wrap');
+    const search = document.querySelector('#search');
+    const mode = new URLSearchParams(location.search).get('flow') || 'save';
+    const params = new URLSearchParams(location.search);
+    const readLaterNav = document.querySelector('#read-later-nav');
+    const laterCount = document.querySelector('#later-count');
+    const editPanel = document.querySelector('#edit-panel');
+    const toast = document.querySelector('#toast');
+
+    function openExistingEditor() {
+      document.querySelector('#edit-url').value = 'https://alistapart.com/article/designing-for-understanding/';
+      document.querySelector('#edit-name').value = sampleBookmarks[0].title;
+      document.querySelector('#edit-description').value = sampleBookmarks[0].description;
+      document.querySelector('#edit-tags').value = sampleBookmarks[0].tags.join(', ');
+      editPanel.hidden = false;
+      editPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    const sampleBookmarks = [
+      { id: 'designing', domain: 'alistapart.com', title: 'Designing for understanding', description: 'How thoughtful structure and language help people make sense of complex interfaces.', saved: 'Saved today', tags: ['Design', 'UX'] },
+      { id: 'reading', domain: 'nesslabs.com', title: 'A calmer way to build a reading habit', description: 'A practical guide to choosing what to read and retaining the ideas that matter.', saved: 'Saved yesterday', tags: ['Reading', 'Habits'] },
+      { id: 'focus', domain: 'hbr.org', title: 'How to focus on meaningful work', description: 'A field guide to protecting attention and making room for deep, focused work.', saved: 'Saved 3 days ago', tags: ['Productivity'] },
+      { id: 'layouts', domain: 'every-layout.dev', title: 'Rethinking flexible page layouts', description: 'Resilient layout patterns for interfaces that work across different screen sizes.', saved: 'Saved last week', tags: ['Design', 'CSS'] }
+    ];
+
+    function bookmarkMarkup(bookmark) {
+      return `<article class="bookmark">
+        <div>
+          <div class="domain">${bookmark.domain}</div>
+          <h3>${bookmark.title}</h3>
+          <p>${bookmark.description}</p>
+          ${bookmark.tags ? `<div class="tags">${bookmark.tags.map(tag => `<button class="tag" type="button" data-tag="${tag}">${tag}</button>`).join('')}</div>` : ''}
+        </div>
+        <div class="saved">${bookmark.saved}</div>
+      </article>`;
+    }
+
+    function renderSearchResults(query = '') {
+      const normalized = query.trim().toLocaleLowerCase();
+      const matches = sampleBookmarks.filter((bookmark) =>
+        [bookmark.title, bookmark.description, bookmark.domain]
+          .some((value) => value.toLocaleLowerCase().includes(normalized))
+      );
+      count.textContent = `${matches.length} of ${sampleBookmarks.length} bookmarks`;
+      list.innerHTML = matches.length
+        ? matches.map(bookmarkMarkup).join('')
+        : '<div class="no-results">No saved pages match that search.</div>';
+    }
+
+    if (mode === 'search') {
+      document.querySelector('h1').textContent = 'Find what you saved.';
+      document.querySelector('.lede').textContent = 'Search the details you can remember — capitalization doesn’t matter.';
+      form.hidden = true;
+      status.hidden = true;
+      searchWrap.hidden = false;
+      renderSearchResults();
+      search.addEventListener('input', () => renderSearchResults(search.value));
+    }
+
+    if (mode === 'tags') {
+      document.querySelector('h1').textContent = 'Browse by what matters.';
+      document.querySelector('.lede').textContent = 'Choose a tag on any bookmark to focus the collection on that topic.';
+      form.hidden = true;
+      status.hidden = true;
+      renderTagResults();
+      list.addEventListener('click', (event) => {
+        const tagButton = event.target.closest('[data-tag]');
+        if (tagButton) renderTagResults(tagButton.dataset.tag);
+      });
+      filterState.addEventListener('click', (event) => {
+        if (event.target.closest('.clear-filter')) renderTagResults();
+      });
+    }
+
+    if (mode === 'duplicate') {
+      document.querySelector('h1').textContent = 'Save without the clutter.';
+      document.querySelector('.lede').textContent = 'This page is already in your collection.';
+      input.value = 'https://alistapart.com/article/designing-for-understanding/';
+      status.textContent = 'Try saving the prepared address again.';
+      list.innerHTML = bookmarkMarkup(sampleBookmarks[0]);
+      count.textContent = '1 bookmark';
+    }
+
+    if (mode === 'invalid') {
+      document.querySelector('h1').textContent = 'Save a web address.';
+      document.querySelector('.lede').textContent = 'The collection stays unchanged when the address cannot point to a page.';
+      input.value = 'not a web address';
+      status.textContent = 'Try saving the prepared text.';
+      list.innerHTML = '<div class="empty">Your saved pages will appear here.</div>';
+      count.textContent = '0 bookmarks';
+    }
+
+    if (mode === 'metadata-fail') {
+      document.querySelector('h1').textContent = 'Keep the link, even when details are unavailable.';
+      document.querySelector('.lede').textContent = 'The prepared page address works, but its title and description cannot be collected.';
+      input.value = 'https://journal.example/private-reading-list';
+      status.textContent = 'This address is ready to save.';
+      list.innerHTML = '<div class="empty">Your saved pages will appear here.</div>';
+      count.textContent = '0 bookmarks';
+    }
+
+    if (mode === 'edit') {
+      document.querySelector('h1').textContent = 'Keep saved details useful.';
+      document.querySelector('.lede').textContent = 'This page is already in your collection.';
+      form.hidden = true;
+      status.innerHTML = 'Already saved — here is your existing bookmark. <button class="inline-action" id="edit-existing" type="button">Edit existing</button>';
+      status.className = 'status success';
+      list.innerHTML = bookmarkMarkup(sampleBookmarks[0]);
+      count.textContent = '1 bookmark';
+      if (params.get('open') === '1') {
+        openExistingEditor();
+        if (params.get('draft') === '1') {
+          document.querySelector('#edit-name').value = 'Designing for understanding — reference';
+          document.querySelector('#edit-tags').value = 'Design, UX, Reference';
+        }
+      }
+    }
+
+    status.addEventListener('click', (event) => {
+      if (event.target.closest('#edit-existing') || event.target.closest('.inline-action')) openExistingEditor();
+    });
+
+    document.querySelector('#cancel-edit').addEventListener('click', () => {
+      editPanel.hidden = true;
+    });
+
+    document.querySelector('#save-changes').addEventListener('click', () => {
+      sampleBookmarks[0].title = document.querySelector('#edit-name').value.trim();
+      sampleBookmarks[0].description = document.querySelector('#edit-description').value.trim();
+      sampleBookmarks[0].tags = document.querySelector('#edit-tags').value.split(',').map(tag => tag.trim()).filter(Boolean);
+      list.innerHTML = bookmarkMarkup(sampleBookmarks[0]);
+      editPanel.hidden = true;
+      status.textContent = 'Changes saved.';
+      status.className = 'status success';
+    });
+
+    function renderTagResults(activeTag = '') {
+      const matches = activeTag
+        ? sampleBookmarks.filter(bookmark => bookmark.tags.includes(activeTag))
+        : sampleBookmarks;
+      collectionTitle.textContent = activeTag ? activeTag : 'Your bookmarks';
+      count.textContent = activeTag ? `${matches.length} tagged ${activeTag}` : `${matches.length} bookmarks`;
+      filterState.innerHTML = activeTag
+        ? '<button class="clear-filter" type="button">Show all</button>'
+        : '<span class="filter-note">All topics</span>';
+      list.innerHTML = matches.map(bookmarkMarkup).join('');
+    }
+
+    if (mode === 'readlater') {
+      const variant = params.get('variant') || 'button';
+      const queued = new Set(params.get('state') === 'queued' ? ['designing'] : []);
+      let currentView = params.get('view') === 'later' ? 'later' : 'all';
+      document.querySelector('h1').textContent = 'Keep a short list for later.';
+      document.querySelector('.lede').textContent = 'Set aside a saved page without losing it in the rest of your collection.';
+      form.hidden = true;
+      status.hidden = true;
+      readLaterNav.hidden = false;
+
+      function queueControl(bookmark) {
+        const selected = queued.has(bookmark.id);
+        if (variant === 'check') {
+          return `<label class="queue-check"><input type="checkbox" data-queue="${bookmark.id}" ${selected ? 'checked' : ''}> Read later</label>`;
+        }
+        if (variant === 'icon') {
+          return `<button class="queue-icon ${selected ? 'selected' : ''}" type="button" data-queue="${bookmark.id}"><span aria-hidden="true">${selected ? '★' : '☆'}</span><span>${selected ? 'Saved for later' : 'Save for later'}</span></button>`;
+        }
+        return `<button class="queue-action ${selected ? 'selected' : ''}" type="button" data-queue="${bookmark.id}">${selected ? '✓ In read later' : '+ Read later'}</button>`;
+      }
+
+      function readLaterMarkup(bookmark) {
+        const base = bookmarkMarkup(bookmark);
+        const control = currentView === 'later'
+          ? `<div class="queue-control"><button class="done-action" type="button" data-done="${bookmark.id}">Mark as read</button></div>`
+          : `<div class="queue-control">${queueControl(bookmark)}</div>`;
+        return base.replace('</div>\n        <div class="saved">', `${control}</div>\n        <div class="saved">`);
+      }
+
+      function renderReadLater() {
+        const visible = currentView === 'later'
+          ? sampleBookmarks.filter(bookmark => queued.has(bookmark.id))
+          : sampleBookmarks;
+        collectionTitle.textContent = currentView === 'later' ? 'Read later' : 'Your bookmarks';
+        count.textContent = currentView === 'later' ? `${visible.length} to read` : `${visible.length} bookmarks`;
+        laterCount.textContent = queued.size;
+        list.innerHTML = visible.length ? visible.map(readLaterMarkup).join('') : '<div class="empty">Nothing waiting to be read.</div>';
+        document.querySelectorAll('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === currentView));
+        if (currentView === 'all') {
+          filterState.innerHTML = `<div class="variant-strip" aria-label="Read-later control variations">
+            <a class="variant-link ${variant === 'button' ? 'active' : ''}" href="?flow=readlater&variant=button">A</a>
+            <a class="variant-link ${variant === 'check' ? 'active' : ''}" href="?flow=readlater&variant=check">B</a>
+            <a class="variant-link ${variant === 'icon' ? 'active' : ''}" href="?flow=readlater&variant=icon">C</a>
+          </div>`;
+        } else {
+          filterState.innerHTML = '';
+        }
+      }
+
+      list.addEventListener('click', (event) => {
+        const queueTarget = event.target.closest('[data-queue]');
+        if (queueTarget) {
+          const id = queueTarget.dataset.queue;
+          if (queued.has(id)) queued.delete(id); else queued.add(id);
+          renderReadLater();
+        }
+        const doneTarget = event.target.closest('[data-done]');
+        if (doneTarget) {
+          queued.delete(doneTarget.dataset.done);
+          renderReadLater();
+        }
+      });
+      list.addEventListener('change', (event) => {
+        const queueTarget = event.target.closest('[data-queue]');
+        if (queueTarget) {
+          if (queueTarget.checked) queued.add(queueTarget.dataset.queue); else queued.delete(queueTarget.dataset.queue);
+          renderReadLater();
+        }
+      });
+      readLaterNav.addEventListener('click', (event) => {
+        const viewButton = event.target.closest('[data-view]');
+        if (viewButton) {
+          currentView = viewButton.dataset.view;
+          renderReadLater();
+        }
+      });
+      renderReadLater();
+    }
+
+    if (mode === 'delete') {
+      const deleteVariant = params.get('variant') || 'confirm';
+      let activeBookmarks = [...sampleBookmarks];
+      let lastDeleted = null;
+      document.querySelector('h1').textContent = 'Remove what you no longer need.';
+      document.querySelector('.lede').textContent = 'Delete a saved page without affecting the others.';
+      form.hidden = true;
+      status.hidden = true;
+
+      function deleteMarkup(bookmark) {
+        return bookmarkMarkup(bookmark).replace('</div>\n        <div class="saved">', `<div class="card-actions"><button class="delete-action" type="button" data-delete="${bookmark.id}">Delete</button></div></div>\n        <div class="saved">`);
+      }
+
+      function renderDeleteCollection() {
+        collectionTitle.textContent = 'Your bookmarks';
+        count.textContent = `${activeBookmarks.length} bookmark${activeBookmarks.length === 1 ? '' : 's'}`;
+        filterState.innerHTML = `<div class="variant-strip" aria-label="Deletion safety variations">
+          <a class="variant-link ${deleteVariant === 'confirm' ? 'active' : ''}" href="?flow=delete&variant=confirm">A</a>
+          <a class="variant-link ${deleteVariant === 'undo' ? 'active' : ''}" href="?flow=delete&variant=undo">B</a>
+        </div>`;
+        list.innerHTML = activeBookmarks.length ? activeBookmarks.map(deleteMarkup).join('') : '<div class="empty">No bookmarks in your collection.</div>';
+      }
+
+      function removeBookmark(id) {
+        const index = activeBookmarks.findIndex(bookmark => bookmark.id === id);
+        if (index < 0) return;
+        lastDeleted = { bookmark: activeBookmarks[index], index };
+        activeBookmarks.splice(index, 1);
+        renderDeleteCollection();
+        toast.hidden = false;
+        document.querySelector('#undo-delete').hidden = deleteVariant !== 'undo';
+      }
+
+      list.addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('[data-delete]');
+        if (deleteButton) {
+          if (deleteVariant === 'confirm') {
+            const card = deleteButton.closest('.bookmark');
+            if (!card.querySelector('.confirm-row')) {
+              card.querySelector('.card-actions').insertAdjacentHTML('beforeend', `<div class="confirm-row"><span>Delete this bookmark?</span><button class="quiet-action" type="button" data-cancel-delete>Cancel</button><button class="danger-action" type="button" data-confirm-delete="${deleteButton.dataset.delete}">Delete bookmark</button></div>`);
+            }
+          } else {
+            removeBookmark(deleteButton.dataset.delete);
+          }
+        }
+        if (event.target.closest('[data-cancel-delete]')) renderDeleteCollection();
+        const confirmButton = event.target.closest('[data-confirm-delete]');
+        if (confirmButton) removeBookmark(confirmButton.dataset.confirmDelete);
+      });
+
+      document.querySelector('#undo-delete').addEventListener('click', () => {
+        if (!lastDeleted) return;
+        activeBookmarks.splice(lastDeleted.index, 0, lastDeleted.bookmark);
+        lastDeleted = null;
+        toast.hidden = true;
+        renderDeleteCollection();
+      });
+      renderDeleteCollection();
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      let candidate;
+      try {
+        candidate = new URL(input.value);
+        if (!['http:', 'https:'].includes(candidate.protocol)) throw new Error('Unsupported address');
+      } catch {
+        status.textContent = 'Enter a complete web address, such as https://example.com';
+        status.className = 'status error';
+        input.focus();
+        return;
+      }
+      if (mode === 'duplicate') {
+        status.innerHTML = 'Already saved — showing your existing bookmark. <button class="inline-action" type="button">Edit existing</button>';
+        status.className = 'status success';
+        list.querySelector('.bookmark').classList.add('attention');
+        count.textContent = '1 bookmark';
+        return;
+      }
+      if (mode === 'metadata-fail') {
+        list.innerHTML = bookmarkMarkup({
+          domain: candidate.hostname,
+          title: candidate.hostname,
+          description: 'Page details unavailable — edit this bookmark to add your own.',
+          saved: 'Saved just now'
+        });
+        count.textContent = '1 bookmark';
+        status.textContent = 'Saved without page details — you can edit them anytime.';
+        status.className = 'status success';
+        input.value = '';
+        return;
+      }
+      const parsed = candidate;
+      const title = parsed.hostname === 'example.com'
+        ? 'A calmer way to build a reading habit'
+        : `Saved page from ${parsed.hostname.replace(/^www\\./, '')}`;
+      const description = parsed.hostname === 'example.com'
+        ? 'A practical guide to choosing what to read, making time for it, and retaining the ideas that matter.'
+        : 'Page details were collected automatically so this bookmark is easy to recognize later.';
+      list.innerHTML = bookmarkMarkup({ domain: parsed.hostname.replace(/^www\\./, ''), title, description, saved: 'Saved just now' });
+      count.textContent = '1 bookmark';
+      status.textContent = 'Saved — title and description added automatically.';
+      status.className = 'status success';
+      input.value = '';
+    });
+  </script>
+</body>
+</html>

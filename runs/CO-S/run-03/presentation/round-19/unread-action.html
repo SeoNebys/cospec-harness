@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Keep — Unread prototype</title>
+  <style>
+    :root{color-scheme:light;--ink:#17211d;--muted:#68736e;--line:#dce3df;--paper:#fbfcfa;--green:#245c45;--green-soft:#e7f1eb;--cream:#f3f0e8}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;background:var(--paper);color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    header{height:68px;display:flex;align-items:center;border-bottom:1px solid var(--line)} .shell{width:min(920px,calc(100% - 48px));margin:0 auto}.brand{display:flex;align-items:center;gap:11px;font-weight:750;font-size:18px}.mark{width:29px;height:34px;border-radius:4px 4px 9px 9px;background:var(--green)}
+    main{padding:52px 0}.eyebrow{color:var(--green);font-weight:700;font-size:12px;letter-spacing:.11em;text-transform:uppercase}h1{margin:8px 0 24px;font:600 40px/1.08 Georgia,serif;letter-spacing:-.03em}
+    .search{width:100%;height:48px;margin-bottom:14px;padding:0 15px;border:1px solid #bdc9c2;border-radius:10px;background:white;color:var(--ink);font:inherit}
+    .controls{display:flex;align-items:center;gap:9px;margin-bottom:22px}.view{height:34px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:white;color:var(--muted);font:680 13px inherit}.view.active{border-color:var(--green);background:var(--green);color:white}.spacer{flex:1}.tag-label{color:var(--muted);font-size:13px}.tag{height:27px;padding:0 10px;border:0;border-radius:999px;background:var(--green-soft);color:var(--green);font:680 12px inherit}
+    .library-head{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:13px}h2{margin:0;font-size:17px}.count{color:var(--muted);font-size:13px}
+    .card{display:grid;grid-template-columns:52px 1fr auto;gap:15px;padding:20px 4px;border-bottom:1px solid var(--line);align-items:start}.card[hidden]{display:none}.thumb{width:52px;height:52px;display:grid;place-items:center;border-radius:11px;background:var(--cream);color:var(--green);font:700 19px Georgia,serif}.domain{color:var(--green);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}.title{margin:2px 0;font:600 19px/1.25 Georgia,serif}.summary{margin:0;color:var(--muted);font-size:14px}
+    .status{min-width:105px;height:34px;padding:0 11px;border:1px solid #bdc9c2;border-radius:8px;background:white;color:var(--ink);font:650 12px inherit;cursor:pointer}.status.is-unread{border-color:#8fb8a2;background:var(--green-soft);color:var(--green)}.unread-dot{display:none;width:7px;height:7px;margin-right:5px;border-radius:50%;background:var(--green)}.is-unread .unread-dot{display:inline-block}
+    @media(max-width:650px){.shell{width:min(100% - 28px,920px)}.card{grid-template-columns:48px 1fr}.status{grid-column:2;justify-self:start}.controls{flex-wrap:wrap}.spacer{display:none}}
+  </style>
+</head>
+<body>
+  <header><div class="shell brand"><span class="mark"></span><span>Keep</span></div></header>
+  <main class="shell" data-harness-ready="true"><div class="eyebrow">Your bookmark library</div><h1>Find a bookmark</h1>
+    <input class="search" aria-label="Search bookmarks" placeholder="Search titles, notes, summaries, websites, or tags">
+    <div class="controls"><button class="view active" id="all-view" type="button">All · 4</button><button class="view" id="unread-view" type="button">Unread · <span id="unread-count">0</span></button><span class="spacer"></span><span class="tag-label">Filter by tag</span><button class="tag" type="button">design</button><button class="tag" type="button">work</button></div>
+    <section><div class="library-head"><h2 id="list-title">All bookmarks</h2><span class="count" id="list-count">4 bookmarks</span></div>
+      <article class="card"><div class="thumb">D</div><div><div class="domain">example.com</div><h3 class="title">Design systems, without the jargon</h3><p class="summary">A practical guide to reusable foundations and shared patterns.</p></div><button class="status" type="button"><span class="unread-dot"></span><span>Mark unread</span></button></article>
+      <article class="card"><div class="thumb">C</div><div><div class="domain">alistapart.com</div><h3 class="title">Colour that works</h3><p class="summary">Building accessible palettes for digital products.</p></div><button class="status" type="button"><span class="unread-dot"></span><span>Mark unread</span></button></article>
+      <article class="card" id="sourdough"><div class="thumb">S</div><div><div class="domain">kitchen.example</div><h3 class="title">Simple sourdough for Saturday</h3><p class="summary">A forgiving bread recipe with an overnight rise.</p></div><button class="status" type="button"><span class="unread-dot"></span><span>Mark unread</span></button></article>
+      <article class="card"><div class="thumb">R</div><div><div class="domain">research.example</div><h3 class="title">Planning useful customer interviews</h3><p class="summary">Questions and prompts for learning what people need.</p></div><button class="status" type="button"><span class="unread-dot"></span><span>Mark unread</span></button></article>
+    </section>
+  </main>
+  <script>
+    const statuses=[...document.querySelectorAll('.status')]; const cards=[...document.querySelectorAll('.card')]; let activeView='all';
+    function render(){
+      const unread=statuses.filter(item=>item.classList.contains('is-unread')).length;
+      document.querySelector('#unread-count').textContent=unread;
+      cards.forEach((card,index)=>card.hidden=activeView==='unread'&&!statuses[index].classList.contains('is-unread'));
+      document.querySelector('#list-title').textContent=activeView==='unread'?'Unread bookmarks':'All bookmarks';
+      document.querySelector('#list-count').textContent=activeView==='unread'?`${unread} ${unread===1?'bookmark':'bookmarks'}`:'4 bookmarks';
+      document.querySelector('#all-view').classList.toggle('active',activeView==='all'); document.querySelector('#unread-view').classList.toggle('active',activeView==='unread');
+    }
+    statuses.forEach(button=>button.addEventListener('click',()=>{const unread=button.classList.toggle('is-unread');button.querySelector('span:last-child').textContent=unread?'Unread — mark read':'Mark unread';render()}));
+    document.querySelector('#all-view').addEventListener('click',()=>{activeView='all';render()}); document.querySelector('#unread-view').addEventListener('click',()=>{activeView='unread';render()});
+  </script>
+</body>
+</html>

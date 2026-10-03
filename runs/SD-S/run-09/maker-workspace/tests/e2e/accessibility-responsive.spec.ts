@@ -1,0 +1,2 @@
+import { expect,test } from "@playwright/test";import { signIn } from "./helpers.js";
+test("ready state and primary workflow remain available at each configured viewport",async({page})=>{await signIn(page);await expect(page.getByLabel("Web address")).toBeVisible();await expect(page.getByLabel("Search bookmarks")).toBeVisible();await page.getByLabel("Search bookmarks").focus();await expect(page.getByLabel("Search bookmarks")).toBeFocused();await expect(page.locator("body")).not.toHaveCSS("overflow-x","scroll");});

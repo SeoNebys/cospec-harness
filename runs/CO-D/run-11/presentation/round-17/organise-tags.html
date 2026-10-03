@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organise — Tags (B)</title>
+<link rel="stylesheet" href="organise-style.css">
+</head><body>
+<header><h1>My Bookmarks <span class="tag">— Option B: Tags</span></h1></header>
+<div class="wrap">
+  <main class="main" style="max-width:640px;margin:0 auto">
+    <div class="note">In this version a bookmark can carry <b>several</b> labels at once. Tap labels
+      at the top to filter; a bookmark shows if it has all the selected labels. Add or remove a
+      label right on each card.</div>
+    <div class="topbar" id="tagbar"></div>
+    <div id="list"></div>
+  </main>
+</div>
+<script src="organise-common.js"></script>
+<script>
+  var items = JSON.parse(JSON.stringify(SEED));
+  var active = [];
+  function allTags(){ var s={}; items.forEach(function(it){it.tags.forEach(function(t){s[t]=1;});});
+    return Object.keys(s).sort(); }
+  function renderTagbar(){
+    document.getElementById('tagbar').innerHTML = allTags().map(function(t){
+      return '<button class="pill '+(active.indexOf(t)>=0?'active':'')+'" data-t="'+t+'">#'+t+'</button>';
+    }).join('') + (active.length? ' <button class="pill" data-clear="1">clear</button>':'');
+  }
+  function renderList(){
+    var shown = items.filter(function(it){ return active.every(function(t){return it.tags.indexOf(t)>=0;}); });
+    document.getElementById('list').innerHTML = shown.map(function(it){
+      var chips = it.tags.map(function(t){
+        return '<span class="chip">#'+esc(t)+'<span class="x" data-rm="'+it.id+'|'+esc(t)+'">×</span></span>';
+      }).join('') + '<span class="chip add" data-add="'+it.id+'">+ label</span>';
+      return cardHtml(it, '<div class="chips">'+chips+'</div>');
+    }).join('') || '<p class="url">No bookmarks match those labels.</p>';
+  }
+  document.getElementById('tagbar').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b)return;
+    if(b.dataset.clear){ active=[]; }
+    else { var t=b.dataset.t; var i=active.indexOf(t); if(i>=0)active.splice(i,1); else active.push(t); }
+    renderTagbar(); renderList();
+  });
+  document.getElementById('list').addEventListener('click',function(e){
+    if(e.target.dataset.rm){ var p=e.target.dataset.rm.split('|'); var id=+p[0];
+      items.forEach(function(it){ if(it.id===id) it.tags=it.tags.filter(function(x){return x!==p[1];}); });
+      renderTagbar(); renderList(); }
+    else if(e.target.dataset.add){ var id=+e.target.dataset.add;
+      var t=prompt('New label for this bookmark:'); if(t){ t=t.trim().toLowerCase();
+        items.forEach(function(it){ if(it.id===id && t && it.tags.indexOf(t)<0) it.tags.push(t); });
+        renderTagbar(); renderList(); } }
+  });
+  renderTagbar(); renderList();
+  document.body.setAttribute('data-harness-ready','true');
+</script>
+</body></html>

@@ -1,0 +1,277 @@
+openapi: 3.1.0
+info:
+  title: Bookmark Manager API
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: Process and database are ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ready }
+  /metadata/preview:
+    post:
+      operationId: previewMetadata
+      description: Normalize an address, route duplicates to an existing bookmark, or safely retrieve page metadata.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, maxLength: 4096 }
+      responses:
+        '200':
+          description: Metadata preview or recoverable fallback
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MetadataPreview' }
+        '303':
+          description: Destination already exists; edit the returned bookmark
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [existingBookmarkId]
+                properties:
+                  existingBookmarkId: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/Problem' }
+  /bookmarks:
+    get:
+      operationId: listBookmarks
+      parameters:
+        - name: view
+          in: query
+          schema: { type: string, enum: [active, favorites, read-later, archived], default: active }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 500 }
+        - name: tag
+          in: query
+          schema: { type: string, maxLength: 40 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [newest, oldest, title], default: newest }
+      responses:
+        '200':
+          description: Filtered and sorted collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Bookmark' }
+                  total: { type: integer, minimum: 0 }
+        '400': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkInput' }
+      responses:
+        '201':
+          description: Bookmark created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '409':
+          description: Normalized destination already exists
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Problem' }
+                  - type: object
+                    required: [existingBookmarkId]
+                    properties:
+                      existingBookmarkId: { type: string, format: uuid }
+        '422': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+    get:
+      operationId: getBookmark
+      responses:
+        '200':
+          description: Bookmark detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '404': { $ref: '#/components/responses/Problem' }
+    patch:
+      operationId: updateBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkPatch' }
+      responses:
+        '200':
+          description: Updated bookmark
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bookmark' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteBookmark
+      description: Called only after client confirmation; permanently deletes the bookmark.
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/Problem' }
+  /bookmarks/{bookmarkId}/media/{kind}:
+    parameters:
+      - $ref: '#/components/parameters/BookmarkId'
+      - name: kind
+        in: path
+        required: true
+        schema: { type: string, enum: [icon, preview] }
+    get:
+      operationId: getBookmarkMedia
+      responses:
+        '200':
+          description: Cached raster image
+          headers:
+            Cache-Control: { schema: { type: string } }
+          content:
+            image/png: { schema: { type: string, contentEncoding: binary } }
+            image/jpeg: { schema: { type: string, contentEncoding: binary } }
+            image/webp: { schema: { type: string, contentEncoding: binary } }
+            image/gif: { schema: { type: string, contentEncoding: binary } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /tags:
+    get:
+      operationId: listTags
+      responses:
+        '200':
+          description: Tags currently assigned to at least one bookmark
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Tag' }
+components:
+  parameters:
+    BookmarkId:
+      name: bookmarkId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Problem:
+      description: Request could not be completed
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    MetadataPreview:
+      type: object
+      required: [url, normalizedUrl, status]
+      properties:
+        url: { type: string, format: uri }
+        normalizedUrl: { type: string, format: uri }
+        status: { type: string, enum: [complete, partial, unavailable] }
+        title: { type: [string, 'null'], maxLength: 200 }
+        iconCandidate: { type: [string, 'null'], format: uri }
+        previewCandidate: { type: [string, 'null'], format: uri }
+        reasonCode:
+          type: [string, 'null']
+          enum: [null, TIMEOUT, UNREACHABLE, BLOCKED_DESTINATION, UNSUPPORTED_CONTENT, RESPONSE_TOO_LARGE, NO_METADATA]
+    BookmarkInput:
+      type: object
+      required: [url, title]
+      properties:
+        url: { type: string, maxLength: 4096 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        noteSource: { type: string, maxLength: 2000, default: '' }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 40 }
+        metadataPreview:
+          type: object
+          properties:
+            iconCandidate: { type: [string, 'null'], format: uri }
+            previewCandidate: { type: [string, 'null'], format: uri }
+    BookmarkPatch:
+      type: object
+      minProperties: 1
+      properties:
+        url: { type: string, maxLength: 4096 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        noteSource: { type: string, maxLength: 2000 }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 40 }
+        isFavorite: { type: boolean }
+        isReadLater: { type: boolean }
+        isRead: { type: boolean }
+        isArchived: { type: boolean }
+    Bookmark:
+      type: object
+      required: [id, url, title, noteSource, tags, isFavorite, isReadLater, isRead, isArchived, media, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        title: { type: string }
+        noteSource: { type: string }
+        tags:
+          type: array
+          items: { $ref: '#/components/schemas/Tag' }
+        isFavorite: { type: boolean }
+        isReadLater: { type: boolean }
+        isRead: { type: boolean }
+        isArchived: { type: boolean }
+        media:
+          type: object
+          required: [iconUrl, previewUrl]
+          properties:
+            iconUrl: { type: [string, 'null'] }
+            previewUrl: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    FieldIssue:
+      type: object
+      required: [field, message]
+      properties:
+        field: { type: string }
+        message: { type: string }
+        start: { type: integer, minimum: 0 }
+        end: { type: integer, minimum: 0 }
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        issues:
+          type: array
+          items: { $ref: '#/components/schemas/FieldIssue' }

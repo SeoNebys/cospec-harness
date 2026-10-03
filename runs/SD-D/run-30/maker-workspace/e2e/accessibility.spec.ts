@@ -1,0 +1,2 @@
+import { test,expect } from '@playwright/test';
+test('primary navigation and save action are keyboard reachable',async({page})=>{await page.goto('/');await page.waitForSelector('[data-harness-ready="true"]');await page.keyboard.press('Tab');await expect(page.getByRole('link',{name:/Keepmark/})).toBeFocused();await page.keyboard.press('Tab');await expect(page.getByRole('link',{name:'All bookmarks'})).toBeFocused();await expect(page.getByRole('main')).toBeVisible()});

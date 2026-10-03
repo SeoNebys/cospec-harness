@@ -1,0 +1,2 @@
+import type { MetadataPreview as Preview } from '@bookmarks/shared';
+export function MetadataPreview({preview}:{preview:Preview|null}){if(!preview)return null;return <div className="metadata-preview">{preview.previewCandidate?<img src={preview.previewCandidate} alt="Page preview" referrerPolicy="no-referrer"/>:<div className="preview-placeholder">No preview available</div>}<div><span className="status-dot"/> {preview.status==='complete'?'Page details found':'You can finish the details manually'}</div></div>}

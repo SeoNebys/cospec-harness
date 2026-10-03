@@ -1,0 +1,73 @@
+(* Bookmark Manager search language, version 1. *)
+
+query          = whitespace, [or_expression], whitespace, end_of_input ;
+
+or_expression  = and_expression,
+                 {required_whitespace, "OR", required_whitespace, and_expression} ;
+
+and_expression = unary_expression,
+                 {explicit_and | implicit_and} ;
+
+explicit_and   = required_whitespace, "AND", required_whitespace, unary_expression ;
+
+implicit_and   = required_whitespace, unary_expression ;
+
+unary_expression = ["NOT", required_whitespace], atom ;
+
+atom           = tag_criterion | quoted_phrase | word ;
+
+tag_criterion  = "tag:", (quoted_phrase | tag_word) ;
+
+quoted_phrase  = '"', quoted_character, {quoted_character}, '"' ;
+
+word           = word_character, {word_character} ;
+
+tag_word       = tag_character, {tag_character} ;
+
+whitespace     = {" " | "\t" | "\r" | "\n"} ;
+required_whitespace = (" " | "\t" | "\r" | "\n"), whitespace ;
+
+(* Operators are recognized only as standalone uppercase tokens. *)
+(* NOT binds tighter than AND; AND binds tighter than OR. *)
+(* Repeated operators at the same precedence fold from left to right. *)
+(* Adjacent operands are an implicit AND. *)
+(* Quotes do not support escape sequences in v1. *)
+
+(* word_character excludes whitespace and a quote. A standalone uppercase
+   AND, OR, or NOT is tokenized as an operator rather than a word. *)
+word_character = ? any Unicode scalar except whitespace or '"' ? ;
+
+(* tag_character additionally excludes an empty value. Colons after the
+   tag: prefix are ordinary tag characters. *)
+tag_character  = ? any Unicode scalar except whitespace or '"' ? ;
+
+quoted_character = ? any Unicode scalar except '"' ? ;
+end_of_input   = ? end of input ? ;
+
+(* Valid examples:
+   climate
+   "climate policy"
+   tag:research
+   tag:"machine learning"
+   climate policy                 -- climate AND policy
+   tag:research AND "climate policy"
+   unread OR archive NOT obsolete
+   NOT tag:work
+*)
+
+(* Invalid examples and required diagnostic categories:
+   "unfinished                     UNMATCHED_QUOTE at opening quote
+   tag:                            MISSING_TAG_VALUE at end
+   alpha AND                      MISSING_OPERAND after AND
+   alpha OR OR beta               UNEXPECTED_OPERATOR at second OR
+   NOT                            MISSING_OPERAND after NOT
+*)
+
+(* Implementation safety limits:
+   - maximum source length: 1,000 Unicode scalar values
+   - maximum tokens: 128
+   - maximum unary nesting: 16
+   - empty/whitespace-only input is valid and means no search constraint
+   These bounds return QUERY_TOO_COMPLEX with a source span; they never
+   silently truncate input.
+*)

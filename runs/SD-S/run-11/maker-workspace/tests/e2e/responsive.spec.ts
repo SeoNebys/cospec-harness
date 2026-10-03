@@ -1,0 +1,1 @@
+import {test,expect} from '@playwright/test';test('primary page does not scroll horizontally',async({page})=>{await page.goto('/');await expect(page.locator('[data-harness-ready="true"]')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);});

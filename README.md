@@ -218,8 +218,9 @@ coverage, and co-construction under the configured conditions.
 ## Citation
 
 Citation metadata is provided in `CITATION.cff`. Version v2.0.0 contains the
-complete 150-trial dataset and final analyses. Its version-specific DOI will be
-linked from the [v2.0.0 release](https://github.com/SeoNebys/cospec-harness/releases/tag/v2.0.0).
+complete 150-trial dataset and final analyses and is archived at
+<https://doi.org/10.5281/zenodo.23121544>
+([GitHub release](https://github.com/SeoNebys/cospec-harness/releases/tag/v2.0.0)).
 The archive across all versions is available at
 <https://doi.org/10.5281/zenodo.21803279>. The earlier v1.0.1 dataset remains
 available at <https://doi.org/10.5281/zenodo.21803280>.

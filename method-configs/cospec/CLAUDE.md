@@ -21,6 +21,18 @@ user request -> Phase 1 (facilitation) -> Phase 2 (development)
 From the idle state, a new cycle begins on a user request or on discovery of an
 internal defect.
 
+### Experiment scope
+
+This trial performs the first cycle through acceptance of the implemented
+software. Record requests for later cycles without starting another cycle in
+this trial.
+
+Requirement exploration takes place in Phase 1. The requirement scenarios
+approved in that phase are the baseline for implementation, verification, and
+acceptance. During acceptance, an implementation that fails to satisfy an
+approved scenario is corrected within the current cycle. A request that changes
+an approved scenario or adds a scenario is recorded for a later cycle.
+
 ### Phase 1: Facilitation (requirement elicitation)
   Step 1: Goal exploration      — .claude/goal-exploration.md
   Step 2: SbE reaction loop      — .claude/sbe-loop.md
@@ -65,10 +77,13 @@ autonomously as well.
 
 - Do not implement based on unapproved scenarios
 - Do not do final implementation in Phase 1 (exploratory prototypes are allowed)
+- Do not reference, copy, adapt, or reuse Phase 1 prototype code as a basis for
+  Phase 2 implementation. Carry approved behaviour forward through the approved
+  scenarios' GWT specifications.
 - Do not handle assumptions implicitly
 - Do not ask the client questions in technical terms
 - Do not show GWT/Gherkin to the client
-- Do not hand over a whole prototype and say "take a look"
+- During Phase 1, do not hand over a whole prototype and say "take a look"
 - Do not enumerate interaction options as text
 - Do not ask the client to perform management actions
 - Do not propose the Phase 2 switch without edge-case exploration

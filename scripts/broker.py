@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Broker — the batch runner and in-session relay.
 
-The broker is deliberately NON-AGENTIC: it passes the director's utterance to
-the maker verbatim (raw == relayed), never composing or interpreting reaction
-content. Its jobs are (1) expand the run-plan into an ordered schedule,
+The broker is deliberately NON-AGENTIC: it passes the director's dialogue to
+the maker verbatim, storing a trailing final-acceptance control tag separately
+for new trials. It never composes or paraphrases reaction content.
+Its jobs are (1) expand the run-plan into an ordered schedule,
 (2) per run: setup -> session loop -> teardown, (3) curate the presentation
 surface the director may see, (4) log every utterance.
 
@@ -13,15 +14,17 @@ Usage:
   python scripts/broker.py CO-D --trials 3 # run one condition N times
   python scripts/broker.py --max-rounds 20 # override the safety cap
 
-Auth/model: containers read ANTHROPIC_API_KEY from the environment. Set
-HARNESS_MODEL to pin a specific model (recommended for reproducibility).
+Auth/model: VM subscription credentials; config/llm.yaml fixes model and effort.
+Use --maker/--director to select a provider pair.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import random
+import shutil
 import subprocess
 import sys
 import time
@@ -32,6 +35,11 @@ from pathlib import Path
 import yaml
 
 import harness
+import llm
+import app_presentation
+import presentation_retry
+import measurement
+import termination
 from render_preview import render_html
 
 # Windows consoles default to cp949; force UTF-8 so progress prints never crash
@@ -42,57 +50,12 @@ try:
 except Exception:
     pass
 
-CALL_TIMEOUT = int(os.environ.get("HARNESS_CALL_TIMEOUT", "1800"))
-MODEL = os.environ.get("HARNESS_MODEL")
-# Method-agnostic terminator: if the maker's workspace produces nothing new for
-# this many consecutive rounds (the client is no longer driving changes), the
-# session has settled. Handles VC/SDD, which lack COSPEC's phase state machine.
 STALL_ROUNDS = int(os.environ.get("HARNESS_STALL_ROUNDS", "3"))
 
-# Usage/rate-limit handling: on a subscription (or a tier cap) a call can fail
-# with a limit error. We detect it broadly, wait, and retry the SAME session_id
-# (the container stays alive and the transcript persists, so the session resumes
-# exactly where it stopped). Poll interval and total cap are tunable via env.
-LIMIT_MARKERS = ("usage limit", "session limit", "rate limit", "rate_limit",
-                 "resets", "429", "too many requests", "quota", "overloaded", "529")
-LIMIT_WAIT = int(os.environ.get("HARNESS_LIMIT_WAIT", "900"))        # 15 min between retries
-LIMIT_MAX_WAIT = int(os.environ.get("HARNESS_LIMIT_MAX_WAIT", "86400"))  # give up after 24h
 
-
-# --------------------------------------------------------------------------- #
-# agent invocation (headless claude -p over docker exec)
-# --------------------------------------------------------------------------- #
-def _is_limit(err: str) -> bool:
-    e = err.lower()
-    return any(m in e for m in LIMIT_MARKERS)
-
-
-def _claude(container: str, prompt: str, session_id: str | None) -> dict:
-    cmd = ["docker", "exec", "-w", "/work", container, "claude", "-p", prompt,
-           "--output-format", "json", "--dangerously-skip-permissions"]
-    if session_id:
-        cmd += ["--resume", session_id]
-    if MODEL:
-        cmd += ["--model", MODEL]
-
-    waited = 0
-    while True:
-        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                              timeout=CALL_TIMEOUT)
-        if proc.returncode == 0:
-            try:
-                return json.loads(proc.stdout)
-            except json.JSONDecodeError:
-                raise RuntimeError(f"{container}: non-JSON output\n{proc.stdout[:800]}")
-        err = (proc.stderr or "") + (proc.stdout or "")
-        # Usage/rate limit -> wait and retry the same session (resumes in place).
-        if _is_limit(err) and waited < LIMIT_MAX_WAIT:
-            waited += LIMIT_WAIT
-            print(f"[broker] limit hit ({container}); waiting {LIMIT_WAIT}s then resuming "
-                  f"(waited {waited}s / cap {LIMIT_MAX_WAIT}s)\n    {err.strip()[:200]}")
-            time.sleep(LIMIT_WAIT)
-            continue
-        raise RuntimeError(f"{container}: claude -p exited {proc.returncode}\n{proc.stderr[:800]}")
+def _ask(container: str, model: llm.Model, prompt: str, session_id: str | None) -> dict:
+    return llm.invoke(container, model, prompt, session_id,
+                      record_dir=harness.SESSION / "calls" / container)
 
 
 def _text(resp: dict) -> str:
@@ -110,7 +73,8 @@ def curate(method: str, round_no: int) -> list[str]:
     """Copy the maker's *presented* artifacts into _work/presentation/round-NN.
 
     Method-specific, mirroring each method's interaction model:
-      cospec -> prototype UI only (HTML + rendered PNG). NEVER context/ (scenarios,
+      cospec -> prototype directory, including runtime assets, plus rendered PNG.
+                NEVER context/ (scenarios,
                 Gherkin) or .claude/ — COSPEC does not expose the spec to the client.
       sdd    -> the spec documents presented at the gate (specs/**/*.md).
       vibe   -> the running app, rendered to PNG.
@@ -121,19 +85,29 @@ def curate(method: str, round_no: int) -> list[str]:
     ws = harness.MAKER_WS
     refs: list[str] = []
 
-    def _take_html(html: Path) -> None:
-        out = dest / html.name
-        out.write_text(html.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
-        refs.append(f"/presentation/round-{round_no:02d}/{out.name}")
-        png = dest / (html.stem + ".png")
-        if render_html(html, png):
-            refs.append(f"/presentation/round-{round_no:02d}/{png.name}")
-
     if method == "cospec":
         proto = ws / "prototypes"
         if proto.exists():
+            # Keep relative script/style/image references intact. Refuse links
+            # rather than copying files from outside the presentation boundary.
+            if proto.is_symlink() or any(p.is_symlink() for p in proto.rglob("*")):
+                raise ValueError("Prototype presentation cannot contain symbolic links")
+            shutil.copytree(proto, dest, dirs_exist_ok=True)
+            # Maker screenshots can show a post-action state that a fresh
+            # file:// rendering cannot reproduce. List every copied image,
+            # including images without a corresponding HTML filename.
+            for asset in sorted(proto.rglob("*")):
+                if asset.is_file() and asset.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:
+                    refs.append(f"/presentation/round-{round_no:02d}/{asset.relative_to(proto).as_posix()}")
             for html in sorted(proto.rglob("*.html")):
-                _take_html(html)
+                out = dest / html.relative_to(proto)
+                refs.append(f"/presentation/round-{round_no:02d}/{out.relative_to(dest).as_posix()}")
+                png = out.with_suffix(".png")
+                # A prototype may already use that PNG name as an image asset.
+                while png.exists():
+                    png = png.with_name(png.stem + ".preview.png")
+                if render_html(out, png):
+                    refs.append(f"/presentation/round-{round_no:02d}/{png.relative_to(dest).as_posix()}")
     elif method == "sdd":
         specs = ws / "specs"
         if specs.exists():
@@ -142,15 +116,13 @@ def curate(method: str, round_no: int) -> list[str]:
                 out = dest / str(rel).replace(os.sep, "__")
                 out.write_text(md.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
                 refs.append(f"/presentation/round-{round_no:02d}/{out.name}")
-    else:  # vibe
-        for html in sorted(ws.glob("*.html")) + sorted(ws.glob("**/index.html")):
-            _take_html(html)
-            break  # the app entry point is enough
-
+    # Runnable implementations use HTTP even when their entry point is HTML.
+    # With no declared endpoint (e.g. early clarification), no live UI is claimed.
+    refs.extend(app_presentation.present(ws, dest, round_no))
     return refs
 
 
-def director_prompt(maker_text: str, refs: list[str], round_no: int) -> str:
+def director_prompt(maker_text: str, refs: list[str], round_no: int, provider: str = "claude") -> str:
     listing = "\n".join(f"  - {r}" for r in refs) or "  (no artifacts presented this round)"
     return (
         f"# Round {round_no}\n\n"
@@ -158,14 +130,26 @@ def director_prompt(maker_text: str, refs: list[str], round_no: int) -> str:
         f"<<<MAKER\n{maker_text}\nMAKER\n\n"
         "Artifacts the maker presented this round (read them if useful):\n"
         f"{listing}\n\n"
+        "Any HTTP URL in this list is the running app address reachable from "
+        "your container. screen.txt is the visible text captured with screen.png; "
+        "it does not demonstrate interactions beyond that captured screen.\n\n"
+        "Maker paths under /work/prototypes/ refer to the copied files at "
+        f"/presentation/round-{round_no:02d}/ with the same relative path. "
+        "The Maker's /work is not your /work. Maker-supplied images may show "
+        "a different state from newly rendered HTML previews; use the file "
+        "named in the current guidance and report any mismatch.\n\n"
         "Your ground truth is /oracle/reference-spec.md. Follow the engagement "
-        "policy in ./CLAUDE.md.\n\n"
-        "Reply with ONLY the client's next utterance — the natural-language message "
-        "the client says back to the maker. Do not describe your reasoning."
+        f"policy in ./{harness.policy_filename(provider)}.\n\n"
+        + ("Reply with the client's next utterance. Do not describe your reasoning. "
+           "Only when accepting the complete implemented application, append "
+           "<FINAL_ACCEPTED> on its own final line. Never append it to approval of "
+           "a specification, plan, prototype or individual feature. The tag is "
+           "control metadata, not dialogue." if termination.enabled(harness.SESSION)
+           else "Reply with ONLY the client's next utterance. Do not describe your reasoning.")
     )
 
 
-def _maker_converged() -> bool:
+def _maker_converged(provider: str = "claude") -> bool:
     """Convergence is owned by the maker's cycle, not the director: the session
     ends when the maker has delivered an implementation and marked its own cycle
     complete (Phase 4 accepted / idle). Detected from the maker's workspace —
@@ -174,7 +158,7 @@ def _maker_converged() -> bool:
     ws = harness.MAKER_WS
     if not (ws / "implementation").exists():
         return False
-    claude_md = ws / "CLAUDE.md"
+    claude_md = ws / harness.policy_filename(provider)
     if not claude_md.exists():
         return False
     done = ("idle", "waiting", "complete", "done", "accepted", "완료", "대기")
@@ -197,6 +181,8 @@ def _workspace_sig() -> tuple:
     out = []
     for root, dirs, files in os.walk(ws):
         dirs[:] = [d for d in dirs if d not in skip]
+        if os.path.relpath(root, ws) == '.harness':
+            dirs[:] = [d for d in dirs if d != 'runtime']
         for f in files:
             fp = os.path.join(root, f)
             try:
@@ -211,10 +197,17 @@ def _workspace_sig() -> tuple:
 # --------------------------------------------------------------------------- #
 def _summarize(log: list[dict], cid: str, run_no: int, t0: datetime, t1: datetime,
                term: str | None, max_rounds: int) -> dict:
-    """Per-condition consumption summary. Tokens are the reliable quota-burn proxy
-    (additive, per-call); cost_usd is summed best-effort. Remaining subscription
-    quota is NOT queryable headless — map these timestamps to your observed %."""
+    """Observed consumption, including recorded failed attempts and child threads.
+
+    CLI usage is not subscription billing. Unknown usage is explicitly marked.
+    """
+    attempts = {}
+    for role, container in (('maker', harness.MAKER), ('client', harness.DIRECTOR)):
+        attempts[role] = [json.loads(p.read_text()) for p in
+                         (harness.SESSION / 'calls' / container / 'attempts').glob('*.json')]
     def tok(role: str, k: str) -> int:
+        if attempts[role]:
+            return sum(e.get('accounting', {}).get('usage', {}).get(k, 0) for e in attempts[role])
         return sum((e.get("usage") or {}).get(k, 0) for e in log if e.get("role") == role)
 
     def cost(role: str) -> float:
@@ -225,7 +218,12 @@ def _summarize(log: list[dict], cid: str, run_no: int, t0: datetime, t1: datetim
                 "input_tokens": tok(role, "input_tokens"),
                 "cache_read_tokens": tok(role, "cache_read_input_tokens"),
                 "cache_creation_tokens": tok(role, "cache_creation_input_tokens"),
-                "cost_usd_sum": cost(role)}
+                "cost_usd_sum": cost(role),
+                "usage_complete": (all(e.get('accounting', {}).get('complete', False)
+                                       for e in attempts[role]) if attempts[role] else None),
+                "usage_issues": sorted({issue for e in attempts[role]
+                                        for issue in e.get('accounting', {}).get('issues', [])}),
+                "failed_attempts": sum(e.get('outcome') != 'completed' for e in attempts[role])}
 
     rounds = max((e["round"] for e in log), default=0)
     return {
@@ -234,63 +232,227 @@ def _summarize(log: list[dict], cid: str, run_no: int, t0: datetime, t1: datetim
         "started_at": t0.isoformat(timespec="seconds"),
         "ended_at": t1.isoformat(timespec="seconds"),
         "wall_seconds": int((t1 - t0).total_seconds()),
+        "operation_timing": measurement.summarize(harness.SESSION / 'timing'),
+        "usage_scope": "all recorded attempts; main and observed child/auxiliary models; no dialogue-tail exclusion",
         "maker": block("maker"), "client": block("client"),
         "total_output_tokens": tok("maker", "output_tokens") + tok("client", "output_tokens"),
         "total_cost_usd_sum": round(cost("maker") + cost("client"), 4),
     }
 
 
-def run_session(cid: str, method: str, run_no: int, max_rounds: int) -> dict:
-    log: list[dict] = []
+def run_session(cid: str, method: str, run_no: int, max_rounds: int,
+                maker: llm.Model, director: llm.Model, resume: dict | None = None,
+                continue_capped: bool = False, continue_failed: dict | None = None,
+                presentation_authorization: str | None = None,
+                continue_director: dict | None = None) -> dict:
+    presentation_retry.limits()  # Validate before starting a model call.
     log_path = harness.SESSION / "broker-log.json"
+    explicit_acceptance = termination.enabled(harness.SESSION)
+    if continue_director:
+        saved = json.loads(log_path.read_text())
+        if (resume or continue_capped or continue_failed or presentation_authorization
+                or not explicit_acceptance or presentation_retry.checkpoint_path().exists()
+                or continue_director.get('authorization') != 'explicit_user_request'
+                or continue_director.get('log_sha256') != hashlib.sha256(log_path.read_bytes()).hexdigest()
+                or (continue_director.get('condition'), continue_director.get('method'),
+                    continue_director.get('run'), continue_director.get('max_rounds')) != (cid, method, run_no, max_rounds)
+                or len(saved) < 2 or saved[-1].get('role') != 'maker'
+                or saved[-1].get('round') != continue_director.get('round')
+                or saved[-1].get('session_id') != continue_director.get('maker_session')
+                or saved[-2].get('role') != 'client'
+                or saved[-2].get('round') != continue_director['round'] - 1
+                or saved[-2].get('session_id') != continue_director.get('director_session')
+                or 'presentation_error' in saved[-1]
+                or not isinstance(saved[-1].get('artifacts'), list)
+                or json.loads((harness.SESSION / 'models.json').read_text()) !=
+                   {'maker': maker.metadata(), 'director': director.metadata()}):
+            raise RuntimeError('Manual Director continuation requires unchanged dialogue, models and role sessions')
+        resume = continue_director
+    if presentation_authorization is not None:
+        if (presentation_authorization != 'explicit_user_request' or not resume
+                or resume != presentation_retry.load_checkpoint()
+                or resume.get('state') != 'paused'
+                or (resume.get('condition'), resume.get('method'), resume.get('run'), resume.get('max_rounds'))
+                   != (cid, method, run_no, max_rounds)
+                or resume.get('maker') != maker.metadata()
+                or resume.get('director') != director.metadata()
+                or json.loads((harness.SESSION / 'models.json').read_text()) !=
+                   {'maker': maker.metadata(), 'director': director.metadata()}):
+            raise RuntimeError('Manual presentation continuation requires an intact checkpoint and unchanged models')
+        saved = json.loads(log_path.read_text())
+        if (len(saved) < 2 or saved[-1].get('role') != 'maker'
+                or saved[-1].get('round') != resume['round']
+                or saved[-1].get('session_id') != resume['maker_session']
+                or saved[-2].get('role') != 'client'
+                or saved[-2].get('round') != resume['round'] - 1
+                or saved[-2].get('session_id') != resume['director_session']):
+            raise RuntimeError('Manual presentation continuation requires the saved role sessions')
+    if resume and termination.stop_on_interruption(harness.SESSION) and presentation_authorization is None and not continue_director:
+        raise RuntimeError('Interrupted trial cannot resume; preserve it and use a separate trial for any rerun')
+    if resume is None and presentation_retry.checkpoint_path().exists():
+        raise presentation_retry.PresentationPaused("Unfinished presentation exists; inspect the interruption policy before continuing")
+    if resume and continue_capped:
+        raise RuntimeError('A cap extension cannot replay an interrupted presentation')
+    if continue_failed and (resume or continue_capped):
+        raise RuntimeError('Manual call continuation cannot be combined with another resume mode')
+    log: list[dict] = json.loads(log_path.read_text()) if resume or continue_capped or continue_failed else []
+    extension = None
+    if continue_failed:
+        if (not explicit_acceptance or len(log) < 3 or
+                [(e['round'], e['role']) for e in log[-2:]] !=
+                [(continue_failed['previous_rounds'], 'maker'), (continue_failed['previous_rounds'], 'client')] or
+                log[-2].get('session_id') != continue_failed['maker_session'] or
+                log[-1].get('session_id') != continue_failed['director_session'] or
+                log[-1]['content'] != continue_failed['prompt_to_maker'] or
+                continue_failed['previous_rounds'] >= max_rounds or
+                continue_failed.get('authorization') != 'explicit_user_request' or
+                json.loads((harness.SESSION / 'models.json').read_text()) !=
+                {'maker': maker.metadata(), 'director': director.metadata()}):
+            raise RuntimeError('Manual continuation requires intact sessions and unchanged models')
+        extension = continue_failed
+    if continue_capped:
+        prior = json.loads((harness.SESSION / 'usage-summary.json').read_text())
+        models = json.loads((harness.SESSION / 'models.json').read_text())
+        if (not explicit_acceptance or prior.get('terminated') is not None or
+                not prior.get('hit_max_rounds') or prior.get('condition') != cid or
+                prior.get('run') != run_no or max_rounds <= prior['rounds'] or
+                models != {'maker': maker.metadata(), 'director': director.metadata()} or
+                len(log) < 3 or [(e['round'], e['role']) for e in log[-2:]] !=
+                [(prior['rounds'], 'maker'), (prior['rounds'], 'client')] or
+                not all(e.get('session_id') for e in log[-2:])):
+            raise RuntimeError('Cap extension requires an intact capped dialogue and unchanged models')
+        history = harness.SESSION / 'cap-extensions.jsonl'
+        if history.exists() and any(json.loads(line)['previous_rounds'] == prior['rounds']
+                                    for line in history.read_text().splitlines()):
+            raise RuntimeError('This cap extension was already attempted; do not replay a failed call')
+        extension = {'previous_rounds': prior['rounds'], 'max_rounds': max_rounds,
+                     'paused_at': prior['ended_at'], 'resumed_at': datetime.now().isoformat(),
+                     'maker_session': log[-2]['session_id'], 'director_session': log[-1]['session_id'],
+                     'started_at': prior['started_at'], 'prompt_to_maker': log[-1]['content']}
+        with history.open('a') as stream:
+            stream.write(json.dumps({k: v for k, v in extension.items() if k != 'prompt_to_maker'}) + '\n')
+    if resume and not continue_director:
+        resumed_at = datetime.now()
+        event = {"round": resume["round"], "resumed_at": resumed_at.isoformat(),
+                 "paused_at": resume.get("paused_at")}
+        if presentation_authorization:
+            event['authorization'] = presentation_authorization
+        if resume.get("paused_at"):
+            event["pause_seconds"] = (resumed_at - datetime.fromisoformat(resume["paused_at"])).total_seconds()
+        with (harness.SESSION / "presentation-resumes.jsonl").open("a") as stream:
+            stream.write(json.dumps(event) + "\n")
 
     def _persist() -> None:
         log_path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    t0 = datetime.now()
+    t0 = (datetime.fromisoformat((resume or extension)['started_at'])
+          if resume or extension else datetime.now())
     initial = harness.initial_prompt()
-    log.append({"round": 0, "role": "system", "content": initial, "chars": len(initial)})
-    _persist()
-
-    msid = dsid = None
-    prompt_to_maker = initial
-    term = None
-    last_sig, unchanged = None, 0
-
-    for rnd in range(1, max_rounds + 1):
-        m = _claude(harness.MAKER, prompt_to_maker, msid)
-        msid = m.get("session_id")
-        maker_text = _text(m)
-        refs = curate(method, rnd)
-        log.append({"round": rnd, "role": "maker", "content": maker_text,
-                    "chars": len(maker_text), "usage": _usage(m),
-                    "cost_usd": m.get("total_cost_usd"),
-                    "session_id": msid, "artifacts": refs})
+    if not resume and not extension:
+        log.append({"round": 0, "role": "system", "content": initial, "chars": len(initial)})
         _persist()
 
-        # Termination is owned by the process, not a client declaration:
-        #  - COSPEC: maker cycle reaches acceptance/idle (phase-state signal)
-        #  - any method: workspace produces nothing new for STALL_ROUNDS rounds
+    msid = (resume or extension)["maker_session"] if resume or extension else None
+    dsid = (resume or extension)["director_session"] if resume or extension else None
+    prompt_to_maker = extension['prompt_to_maker'] if extension else initial
+    term = None
+    last_sig = (tuple(tuple(x) for x in resume["last_sig"])
+                if resume and resume["last_sig"] is not None else None)
+    unchanged = resume["unchanged"] if resume else 0
+    start_round = resume["round"] if resume else extension['previous_rounds'] + 1 if extension else 1
+
+    for rnd in range(start_round, max_rounds + 1):
+        if resume and rnd == start_round:
+            if log[-1]["role"] != "maker" or log[-1]["round"] != rnd:
+                raise RuntimeError("Checkpoint is not at the saved Maker presentation")
+            maker_text = log[-1]["content"]
+        else:
+            with measurement.span(harness.SESSION / 'timing', 'maker_turn', round=rnd,
+                                  method=method, phase_before=measurement.phase(harness.MAKER_WS)) as timing:
+                m = _ask(harness.MAKER, maker, prompt_to_maker, msid)
+                timing['phase_after'] = measurement.phase(harness.MAKER_WS)
+            msid = m.get("session_id")
+            maker_text = _text(m)
+            log.append({"round": rnd, "role": "maker", "content": maker_text,
+                        "chars": len(maker_text), "usage": _usage(m),
+                        "cost_usd": m.get("total_cost_usd"),
+                        "timing": m.get('timing'), "accounting": m.get('accounting'),
+                        "session_id": msid, "artifacts": []})
+            _persist()
+        if continue_director and rnd == start_round:
+            # Reuse the exact delivered references; do not recapture or replay Maker.
+            refs = log[-1]['artifacts']
+            review_issue = log[-1].get('presentation_review_issue', False)
+            recovered = log[-1].get('presentation_recovered', False)
+        else:
+            checkpoint = {"condition": cid, "method": method, "run": run_no, "round": rnd,
+                          "max_rounds": max_rounds, "started_at": t0.isoformat(),
+                          "maker": maker.metadata(), "director": director.metadata(),
+                          "maker_session": msid, "director_session": dsid,
+                          "last_sig": last_sig, "unchanged": unchanged, "state": "presenting"}
+            presentation_retry.save_checkpoint(checkpoint)
+            try:
+                with measurement.span(harness.SESSION / 'timing', 'presentation', round=rnd, method=method):
+                    refs = presentation_retry.present_with_retry(curate, method, rnd)
+            except presentation_retry.PresentationPaused as exc:
+                log[-1]["presentation_error"] = {"kind": "environment_error", "message": str(exc)}
+                _persist()
+                checkpoint["state"] = "paused"
+                checkpoint["paused_at"] = datetime.now().isoformat()
+                presentation_retry.save_checkpoint(checkpoint)
+                raise
+            log[-1].pop("presentation_error", None)
+            log[-1]["artifacts"] = refs
+            review_issue = app_presentation.has_review_issue(harness.PRESENTATION / f"round-{rnd:02d}")
+            log[-1]["presentation_review_issue"] = review_issue
+            recovered = presentation_retry.was_retried(rnd)
+            log[-1]["presentation_recovered"] = recovered
+            _persist()
+            presentation_retry.checkpoint_path().unlink()
+
+        # Phase-state and unchanged-work success apply only to legacy sessions.
+        # New trials wait for the Director's final-acceptance signal.
         sig = _workspace_sig()
         unchanged = unchanged + 1 if sig == last_sig else 0
         last_sig = sig
-        if _maker_converged():
+        if not explicit_acceptance and not review_issue and not recovered and _maker_converged(maker.provider):
             term = "converged"
             print(f"    round {rnd}: maker {len(maker_text)}c  [converged]")
             break
-        if unchanged >= STALL_ROUNDS:
+        if not explicit_acceptance and not review_issue and not recovered and unchanged >= STALL_ROUNDS:
             term = "settled"
             print(f"    round {rnd}: maker {len(maker_text)}c  [settled - no new output x{STALL_ROUNDS}]")
             break
 
-        d = _claude(harness.DIRECTOR, director_prompt(maker_text, refs, rnd), dsid)
+        with measurement.span(harness.SESSION / 'timing', 'director_turn', round=rnd,
+                              method=method, phase_before=measurement.phase(harness.MAKER_WS)):
+            d = _ask(harness.DIRECTOR, director,
+                     director_prompt(maker_text, refs, rnd, director.provider), dsid)
         dsid = d.get("session_id")
-        client_text = _text(d)              # relayed verbatim (no client-side stop signal)
+        raw_client_text = _text(d)
+        client_text, accepted = (termination.split_response(raw_client_text)
+                                 if explicit_acceptance else (raw_client_text, False))
         log.append({"round": rnd, "role": "client", "content": client_text,
                     "relayed": client_text, "chars": len(client_text), "usage": _usage(d),
-                    "cost_usd": d.get("total_cost_usd"), "session_id": dsid})
+                    "cost_usd": d.get("total_cost_usd"), "session_id": dsid,
+                    "timing": d.get('timing'), "accounting": d.get('accounting'),
+                    "raw_content": raw_client_text,
+                    "control": {"final_accepted": accepted}})
         _persist()
 
+        if accepted:
+            status_file = harness.PRESENTATION / f'round-{rnd:02d}/_running-app/status.json'
+            status = json.loads(status_file.read_text()) if status_file.exists() else {}
+            if status.get('artifact_kind') != 'application':
+                log[-1]['control']['invalid_reason'] = 'final_implementation_not_presented'
+                _persist()
+            else:
+                term = 'accepted'
+                (harness.SESSION / 'final-acceptance.json').write_text(json.dumps({
+                    'round': rnd, 'client_accepted': True,
+                    'outcome': term, 'scope': 'client acceptance, not reference coverage'}, indent=2))
+                print(f'    round {rnd}: Director final acceptance [{term}]', flush=True)
+                break
         print(f"    round {rnd}: maker {len(maker_text)}c -> client {len(client_text)}c")
         prompt_to_maker = client_text       # verbatim relay
     else:
@@ -312,7 +474,7 @@ def run_session(cid: str, method: str, run_no: int, max_rounds: int) -> dict:
 # --------------------------------------------------------------------------- #
 # run-plan expansion
 # --------------------------------------------------------------------------- #
-def expand_plan(plan: dict) -> list[str]:
+def expand_plan(plan: dict, models: dict | None = None) -> list[str]:
     order = plan.get("order", "interleaved")
     if order == "sequence":
         seq = list(plan["sequence"])
@@ -322,7 +484,7 @@ def expand_plan(plan: dict) -> list[str]:
         seq = [c for _ in range(plan["repeat"]) for c in plan["conditions"]]
 
     if plan.get("resume"):
-        skip = {c: harness.existing_run_count(c) for c in Counter(seq)}
+        skip = {c: harness.existing_run_count(c, models) for c in Counter(seq)}
         remaining = []
         for c in seq:
             if skip.get(c, 0) > 0:
@@ -337,16 +499,40 @@ def expand_plan(plan: dict) -> list[str]:
 
 
 def _teardown_safe() -> None:
+    if presentation_retry.checkpoint_path().exists():
+        return  # Keep the running app, role sessions and working files for repair.
     if (harness.SESSION / "context.md").exists():
         harness.teardown()
 
 
-def run_one(cid: str, max_rounds: int) -> None:
+def run_one(cid: str, max_rounds: int, maker: llm.Model, director: llm.Model) -> None:
     method = harness.condition_spec(cid)["method"]
     try:
-        run_no = harness.setup(cid)
+        run_no = harness.setup(cid, maker, director)
         print(f"  == {cid} run-{run_no:02d} ==")
-        run_session(cid, method, run_no, max_rounds)
+        run_session(cid, method, run_no, max_rounds, maker, director)
+    finally:
+        _teardown_safe()
+
+
+def resume_session() -> dict:
+    if termination.stop_on_interruption(harness.SESSION):
+        raise RuntimeError('Interrupted trial cannot resume; preserve it and use a separate trial for any rerun')
+    state = presentation_retry.load_checkpoint()
+    maker = llm.select("maker", state["maker"]["provider"])
+    director = llm.select("director", state["director"]["provider"])
+    if maker.metadata() != state["maker"] or director.metadata() != state["director"]:
+        raise RuntimeError("Model configuration changed; restore the saved configuration before resuming")
+    image_id = (harness.SESSION / "image-id.txt").read_text().strip()
+    for role, workspace in ((harness.MAKER, harness.MAKER_WS), (harness.DIRECTOR, harness.DIRECTOR_WS)):
+        info = json.loads(subprocess.check_output(["docker", "inspect", role], text=True))[0]
+        mounts = {m["Destination"]: m["Source"] for m in info["Mounts"]}
+        if (not info["State"]["Running"] or info["Image"] != image_id or
+                mounts.get("/work") != str(workspace.resolve())):
+            raise RuntimeError(f"{role}: saved running container/workspace is required for resume")
+    try:
+        return run_session(state["condition"], state["method"], state["run"],
+                           state["max_rounds"], maker, director, resume=state)
     finally:
         _teardown_safe()
 
@@ -359,27 +545,47 @@ def main() -> None:
     ap.add_argument("cid", nargs="?", help="run a single condition ad-hoc (else use run-plan.yaml)")
     ap.add_argument("--trials", type=int, help="repeat count for the single-condition mode")
     ap.add_argument("--max-rounds", type=int, help="override run-plan max_rounds")
+    ap.add_argument("--maker", choices=["claude", "codex"])
+    ap.add_argument("--director", choices=["claude", "codex"])
+    ap.add_argument("--dry-run", action="store_true", help="show the selected pair and schedule without running")
+    ap.add_argument("--resume-session", action="store_true", help="resume a paused presentation in the same round")
     args = ap.parse_args()
+    if args.resume_session:
+        if args.cid or args.trials or args.max_rounds or args.maker or args.director or args.dry_run:
+            ap.error("--resume-session uses saved settings and cannot be combined with other options")
+        try:
+            resume_session()
+        except presentation_retry.PresentationPaused as exc:
+            print(f"[broker] {exc}", flush=True)
+        return
+    maker, director = llm.select("maker", args.maker), llm.select("director", args.director)
+    models = {"maker": maker.metadata(), "director": director.metadata()}
 
     plan = yaml.safe_load((harness.CONFIG / "run-plan.yaml").read_text(encoding="utf-8"))["run_plan"]
-    max_rounds = args.max_rounds or plan.get("max_rounds", 40)
+    max_rounds = args.max_rounds or plan.get("max_rounds", 80)
     keep_going = plan.get("keep_going", True)
 
     if args.cid:
         seq = [args.cid] * (args.trials or 1)
     else:
-        seq = expand_plan(plan)
+        seq = expand_plan(plan, models)
 
     if not seq:
         print("[broker] nothing to run (resume: all targets already met?)")
         return
 
     print(f"[broker] schedule ({len(seq)} runs): {', '.join(seq)}")
+    print(f"[broker] models: {json.dumps(models)}")
+    if args.dry_run:
+        return
     for i, cid in enumerate(seq, 1):
         print(f"[broker] {i}/{len(seq)} -> {cid}")
         try:
-            run_one(cid, max_rounds)
+            run_one(cid, max_rounds, maker, director)
         except Exception as e:            # noqa: BLE001 - batch resilience
+            if presentation_retry.checkpoint_path().exists():
+                print(f"[broker] batch paused ({cid}): {e}", flush=True)
+                return
             print(f"[broker] run failed ({cid}): {e}")
             if not keep_going:
                 raise

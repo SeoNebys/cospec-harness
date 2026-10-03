@@ -11,9 +11,12 @@ When presenting a scenario to the client, use a **working prototype** by
 default, not a textual description. Fall back to text only when a prototype
 cannot express it, and record the reason in the session log.
 
-A prototype is not the implementation; it **simulates the external behaviour**
-of the software. A Phase 1 prototype is an exploration tool and may be discarded
-after the scenario is refined.
+A prototype **simulates the external behaviour** of the software for exploration.
+Keep its code in `prototypes/`, separate from the production implementation.
+Do not reference, copy, adapt, or reuse Phase 1 prototype code as a basis for
+Phase 2 implementation. Carry approved behaviour forward through the approved
+scenarios' GWT specifications. This restriction does not require deleting the
+prototype artifacts retained for review or traceability.
 
 ---
 

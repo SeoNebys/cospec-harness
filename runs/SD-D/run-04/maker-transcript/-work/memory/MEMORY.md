@@ -1,1 +1,0 @@
-- [Bookmark Manager e2e pending](bookmark-manager-e2e-pending.md) — e2e suite written but not yet run green; must pass before sign-off

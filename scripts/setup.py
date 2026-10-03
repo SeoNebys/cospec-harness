@@ -7,14 +7,17 @@ Usage:
 import argparse
 
 import harness
+import llm
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("cid", choices=list(harness.load_conditions()))
+    ap.add_argument("--maker", choices=["claude", "codex"])
+    ap.add_argument("--director", choices=["claude", "codex"])
     args = ap.parse_args()
-    harness.setup(args.cid)
-    print("[setup] next: python scripts/broker.py <ID>  (or drive containers manually)")
+    harness.setup(args.cid, llm.select("maker", args.maker), llm.select("director", args.director))
+    print("[setup] containers ready for manual calls through harness.run_llm; broker.py starts a fresh run")
     print("[setup] end:  python scripts/teardown.py")
 
 

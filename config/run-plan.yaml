@@ -1,5 +1,38 @@
-# Execution SCHEDULE — what to run, in which order, how many times.
-# The broker expands this into an ordered list of condition executions.
+# Frozen research schedule: 30 distinct combinations per block, five blocks.
+# Paths are relative to the experiment repository root.
+# The CSV is the authoritative execution order; do not reshuffle on restart.
+# Generation: enumerate pairs, then efforts, then conditions in the order below.
+# Initialize random.Random(seed) once. For each block, make a fresh copy of the
+# 30 combinations and call shuffle with that same generator, without reseeding.
+# Assign order=1..150 and trial_id=trial-001..trial-150 after shuffling.
+trial_schedule:
+  path: config/trial-schedule.csv
+  seed: 42
+  randomization: within_block
+  generator: python.random.Random.shuffle
+  blocks: 5
+  trials_per_block: 30
+  total_trials: 150
+  model_pairs:
+    - {maker: claude, director: codex}
+    - {maker: codex, director: claude}
+  maker_efforts: [low, medium, high]
+  director_effort: medium
+  conditions: [VC, SD-S, SD-D, CO-S, CO-D]
+
+# Start thresholds are operating margins, not estimates of a complete trial's
+# cost. Check all returned relevant windows and require the windows listed below.
+# Unavailable/stale readings block new work. No paid-usage fallback is enabled.
+quota_check:
+  minimum_remaining_percent: {maker: 20, director: 10, judge: 5}
+  max_age_seconds: 120
+  required_window_minutes:
+    claude: [300, 10080]
+    codex: [10080]
+
+# Condition-only Broker settings. Research runs use run_matrix.py --block N,
+# which reads the frozen CSV and uses max_rounds below. The remaining settings
+# apply only to the condition-only Broker entry point.
 #
 # order:
 #   interleaved -> one cycle = one run of each listed condition, repeated `repeat` times
@@ -27,5 +60,5 @@ run_plan:
   seed: 42
 
   # Session safety valves
-  max_rounds: 40
+  max_rounds: 80
   keep_going: true       # continue the batch even if one run errors

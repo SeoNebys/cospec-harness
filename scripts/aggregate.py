@@ -6,7 +6,7 @@ and outcome metrics reported in the comparison chapter:
 
   utterances  - client (natural-language) turns
   input_chars - cumulative chars the client sent (relayed content)
-  throughput  - cumulative chars presented to the client (maker content)
+  throughput  - cumulative maker-message chars plus presented SDD document chars
   chunk       - per-turn content presented to the client (median / max)
   coverage    - present + 0.5*partial, split core / extended (from judgment.json)
 
@@ -26,6 +26,7 @@ from pathlib import Path
 
 import harness
 import yaml
+from co_construction import has_response_classes, summarise
 
 # Stall-terminated runs (VC/SDD) end with this many device-confirmation rounds —
 # the guard requires STALL_ROUNDS consecutive no-artifact-change rounds to declare
@@ -45,29 +46,32 @@ def _cov(judgment: dict, key: str) -> float | None:
     return round(100 * score / len(vals))
 
 
-def _doc_increments(run: Path) -> dict:
-    """Per-round newly-presented spec-document chars (cumulative snapshots -> deltas)."""
-    prev, inc = 0, {}
+def _doc_chars(run: Path) -> dict:
+    """Full Unicode character counts of each round's presented SDD documents.
+
+    Broker copies specification and planning Markdown into presentation/round-*.
+    Count each snapshot in full, including unchanged or shortened re-presentations;
+    prototype HTML, images, and implementation files are outside this measure.
+    """
+    counts = {}
     pres = run / "presentation"
     if not pres.exists():
-        return inc
+        return counts
     for rd in sorted(pres.glob("round-*")):
         try:
             n = int(rd.name.split("-")[1])
         except (IndexError, ValueError):
             continue
-        tot = sum(f.stat().st_size for f in rd.glob("*.md"))
-        inc[n] = max(0, tot - prev)
-        prev = max(prev, tot)
-    return inc
+        counts[n] = sum(len(f.read_text(encoding="utf-8")) for f in rd.glob("*.md"))
+    return counts
 
 
-def _is_diligent_sdd(run: Path) -> bool:
+def _is_sdd(run: Path) -> bool:
     mf = run / "meta.json"
     if not mf.exists():
         return False
     m = json.loads(mf.read_text(encoding="utf-8"))
-    return m.get("method") == "sdd" and m.get("engagement") == "diligent"
+    return m.get("method") == "sdd"
 
 
 def _effective_cut(run: Path, max_round: int) -> int:
@@ -89,12 +93,10 @@ def run_metrics(run: Path) -> dict | None:
     # Exclude the device-confirmation tail (see STALL_ROUNDS) from cost metrics.
     log = [e for e in log if e.get("round", 0) <= _effective_cut(run, max_round)]
     client = [e for e in log if e.get("role") == "client"]
-    # Check load = content the client processes per reaction. For DILIGENT SDD,
-    # add the spec/plan documents reviewed at each gate; prototype/app methods —
-    # and satisficing SDD, which rubber-stamps without reading — count the maker's
-    # guiding utterance only (the prototype/app is experienced, not read).
-    inc = _doc_increments(run) if _is_diligent_sdd(run) else {}
-    chunks = [e["chars"] + inc.get(e["round"], 0) for e in log if e.get("role") == "maker"]
+    # Measure presented text, regardless of whether the client actually read it.
+    # Both SDD engagement policies include each round's full document snapshot.
+    docs = _doc_chars(run) if _is_sdd(run) else {}
+    chunks = [e["chars"] + docs.get(e["round"], 0) for e in log if e.get("role") == "maker"]
     m = {
         "utterances": len(client),
         "input_chars": sum(e["chars"] for e in client),
@@ -102,6 +104,9 @@ def run_metrics(run: Path) -> dict | None:
         "chunk_median": round(statistics.median(chunks)) if chunks else 0,
         "chunk_max": max(chunks) if chunks else 0,
         "core": None, "extended": None, "n_g": None,
+        "n_c": None, "n_a": None, "n_m": None, "accepted_divergences": None,
+        "unexpressed_divergences": None, "unresolved_decisions": None,
+        "capture_rate": None, "judgment_format": None,
     }
     jf = run / "judgment.json"
     if jf.exists():
@@ -110,8 +115,17 @@ def run_metrics(run: Path) -> dict | None:
     nf = run / "ng-judgment.json"
     if nf.exists():
         n = json.loads(nf.read_text(encoding="utf-8"))
-        if not n.get("parse_error") and isinstance(n.get("n_g"), (int, float)):
+        if n.get("parse_error") or n.get("validation_error"):
+            return m
+        if has_response_classes(n):
+            n = summarise(n)
+            for key in ("n_g", "n_c", "n_a", "n_m", "accepted_divergences", "unexpressed_divergences",
+                        "unresolved_decisions", "capture_rate"):
+                m[key] = n[key]
+            m["judgment_format"] = "response-classes"
+        elif isinstance(n.get("n_g"), (int, float)):
             m["n_g"] = n["n_g"]
+            m["judgment_format"] = "catch-flags"
     return m
 
 
@@ -151,7 +165,7 @@ def collect(run_policy: str = "planned") -> dict[str, list[dict]]:
 
 def _avg(rows: list[dict], key: str):
     vals = [r[key] for r in rows if r.get(key) is not None]
-    return round(sum(vals) / len(vals), 1) if vals else "-"
+    return round(sum(vals) / len(vals), 4 if key == "capture_rate" else 1) if vals else "-"
 
 
 def main() -> None:
@@ -166,7 +180,14 @@ def main() -> None:
     args = ap.parse_args()
 
     by_cond = collect(args.run_policy)
+    formats = {row["judgment_format"] for rows in by_cond.values() for row in rows
+               if row.get("judgment_format") is not None}
+    if len(formats) > 1:
+        raise SystemExit("[aggregate] incompatible judgment fields; reassess or analyse separately")
     cols = ["utterances", "input_chars", "throughput", "chunk_median", "chunk_max", "core", "extended", "n_g"]
+    if formats == {"response-classes"}:
+        cols += ["n_c", "n_a", "n_m", "accepted_divergences", "unexpressed_divergences",
+                 "unresolved_decisions", "capture_rate"]
 
     if args.csv:
         with args.csv.open("w", newline="", encoding="utf-8") as fh:

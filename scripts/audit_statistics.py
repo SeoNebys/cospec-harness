@@ -18,6 +18,7 @@ from pathlib import Path
 
 import aggregate
 import harness
+from co_construction import has_response_classes, summarise
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -70,6 +71,30 @@ def _dedupe_decisions(items: list[dict]) -> list[dict]:
 def normalise_ng(run: Path, addendum: dict) -> dict:
     source = run / "ng-judgment.json"
     raw = json.loads(source.read_text(encoding="utf-8"))
+    if has_response_classes(raw):
+        summary = summarise(raw)
+        errors = [f"declared {key}={raw.get(key)}, derived={summary[key]}"
+                  for key in ("n_g", "n_c", "n_a", "n_m", "accepted_divergences",
+                              "unexpressed_divergences", "unresolved_decisions",
+                              "opportunities", "capture_rate")
+                  if raw.get(key) != summary[key]]
+        return {
+            "run": f"{run.parent.name}/{run.name}",
+            "source": str(source.relative_to(harness.ROOT)).replace("\\", "/"),
+            "judgment_format": "response-classes",
+            "miss_schema": "response-classes",
+            "used_separate_miss_detail": False, "used_addendum": False,
+            "declared_n_g": raw.get("n_g"), "declared_misses": raw.get("n_m"),
+            # detailed_misses denotes unexpressed divergences N_m.
+            "detailed_caught": summary["n_g"], "detailed_misses": summary["n_m"],
+            "n_c": summary["n_c"], "n_a": summary["n_a"],
+            "accepted_divergences": summary["accepted_divergences"],
+            "unexpressed_divergences": summary["unexpressed_divergences"],
+            "unresolved_decisions": summary["unresolved_decisions"],
+            "opportunities": summary["opportunities"],
+            "catch_rate": summary["capture_rate"],
+            "status": "error" if errors else "ok", "errors": errors,
+        }
     decisions = list(raw.get("decisions", []))
 
     # A reference-preserving selection counts even when the selected alternative
@@ -118,6 +143,7 @@ def normalise_ng(run: Path, addendum: dict) -> dict:
     opportunities = len(caught) + len(misses)
     return {
         "run": run_key,
+        "judgment_format": "catch-flags",
         "source": str(source.relative_to(harness.ROOT)).replace("\\", "/"),
         "miss_schema": miss_schema,
         "used_separate_miss_detail": bool(separate),
@@ -134,6 +160,8 @@ def normalise_ng(run: Path, addendum: dict) -> dict:
 
 
 def _describe(values: list[float]) -> dict:
+    if not values:
+        return {"n": 0, "mean": None, "sd": None, "min": None, "max": None}
     return {
         "n": len(values),
         "mean": statistics.mean(values),
@@ -168,6 +196,9 @@ def _run_dirs(run_policy: str) -> dict[str, list[Path]]:
 
 def _catch_summary(validations: dict[str, dict], run_policy: str) -> dict[str, dict]:
     result = {}
+    formats = {row["judgment_format"] for row in validations.values()}
+    if len(formats) > 1:
+        raise ValueError("incompatible judgment fields; reassess or analyse separately")
     for cond, runs in _run_dirs(run_policy).items():
         rows = [validations[f"{cond}/{run.name}"] for run in runs]
         caught = sum(row["detailed_caught"] for row in rows)
@@ -181,6 +212,10 @@ def _catch_summary(validations: dict[str, dict], run_policy: str) -> dict[str, d
             "pooled_catch_rate": caught / (caught + misses) if caught + misses else None,
             "run_rate": _describe(rates),
         }
+        if formats == {"response-classes"}:
+            result[cond].update({key: sum(row[key] for row in rows) for key in
+                                 ("n_c", "n_a", "accepted_divergences", "unexpressed_divergences",
+                                  "unresolved_decisions")})
     return result
 
 
@@ -208,6 +243,8 @@ def _co_d_sensitivity() -> dict:
 
 
 def _fmt_stat(stat: dict, digits: int = 1) -> str:
+    if not stat["n"]:
+        return "-"
     return (
         f"{stat['mean']:,.{digits}f} ± {stat['sd']:,.{digits}f} "
         f"[{stat['min']:,.{digits}f}–{stat['max']:,.{digits}f}]"
@@ -263,11 +300,24 @@ def _markdown(
     for cond in CONDITION_ORDER:
         row = catches[cond]
         rate = row["run_rate"]
+        pooled = f"{100 * row['pooled_catch_rate']:.1f}%" if row["pooled_catch_rate"] is not None else "-"
+        run_rate = f"{100 * rate['mean']:.1f}% ± {100 * rate['sd']:.1f}%" if rate["n"] else "-"
         lines.append(
             f"| {cond} | {row['runs']} | {row['caught']} | {row['misses']} | "
-            f"{100 * row['pooled_catch_rate']:.1f}% | "
-            f"{100 * rate['mean']:.1f}% ± {100 * rate['sd']:.1f}% |"
+            f"{pooled} | {run_rate} |"
         )
+    if all(row["judgment_format"] == "response-classes" for row in validations.values()):
+        lines = [line.replace(
+            "`catch rate = N_g / (N_g + satisficing misses)`",
+            "`capture rate = N_g / (N_g + N_m)`; N_g = N_c + N_a counts corrective "
+            "and explicitly accepting responses. N_m counts unexpressed divergences."
+        ).replace("| caught | missed |", "| captured N_g | unexpressed N_m |") for line in lines]
+        lines += ["", "| condition | corrective N_c | accepted N_a | unexpressed N_m | unresolved |",
+                  "|---|---:|---:|---:|---:|"]
+        for cond in CONDITION_ORDER:
+            row = catches[cond]
+            lines.append(f"| {cond} | {row['n_c']} | {row['n_a']} | "
+                         f"{row['unexpressed_divergences']} | {row['unresolved_decisions']} |")
     lines.extend(
         [
             "",

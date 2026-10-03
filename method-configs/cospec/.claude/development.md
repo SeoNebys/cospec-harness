@@ -15,8 +15,16 @@ Phase 2. Design and implement based on the Gherkin specification.
 
 ## Implementation basis
 
-Implement based only on the Gherkin of approved scenarios.
+Use the GWT (Gherkin) of approved scenarios as the basis for functional behaviour.
 Do not arbitrarily add behaviour not included in the Gherkin.
+Do not reference, copy, adapt, or reuse Phase 1 prototype code as a basis for
+Phase 2 implementation. Carry approved behaviour forward through the approved
+scenarios' GWT specifications. Develop the production code in `implementation/`,
+separately from the exploration code in `prototypes/`.
+
+This restriction applies to exploration code, including prototypes made in later
+cycles. Later cycles may modify the existing production implementation according
+to the updated approved GWT; they do not require rebuilding it from scratch.
 
 ---
 
